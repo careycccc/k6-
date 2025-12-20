@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  k6:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: k6-test-runner
+    volumes:
+      - ../reports:/app/reports
+      - ../logs:/app/logs
+      - ../data:/app/data
+      - ./test-scripts:/app/tests
+    environment:
+      - ENVIRONMENT=local
+      - TEST_TYPE=smoke
+      - TEST_USER=admin
+      - TEST_PASSWORD=password
+      - LOG_LEVEL=INFO
+    networks:
+      - test-network
+    command: /app/scripts/run.sh -e local -t smoke tests/api/user.test.js
+
+  # 可选：InfluxDB用于存储指标
+  influxdb:
+    image: influxdb:1.8
+    container_name: k6-influxdb
+    environment:
+      - INFLUXDB_DB=k6
+      - INFLUXDB_USER=k6
+      - INFLUXDB_USER_PASSWORD=k6password
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb-data:/var/lib/influxdb
+    networks:
+      - test-network
+
+  # 可选：Grafana用于可视化
+  grafana:
+    image: grafana/grafana:latest
+    container_name: k6-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - test-network
+    depends_on:
+      - influxdb
+
+  # 可选：测试目标应用（示例）
+  test-api:
+    image: node:14
+    container_name: test-api
+    working_dir: /app
+    volumes:
+      - ../test-api:/app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=test
+      - PORT=3000
+    command: npm start
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge
+
+volumes:
+  influxdb-data:
+  grafana-data:
