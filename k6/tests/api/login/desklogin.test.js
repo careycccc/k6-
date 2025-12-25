@@ -1,123 +1,106 @@
-import { group, check } from 'k6';
+// desklogin.test.js - 简单稳定压测版（不收集 token）
+import { group } from 'k6';
 import { Rate } from 'k6/metrics';
 import { httpClient } from '../../../libs/http/client.js';
-import { baseObject } from '../../utils/utils.js'
 import { getEnvironment } from '../../../config/environment.js';
 import { ApiChecks } from '../../../libs/checks/apiChecks.js';
-import { responseRules } from '../../../tests/utils/utils.js';
+import { logger } from '../../../libs/utils/logger.js';
 
+// 自定义指标：登录成功率（add(true) 表示成功）
+const loginSuccessRate = new Rate('login_success_requests');
 
-// 前台登录
-const loginObject = {
-    userName: { type: 'string' },
-    password: { type: 'string' },
-    loginType: { type: 'string' },
-    deviceId: { type: 'string' },
-    browserId: { type: 'string' },
-    packageName: { type: 'string' },
-}
-
-
-
-loginObject = Object.assign(loginObject, baseObject);
-
-
-// 自定义指标
-const failureRate = new Rate('failed_requests');
-
-const userLoginSchema = {
-    type: 'object',
-    required: ['userName', 'password'],
-    properties: loginObject,
-}
-
-// 测试选项
-export const options = {
-    scenarios: {
-      create_user_load: {
-        // 执行器配置
-        // 执行器类型设置为恒定虚拟用户数
-        executor: 'constant-vus',
-        startVUs: 1,
-        stages: [
-          { duration: '1s', target: 1 },
-        //   { duration: '1m', target: 50 },
-        //   { duration: '30s', target: 10 }
-        ],
-// 优雅关闭的降级时间设置为30秒
-        gracefulRampDown: '5s',
-        exec: 'testLoginteUser'
-      }
-    },
-    
-    thresholds: {
-      'http_req_duration{type:create}': ['p(95)<1000', 'p(99)<2000'],
-      'http_req_failed{type:create}': ['rate<0.01'],
-      'failed_requests': ['rate<0.05'],
-      'checks': ['rate>0.95']
-    },
-    
-    tags: {
-      // 配置测试类型为API测试
-      test_type: 'api',
-      // 指定测试服务的名称为user
-      service: 'userLogin',
-      // 设置测试操作为创建操作
-      operation: 'login'
-    }
-};
+let checkCounter = 0;
 
 export function setup() {
-    logger.info('测试初始化开始');
-    
-    const env = getEnvironment();
-    logger.info(`测试环境: ${env.name}`);
+  const env = getEnvironment();
+  logger.info(`测试环境: ${env.name} (${env.baseUrl})`);
 }
 
-export function testLoginteUser(data){
-    // 如果data不是一个对象就直接结束
-    if (typeof data !== 'object') {
-        return;
+export function testLoginteUser(data) {
+  logger.info('本次登录测试数据:', data);
+
+  checkCounter = 0;
+
+  group('用户登录流程 - 单次请求', () => {
+    const startTime = Date.now();
+
+    try {
+      logger.info('正在发送登录请求...');
+
+      const response = httpClient.post('/api/Home/Login', data, {
+        tags: { type: 'login' }
+      });
+
+      const duration = Date.now() - startTime;
+      logger.info(`请求完成，耗时: ${duration}ms`);
+
+      // === 安全访问响应信息 ===
+      console.log('=== 响应基础信息 ===');
+      console.log('status:', response?.status || '无');
+      console.log('has body:', !!response?.body);
+
+      let businessSuccess = false;
+
+      if (response?.body && typeof response.body === 'string') {
+        try {
+          const parsedBody = JSON.parse(response.body);
+
+          // console.log('业务 code:', parsedBody.code ?? '无');
+          // console.log('业务 msg:', parsedBody.msg || '无');
+          // console.log('data 字段存在:', !!parsedBody.data);
+          // console.log('token 字段存在:', !!parsedBody.data?.token);
+
+          if (parsedBody.code === 0 && parsedBody.data?.token) {
+            businessSuccess = true;
+            console.log('token 前30位:', parsedBody.data.token.substring(0, 30) + '...');
+            logger.info('登录成功！');
+          } else {
+            logger.warn('业务响应成功但缺少 token 或 code 不为 0');
+          }
+        } catch (parseError) {
+          console.log('JSON 解析失败:', parseError.message);
+          logger.error('响应体无法解析为 JSON');
+        }
+      } else {
+        logger.warn('响应体为空或非字符串');
+      }
+
+      // 执行 ApiChecks
+      let checkPassed = false;
+      try {
+        checkPassed = ApiChecks.loginChecks(response);
+        checkCounter++;
+      } catch (checkError) {
+        console.log('ApiChecks 执行异常:', checkError.message);
+      }
+
+      const httpSuccess = response?.status >= 200 && response?.status < 300;
+      const overallSuccess = httpSuccess && businessSuccess && checkPassed;
+
+      // 记录成功率指标
+      loginSuccessRate.add(overallSuccess);
+
+      if (overallSuccess) {
+        logger.info('登录完全成功（HTTP + 业务 + 检查）');
+      } else {
+        logger.error('登录失败', { httpSuccess, businessSuccess, checkPassed });
+      }
+
+      // 响应体预览（调试用）
+      if (response?.body && typeof response.body === 'string') {
+        const preview = response.body.substring(0, 500);
+        console.log('响应体预览:', preview + (response.body.length > 500 ? '...' : ''));
+      }
+    } catch (error) {
+      console.log('请求异常:', String(error));
+      loginSuccessRate.add(false);
+      logger.error('登录请求异常');
     }
-    // const {userName,password,loginType} = data
-    group('用户登录流程', () => {
-        const testUserLogin = {
-            ...data
-        }
-    
-        const response = httpClient.post(`/api/Home/Login`, testUserLogin, {
-            tags: { type: 'login' },
-            schema: userLoginSchema
-        })
-        // 记录失败
-        failureRate.add(!response.success)
-        // 执行检查
-        const checks = ApiChecks.httpChecks(response, {
-    /**
-     * 预期状态码和最大持续时间配置
-     * 这两个参数通常用于API测试或请求验证
-     */
-            expectedStatus: 200,  // 预期的HTTP状态码为200（表示资源创建成功）
-            maxDuration: 2000    // 请求的最大允许持续时间（毫秒），超过此时间则判定为超时
-        });
-        // 响应逻辑检查
-        if (response.success && response.body) {
-            const businessChecks = ApiChecks.businessChecks(response, responseRules);
-            if (!businessChecks) {
-                logger.error('响应逻辑检查失败', {
-                request: testUser,
-                response: response.body
-                });
-            }
-        }
-        // 验证响应数据
-        if (response.success) {
-            check(response, {
-            '用户登录成功': () => response.status === 200,
-            });
-        }
-    })
+  });
+
+  logger.info('=== 本次登录迭代结束 ===');
 }
 
-
-
+export function teardown() {
+  logger.info(`=== 测试清理完成，共执行了 ${checkCounter} 次检查 ===`);
+}

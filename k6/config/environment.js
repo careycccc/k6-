@@ -1,78 +1,57 @@
+// 检查环境变量是否已定义，如果未定义则使用硬编码值
+export const config = {
+  environment: __ENV.ENVIRONMENT || 'local',
+  apiBaseUrl: __ENV.API_BASE_URL || 'https://arplatsaassit1.club', // 默认值
+  apiVersion: __ENV.API_VERSION || '',
+  logLevel: __ENV.LOG_LEVEL || 'info'
+};
+
 /**
- * 环境配置管理
+ * 获取完整的API URL
+ * @param {string} endpoint - API端点
+ * @returns {string} 完整的URL
  */
-export const environments = {
-    local: {
-      baseUrl: 'http://localhost:3000',
-      apiVersion: 'v1',
-      timeout: 30000,
-// 速率限制配置对象
-      rateLimit: {
-  // 允许的最大请求数量
-        requests: 100,
-  // 时间窗口，单位为分钟
-        window: '1m'
-      }
-    },
-    dev: {
-      baseUrl: 'https://dev-api.example.com',
-      apiVersion: 'v1',
-      timeout: 30000,
-      rateLimit: {
-        requests: 1000,
-        window: '1m'
-      }
-    },
-    staging: {
-      baseUrl: 'https://staging-api.example.com',
-      apiVersion: 'v1',
-      timeout: 60000,
-      rateLimit: {
-        requests: 5000,
-        window: '1m'
-      }
-    },
-    production: {
-      baseUrl: 'https://api.example.com',
-      apiVersion: 'v1',
-      timeout: 60000,
-      rateLimit: {
-        requests: 10000,
-        window: '1m'
-      }
-    }
-  };
+export function getApiUrl(endpoint) {
+  // 确保 endpoint 以斜杠开头
+  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   
-  /**
-   * 获取当前环境配置
-   */
-  export function getEnvironment() {
-// 获取环境变量，如果未设置则默认使用 'local'
-    const env = __ENV.ENVIRONMENT || 'local';
-    return {
-      ...environments[env],
-      name: env,
-      isProduction: env === 'production',
-      isDevelopment: env === 'dev' || env === 'local'
-    };
-  }
+  // 构建URL
+  const baseUrl = config.apiBaseUrl;
+  const version = config.apiVersion ? `/${config.apiVersion}` : '';
   
-  /**
-   * 获取API完整路径
-   */
-  export function getApiUrl(endpoint) {
-    const env = getEnvironment();
-// 拼接完整的API URL地址
-// 通过模板字符串将基础URL、API版本和端点路径组合在一起
-// env.baseUrl: 基础URL地址
-// env.apiVersion: API版本号
-// endpoint: 具体的API端点路径
-    return `${env.baseUrl}/${env.apiVersion}${endpoint}`;
-  }
-  
-  export default {
-    environments,
-    getEnvironment,
-    getApiUrl
-  };
-  
+  return `${baseUrl}${version}${path}`;
+}
+
+/**
+ * 获取环境配置
+ */
+export function getEnvironment() {
+  return config.environment;
+}
+
+/**
+ * 获取API基础URL
+ */
+export function getApiBaseUrl() {
+  return config.apiBaseUrl;
+}
+
+/**
+ * 打印当前配置（用于调试）
+ */
+export function printConfig() {
+  console.log('当前环境配置:');
+  console.log('  环境:', config.environment);
+  console.log('  API基础URL:', config.apiBaseUrl);
+  console.log('  API版本:', config.apiVersion);
+  console.log('  日志级别:', config.logLevel);
+}
+
+// 导出默认配置
+export default {
+  config,
+  getApiUrl,
+  getEnvironment,
+  getApiBaseUrl,
+  printConfig
+};
