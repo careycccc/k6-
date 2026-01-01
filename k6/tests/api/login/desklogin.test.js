@@ -1,106 +1,98 @@
-// desklogin.test.js - 简单稳定压测版（不收集 token）
-import { group } from 'k6';
-import { Rate } from 'k6/metrics';
-import { httpClient } from '../../../libs/http/client.js';
-import { getEnvironment } from '../../../config/environment.js';
-import { ApiChecks } from '../../../libs/checks/apiChecks.js';
-import { logger } from '../../../libs/utils/logger.js';
+// import papaparse from 'https://jslib.k6.io/papaparse/5.1.1/index.js';
+// import { SharedArray } from 'k6/data';
+import http from 'k6/http';
+import { testCommonRequest } from '../common/request.js';
+import { generateCryptoRandomString, getTimeRandom } from '../../utils/utils.js';
+import { hanlderThresholds } from '../../../config/thresholds.js';
 
-// 自定义指标：登录成功率（add(true) 表示成功）
-const loginSuccessRate = new Rate('login_success_requests');
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 299 }));
 
-let checkCounter = 0;
+// ============ 高效加载 CSV 用户名（压测必备）============
 
-export function setup() {
-  const env = getEnvironment();
-  logger.info(`测试环境: ${env.name} (${env.baseUrl})`);
-}
+// const userNames = new SharedArray('accounts', function () {
+//   const csvPath = './k6/data/csv/accounts.csv'; // 必要时改为绝对路径，如 'C:/full/path/accounts.csv'
 
-export function testLoginteUser(data) {
-  logger.info('本次登录测试数据:', data);
+//   const content = open(csvPath);
 
-  checkCounter = 0;
+//   if (!content) {
+//     throw new Error(`无法加载文件: ${csvPath}，请检查路径和文件是否存在`);
+//   }
 
-  group('用户登录流程 - 单次请求', () => {
-    const startTime = Date.now();
+//   // 解析CSV，假设有header（username,password）
+//   const parsed = papaparse.parse(content, {
+//     header: false, // 返回对象数组 [{username: '...', password: '...'}]
+//     skipEmptyLines: true // 跳过空行
+//   });
 
-    try {
-      logger.info('正在发送登录请求...');
+//   if (parsed.errors && parsed.errors.length > 0) {
+//     console.error('CSV解析错误:', parsed.errors);
+//   }
 
-      const response = httpClient.post('/api/Home/Login', data, {
-        tags: { type: 'login' }
-      });
+//   return parsed.data; // 返回数组，SharedArray会共享内存
+// });
 
-      const duration = Date.now() - startTime;
-      logger.info(`请求完成，耗时: ${duration}ms`);
+// if (userNames.length === 0) {
+//   throw new Error('accounts.csv 文件为空或加载失败！请检查路径和内容');
+// }
 
-      // === 安全访问响应信息 ===
-      console.log('=== 响应基础信息 ===');
-      console.log('status:', response?.status || '无');
-      console.log('has body:', !!response?.body);
+// console.log(`成功加载 ${userNames.length} 个用户名`);
 
-      let businessSuccess = false;
+const tag = 'desklogin';
 
-      if (response?.body && typeof response.body === 'string') {
-        try {
-          const parsedBody = JSON.parse(response.body);
+// ============ 压测配置（可自由调整）============
+export const options = {
+  // 示例：渐进加压
+  //   executor: 'ramping-vus',
+  //   stages: [
+  //     { duration: '2m', target: 50 }, // 2分钟升到50
+  //     { duration: '5m', target: 50 }, // 新增：稳定在50 VU 运行5分钟（可调整时长）
+  //     { duration: '5m', target: 200 }, // 再用10分钟升到200，并稳定
+  //     { duration: '2m', target: 0 } // 降到0
+  //   ],
 
-          // console.log('业务 code:', parsedBody.code ?? '无');
-          // console.log('业务 msg:', parsedBody.msg || '无');
-          // console.log('data 字段存在:', !!parsedBody.data);
-          // console.log('token 字段存在:', !!parsedBody.data?.token);
+  // 或者简单固定并发
+  vus: 1,
+  duration: '1s',
 
-          if (parsedBody.code === 0 && parsedBody.data?.token) {
-            businessSuccess = true;
-            console.log('token 前30位:', parsedBody.data.token.substring(0, 30) + '...');
-            logger.info('登录成功！');
-          } else {
-            logger.warn('业务响应成功但缺少 token 或 code 不为 0');
-          }
-        } catch (parseError) {
-          console.log('JSON 解析失败:', parseError.message);
-          logger.error('响应体无法解析为 JSON');
-        }
-      } else {
-        logger.warn('响应体为空或非字符串');
-      }
+  thresholds: hanlderThresholds(tag),
 
-      // 执行 ApiChecks
-      let checkPassed = false;
-      try {
-        checkPassed = ApiChecks.loginChecks(response);
-        checkCounter++;
-      } catch (checkError) {
-        console.log('ApiChecks 执行异常:', checkError.message);
-      }
+  // 定义标签对象，用于标识和分类测试数据
+  tags: {
+    // 环境标识，从环境变量中获取，若未设置则默认为'local'
+    environment: __ENV.ENVIRONMENT || 'local',
+    // 测试类型标识，表明这是API测试
+    test_type: 'api',
+    // 服务标识，表明这是用户服务相关的测试
+    service: 'user',
+    // 操作标识，使用传入的tag参数来具体标识测试的操作类型
+    operation: tag
+  },
 
-      const httpSuccess = response?.status >= 200 && response?.status < 300;
-      const overallSuccess = httpSuccess && businessSuccess && checkPassed;
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
+  summaryTimeUnit: 'ms'
+};
 
-      // 记录成功率指标
-      loginSuccessRate.add(overallSuccess);
+// ============ 每个 VU 执行（均匀分配用户名）============
+export function RunDesklogin() {
+  const api = '/api/Home/Login';
+  // 均匀分配用户名（高并发下最公平）
+  //   const index = (__VU - 1 + __ITER) % userNames.length;
+  //   const userName = userNames[index];
+  //   //console.log(`当前用户名：${userName[0]}`);
+  const timeData = getTimeRandom();
 
-      if (overallSuccess) {
-        logger.info('登录完全成功（HTTP + 业务 + 检查）');
-      } else {
-        logger.error('登录失败', { httpSuccess, businessSuccess, checkPassed });
-      }
+  const data = {
+    userName: '911229893359',
+    password: 'qwer1234', // 固定密码
+    loginType: 'Mobile',
+    deviceId: '',
+    browserId: generateCryptoRandomString(32),
+    packageName: '',
+    random: timeData.random,
+    language: timeData.language,
+    signature: '',
+    timestamp: timeData.timestamp
+  };
 
-      // 响应体预览（调试用）
-      if (response?.body && typeof response.body === 'string') {
-        const preview = response.body.substring(0, 500);
-        console.log('响应体预览:', preview + (response.body.length > 500 ? '...' : ''));
-      }
-    } catch (error) {
-      console.log('请求异常:', String(error));
-      loginSuccessRate.add(false);
-      logger.error('登录请求异常');
-    }
-  });
-
-  logger.info('=== 本次登录迭代结束 ===');
-}
-
-export function teardown() {
-  logger.info(`=== 测试清理完成，共执行了 ${checkCounter} 次检查 ===`);
+  testCommonRequest(data, api, tag);
 }

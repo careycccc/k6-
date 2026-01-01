@@ -31,7 +31,7 @@ const rl = readline.createInterface({
 });
 
 // 配置选项
-let config = {
+const config = {
   projectName: 'k6-test-framework',
   baseUrl: 'http://localhost:3000',
   apiVersion: 'v1',
@@ -49,7 +49,7 @@ const directories = [
   'k6/libs/data',
   'k6/libs/utils',
   'k6/libs/checks',
-  
+
   // 测试目录
   'k6/tests/smoke',
   'k6/tests/api/user',
@@ -60,23 +60,23 @@ const directories = [
   'k6/tests/performance/endurance',
   'k6/tests/integration/workflow',
   'k6/tests/integration/third-party',
-  
+
   // 数据目录
   'k6/data/fixtures',
   'k6/data/schemas',
   'k6/data/csv',
-  
+
   // 脚本目录
   'k6/scripts',
-  
+
   // 报告目录
   'reports/html',
   'reports/json',
   'reports/junit',
-  
+
   // 日志目录
   'logs',
-  
+
   // Docker 目录
   'docker'
 ];
@@ -88,19 +88,19 @@ const files = [
   '.eslintrc.js',
   '.prettierrc',
   '.gitignore',
-  
+
   // 项目配置
   'package.json',
   'README.md',
-  
+
   // 主要脚本
   'scripts/run-test.js',
-  
+
   // K6 核心配置文件
   'k6/config/environment.js',
   'k6/config/thresholds.js',
   'k6/config/scenarios.js',
-  
+
   // K6 工具库
   'k6/libs/http/client.js',
   'k6/libs/http/requestBuilder.js',
@@ -115,7 +115,7 @@ const files = [
   'k6/libs/checks/apiChecks.js',
   'k6/libs/checks/businessChecks.js',
   'k6/libs/checks/performanceChecks.js',
-  
+
   // 测试示例文件
   'k6/tests/smoke/health.test.js',
   'k6/tests/smoke/auth.test.js',
@@ -124,13 +124,13 @@ const files = [
   'k6/tests/api/user/user.update.test.js',
   'k6/tests/api/user/user.delete.test.js',
   'k6/tests/performance/load/normal-load.test.js',
-  
+
   // 数据文件
   'k6/data/fixtures/users.json',
   'k6/data/fixtures/products.json',
   'k6/data/schemas/user.schema.json',
   'k6/data/schemas/product.schema.json',
-  
+
   // Docker 文件
   'docker/Dockerfile',
   'docker/docker-compose.yml'
@@ -151,9 +151,9 @@ function showProgress(current, total, message) {
   const barLength = 40;
   const filledLength = Math.round(barLength * (current / total));
   const bar = '█'.repeat(filledLength) + '░'.repeat(barLength - filledLength);
-  
+
   process.stdout.write(`\r${colorize('blue', '[' + bar + ']')} ${percentage}% ${message}`);
-  
+
   if (current === total) {
     process.stdout.write('\n');
   }
@@ -162,10 +162,10 @@ function showProgress(current, total, message) {
 // 创建目录
 function createDirectories() {
   console.log(colorize('cyan', '📁 创建目录结构...'));
-  
+
   directories.forEach((dir, index) => {
     const dirPath = path.join(process.cwd(), dir);
-    
+
     if (!fs.existsSync(dirPath)) {
       fs.mkdirSync(dirPath, { recursive: true });
       showProgress(index + 1, directories.length, `创建目录: ${dir}`);
@@ -173,61 +173,65 @@ function createDirectories() {
       showProgress(index + 1, directories.length, `目录已存在: ${dir}`);
     }
   });
-  
+
   console.log(colorize('green', '✓ 目录结构创建完成\n'));
 }
 
 // 创建文件内容
 function getFileContent(filePath) {
   const fileName = path.basename(filePath);
-  
+
   // 根据文件名返回不同的内容
   switch (fileName) {
     case 'package.json':
-      return JSON.stringify({
-        "name": config.projectName,
-        "version": "1.0.0",
-        "description": "企业级 K6 性能测试与自动化接口测试框架",
-        "main": "index.js",
-        "scripts": {
-          "test:smoke": "node scripts/run-test.js --type smoke",
-          "test:api": "node scripts/run-test.js --type api",
-          "test:load": "node scripts/run-test.js --type load",
-          "test:stress": "node scripts/run-test.js --type stress",
-          "test:endurance": "node scripts/run-test.js --type endurance",
-          "test:all": "npm run test:smoke && npm run test:api && npm run test:load",
-          "lint": "eslint k6/**/*.js",
-          "format": "prettier --write k6/**/*.js scripts/**/*.js",
-          "security:check": "npm audit",
-          "security:fix": "npm audit fix",
-          "clean": "rm -rf reports/* logs/*",
-          "report": "node scripts/generate-report.js",
-          "docker:build": "docker build -t k6-test-framework -f docker/Dockerfile .",
-          "docker:run": "docker-compose -f docker/docker-compose.yml up k6",
-          "precommit": "npm run lint && npm run format"
+      return JSON.stringify(
+        {
+          name: config.projectName,
+          version: '1.0.0',
+          description: '企业级 K6 性能测试与自动化接口测试框架',
+          main: 'index.js',
+          scripts: {
+            'test:smoke': 'node scripts/run-test.js --type smoke',
+            'test:api': 'node scripts/run-test.js --type api',
+            'test:load': 'node scripts/run-test.js --type load',
+            'test:stress': 'node scripts/run-test.js --type stress',
+            'test:endurance': 'node scripts/run-test.js --type endurance',
+            'test:all': 'npm run test:smoke && npm run test:api && npm run test:load',
+            lint: 'eslint k6/**/*.js',
+            format: 'prettier --write k6/**/*.js scripts/**/*.js',
+            'security:check': 'npm audit',
+            'security:fix': 'npm audit fix',
+            clean: 'rm -rf reports/* logs/*',
+            report: 'node scripts/generate-report.js',
+            'docker:build': 'docker build -t k6-test-framework -f docker/Dockerfile .',
+            'docker:run': 'docker-compose -f docker/docker-compose.yml up k6',
+            precommit: 'npm run lint && npm run format'
+          },
+          keywords: ['k6', 'performance', 'testing', 'load-testing', 'api-testing', 'automation'],
+          author: 'K6 Test Team',
+          license: 'MIT',
+          devDependencies: {
+            eslint: '^8.56.0',
+            'eslint-config-prettier': '^9.1.0',
+            'eslint-plugin-import': '^2.29.1',
+            prettier: '^3.2.5',
+            'cross-env': '^7.0.3',
+            dotenv: '^16.3.1',
+            'js-yaml': '^4.1.0',
+            'csv-parse': '^5.5.3',
+            chalk: '^4.1.2',
+            inquirer: '^8.2.6',
+            yargs: '^17.7.2',
+            glob: '^10.3.10'
+          },
+          engines: {
+            node: '>=14.0.0',
+            npm: '>=6.0.0'
+          }
         },
-        "keywords": ["k6", "performance", "testing", "load-testing", "api-testing", "automation"],
-        "author": "K6 Test Team",
-        "license": "MIT",
-        "devDependencies": {
-          "eslint": "^8.56.0",
-          "eslint-config-prettier": "^9.1.0",
-          "eslint-plugin-import": "^2.29.1",
-          "prettier": "^3.2.5",
-          "cross-env": "^7.0.3",
-          "dotenv": "^16.3.1",
-          "js-yaml": "^4.1.0",
-          "csv-parse": "^5.5.3",
-          "chalk": "^4.1.2",
-          "inquirer": "^8.2.6",
-          "yargs": "^17.7.2",
-          "glob": "^10.3.10"
-        },
-        "engines": {
-          "node": ">=14.0.0",
-          "npm": ">=6.0.0"
-        }
-      }, null, 2);
+        null,
+        2
+      );
 
     case '.gitignore':
       return `# 依赖目录
@@ -340,17 +344,21 @@ GENERATE_SUMMARY=true`;
 };`;
 
     case '.prettierrc':
-      return JSON.stringify({
-        "semi": true,
-        "trailingComma": "none",
-        "singleQuote": true,
-        "printWidth": 100,
-        "tabWidth": 2,
-        "useTabs": false,
-        "bracketSpacing": true,
-        "arrowParens": "always",
-        "endOfLine": "lf"
-      }, null, 2);
+      return JSON.stringify(
+        {
+          semi: true,
+          trailingComma: 'none',
+          singleQuote: true,
+          printWidth: 100,
+          tabWidth: 2,
+          useTabs: false,
+          bracketSpacing: true,
+          arrowParens: 'always',
+          endOfLine: 'lf'
+        },
+        null,
+        2
+      );
 
     case 'README.md':
       return `# ${config.projectName}
@@ -1128,16 +1136,16 @@ services:
 // 创建文件
 function createFiles() {
   console.log(colorize('cyan', '📄 创建文件...'));
-  
+
   files.forEach((file, index) => {
     const filePath = path.join(process.cwd(), file);
     const dirPath = path.dirname(filePath);
-    
+
     // 确保目录存在
     if (!fs.existsSync(dirPath)) {
       fs.mkdirSync(dirPath, { recursive: true });
     }
-    
+
     // 如果文件不存在，则创建
     if (!fs.existsSync(filePath)) {
       const content = getFileContent(filePath);
@@ -1147,7 +1155,7 @@ function createFiles() {
       showProgress(index + 1, files.length, `文件已存在: ${file}`);
     }
   });
-  
+
   console.log(colorize('green', '\n✓ 文件创建完成\n'));
 }
 
@@ -1157,9 +1165,9 @@ function installDependencies() {
     console.log(colorize('yellow', '⏭️ 跳过依赖安装'));
     return;
   }
-  
+
   console.log(colorize('cyan', '📦 安装依赖...'));
-  
+
   try {
     // 检查 package.json 是否存在
     const packageJsonPath = path.join(process.cwd(), 'package.json');
@@ -1167,7 +1175,7 @@ function installDependencies() {
       console.log(colorize('red', '❌ package.json 不存在，无法安装依赖'));
       return;
     }
-    
+
     execSync('npm install', { stdio: 'inherit' });
     console.log(colorize('green', '✓ 依赖安装完成\n'));
   } catch (error) {
@@ -1177,39 +1185,43 @@ function installDependencies() {
 
 // 显示完成信息
 function showCompletionMessage() {
-  console.log(colorize('green', '╔══════════════════════════════════════════════════════════════╗'));
+  console.log(
+    colorize('green', '╔══════════════════════════════════════════════════════════════╗')
+  );
   console.log(colorize('green', '║                   初始化完成！🎉                           ║'));
-  console.log(colorize('green', '╚══════════════════════════════════════════════════════════════╝'));
+  console.log(
+    colorize('green', '╚══════════════════════════════════════════════════════════════╝')
+  );
   console.log('');
-  
+
   console.log(colorize('white', '📋 下一步操作：'));
   console.log('');
   console.log(colorize('cyan', '1. 配置环境变量'));
   console.log(colorize('white', '   cp .env.example .env'));
   console.log(colorize('white', '   然后编辑 .env 文件配置您的 API 地址和认证信息'));
   console.log('');
-  
+
   console.log(colorize('cyan', '2. 检查 K6 是否安装'));
   console.log(colorize('white', '   k6 version'));
   console.log(colorize('white', '   如果未安装，请参考 README.md 安装 K6'));
   console.log('');
-  
+
   console.log(colorize('cyan', '3. 运行冒烟测试'));
   console.log(colorize('white', '   npm run test:smoke'));
   console.log('');
-  
+
   console.log(colorize('cyan', '4. 查看报告'));
   console.log(colorize('white', '   测试报告将生成在 reports/ 目录下'));
   console.log('');
-  
+
   console.log(colorize('cyan', '5. 开始编写您的测试用例'));
   console.log(colorize('white', '   在 k6/tests/ 目录下创建新的测试文件'));
   console.log('');
-  
+
   console.log(colorize('white', '📚 文档：'));
   console.log(colorize('white', '   详细使用说明请查看 README.md 文件'));
   console.log('');
-  
+
   console.log(colorize('yellow', '💡 提示：'));
   console.log(colorize('white', '   您可以根据需要修改 k6/config/ 目录下的配置文件'));
   console.log(colorize('white', '   所有测试文件都在 k6/tests/ 目录下'));
@@ -1218,23 +1230,23 @@ function showCompletionMessage() {
 // 主函数
 async function main() {
   showTitle();
-  
+
   // 询问用户配置
-  const answer = await new Promise(resolve => {
+  const answer = await new Promise((resolve) => {
     rl.question(colorize('cyan', '请输入项目名称 (默认: k6-test-framework): '), (input) => {
       if (input.trim()) config.projectName = input.trim();
       resolve();
     });
   });
-  
+
   // 创建目录和文件
   createDirectories();
   createFiles();
   installDependencies();
-  
+
   // 关闭 readline 接口
   rl.close();
-  
+
   // 显示完成信息
   showCompletionMessage();
 }
@@ -1247,7 +1259,7 @@ process.on('SIGINT', () => {
 });
 
 // 运行主函数
-main().catch(error => {
+main().catch((error) => {
   console.error(colorize('red', '❌ 初始化失败:'), error);
   rl.close();
   process.exit(1);

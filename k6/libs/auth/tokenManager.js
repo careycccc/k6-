@@ -1,4 +1,3 @@
-import { check } from 'k6';
 import { httpClient } from '../http/client.js';
 import { logger } from '../utils/logger.js';
 
@@ -23,12 +22,12 @@ export class TokenManager {
    */
   async getToken(credentials, forceRefresh = false) {
     const tokenKey = this.getTokenKey(credentials);
-    
+
     // 检查现有token是否有效
     if (!forceRefresh && this.isTokenValid(tokenKey)) {
       return this.tokens.get(tokenKey).accessToken;
     }
-    
+
     // 获取新token
     return this.acquireToken(credentials);
   }
@@ -47,11 +46,11 @@ export class TokenManager {
     if (!this.tokens.has(tokenKey)) {
       return false;
     }
-    
+
     const tokenData = this.tokens.get(tokenKey);
     const now = Date.now();
     const expiryTime = tokenData.createdAt + tokenData.expiresIn * 1000;
-    
+
     return now < expiryTime - this.config.tokenExpiryBuffer;
   }
 
@@ -64,23 +63,23 @@ export class TokenManager {
         validate: false,
         tags: { type: 'auth' }
       });
-      
+
       if (!response.success) {
         throw new Error(`认证失败: ${response.status}`);
       }
-      
+
       const tokenData = {
         accessToken: response.body[this.config.tokenKey],
         refreshToken: response.body[this.config.refreshTokenKey],
         expiresIn: response.body.expires_in || 3600,
         createdAt: Date.now()
       };
-      
+
       const tokenKey = this.getTokenKey(credentials);
       this.tokens.set(tokenKey, tokenData);
-      
+
       logger.info('Token获取成功', { user: credentials.username });
-      
+
       return tokenData.accessToken;
     } catch (error) {
       logger.error('Token获取失败', error.message);
@@ -94,31 +93,35 @@ export class TokenManager {
   async refreshToken(credentials) {
     const tokenKey = this.getTokenKey(credentials);
     const tokenData = this.tokens.get(tokenKey);
-    
+
     if (!tokenData || !tokenData.refreshToken) {
       throw new Error('没有可用的刷新Token');
     }
-    
+
     try {
-      const response = await httpClient.post(this.config.refreshEndpoint, {
-        refresh_token: tokenData.refreshToken
-      }, {
-        validate: false,
-        tags: { type: 'auth' }
-      });
-      
+      const response = await httpClient.post(
+        this.config.refreshEndpoint,
+        {
+          refresh_token: tokenData.refreshToken
+        },
+        {
+          validate: false,
+          tags: { type: 'auth' }
+        }
+      );
+
       if (!response.success) {
         throw new Error(`Token刷新失败: ${response.status}`);
       }
-      
+
       tokenData.accessToken = response.body[this.config.tokenKey];
       tokenData.expiresIn = response.body.expires_in || 3600;
       tokenData.createdAt = Date.now();
-      
+
       this.tokens.set(tokenKey, tokenData);
-      
+
       logger.info('Token刷新成功', { user: credentials.username });
-      
+
       return tokenData.accessToken;
     } catch (error) {
       logger.error('Token刷新失败', error.message);
@@ -141,7 +144,7 @@ export class TokenManager {
    */
   async getTokensBatch(credentialsList) {
     const tokens = {};
-    
+
     for (const credentials of credentialsList) {
       try {
         const token = await this.getToken(credentials);
@@ -151,7 +154,7 @@ export class TokenManager {
         logger.error(`用户${credentials.username}Token获取失败`, error.message);
       }
     }
-    
+
     return tokens;
   }
 }

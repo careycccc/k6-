@@ -2,7 +2,7 @@ import { check } from 'k6';
 import { logger } from '../utils/logger.js';
 
 /**
- * API检查工具 - 修复版
+ * API检查工具类
  */
 export class ApiChecks {
   /**
@@ -38,7 +38,7 @@ export class ApiChecks {
   }
 
   /**
-   * 安全的请求成功检查 - 修复版
+   * 安全的请求成功检查
    */
   static safeSuccessCheck(response) {
     if (!response || typeof response !== 'object') {
@@ -62,23 +62,19 @@ export class ApiChecks {
   }
 
   /**
-   * 登录检查 - 修复版
+   * 响应检查
    */
-  static loginChecks(response) {
-    // 🔥 添加防御性检查
-    if (!response) {
-      logger.error('登录检查: response为空');
-      return false;
-    }
+  static ResponseChecks(response) {
+    //logger.info('响应检查:', response.body);
     // 🔥 验证response类型
     if (typeof response !== 'object') {
-      logger.error(`登录检查: response类型错误，期望object，实际${typeof response}`);
+      logger.error(`响应检查: response类型错误，期望object，实际${typeof response}`);
       return false;
     }
     // 🔥 验证response结构
     // 🔥 安全地记录响应结构
     try {
-      logger.info('登录检查 - 响应结构:', {
+      logger.info('响应检查 - 响应结构:', {
         hasSuccess: 'success' in response,
         success: response.success,
         status: response.status,
@@ -96,7 +92,7 @@ export class ApiChecks {
       // 1. HTTP基础检查
       checks['HTTP状态码200'] = () => this.safeStatusCodeCheck(response, 200);
       checks['请求成功'] = () => this.safeSuccessCheck(response);
-      checks['响应时间<2s'] = () => this.safeDurationCheck(response, 2000);
+      checks['响应时间<1s'] = () => this.safeDurationCheck(response, 1000);
 
       // 2. 业务逻辑检查
       if (response.body) {
@@ -104,7 +100,7 @@ export class ApiChecks {
 
         let parsedBody;
 
-        // 🔥 修复：正确处理body
+        //  修复：正确处理body
         if (typeof response.body === 'string') {
           try {
             parsedBody = JSON.parse(response.body);
@@ -119,21 +115,23 @@ export class ApiChecks {
 
         // 检查业务字段
         if (parsedBody && typeof parsedBody === 'object') {
-          // 🔥 修复：直接检查parsedBody，而不是parsedBody.body
-          checks['code存在'] = () => 'code' in parsedBody;
+          // 修复：直接检查parsedBody，而不是parsedBody.body
+          //checks['code存在'] = () => 'code' in parsedBody;
 
           if ('code' in parsedBody) {
             checks['code为0'] = () => parsedBody.code === 0;
-            logger.info('code值:', parsedBody.code);
+            //logger.info('code值:', parsedBody.code);
           }
 
-          checks['msg字段存在'] = () => 'msg' in parsedBody;
-          checks['data字段存在'] = () => 'data' in parsedBody;
-
+          //checks['msg字段存在'] = () => 'msg' in parsedBody;
+          checks['msg字段Suceed'] = () => parsedBody.msg === 'Succeed';
           if (parsedBody.data) {
-            checks['token字段存在'] = () => 'token' in parsedBody.data;
+            //checks['data字段存在'] = () => 'data' in parsedBody;
+            checks['data字段不为空'] = () =>
+              parsedBody.data !== null && parsedBody.data !== undefined;
             if (parsedBody.data.token) {
-              checks['token有效'] = () =>
+              //checks['token字段存在'] = () => 'token' in parsedBody.data;
+              checks['token正确'] = () =>
                 typeof parsedBody.data.token === 'string' && parsedBody.data.token.length > 10;
             }
           }
@@ -146,7 +144,7 @@ export class ApiChecks {
       checks['检查执行'] = () => false;
     }
 
-    // 🔥 安全执行检查
+    //  安全执行检查
     try {
       const result = check(response, checks);
       logger.info(`检查执行结果: ${result}`);

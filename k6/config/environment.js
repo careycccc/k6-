@@ -1,57 +1,40 @@
-// 检查环境变量是否已定义，如果未定义则使用硬编码值
-export const config = {
-  environment: __ENV.ENVIRONMENT || 'local',
-  apiBaseUrl: __ENV.API_BASE_URL || 'https://arplatsaassit1.club', // 默认值
-  apiVersion: __ENV.API_VERSION || '',
-  logLevel: __ENV.LOG_LEVEL || 'info'
-};
+import { loadConfigFromFile } from './load.js';
+
+const config = loadConfigFromFile();
 
 /**
- * 获取完整的API URL
- * @param {string} endpoint - API端点
- * @returns {string} 完整的URL
- */
-export function getApiUrl(endpoint) {
-  // 确保 endpoint 以斜杠开头
-  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  
-  // 构建URL
-  const baseUrl = config.apiBaseUrl;
-  const version = config.apiVersion ? `/${config.apiVersion}` : '';
-  
-  return `${baseUrl}${version}${path}`;
-}
-
-/**
- * 获取环境配置
+ * 获取当前环境信息
+ * @returns {Object} 环境信息对象
  */
 export function getEnvironment() {
-  return config.environment;
+  return {
+    name: config.environment,
+    baseUrl: config.local.API_BASE_URL,
+    adminUrl: config.local.API_ADMIN_URL,
+    version: config.apiVersion
+  };
 }
 
 /**
- * 获取API基础URL
+ * 根据端点获取完整的API URL
+ * @param {string} endpoint - API端点
+ * @param {boolean} isDesk - 是否是前台请求，true前台，false后台
+ * @returns {string} 完整的API URL
  */
-export function getApiBaseUrl() {
-  return config.apiBaseUrl;
-}
+export function getApiUrl(endpoint, isDesk = true) {
+  let baseUrl = '';
+  if (isDesk) {
+    // 前台请求
+    baseUrl = config.local.API_BASE_URL;
+  } else {
+    // 后台请求
+    baseUrl = config.local.API_ADMIN_URL;
+  }
+  // 确保 endpoint 是字符串并以斜杠开头
+  const path = String(endpoint || '');
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  // 构建URL
+  const version = config.apiVersion ? `/${config.apiVersion}` : '';
 
-/**
- * 打印当前配置（用于调试）
- */
-export function printConfig() {
-  console.log('当前环境配置:');
-  console.log('  环境:', config.environment);
-  console.log('  API基础URL:', config.apiBaseUrl);
-  console.log('  API版本:', config.apiVersion);
-  console.log('  日志级别:', config.logLevel);
+  return `${baseUrl}${version}${normalizedPath}`;
 }
-
-// 导出默认配置
-export default {
-  config,
-  getApiUrl,
-  getEnvironment,
-  getApiBaseUrl,
-  printConfig
-};

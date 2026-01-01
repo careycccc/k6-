@@ -48,10 +48,12 @@ open reports/html/report-\*.html
 
 jq '.' reports/json/report-\*.json | less
 
-3.3界面实时的曲线图预览使用 xk6-dashboard 扩展
+3.3界面实时的曲线图预览使用 xk6-dashboard 扩展 注意这个只能在运行时间很长的状态下看到，只要运行停止了就无法访问:5665的端口了
 1.go install go.k6.io/xk6/cmd/xk6@latest
 2.xk6 build --with github.com/grafana/xk6-dashboard@latest
-3../k6 run --out dashboard=port=5665,host=0.0.0.0 script.js 4.浏览器访问 http://localhost:5665，实时查看曲线
+$env:K6_WEB_DASHBOARD = 'true'
+$env:K6_WEB_DASHBOARD_PORT = 5665 # 可选，默认就是5665
+3../k6.exe run script.js 4.浏览器访问 http://localhost:5665，实时查看曲线
 
 添加新的测试用例
 
