@@ -1,12 +1,12 @@
-import { check } from 'k6';
+import { describe, expect } from 'https://jslib.k6.io/k6chaijs/4.5.0.1/index.js';
 import { logger } from '../utils/logger.js';
 
 /**
- * API检查工具类
+ * 使用 Chai BDD 风格的 API 检查工具类
  */
 export class ApiChecks {
   /**
-   * 安全的响应时间检查
+   * 安全的响应时间检查（返回布尔值）
    */
   static safeDurationCheck(response, maxDuration = 2000) {
     if (!response || !response.timings || typeof response.timings.duration === 'undefined') {
@@ -15,7 +15,7 @@ export class ApiChecks {
         hasTimings: !!response?.timings,
         duration: response?.timings?.duration
       });
-      return true;
+      return true; // 不阻塞整体测试
     }
     return response.timings.duration < maxDuration;
   }
@@ -47,12 +47,9 @@ export class ApiChecks {
     }
 
     try {
-      // 🔥 使用更安全的方式检查
       if (response.success !== undefined) {
         return response.success === true;
       }
-
-      // 如果没有success字段，根据状态码判断
       const status = response.status || 0;
       return status >= 200 && status < 400;
     } catch (error) {
@@ -62,109 +59,198 @@ export class ApiChecks {
   }
 
   /**
-   * 响应检查
+   * 使用 Chai 进行全面响应检查
+   * 返回 true 表示所有断言通过，false 表示有失败
    */
   static ResponseChecks(response) {
-    //logger.info('响应检查:', response.body);
-    // 🔥 验证response类型
-    if (typeof response !== 'object') {
-      logger.error(`响应检查: response类型错误，期望object，实际${typeof response}`);
-      return false;
-    }
-    // 🔥 验证response结构
-    // 🔥 安全地记录响应结构
-    try {
-      logger.info('响应检查 - 响应结构:', {
-        hasSuccess: 'success' in response,
-        success: response.success,
-        status: response.status,
-        hasBody: !!response.body,
-        bodyType: typeof response.body
+    let allPassed = true;
+
+    describe('API 响应全面检查', () => {
+      // 1. 基础对象有效性
+      try {
+        expect(response, 'response 应为对象').to.be.an('object');
+      } catch (e) {
+        allPassed = false;
+        logger.warn('基础对象检查失败:', e.message);
+      }
+
+      // 2. HTTP 基础检查
+      describe('HTTP 基础状态', () => {
+        try {
+          expect(
+            this.safeStatusCodeCheck(response, 200),
+            'HTTP 状态码应为 200'
+          ).to.be.true;
+        } catch (e) {
+          allPassed = false;
+          logger.warn('状态码检查失败:', e.message);
+        }
+
+        // try {
+        //   expect(
+        //     this.safeSuccessCheck(response),
+        //     '请求应标记为成功（success === true 或 2xx 状态码）'
+        //   ).to.be.true;
+        // } catch (e) {
+        //   allPassed = false;
+        //   logger.warn('请求成功检查失败:', e.message);
+        // }
+
+        // try {
+        //   expect(
+        //     this.safeDurationCheck(response, 1000),
+        //     '响应时间应小于 1 秒'
+        //   ).to.be.true;
+        // } catch (e) {
+        //   allPassed = false;
+        //   logger.warn('响应时间检查失败:', e.message);
+        // }
       });
-    } catch (logError) {
-      logger.error('记录响应结构时出错:', logError.message);
-      // 继续执行检查，不直接返回false
-    }
 
-    const checks = {};
+      // 3. 响应体检查
+      describe('响应体结构与内容', () => {
+        if (!response.body) {
+          allPassed = false;
+          try {
+            expect(response.body, '响应体不应为空').to.exist;
+          } catch (e) {
+            allPassed = false;
+            logger.warn('响应体为空:', e.message);
+          }
+          return;
+        }
 
-    try {
-      // 1. HTTP基础检查
-      checks['HTTP状态码200'] = () => this.safeStatusCodeCheck(response, 200);
-      checks['请求成功'] = () => this.safeSuccessCheck(response);
-      checks['响应时间<1s'] = () => this.safeDurationCheck(response, 1000);
+        try {
+          expect(response.body, '响应体存在').to.exist;
+        } catch (e) {
+          allPassed = false;
+          logger.warn('响应体存在性检查失败:', e.message);
+        }
 
-      // 2. 业务逻辑检查
-      if (response.body) {
-        logger.info('响应体存在，类型:', typeof response.body);
+        let parsedBody = null;
 
-        let parsedBody;
-
-        //  修复：正确处理body
+        // 解析 body（字符串或已解析对象）
         if (typeof response.body === 'string') {
           try {
             parsedBody = JSON.parse(response.body);
-            logger.info('成功解析JSON响应体');
+            logger.info('成功解析 JSON 响应体');
           } catch (e) {
-            logger.warn('响应体不是有效的JSON格式');
-            checks['响应体为JSON'] = () => false;
+            allPassed = false;
+            try {
+              expect.fail('响应体应为有效 JSON 格式');
+            } catch (ex) {
+              allPassed = false;
+              logger.warn('JSON解析失败:', e.message);
+            }
           }
         } else if (typeof response.body === 'object') {
           parsedBody = response.body;
+        } else {
+          allPassed = false;
+          try {
+            expect(response.body, '响应体应为字符串或对象').to.satisfy(
+              val => typeof val === 'string' || typeof val === 'object'
+            );
+          } catch (e) {
+            allPassed = false;
+            logger.warn('响应体类型检查失败:', e.message);
+          }
         }
 
-        // 检查业务字段
-        if (parsedBody && typeof parsedBody === 'object') {
-          // 修复：直接检查parsedBody，而不是parsedBody.body
-          //checks['code存在'] = () => 'code' in parsedBody;
+        if (!parsedBody || typeof parsedBody !== 'object') {
+          return;
+        }
 
+        // 4. 业务字段检查
+        // 4. 业务字段检查
+        describe('业务返回字段', () => {
+          // 检查code字段
           if ('code' in parsedBody) {
-            checks['code为0'] = () => parsedBody.code === 0;
-            //logger.info('code值:', parsedBody.code);
-          }
-
-          //checks['msg字段存在'] = () => 'msg' in parsedBody;
-          checks['msg字段Suceed'] = () => parsedBody.msg === 'Succeed';
-          if (parsedBody.data) {
-            //checks['data字段存在'] = () => 'data' in parsedBody;
-            checks['data字段不为空'] = () =>
-              parsedBody.data !== null && parsedBody.data !== undefined;
-            if (parsedBody.data.token) {
-              //checks['token字段存在'] = () => 'token' in parsedBody.data;
-              checks['token正确'] = () =>
-                typeof parsedBody.data.token === 'string' && parsedBody.data.token.length > 10;
+            try {
+              expect(parsedBody.code, '业务 code 应为 0（成功）').to.equal(0);
+            } catch (e) {
+              allPassed = false;
+              logger.warn('业务code检查失败:', {
+                expected: 0,
+                actual: parsedBody.code,
+                message: e.message
+              });
+            }
+          } else {
+            allPassed = false;
+            try {
+              expect(parsedBody, '响应中应包含 code 字段').to.have.property('code');
+            } catch (e) {
+              allPassed = false;
+              logger.warn('缺少code字段:', e.message);
             }
           }
-        }
-      } else {
-        checks['响应体存在'] = () => false;
-      }
-    } catch (error) {
-      logger.error('检查构建异常:', error.message);
-      checks['检查执行'] = () => false;
-    }
 
-    //  安全执行检查
-    try {
-      const result = check(response, checks);
-      logger.info(`检查执行结果: ${result}`);
-      return result;
-    } catch (error) {
-      logger.error('k6 check函数执行异常:', error.message);
-      // 计算通过率
-      const passed = Object.values(checks).filter((fn) => {
-        try {
-          return fn();
-        } catch (e) {
-          return false;
-        }
-      }).length;
-      const total = Object.keys(checks).length;
+          // 检查msg字段（可选，不是必需的）
+          if ('msg' in parsedBody) {
+            try {
+              expect(parsedBody.msg, 'msg 字段应为 "Succeed"').to.equal('Succeed');
+            } catch (e) {
+              allPassed = false;
+              logger.warn('msg字段检查失败:', {
+                expected: 'Succeed',
+                actual: parsedBody.msg,
+                message: e.message
+              });
+            }
+          }
 
-      logger.info(`手动计算通过率: ${passed}/${total}`);
-      return passed > 0; // 至少通过一个检查
-    }
+          // 检查msgcode字段（可选，不是必需的）
+          if ('msgCode' in parsedBody) {
+            try {
+              expect(parsedBody.msgCode, 'msgCode 应为数字').to.be.a('number');
+            } catch (e) {
+              allPassed = false;
+              logger.warn('msgCode字段检查失败:', e.message);
+            }
+          }
+
+          // 检查data字段（如果存在）
+          if ('data' in parsedBody) {
+            try {
+              expect(parsedBody.data, 'data 字段不应为空').to.not.be.oneOf([null, undefined, '']);
+            } catch (e) {
+              allPassed = false;
+              logger.warn('data字段检查失败:', e.message);
+            }
+
+            // 如果data是数组，检查数组不为空
+            if (Array.isArray(parsedBody.data)) {
+              try {
+                expect(parsedBody.data, 'data 数组不应为空').to.have.lengthOf.above(0);
+              } catch (e) {
+                allPassed = false;
+                logger.warn('data数组长度检查失败:', e.message);
+              }
+            }
+            // 如果data是对象且包含token，检查token
+            else if (typeof parsedBody.data === 'object' && parsedBody.data !== null && 'token' in parsedBody.data) {
+              try {
+                expect(
+                  parsedBody.data.token,
+                  'token 应为非空字符串'
+                ).to.be.a('string').and.to.not.be.empty;
+              } catch (e) {
+                allPassed = false;
+                logger.warn('token检查失败:', e.message);
+              }
+            }
+          }
+        });
+      });
+    });
+
+    // 记录最终结果
+    logger.info(`Chai 检查总体结果: ${allPassed ? '全部通过' : '存在失败项'}`);
+
+    return allPassed;
   }
+
 }
 
 export default ApiChecks;

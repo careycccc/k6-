@@ -1,26 +1,3 @@
-// 基础类型
-export const baseObject = {
-  random: { type: 'int' },
-  language: { type: 'string' },
-  signature: { type: 'string' },
-  timestamp: { type: 'int' }
-};
-
-// 响应规则
-export const responseRules = {
-  expectedCode: 0, // 预期的业务字段
-  expectedMessage: 'Succeed', // 预期的业务字段值
-  customChecks: {
-    data: (data) => {
-      // 判断有没有data字段，如果没有就直接通过
-      if (!data) {
-        return true;
-      }
-      // 主要是检测这个data字段是不是一个对象并且还必须要有值
-      return typeof data === 'object' && Object.keys(data).length > 0;
-    }
-  }
-};
 
 /**
  * 生成加密安全的随机字符串（类似浏览器指纹的一部分）
@@ -69,3 +46,63 @@ export function getTimeRandom() {
     language: LANGUAGE
   };
 }
+
+
+/**
+ * 将日期字符串转换为毫秒级时间戳
+ * @param {string} dateString - 日期字符串，格式如 "2025-12-19 00:00:00"
+ * @returns {number} - 毫秒级时间戳
+ */
+export function dateStringToTimestamp(dateString) {
+  try {
+    // 创建Date对象
+    const date = new Date(dateString);
+
+    // 验证日期是否有效
+    if (isNaN(date.getTime())) {
+      throw new Error('无效的日期字符串');
+    }
+
+    // 返回毫秒级时间戳
+    return date.getTime();
+  } catch (error) {
+    console.error('日期转换失败:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * 将毫秒级时间戳转换为日期字符串
+ * @param {number} timestamp - 毫秒级时间戳
+ * @returns {string} - 日期字符串，格式 "YYYY-MM-DD HH:mm:ss"
+ */
+export function timestampToDateString(timestamp) {
+  try {
+    const date = new Date(timestamp);
+
+    // 格式化日期
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  } catch (error) {
+    console.error('时间戳转换失败:', error.message);
+    throw error;
+  }
+}
+
+
+/**
+ * 检查参数是否为非空数组
+ * @param {*} value - 要检查的值
+ * @returns {boolean} - 如果是非空数组返回true，否则返回false
+ */
+export function isNonEmptyArray(value) {
+  return Array.isArray(value) && value.length > 0;
+}
+
+

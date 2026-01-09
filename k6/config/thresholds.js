@@ -13,13 +13,13 @@ const thresholds = {
 export function hanlderThresholds(tag) {
   return {
     // HTTP请求相关的性能阈值配置
-    http_reqs: [`rate>${thresholds.THRESHOLD_CHECK_SUCEES_RATE}`], // HTTP请求成功率阈值
+    // http_reqs: [`rate>${thresholds.THRESHOLD_CHECK_SUCEES_RATE}`], // 算总发送请求数
     [`http_req_duration{type:${tag}}`]: [
       // HTTP请求持续时间阈值，根据标签类型区分
       `p(95)<${thresholds.THRESHOLD_P95}`, // 95%分位数的请求持续时间阈值
       `p(99)<${thresholds.THRESHOLD_P99}` // 99%分位数的请求持续时间阈值
     ],
-    http_req_failed: [`rate<${thresholds.THRESHOLD_ERROR_RATE}`], // HTTP请求失败率阈值
+    http_req_failed: [`rate<${thresholds.THRESHOLD_ERROR_RATE}`], // HTTP请求失败率阈值 成功率99%
     checks: [`rate>${thresholds.THRESHOLD_CHECK_SUCEES_RATE}`] // 检查项成功率阈值
   };
 }

@@ -7,6 +7,7 @@ import { logger } from '../../../libs/utils/logger.js';
 import { htmlReport } from 'https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js';
 import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js';
 import { getTimeRandom } from '../../utils/utils.js';
+import { ENV_CONFIG } from '../../../config/envconfig.js';
 
 let checkCounter = 0;
 const ResponseSuccessRate = new Rate('Response_success_rate');
@@ -17,6 +18,11 @@ export function setup() {
 }
 // 登录成功的token
 let Token = '';
+// 返回数据
+let ResponseData = null;
+// 响应结果
+let ResponseResult = null;
+
 
 /***
  * data  请求的数据
@@ -87,7 +93,9 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
           // 检查响应是否为 JSON
           if (response.body.startsWith('{') || response.body.startsWith('[')) {
             const parsedBody = JSON.parse(response.body);
+            ResponseResult = parsedBody || null;
             Token = parsedBody.data?.token || '';
+            ResponseData = parsedBody.data || null;
           } else {
             // 非 JSON 响应的处理
             console.log('非 JSON 响应:', response.body.substring(0, 100));
@@ -110,7 +118,14 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
     }
   });
   logger.info('=== 本次迭代结束 ===');
-  return Token;
+  // return Token;
+  if (Token) {
+    return Token;
+  } else if (ResponseData) {
+    return ResponseData;
+  } else {
+    return ResponseResult;
+  }
 }
 
 /*
@@ -122,15 +137,42 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
 export function sendRequest(payload, api, tag, isDesk, token) {
   const timeData = getTimeRandom();
   const data = {
-    ...payload,
     random: timeData.random,
     language: timeData.language,
     signature: '',
-    timestamp: timeData.timestamp
+    timestamp: timeData.timestamp,
+    ...payload,
   };
   const Reponsetoken = testCommonRequest(data, api, tag, isDesk, token);
   return Reponsetoken;
 }
+
+
+/*
+发送查询请求
+@param {string} api - 请求的API地址
+@param {object} payload - 请求的参数
+@param {string} tag - 请求的标签
+@param {string} token - 请求体的token
+**/
+export function sendQueryRequest(payload, api, tag, isDesk, token) {
+  const timeData = getTimeRandom();
+  const data = {
+    pageNo: ENV_CONFIG.PAGENO,
+    pageSize: ENV_CONFIG.PAGESIZE,
+    orderBy: 'Desc',
+    random: timeData.random,
+    language: timeData.language,
+    signature: '',
+    timestamp: timeData.timestamp,
+    ...payload,
+  };
+  const Reponsetoken = testCommonRequest(data, api, tag, isDesk, token);
+  return Reponsetoken;
+}
+
+
+
 
 export function teardown() {
   logger.info(`=== 测试清理完成，共执行了 ${checkCounter} 次检查 ===`);
@@ -141,7 +183,6 @@ export function handleSummary(data) {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const testName = '压测';
   const environment = __ENV.ENVIRONMENT || 'local';
-
   return {
     // 使用textSummary函数处理data数据，并输出格式化后的结果
     // textSummary函数接受两个参数：原始数据data和配置选项对象

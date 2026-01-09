@@ -1,6 +1,7 @@
 import { hanlderThresholds } from '../../../config/thresholds.js';
 import { loadConfigFromFile } from '../../../config/load.js';
 import { sendRequest } from '../../api/common/request.js';
+import { ENV_CONFIG } from '../../../config/envconfig.js';
 
 export const adminTag = 'adminlogin';
 const loader = loadConfigFromFile();
@@ -32,8 +33,8 @@ export const options = {
 export function AdminLogin() {
   const api = '/api/Login/Login';
   const data = {
-    userName: 'carey3001',
-    pwd: 'qwer1234'
+    userName: ENV_CONFIG.ADMIN_USERNAME,
+    pwd: ENV_CONFIG.ADMIN_PASSWORD
   };
   const token = sendRequest(data, api, adminTag, false);
   // console.log('setup: 后台登录获取 token', token);
