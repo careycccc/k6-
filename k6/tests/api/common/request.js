@@ -98,11 +98,11 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
             ResponseData = parsedBody.data || null;
           } else {
             // 非 JSON 响应的处理
-            console.log('非 JSON 响应:', response.body.substring(0, 100));
+            logger.info('非 JSON 响应:', response.body.substring(0, 100));
           }
         } catch (parseError) {
-          console.error('响应解析失败:', parseError.message);
-          console.log('原始响应:', response.body.substring(0, 100));
+          logger.error('响应解析失败:', parseError.message);
+          logger.info('原始响应:', response.body.substring(0, 100));
         }
       }
     } catch (error) {

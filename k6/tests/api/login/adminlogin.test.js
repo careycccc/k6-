@@ -37,6 +37,6 @@ export function AdminLogin() {
     pwd: ENV_CONFIG.ADMIN_PASSWORD
   };
   const token = sendRequest(data, api, adminTag, false);
-  // console.log('setup: 后台登录获取 token', token);
+  // logger.info('setup: 后台登录获取 token', token);
   return token;
 }

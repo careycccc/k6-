@@ -3,7 +3,7 @@ import { check } from 'k6';
 import { AdminLogin, adminTag } from '../login/adminlogin.test.js';
 import { ENV_CONFIG } from '../../../config/envconfig.js';
 
-export const uploadFileTag = 'uploadFile';
+export const uploadInmailFileTag = 'uploadInmailFile';
 
 // 导出文件路径配置
 export const FILE_CONFIG = {
@@ -27,12 +27,12 @@ for (const filePath of filePaths) {
 
 
 export function uploadFile(filePath, token) {
-    //console.log('上传文件:', filePath);
+    //logger.info('上传文件:', filePath);
 
     // 从预加载的内容中获取文件数据
     const fileContent = fileContents[filePath];
     if (!fileContent) {
-        console.error('文件未预加载:', filePath);
+        logger.error('文件未预加载:', filePath);
         return {
             status: 404,
             error: 'File not found in preloaded contents'
@@ -92,7 +92,7 @@ export function uploadAllFiles(filePaths, token) {
     for (const filePath of filePaths) {
         const res = uploadFile(filePath, token);
         const data = JSON.parse(res.body);
-        //console.log('上传响应数据:', data);
+        //logger.info('上传响应数据:', data);
         if (res.status === 200 && data.data && data.data.length > 0) {
             // 假设返回的JSON结构中包含url字段，根据实际API响应调整
             const url = res.json('url');
@@ -126,7 +126,7 @@ export function getUploadFileName() {
         const token = AdminLogin();
 
         if (!token) {
-            console.error('AdminLogin 返回空值，登录失败');
+            logger.error('AdminLogin 返回空值，登录失败');
             throw new Error('AdminLogin 返回空 token');
         }
 
@@ -135,12 +135,12 @@ export function getUploadFileName() {
         // 批量上传文件
         const uploadResults = uploadAllFiles(filePaths, token);
 
-        //console.log('文件上传结果:', uploadResults);
+        //logger.info('文件上传结果:', uploadResults);
 
         // 检查是否所有文件都上传成功
         const failedUploads = uploadResults.filter(r => !r.success);
         if (failedUploads.length > 0) {
-            console.error('部分文件上传失败:', failedUploads);
+            logger.error('部分文件上传失败:', failedUploads);
             throw new Error(`${failedUploads.length}个文件上传失败`);
         }
 
@@ -155,7 +155,7 @@ export function getUploadFileName() {
             uploadResults
         };
     } catch (error) {
-        console.error('Setup 发生异常:', error.message);
+        logger.error('Setup 发生异常:', error.message);
         throw error;
     }
 }

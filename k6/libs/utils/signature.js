@@ -160,8 +160,8 @@ export class SignedHttpClient {
     // 为数据添加签名
     const signedData = this.signData(data, options);
 
-    console.log(`📤 POST ${url}`);
-    console.log('请求数据:', JSON.stringify(signedData));
+    logger.info(`📤 POST ${url}`);
+    logger.info('请求数据:', JSON.stringify(signedData));
 
     // 模拟HTTP请求
     return this._mockRequest('POST', url, signedData, options);
@@ -178,8 +178,8 @@ export class SignedHttpClient {
     // 为参数添加签名
     const signedParams = this.signData(params, options);
 
-    console.log(`📤 GET ${url}`);
-    console.log('请求参数:', JSON.stringify(signedParams));
+    logger.info(`📤 GET ${url}`);
+    logger.info('请求参数:', JSON.stringify(signedParams));
 
     // 模拟HTTP请求
     return this._mockRequest('GET', url, signedParams, options);

@@ -12,8 +12,8 @@ export function createCoupons(data) {
   const token = data.token;
 
   const couponList = [
-    ['充值奖励优惠券010', 1, 0, '1'],
-    ['奖励优惠券010', 2, 1, '1,2']
+    ['充值奖励优惠券011', 1, 0, '1'],
+    ['奖励优惠券011', 2, 1, '1,2']
   ];
 
 
@@ -69,7 +69,7 @@ export function startCoupons(data) {
   }
   // 启动优惠券
   idList.forEach(id => {
-    //console.log(`启用优惠券 ID: ${id}`);
+    //logger.info(`启用优惠券 ID: ${id}`);
     //睡眠1s
     sleep(1);
     startCouponsById(id, token);

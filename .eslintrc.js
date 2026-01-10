@@ -17,7 +17,7 @@ module.exports = {
   },
   rules: {
     // 自定义规则
-    'no-console': 'off',
+    'no-logger': 'off',
     'no-unused-vars': [
       'error',
       {

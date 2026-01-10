@@ -1,3 +1,4 @@
+// 站内信的跳转界面类型
 export const jumpType = [
     {
         "id": 1,
@@ -77,3 +78,66 @@ export const jumpType = [
     }
 ]
 
+// 系统活动的跳转界面类型
+export const systemJumpType = [
+    {
+        pageType: 3,
+        title: '礼品码'
+    },
+    {
+        pageType: 4,
+        title: '优惠券'
+    },
+    {
+        pageType: 5,
+        title: '超级大奖'
+    },
+    {
+        pageType: 6,
+        title: '洗码'
+    },
+    {
+        pageType: 7,
+        title: 'VIP'
+    },
+    {
+        pageType: 8,
+        title: '锦标赛'
+    },
+    {
+        pageType: 9,
+        title: '排行榜'
+    },
+    {
+        pageType: 11,
+        title: '站内信'
+    },
+    {
+        pageType: 12,
+        title: '邀请转盘'
+    },
+    {
+        pageType: 13,
+        title: '新版返佣'
+    },
+    {
+        pageType: 14,
+        title: '充值转盘'
+    },
+    {
+        pageType: 18,
+        title: '亏损救援金'
+    },
+    {
+        pageType: 19,
+        title: '每日每周任务'
+    },
+    {
+        pageType: 20,
+        title: '每日签到'
+    },
+    {
+        pageType: 21,
+        title: '周卡月卡'
+    }
+];

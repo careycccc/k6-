@@ -66,7 +66,7 @@ export function dateStringToTimestamp(dateString) {
     // 返回毫秒级时间戳
     return date.getTime();
   } catch (error) {
-    console.error('日期转换失败:', error.message);
+    logger.error('日期转换失败:', error.message);
     throw error;
   }
 }
@@ -90,7 +90,7 @@ export function timestampToDateString(timestamp) {
 
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   } catch (error) {
-    console.error('时间戳转换失败:', error.message);
+    logger.error('时间戳转换失败:', error.message);
     throw error;
   }
 }

@@ -26,14 +26,14 @@ export function createInmail(data) {
             scenario1Success = true; // 标记场景1成功
         }
     } catch (error) {
-        console.error('创建站内信失败[没有获取到优惠券的id]:', error);
+        logger.error('创建站内信失败[没有获取到优惠券的id]:', error);
         throw new Error(`创建站内信失败[没有获取到优惠券的id]: ${error.message}`);
     }
 }
 
 export function startInmail(data) {
     if (!scenario1Success) {
-        console.log('场景1失败，跳过场景2执行');
+        logger.info('场景1失败，跳过场景2执行');
         return;
     }
     // 在这里添加创建站内信的逻辑

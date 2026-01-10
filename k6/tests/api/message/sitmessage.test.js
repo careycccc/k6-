@@ -1,28 +1,22 @@
 import { sendRequest, sendQueryRequest } from '../common/request.js';
 import { jumpType } from '../common/type.js';
 import { sleep } from 'k6';
-import { readCSV } from '../common/wiritecsv.js';
 //站内信
 export const couponTag = 'inmail';
 
 // 创建站内信
 export function createInmail(data) {
     const api = '/api/Inmail/Add';
-    // 读取优惠券的csv
-    const couponIds = readCSV('../activity/couponIdList.csv');
-    if (couponIds.length === 0 || couponIds == null) {
-        console.error('未找到有效的优惠券ID,请先执行优惠券的创建脚本');
-        return false;
-    }
     // 必须接收 data 参数来拿 token
     const token = data.token;
     const couponList = [];
 
     jumpType.forEach(({ id, name }) => {
-        //console.log(`ID: ${id}, Name: ${name}`);
+        //logger.info(`ID: ${id}, Name: ${name}`);
         couponList.push([name + '站内信', data.uploadedSrc[0], data.uploadedUrls[0], { id, name }]);
     });
-
+    // 优惠券的id,需要先执行优惠券
+    const couponIds = null;
     // dataSrc是完整的带有域名的地址
     // imgSrc是图片的相对路径
     couponList.forEach(([inmailName, dataSrc, imgSrc, { id, name }]) => {
@@ -59,7 +53,7 @@ export function createInmail(data) {
                 "freeReward": {
                     "rewardAmount": 103,
                     "amountCodingMultiple": 2,
-                    "couponIds": couponIds[0]
+                    "couponIds": couponIds
                 },
                 "rewardTypes": [1, 2],
                 "rechargeReward": {
@@ -67,7 +61,7 @@ export function createInmail(data) {
                     "rechargeCount": 1,
                     "rewardAmount": 1003,
                     "amountCodingMultiple": 2,
-                    "couponIds": couponIds[0]
+                    "couponIds": couponIds
                 },
                 "expireType": 1
             },
@@ -86,7 +80,7 @@ export function startInmail(data) {
     const payload = {}
     //发送查询请求
     let result = sendQueryRequest(payload, api, couponTag, false, token);
-    //console.log('---获取站内信列表:', result);
+    //logger.info('---获取站内信列表:', result);
     // 判断 result 的 typeof 是不是对象
     if (typeof result !== 'object') {
         result = JSON.parse(result);
@@ -114,5 +108,5 @@ function startInmailById(id, token) {
         id: id
     };
     const result = sendRequest(payload, api, couponTag, false, token);
-    console.log(`${id} 启动站内信结果:`, JSON.stringify(result));
+    logger.info(`${id} 启动站内信结果:`, JSON.stringify(result));
 }

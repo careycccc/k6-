@@ -111,8 +111,8 @@ export function querySubAccounts(data) {
             teamSummary.registerUsers++;
         }
     });
-    console.log(`直属一级的汇总信息:注册人数：${firstLevelSummary.registerUsers},直属总一级人数：${firstLevelSummary.firstTotalNumber},充值人数：${firstLevelSummary.depUsers},充值金额：${firstLevelSummary.depAmount},首充人数：${firstLevelSummary.firstDepUsers},总投注金额：${firstLevelSummary.betAmountSum}`);
-    console.log(`团队的汇总信息:注册人数：${teamSummary.registerUsers},团队总人数：${teamSummary.teamTotalNumber},充值人数：${teamSummary.depUsers},充值金额：${teamSummary.depAmount},首充人数：${teamSummary.firstDepUsers},总投注金额：${teamSummary.betAmountSum}`);
+    logger.info(`直属一级的汇总信息:注册人数：${firstLevelSummary.registerUsers},直属总一级人数：${firstLevelSummary.firstTotalNumber},充值人数：${firstLevelSummary.depUsers},充值金额：${firstLevelSummary.depAmount},首充人数：${firstLevelSummary.firstDepUsers},总投注金额：${firstLevelSummary.betAmountSum}`);
+    logger.info(`团队的汇总信息:注册人数：${teamSummary.registerUsers},团队总人数：${teamSummary.teamTotalNumber},充值人数：${teamSummary.depUsers},充值金额：${teamSummary.depAmount},首充人数：${teamSummary.firstDepUsers},总投注金额：${teamSummary.betAmountSum}`);
 }
 
 /**

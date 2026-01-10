@@ -13,12 +13,12 @@ export function setup() {
         const token = AdminLogin();
 
         if (!token) {
-            console.error('AdminLogin 返回空值，登录失败');
+            logger.error('AdminLogin 返回空值，登录失败');
             throw new Error('AdminLogin 返回空 token');
         }
         return { token };
     } catch (error) {
-        console.error('AdminLogin 发生异常:', error.message);
+        logger.error('AdminLogin 发生异常:', error.message);
         throw new Error(`登录失败: ${error.message}`);
     }
 }

@@ -25,7 +25,7 @@ http.setResponseCallback(http.expectedStatuses({ min: 200, max: 299 }));
 //   });
 
 //   if (parsed.errors && parsed.errors.length > 0) {
-//     console.error('CSV解析错误:', parsed.errors);
+//     logger.error('CSV解析错误:', parsed.errors);
 //   }
 
 //   return parsed.data; // 返回数组，SharedArray会共享内存
@@ -35,7 +35,7 @@ http.setResponseCallback(http.expectedStatuses({ min: 200, max: 299 }));
 //   throw new Error('accounts.csv 文件为空或加载失败！请检查路径和内容');
 // }
 
-// console.log(`成功加载 ${userNames.length} 个用户名`);
+// logger.info(`成功加载 ${userNames.length} 个用户名`);
 
 const tag = 'desklogin';
 
@@ -78,7 +78,7 @@ export function RunDesklogin() {
   // 均匀分配用户名（高并发下最公平）
   //   const index = (__VU - 1 + __ITER) % userNames.length;
   //   const userName = userNames[index];
-  //   //console.log(`当前用户名：${userName[0]}`);
+  //   //logger.info(`当前用户名：${userName[0]}`);
   const timeData = getTimeRandom();
 
   const data = {

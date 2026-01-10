@@ -6,7 +6,7 @@ import moreAddCoupon from './k6/tests/api/activity/coupon.test.js';
 
 export { handleSummary };
 export default function () {
-  // console.log('redis的连接', redisClient);
+  // logger.info('redis的连接', redisClient);
   //RunDesklogin();
   //AdminLogin();
   moreAddCoupon();
