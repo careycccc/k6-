@@ -195,12 +195,14 @@ export function GetRechargeOrderPageList(data, userId, rechargeState, startTime,
  * @param {number} endTime - 结束时间
  * @param {string} queryTimeType - 查询时间类型
  * @param {string} sortField - 排序字段
+ * @param {int} categoryType - 0表示电子游戏，1真人视讯，2体育，3，彩票，4棋牌
  * @returns {object}  - 投注订单{投注金额betAmountSum,有效投注validAmountSum,派奖金额 winAmountSum,盈亏winLoseAmount,税收feeAmountSum}，或者响应信息
 */
-export function GetBetRecordPageList(data, userId, startTime, endTime, queryTimeType, sortField) {
+export function GetBetRecordPageList(data, userId, categoryType, startTime, endTime, queryTimeType, sortField) {
     const api = '/api/ThirdGame/GetBetRecordPageList';
     const token = data.token;
     const payload = {
+        categoryType,
         queryTimeType,
         userId,
         beginTimeUnix: startTime,
@@ -248,3 +250,5 @@ export function GetUserRptRechargePageList(data, userId, memberIdType, startTime
     }
     return result;
 }
+
+
