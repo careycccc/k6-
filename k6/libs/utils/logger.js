@@ -87,7 +87,7 @@ export class Logger {
   debug(message, data) {
     if (this.level <= LogLevel.DEBUG) {
       const formatted = this.formatMessage('debug', message, data);
-      logger.info(this.addColor('debug', formatted));
+      console.log(this.addColor('debug', formatted));
     }
   }
 
@@ -97,7 +97,7 @@ export class Logger {
   info(message, data) {
     if (this.level <= LogLevel.INFO) {
       const formatted = this.formatMessage('info', message, data);
-      logger.info(this.addColor('info', formatted));
+      console.log(this.addColor('info', formatted));
     }
   }
 
@@ -107,7 +107,7 @@ export class Logger {
   warn(message, data) {
     if (this.level <= LogLevel.WARN) {
       const formatted = this.formatMessage('warn', message, data);
-      logger.info(this.addColor('warn', formatted));
+      console.log(this.addColor('warn', formatted));
     }
   }
 
@@ -117,7 +117,7 @@ export class Logger {
   error(message, data) {
     if (this.level <= LogLevel.ERROR) {
       const formatted = this.formatMessage('error', message, data);
-      logger.info(this.addColor('error', formatted));
+      console.log(this.addColor('error', formatted));
     }
   }
 
