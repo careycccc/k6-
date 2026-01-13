@@ -1,4 +1,4 @@
-import { sendRequest } from "../common/request.js";
+import { sendRequest, sendQueryRequest } from "../common/request.js";
 import { isNonEmptyArray } from "../../utils/utils.js";
 import { logger } from '../../../libs/utils/logger.js';
 // 查询后台六级代理配置
@@ -12,7 +12,6 @@ export const adminsixearnTag = 'adminsixearn';
 export function RebateLevel(data) {
     const api = '/api/RebateLevel/GetList'
     const result = LevelCommon(data, api)
-    console.log('返佣等级配置---', result)
     if (isNonEmptyArray(result)) {
         return result
     } else {
@@ -27,12 +26,33 @@ export function RebateLevel(data) {
 export function RebateLevelRate(data) {
     const api = '/api/RebateLevelRate/GetList'
     const result = LevelCommon(data, api)
-    console.log(result)
     if (isNonEmptyArray(result)) {
         return result
     } else {
         logger.error('返佣等级配置没有查询到结果', result);
     }
+}
+
+/**
+ * @param {*} userId 用户id
+ * @param {*} data token
+ * @returns 当前用户的当前的层级和下级的信息
+*/
+export function getNowMasterHierarchy(data, userId) {
+    const api = '/api/Agent/GetPageListAgentList'
+    const payload = {
+        isAll: false,
+        isIncludeSelfAndParent: false,
+        userId,
+    }
+    let result = sendQueryRequest(payload, api, adminsixearnTag, false, data.token)
+    if (typeof result != 'object') {
+        result = JSON.parse(result)
+    }
+    if (result && result.list) {
+        return result.list[0].hierarchy
+    }
+    return result
 }
 
 // 辅助函数用于抽离公共查询逻辑
