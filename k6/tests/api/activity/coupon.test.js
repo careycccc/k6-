@@ -16,7 +16,6 @@ export function createCoupons(data) {
     ['奖励优惠券011', 2, 1, '1,2']
   ];
 
-
   couponList.forEach(([couponName, couponType, rechargeCount, useConditionType]) => {
     const payload = {
       backstageDisplayName: couponName,
@@ -61,14 +60,14 @@ export function startCoupons(data) {
   const idList = [];
   if (result && result.list && result.list.length > 0) {
     // 处理获取到的优惠券列表
-    result.list.forEach(item => {
+    result.list.forEach((item) => {
       idList.push(item.id);
       // 收集优惠券ID
       couponIds.push(item.id);
     });
   }
   // 启动优惠券
-  idList.forEach(id => {
+  idList.forEach((id) => {
     //logger.info(`启用优惠券 ID: ${id}`);
     //睡眠1s
     sleep(1);

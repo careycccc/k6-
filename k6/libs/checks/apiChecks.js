@@ -77,10 +77,7 @@ export class ApiChecks {
       // 2. HTTP 基础检查
       describe('HTTP 基础状态', () => {
         try {
-          expect(
-            this.safeStatusCodeCheck(response, 200),
-            'HTTP 状态码应为 200'
-          ).to.be.true;
+          expect(this.safeStatusCodeCheck(response, 200), 'HTTP 状态码应为 200').to.be.true;
         } catch (e) {
           allPassed = false;
           logger.warn('状态码检查失败:', e.message);
@@ -133,7 +130,7 @@ export class ApiChecks {
         if (typeof response.body === 'string') {
           try {
             parsedBody = JSON.parse(response.body);
-            logger.info('成功解析 JSON 响应体');
+            //logger.info('成功解析 JSON 响应体');
           } catch (e) {
             allPassed = false;
             try {
@@ -149,7 +146,7 @@ export class ApiChecks {
           allPassed = false;
           try {
             expect(response.body, '响应体应为字符串或对象').to.satisfy(
-              val => typeof val === 'string' || typeof val === 'object'
+              (val) => typeof val === 'string' || typeof val === 'object'
             );
           } catch (e) {
             allPassed = false;
@@ -229,12 +226,14 @@ export class ApiChecks {
               }
             }
             // 如果data是对象且包含token，检查token
-            else if (typeof parsedBody.data === 'object' && parsedBody.data !== null && 'token' in parsedBody.data) {
+            else if (
+              typeof parsedBody.data === 'object' &&
+              parsedBody.data !== null &&
+              'token' in parsedBody.data
+            ) {
               try {
-                expect(
-                  parsedBody.data.token,
-                  'token 应为非空字符串'
-                ).to.be.a('string').and.to.not.be.empty;
+                expect(parsedBody.data.token, 'token 应为非空字符串').to.be.a('string').and.to.not
+                  .be.empty;
               } catch (e) {
                 allPassed = false;
                 logger.warn('token检查失败:', e.message);
@@ -250,7 +249,6 @@ export class ApiChecks {
 
     return allPassed;
   }
-
 }
 
 export default ApiChecks;

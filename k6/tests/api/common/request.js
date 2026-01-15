@@ -23,7 +23,6 @@ let ResponseData = null;
 // 响应结果
 let ResponseResult = null;
 
-
 /***
  * data  请求的数据
  * api 请求的接口
@@ -38,11 +37,11 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
     const startTime = Date.now();
 
     try {
-      logger.info('正在发送请求...', {
-        api: api,
-        requestData: data,
-        isDesk: isDesk
-      });
+      // logger.info('正在发送请求...', {
+      //   api: api,
+      //   requestData: data,
+      //   isDesk: isDesk
+      // });
       if (token) {
         httpClient.setAuthToken(token);
       }
@@ -58,7 +57,7 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
       );
 
       const duration = Date.now() - startTime;
-      logger.info(`请求完成，耗时: ${duration}ms`);
+      //logger.info(`请求完成，耗时: ${duration}ms`);
       // 🔥 添加防御性检查
       if (!response) {
         ResponseSuccessRate.add(false);
@@ -79,7 +78,7 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
       const overallSuccess = checkPassed && response.status >= 200 && response.status < 300;
 
       if (overallSuccess) {
-        logger.info('响应完全成功(HTTP + 业务 + 检查)');
+        //logger.info('响应完全成功(HTTP + 业务 + 检查)');
       } else {
         logger.error(`${api} 响应失败`, {
           status: response.status,
@@ -117,7 +116,7 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
       ResponseSuccessRate.add(false);
     }
   });
-  logger.info('=== 本次迭代结束 ===');
+  //logger.info('=== 本次迭代结束 ===');
   // return Token;
   if (Token) {
     return Token;
@@ -141,12 +140,11 @@ export function sendRequest(payload, api, tag, isDesk, token) {
     language: timeData.language,
     signature: '',
     timestamp: timeData.timestamp,
-    ...payload,
+    ...payload
   };
   const Reponsetoken = testCommonRequest(data, api, tag, isDesk, token);
   return Reponsetoken;
 }
-
 
 /*
 发送查询请求
@@ -165,14 +163,11 @@ export function sendQueryRequest(payload, api, tag, isDesk, token) {
     language: timeData.language,
     signature: '',
     timestamp: timeData.timestamp,
-    ...payload,
+    ...payload
   };
   const Reponsetoken = testCommonRequest(data, api, tag, isDesk, token);
   return Reponsetoken;
 }
-
-
-
 
 export function teardown() {
   logger.info(`=== 测试清理完成，共执行了 ${checkCounter} 次检查 ===`);
