@@ -79,6 +79,9 @@ export default function (data) {
   for (let i = 0; i < reportList.length; i++) {
     const report = reportList[i];
     const result = executeReport(data, report, i + 1, reportList.length);
+    if (result == undefined) {
+      continue
+    }
     results.push(result);
 
     if (result.success) {
@@ -137,9 +140,12 @@ function executeReport(data, report, current, total) {
         break;
       default:
         logger.info(`报表 ${report.tag} 尚未实现，使用模拟数据`);
-        result = generateMockData(report.tag);
+        result = '';
     }
-
+    if (result == '') {
+      logger.error(`${report.tag} 没有数据`)
+      return
+    }
     const duration = Date.now() - startTime;
     dataSize = JSON.stringify(result).length;
 
@@ -193,55 +199,8 @@ function generateProgressBar(current, total, width = 20) {
   return `[${'█'.repeat(filled)}${'░'.repeat(empty)}]`;
 }
 
-function generateMockData(tag) {
-  const mockData = {
-    querySubAccounts: {
-      list: Array.from({ length: 10 }, (_, i) => ({
-        userId: 1000 + i,
-        userName: `user${i}`,
-        hierarchy: 1,
-        registerTime: Date.now() - i * 86400000
-      })),
-      total: 10
-    },
-    rebateLevel: {
-      list: Array.from({ length: 5 }, (_, i) => ({
-        rebateLevel: i + 1,
-        rate: (i + 1) * 10
-      }))
-    },
-    rechargeOrder: {
-      list: Array.from({ length: 8 }, (_, i) => ({
-        orderId: `ORD${i}`,
-        amount: 100 * (i + 1),
-        status: 'Payed'
-      })),
-      total: 8
-    },
-    betRecord: {
-      list: Array.from({ length: 20 }, (_, i) => ({
-        betId: `BET${i}`,
-        amount: 50 * (i + 1),
-        gameType: i % 5
-      })),
-      total: 20
-    },
-    memberReport: {
-      list: Array.from({ length: 15 }, (_, i) => ({
-        memberId: i + 1,
-        memberName: `member${i}`
-      })),
-      total: 15
-    },
-    teamReport: {
-      totalMembers: 100,
-      activeMembers: 80,
-      totalBetAmount: 50000
-    }
-  };
 
-  return mockData[tag] || { mock: true };
-}
+
 
 function countRecords(data) {
   if (Array.isArray(data)) {

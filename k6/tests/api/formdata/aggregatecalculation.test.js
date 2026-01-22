@@ -7,6 +7,6 @@
  */
 export function performDataComparison(results) {
     // 筛选出成功且包含数据的报表
-    const successReports = results.filter((r) => r.success && r.data);
-    console.log('一个表的数据', successReports[0].data);
+    // const successReports = results.filter((r) => r.success && r.data);
+    console.log('一个表的数据', results);
 }

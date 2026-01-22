@@ -93,7 +93,7 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
           checkPassed
         });
       }
-      // console.log('请求结果', response)
+      //console.log('请求结果', response)
       // 响应体预览（调试用）
       if (response?.body && typeof response.body === 'string') {
         try {
@@ -101,7 +101,7 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
           if (response.body.startsWith('{') || response.body.startsWith('[')) {
             const parsedBody = JSON.parse(response.body);
             ResponseResult = parsedBody || null;
-            console.log('----------', parsedBody.data)
+            // console.log('----------', parsedBody.data)
             Token = parsedBody.data?.token || '';
             ResponseData = parsedBody.data || null;
           } else {
