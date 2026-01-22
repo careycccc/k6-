@@ -33,7 +33,7 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
   // logger.info('本次请求测试数据:', data);
   checkCounter = 0;
 
-  group('用户登录流程 - 单次请求', () => {
+  group('请求流程', () => {
     const startTime = Date.now();
 
     try {
@@ -55,13 +55,21 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
         },
         isDesk
       );
-
       const duration = Date.now() - startTime;
       //logger.info(`请求完成，耗时: ${duration}ms`);
       // 🔥 添加防御性检查
       if (!response) {
         ResponseSuccessRate.add(false);
         logger.error(`${api} 响应检查: response为空`);
+        return;
+      }
+      // 添加响应体检查
+      if (!response.body) {
+        ResponseSuccessRate.add(false);
+        logger.error(`${api} 响应体为空`, {
+          status: response.status,
+          statusText: response.status_text
+        });
         return;
       }
       // 执行 ApiChecks
@@ -85,7 +93,7 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
           checkPassed
         });
       }
-
+      // console.log('请求结果', response)
       // 响应体预览（调试用）
       if (response?.body && typeof response.body === 'string') {
         try {
@@ -93,6 +101,7 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
           if (response.body.startsWith('{') || response.body.startsWith('[')) {
             const parsedBody = JSON.parse(response.body);
             ResponseResult = parsedBody || null;
+            console.log('----------', parsedBody.data)
             Token = parsedBody.data?.token || '';
             ResponseData = parsedBody.data || null;
           } else {
@@ -142,6 +151,7 @@ export function sendRequest(payload, api, tag, isDesk, token) {
     timestamp: timeData.timestamp,
     ...payload
   };
+  console.log('请求的data', data)
   const Reponsetoken = testCommonRequest(data, api, tag, isDesk, token);
   return Reponsetoken;
 }

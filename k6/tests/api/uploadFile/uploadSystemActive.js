@@ -22,6 +22,7 @@ export const FILE_CONFIG = {
 };
 
 // 在模块顶层定义fileContents并预加载所有文件
+// 在模块顶层定义fileContents并预加载所有文件
 const fileContents = {};
 const filePaths = FILE_CONFIG.getFilePaths();
 
@@ -32,7 +33,19 @@ for (const filePath of filePaths) {
         fileContents[filePath] = file;
         logger.info(`✓ 成功加载文件: ${filePath.split('/').pop()}`);
     } catch (error) {
-        logger.error(`✗ 加载文件失败: ${filePath},错误信息: ${error.message}`);
+        // 安全地获取错误信息
+        let errorMessage = '未知错误';
+        if (error instanceof Error) {
+            errorMessage = error.message;
+        } else if (typeof error === 'object') {
+            errorMessage = JSON.stringify(error);
+        } else if (typeof error === 'string') {
+            errorMessage = error;
+        } else {
+            errorMessage = String(error);
+        }
+
+        logger.error(`✗ 加载文件失败: ${filePath},错误信息: ${errorMessage}`);
         // 继续加载其他文件，不中断整个流程
         fileContents[filePath] = null;
     }

@@ -24,6 +24,10 @@ export function setup() {
     }
 }
 
+export function loginExec() {
+    AdminLogin(); // 这里执行登录，会计入 metrics
+}
+
 export function querySubAccounts(data) {
     return sixearnFunc(data);
 }
@@ -50,7 +54,8 @@ export const options = {
             executor: 'per-vu-iterations',
             vus: 1,
             iterations: 1, // 只运行一次
-            maxDuration: '10s'
+            exec: 'loginExec',
+            maxDuration: '5s'
         },
         //场景2：查询下级账号执行返佣逻辑的检查
         querySubAccounts: {

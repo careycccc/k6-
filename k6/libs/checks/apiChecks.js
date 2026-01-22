@@ -1,5 +1,6 @@
 import { describe, expect } from 'https://jslib.k6.io/k6chaijs/4.5.0.1/index.js';
 import { logger } from '../utils/logger.js';
+import { thresholds } from '../../config/thresholds.js';
 
 /**
  * 使用 Chai BDD 风格的 API 检查工具类
@@ -93,15 +94,15 @@ export class ApiChecks {
         //   logger.warn('请求成功检查失败:', e.message);
         // }
 
-        // try {
-        //   expect(
-        //     this.safeDurationCheck(response, 1000),
-        //     '响应时间应小于 1 秒'
-        //   ).to.be.true;
-        // } catch (e) {
-        //   allPassed = false;
-        //   logger.warn('响应时间检查失败:', e.message);
-        // }
+        try {
+          expect(
+            this.safeDurationCheck(response, thresholds.THRESHOLD_REQUEST_DURATION),
+            '响应时间应小于 1 秒'
+          ).to.be.true;
+        } catch (e) {
+          allPassed = false;
+          logger.warn('响应时间检查失败:', e.message);
+        }
       });
 
       // 3. 响应体检查
