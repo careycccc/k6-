@@ -106,3 +106,29 @@ export function isNonEmptyArray(value) {
 }
 
 
+/**
+ * 获取本周一和今日此时的时间戳
+ * @returns {Object} 包含两个时间戳的对象
+ *   - weekMonday: 本周一00:00:00的时间戳（毫秒）
+ *   - todayEnd: 今日23:00:00的时间戳（毫秒）
+ */
+export function getWeekMondayAndTodayEnd() {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 获取今天是周几（0-6，0表示周日）
+  const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // 计算到周一的日期差
+
+  // 获取本周一的时间
+  const monday = new Date(now.setDate(diff));
+  monday.setHours(0, 0, 0, 0); // 设置为周一的00:00:00
+
+  // 获取当前时间
+  const currentTime = new Date();
+
+  return {
+    weekMonday: monday.getTime(),
+    todayEnd: currentTime.getTime()
+  };
+}
+
+
+

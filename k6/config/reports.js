@@ -2,14 +2,27 @@ import {
   Dashboardtag,
   queryDashboardFunc
 } from '../tests/api/formdata/Dashboard/Dashboard.test.js';
+import {
+  Statisticstag,
+  queryStatisticsFunc
+} from '../tests/api/formdata/Statistics/Statistics.test.js';
+
+
 
 export const reportConfigs = [
+  // {
+  //   name: '报表管理->仪表盘',
+  //   tag: Dashboardtag,
+  //   func: queryDashboardFunc,
+  //   priority: 1,
+  //   description: '查询商户后台仪表盘的数据'
+  // },
   {
-    name: '仪表盘',
-    tag: Dashboardtag,
-    func: queryDashboardFunc,
-    priority: 1,
-    description: '查询商户后台仪表盘的数据'
+    name: '报表管理->数据统计',
+    tag: Statisticstag,
+    func: queryStatisticsFunc,
+    priority: 2,
+    description: '查询商户后台数据统计的数据'
   }
 ];
 

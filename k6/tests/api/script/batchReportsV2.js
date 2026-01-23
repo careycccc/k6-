@@ -8,6 +8,8 @@ import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js';
 import { getReportsByPriority } from '../../../config/reports.js';
 import { performDataComparison } from '../formdata/aggregatecalculation.test.js';
 import { Dashboardtag } from '../formdata/Dashboard/Dashboard.test.js';
+import { Statisticstag } from '../formdata/Statistics/Statistics.test.js';
+
 
 export const options = {
   vus: 1,
@@ -135,8 +137,8 @@ function executeReport(data, report, current, total) {
       case Dashboardtag:
         result = report.func(data);
         break;
-      case 'rebateLevel':
-        result = RebateLevel(data);
+      case Statisticstag:
+        result = report.func(data);
         break;
       default:
         logger.info(`报表 ${report.tag} 尚未实现，使用模拟数据`);
