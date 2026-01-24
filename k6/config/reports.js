@@ -10,13 +10,13 @@ import {
 
 
 export const reportConfigs = [
-  // {
-  //   name: '报表管理->仪表盘',
-  //   tag: Dashboardtag,
-  //   func: queryDashboardFunc,
-  //   priority: 1,
-  //   description: '查询商户后台仪表盘的数据'
-  // },
+  {
+    name: '报表管理->仪表盘',
+    tag: Dashboardtag,
+    func: queryDashboardFunc,
+    priority: 1,
+    description: '查询商户后台仪表盘的数据'
+  },
   {
     name: '报表管理->数据统计',
     tag: Statisticstag,

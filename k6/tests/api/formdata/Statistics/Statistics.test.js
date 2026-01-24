@@ -1,5 +1,13 @@
+import { logger } from '../../../../libs/utils/logger.js';
 import { fromOptions } from '../config/config.js';
-import { commonRequest, commonRequest2, commonRequest3 } from '../config/formreqeust.js';
+import { commonRequest, commonRequest2, compareListsByTwoProperties } from '../config/formreqeust.js';
+import {
+    GetPageListRptDataSummaryRechargeSumarry,
+    GetPageListRptDataSummaryWithdrawSumarry,
+    GetPageListRptDataSummaryGameSumarry,
+    GetPageListRptDataSummaryGameTypeSumarry,
+    GetPageListRptDataSummaryActivitySumarry
+} from './statisticsinfo.test.js';
 
 // 报表管理 -> 数据统计报表
 export const Statisticstag = 'queryStatistics';
@@ -12,20 +20,44 @@ const payload = {
     end,
     dateType: 1,  // 1表示按日查询
 }
-const payload2 = {
-    start,
-    end,
-    dateType: 1,  // 1表示按日查询
-    pageSize: 200
+
+// 数据统计里面的返回的数据
+let StatisticsData = {
+    information: [], // 用户统计各个详情里面的数据的总计的数据
+    SummaryView: {},  // 用于收集数据汇总模块的数据
+    SummaryCommission: {}, //  用于收集数据推广模块的数据
+    RechargeWithdraw: [], // 用于收集首充首提模块的数据
+    ToupByState: [], // 用户收集充值状态的数据
+    WithdrawByState: [], // 用户收集提现状态的数据
 }
+
 
 /**
  * 
  * 数据统计查询
 */
 export function queryStatisticsFunc(data) {
-    const result = queryDataSunmmery(data)
-    return result
+    //数据汇总模块
+    queryDataSunmmery(data)
+    // 推广模块
+    GetRptDataSummaryCommission(data)
+    // 首充首提模块
+    GetRptDataSummaryTopRechargeWithdraw(data)
+    // 充值状态模块
+    GetRptDataSummaryRechargeSumarryByState(data)
+    // 提现状态模块
+    GetRptDataSummaryWithdrawSumarryByState(data)
+    // 充值通道
+    GetRptDataSummaryRechargeSumarryTop4(data)
+    // 提现通道
+    GetRptDataSummaryWithdrawSumarryTop4(data)
+    // 平台
+    GetRptDataSummaryGameSumarryTop4(data)
+    // 子游戏
+    GetRptDataSummaryGameTypeSumarryTop4(data)
+    // 活动
+    GetRptDataSummaryActivitySumarryTop4(data)
+    return StatisticsData
 }
 
 
@@ -36,8 +68,8 @@ export function queryStatisticsFunc(data) {
 */
 export function queryDataSunmmery(data) {
     const api = '/api/RptDataSummary/GetRptDataSummaryView'
-
-    return commonRequest(data, api, payload, Statisticstag)
+    const result = commonRequest(data, api, payload, Statisticstag)
+    StatisticsData.SummaryView = { ...result }
 }
 
 /**
@@ -45,7 +77,8 @@ export function queryDataSunmmery(data) {
 */
 export function GetRptDataSummaryCommission(data) {
     const api = '/api/RptDataSummary/GetRptDataSummaryCommission'
-    return commonRequest(data, api, payload, Statisticstag)
+    const result = commonRequest(data, api, payload, Statisticstag)
+    StatisticsData.SummaryCommission = { ...result }
 }
 
 /**
@@ -54,7 +87,8 @@ export function GetRptDataSummaryCommission(data) {
 */
 export function GetRptDataSummaryTopRechargeWithdraw(data) {
     const api = '/api/RptDataSummary/GetRptDataSummaryTopRechargeWithdraw'
-    return commonRequest2(data, api, payload, Statisticstag)
+    const result = commonRequest2(data, api, payload, Statisticstag)
+    StatisticsData.RechargeWithdraw = [...result]
 }
 
 /**
@@ -62,7 +96,8 @@ export function GetRptDataSummaryTopRechargeWithdraw(data) {
 */
 export function GetRptDataSummaryRechargeSumarryByState(data) {
     const api = '/api/RptDataSummary/GetRptDataSummaryRechargeSumarryByState'
-    return commonRequest2(data, api, payload, Statisticstag)
+    const result = commonRequest2(data, api, payload, Statisticstag)
+    StatisticsData.ToupByState = [...result]
 }
 
 /**
@@ -70,7 +105,22 @@ export function GetRptDataSummaryRechargeSumarryByState(data) {
 */
 export function GetRptDataSummaryRechargeSumarryTop4(data) {
     const api = '/api/RptDataSummary/GetRptDataSummaryRechargeSumarryTop4'
-    return commonRequest2(data, api, payload, Statisticstag)
+    let result = commonRequest2(data, api, payload, Statisticstag)
+    let results = GetPageListRptDataSummaryRechargeSumarry(data)
+    let resultBool = compareListsByTwoProperties(result, results.arr, 'amount', 'rechargeWithdrawChannelName')
+    StatisticsData.information.push({
+        name: '充值通道详情总计',
+        data: { ...results.summary },
+        arr: results.arr
+    })
+    if (resultBool) {
+        logger.info('充值通道前4模块和充值详情的数据校验通过')
+        return true
+    } else {
+        logger.error('充值通道前4模块和充值详情的数据校验不通过')
+        console.log('')
+        return false
+    }
 }
 
 /**
@@ -78,7 +128,8 @@ export function GetRptDataSummaryRechargeSumarryTop4(data) {
 */
 export function GetRptDataSummaryWithdrawSumarryByState(data) {
     const api = '/api/RptDataSummary/GetRptDataSummaryWithdrawSumarryByState'
-    return commonRequest2(data, api, payload, Statisticstag)
+    const result = commonRequest2(data, api, payload, Statisticstag)
+    StatisticsData.WithdrawByState = [...result]
 }
 
 /**
@@ -86,7 +137,22 @@ export function GetRptDataSummaryWithdrawSumarryByState(data) {
 */
 export function GetRptDataSummaryWithdrawSumarryTop4(data) {
     const api = '/api/RptDataSummary/GetRptDataSummaryWithdrawSumarryTop4'
-    return commonRequest2(data, api, payload, Statisticstag)
+    let result = commonRequest2(data, api, payload, Statisticstag)
+    let results = GetPageListRptDataSummaryWithdrawSumarry(data)
+    let resultBool = compareListsByTwoProperties(result, results.arr, 'amount', 'rechargeWithdrawChannelId')
+    StatisticsData.information.push({
+        name: '提现通道详情总计',
+        data: { ...results.summary },
+        arr: results.arr
+    })
+    if (resultBool) {
+        logger.info('提现通道前4模块和提现详情的数据校验通过')
+        return true
+    } else {
+        logger.error('提现通道前4模块和提现详情的数据校验不通过')
+        console.log('')
+        return false
+    }
 }
 
 /**
@@ -94,7 +160,21 @@ export function GetRptDataSummaryWithdrawSumarryTop4(data) {
 */
 export function GetRptDataSummaryGameSumarryTop4(data) {
     const api = '/api/RptDataSummary/GetRptDataSummaryGameSumarryTop4'
-    return commonRequest2(data, api, payload, Statisticstag)
+    let result = commonRequest2(data, api, payload, Statisticstag)
+    let results = GetPageListRptDataSummaryGameSumarry(data)
+    let resultBool = compareListsByTwoProperties(result, results.arr, 'betAmount', 'vendorCode')
+    StatisticsData.information.push({
+        name: '平台详情总计',
+        data: { ...results.summary }
+    })
+    if (resultBool) {
+        logger.info('平台前4模块和平台详情的数据校验通过')
+        return true
+    } else {
+        logger.error('平台前4模块和平台详情的数据校验不通过')
+        console.log('')
+        return false
+    }
 }
 
 /**
@@ -102,7 +182,21 @@ export function GetRptDataSummaryGameSumarryTop4(data) {
 */
 export function GetRptDataSummaryGameTypeSumarryTop4(data) {
     const api = '/api/RptDataSummary/GetRptDataSummaryGameTypeSumarryTop4'
-    return commonRequest2(data, api, payload, Statisticstag)
+    let result = commonRequest2(data, api, payload, Statisticstag)
+    let results = GetPageListRptDataSummaryGameTypeSumarry(data)
+    let resultBool = compareListsByTwoProperties(result, results.arr, 'betAmount', 'gameCode')
+    StatisticsData.information.push({
+        name: '子游戏详情总计',
+        data: { ...results.summary }
+    })
+    if (resultBool) {
+        logger.info('子游戏前4模块和子游戏详情的数据校验通过')
+        return true
+    } else {
+        logger.error('子游戏前4模块和子游戏详情的数据校验不通过')
+        console.log('')
+        return false
+    }
 }
 
 /**
@@ -110,15 +204,21 @@ export function GetRptDataSummaryGameTypeSumarryTop4(data) {
 */
 export function GetRptDataSummaryActivitySumarryTop4(data) {
     const api = '/api/RptDataSummary/GetRptDataSummaryActivitySumarryTop4'
-    return commonRequest2(data, api, payload, Statisticstag)
+    let result = commonRequest2(data, api, payload, Statisticstag)
+    let results = GetPageListRptDataSummaryActivitySumarry(data)
+    let resultBool = compareListsByTwoProperties(result, results.arr, 'amount', 'activityType')
+    StatisticsData.information.push({
+        name: '活动详情总计',
+        data: { ...results.summary },
+        arr: results.arr, // 活动详情
+    })
+    if (resultBool) {
+        logger.info('活动前4模块和活动详情的数据校验通过')
+        return true
+    } else {
+        logger.error('活动前4模块和活动详情的数据校验不通过')
+        console.log('')
+        return false
+    }
 }
 
-/**
- * 会员充值通道统计
- * 充值通道前四的详细按钮里面的
-*/
-
-export function GetPageListRptDataSummaryRechargeSumarry(data) {
-    const api = 'api/RptDataSummary/GetPageListRptDataSummaryRechargeSumarry'
-    return commonRequest3(data, api, payload2, Statisticstag)
-}

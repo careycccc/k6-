@@ -144,24 +144,28 @@ function compareMatrixAndGame(matrix, dashboardGameBetCalculation, sevenBetinfo)
     let count = 0;
     if (dashboardTimeStatsToday.length < 0) {
         logger.error('仪表盘内<-->时间维度数据统计为空')
+        console.log('')
         count++
     }
 
     if (reportNum != BetCalculation) {
         logger.error('仪表盘内<-->时间维度数据统计和饼图的,今日投注金额不相等')
         logger.error(`时间维度数据统计投注金额:${reportNum} 饼图投注金额:${mat}`)
+        console.log('')
         count++
     }
     // 矩阵投注人数和时间维度数据统计投注人数比较
     if (reportCount != matUserCount) {
         logger.error('仪表盘内<-->时间维度数据统计和矩阵的,今日投注人数不相等')
         logger.error(`时间维度数据统计投注人数:${reportCount} 矩阵投注人数:${matUserCount}`)
+        console.log('')
         count++
     }
     // 近七日的投注和矩阵比较
     if (sevenBetinfo.betAmount != mat) {
         logger.error('仪表盘内<-->近7日投注/盈亏趋势和矩阵的,今日投注金额不相等')
         logger.error(`仪表盘内<-->近7日投注/盈亏趋势投注金额:${sevenBetinfo.betAmount} 矩阵投注金额:${mat}`)
+        console.log('')
         count++
     }
 
@@ -217,47 +221,56 @@ function compareMatrixAndSummary(matrix, summary, yesterdaySummary, toup) {
     if (matrixBetAmount != betAmount) {
         logger.error('数据汇总和矩阵的,今日投注金额不相等')
         logger.error(`数据汇总今日投注金额:${betAmount} 矩阵今日投注金额:${matrixBetAmount}`)
+        console.log('')
         count++
     }
     if (mattodayIncrease != registerCount) {
         logger.error('数据汇总和矩阵的,今日新增人数不相等')
         logger.error(`数据汇总今日新增人数:${registerCount} 矩阵今日新增人数:${mattodayIncrease}`)
+        console.log('')
         count++
     }
     if (matloginUserCount != loginUserCount) {
         logger.error('数据汇总和矩阵的,今日登录人数不相等')
         logger.error(`数据汇总今日登录人数:${loginUserCount} 矩阵今日登录人数:${matloginUserCount}`)
+        console.log('')
         count++
     }
     if (matrechargeWithdrawDifference != netAmount) {
         logger.error('数据汇总和矩阵的,充提差不相等')
         logger.error(`数据汇总充提差:${netAmount} 矩阵充提差:${matrechargeWithdrawDifference}`)
+        console.log('')
         count++
     }
     if (matbetAmount != betAmount) {
         logger.error('数据汇总和矩阵的,今日投注金额不相等')
         logger.error(`数据汇总今日投注金额:${betAmount} 矩阵今日投注金额:${matbetAmount}`)
+        console.log('')
         count++
     }
     if (matbetUserCount != betUserCount) {
         logger.error('数据汇总和矩阵的,今日投注人数不相等')
         logger.error(`数据汇总今日投注人数:${betUserCount} 矩阵今日投注人数:${matbetUserCount}`)
+        console.log('')
         count++
     }
     if (matplatformProfit != winLoseAmount) {
         logger.error('数据汇总和矩阵的,平台盈亏不相等')
         logger.error(`数据汇总平台盈亏:${winLoseAmount} 矩阵平台盈亏:${matplatformProfit}`)
+        console.log('')
         count++
     }
     if (toup.rechargeAmount != rechargeAmount) {
         logger.error('数据汇总和近七日的充值提现趋势,今日充值金额不相等')
         logger.error(`数据汇总今日充值金额:${rechargeAmount} 近七日的充值提现趋势今日充值金额:${toup.rechargeAmount}`)
+        console.log('')
         count++
     }
     if (toup.withdrawAmount != withdrawAmount) {
         logger.error('数据汇总和近七日的充值提现趋势,今日提现金额不相等')
         logger.error(`数据汇总今日提现金额:${withdrawAmount} 近七日的充值提现趋势今日提现金额:${toup.withdrawAmount}`)
         count++
+        console.log('')
     }
 
     // 时间维度和数据汇总进昨日的数据进行比较
@@ -328,45 +341,53 @@ function compareMatrixAndSummary(matrix, summary, yesterdaySummary, toup) {
         logger.error('数据汇总和时间维度数据统计的,昨日注册人数不相等')
         logger.error(`数据汇总昨日注册人数:${yesterdayRegisterCount} 时间维度数据统计的昨日注册人数:${dashboardReisterNumber}`)
         count++
+        console.log('')
     }
     if (dashboardLoginUserCount != yesterdayLoginUserCount) {
         logger.error('数据汇总和时间维度数据统计的,昨日登录人数不相等')
         logger.error(`数据汇总昨日登录人数:${yesterdayLoginUserCount} 时间维度数据统计的昨日登录人数:${dashboardLoginUserCount}`)
         count++
+        console.log('')
     }
 
     if (dashboardRechargeAmount != yesterdayRechargeAmount) {
         logger.error('数据汇总和时间维度数据统计的,昨日充值金额不相等')
         logger.error(`数据汇总昨日充值金额:${yesterdayRechargeAmount} 时间维度数据统计的昨日充值金额:${dashboardRechargeAmount}`)
         count++
+        console.log('')
     }
     if (dashboardRechargeUserCount != yesterdayRechargeUserCount) {
         logger.error('数据汇总和时间维度数据统计的,昨日充值人数不相等')
         logger.error(`数据汇总昨日充值人数:${yesterdayRechargeUserCount} 时间维度数据统计的昨日充值人数:${dashboardRechargeUserCount}`)
         count++
+        console.log('')
     }
     if (dashboardWithdrawAmount != yesterdayWithdrawAmount) {
         logger.error('数据汇总和时间维度数据统计的,昨日提现金额不相等')
         logger.error(`数据汇总昨日提现金额:${yesterdayWithdrawAmount} 时间维度数据统计的昨日提现金额:${dashboardWithdrawAmount}`)
         count++
+        console.log('')
     }
 
     if (dashboardWithdrawUserCount != yesterdayWithdrawUserCount) {
         logger.error('数据汇总和时间维度数据统计的,昨日提现人数不相等')
         logger.error(`数据汇总昨日提现人数:${yesterdayWithdrawUserCount} 时间维度数据统计的昨日提现人数:${dashboardWithdrawUserCount}`)
         count++
+        console.log('')
     }
 
     if (dashboradBetAmount != yesterdayBetAmount) {
         logger.error('数据汇总和时间维度数据统计的,昨日投注金额不相等')
         logger.error(`数据汇总昨日投注金额:${yesterdayBetAmount} 时间维度数据统计的昨日投注金额:${dashboradBetAmount}`)
         count++
+        console.log('')
     }
 
     if (dashboradBetUserCount != yesterdayBetUserCount) {
         logger.error('数据汇总和时间维度数据统计的,昨日投注人数不相等')
         logger.error(`数据汇总昨日投注人数:${yesterdayBetUserCount} 时间维度数据统计的昨日投注人数:${dashboradBetUserCount}`)
         count++
+        console.log('')
 
     }
 
@@ -374,6 +395,7 @@ function compareMatrixAndSummary(matrix, summary, yesterdaySummary, toup) {
         logger.error('数据汇总和时间维度数据统计的,昨日平台盈亏不相等')
         logger.error(`数据汇总昨日平台盈亏:${yesterdayWinLoseAmount} 时间维度数据统计的昨日平台盈亏:${dashboradWinLoseAmount}`)
         count++
+        console.log('')
     }
     if (count == 0) {
         return true;
