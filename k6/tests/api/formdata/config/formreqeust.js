@@ -12,10 +12,10 @@ import { sendRequest, sendQueryRequest } from "../../common/request.js";
 export function commonRequest(data, api, payload, tag) {
     const token = data.token
     let result = sendRequest(payload, api, tag, false, token)
-    console.log('')
-    console.log(`${api}请求的结果:${result}'`)
-    console.log(typeof result)
-    console.log('')
+    // console.log('')
+    // console.log(`${api}请求的结果:${result}'`)
+    // console.log(typeof result)
+    // console.log('')
     if (typeof result != 'object') {
         result = JSON.parse(result)
     }
@@ -39,7 +39,6 @@ export function commonRequest2(data, api, payload, tag) {
     if (typeof result != 'object') {
         result = JSON.parse(result)
     }
-    console.log('')
     if (result && result.length > 0) {
         return result
     }
@@ -61,9 +60,28 @@ export function commonRequest3(data, api, payload, tag) {
         result = JSON.parse(result)
     }
     if (result && result.list.length > 0 && result.summary) {
-        return { list: result.list, summary: result.summary }
+        return { list: result.list, summary: result.summary, totalCount: result.totalCount }
     }
     return { list: [], summary: {} }
+}
+
+/**
+ * @param {string} api
+ * @param {object} payload  请求的数据
+ * @param {string} tag   每个请求的标志位
+ * @param {object} data 上下文的数据比如token
+ * @returns {Array} 返回数组
+*/
+export function commonRequest4(data, api, payload, tag) {
+    const token = data.token
+    let result = sendRequest(payload, api, tag, false, token)
+    if (typeof result != 'object') {
+        result = JSON.parse(result)
+    }
+    if (result && result.list.length > 0) {
+        return result.list
+    }
+    return []
 }
 
 

@@ -7,6 +7,15 @@ import {
   queryStatisticsFunc
 } from '../tests/api/formdata/Statistics/Statistics.test.js';
 
+import {
+  DailySummaryTag,
+  queryDailySummaryReportFunc
+} from '../tests/api/formdata/DailySummaryReport/DailySummaryReport.test.js';
+
+import {
+  memberTag,
+  queryMemberReportFunc
+} from '../tests/api/formdata/memberReport/memberReport.test.js';
 
 
 export const reportConfigs = [
@@ -23,6 +32,20 @@ export const reportConfigs = [
     func: queryStatisticsFunc,
     priority: 2,
     description: '查询商户后台数据统计的数据'
+  },
+  {
+    name: '报表管理->平台报表',
+    tag: DailySummaryTag,
+    func: queryDailySummaryReportFunc,
+    priority: 3,
+    description: '查询商户后台平台报表的数据'
+  },
+  {
+    name: '报表管理->会员报表',
+    tag: memberTag,
+    func: queryMemberReportFunc,
+    priority: 4,
+    description: '查询商户后台会员报表的数据'
   }
 ];
 

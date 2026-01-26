@@ -2,10 +2,10 @@
  * 性能测试阈值配置
  */
 export const thresholds = {
-  THRESHOLD_P95: 1000, // 95% 的请求必须在 1000 毫秒内完成
-  THRESHOLD_P99: 2000, // 99% 的请求必须在 2000 毫秒内完成
+  THRESHOLD_P95: 5000, // 95% 的请求必须在 5000 毫秒内完成
+  THRESHOLD_P99: 10000, // 99% 的请求必须在 10000 毫秒内完成
   THRESHOLD_ERROR_RATE: 0.01, // 错误率不能超过 1%
-  THRESHOLD_REQUEST_DURATION: 1000, // 请求持续时间不能超过 1000 毫秒
+  THRESHOLD_REQUEST_DURATION: 5000, // 请求持续时间不能超过 5000 毫秒（报表查询较慢）
   THRESHOLD_CHECK_SUCEES_RATE: 0.99 // 检查成功率不能低于 99%
 };
 

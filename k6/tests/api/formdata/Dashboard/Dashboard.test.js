@@ -136,9 +136,8 @@ function compareMatrixAndGame(matrix, dashboardGameBetCalculation, sevenBetinfo)
     // 饼图
     const BetCalculation = dashboardGameBetCalculation.betAmount
     const BetCalculationCount = dashboardGameBetCalculation.betCount
-    // 时间维度数据统计
-    const reportNum = dashboardTimeStatsToday[6].reportNum
-    const reportCount = dashboardTimeStatsToday[7].reportNum
+  
+   
 
     // 矩阵的是投注金额，饼图的是有效投注，时间维度数据统计里面的投注也是有效投注
     let count = 0;
@@ -147,6 +146,9 @@ function compareMatrixAndGame(matrix, dashboardGameBetCalculation, sevenBetinfo)
         console.log('')
         count++
     }
+     // 时间维度数据统计
+    const reportNum = dashboardTimeStatsToday[6].reportNum
+    const reportCount = dashboardTimeStatsToday[7].reportNum
 
     if (reportNum != BetCalculation) {
         logger.error('仪表盘内<-->时间维度数据统计和饼图的,今日投注金额不相等')
@@ -176,6 +178,7 @@ function compareMatrixAndGame(matrix, dashboardGameBetCalculation, sevenBetinfo)
     return false
 }
 
+
 /**
  * 数据汇总，矩阵，时间维度数据统计,近7日充值/提现趋势 进行比较
  * 
@@ -201,7 +204,7 @@ function compareMatrixAndSummary(matrix, summary, yesterdaySummary, toup) {
     }
     if (summaryObject == null) {
         logger.error('今日数据汇总为空')
-        return
+        return false
     }
     const registerCount = summaryObject.registerCount // 注册人数
     const loginUserCount = summaryObject.loginUserCount // 登录人数
@@ -276,15 +279,30 @@ function compareMatrixAndSummary(matrix, summary, yesterdaySummary, toup) {
     // 时间维度和数据汇总进昨日的数据进行比较
     if (dashboardTimeStatsYesterday.length == 0) {
         logger.error('昨日时间维度数据统计为空')
-        return
+        return false
     }
+    
+    // 检查dashboardTimeStatsYesterday数组是否有足够的元素
+    if (dashboardTimeStatsYesterday.length < 11) {
+        logger.error(`昨日时间维度数据统计数组长度不足，需要11个元素，实际只有${dashboardTimeStatsYesterday.length}个`)
+        return false
+    }
+    
+    // 检查每个元素是否存在
+    for (let i = 0; i < 11; i++) {
+        if (!dashboardTimeStatsYesterday[i]) {
+            logger.error(`昨日时间维度数据统计数组第${i}个元素为空`)
+            return false
+        }
+    }
+    
     let yesterdaySummaryObject = yesterdaySummary.statisticDataRsp
-    if (typeof summaryObject != 'object') {
+    if (typeof yesterdaySummaryObject != 'object') {
         yesterdaySummaryObject = JSON.parse(yesterdaySummaryObject)
     }
     if (yesterdaySummaryObject == null) {
         logger.error('昨日数据汇总为空')
-        return
+        return false
     }
     // 昨日数据汇总为yesterdayDashboardData对象赋值
     yesterdayDashboardData.registerCount = yesterdaySummaryObject.registerCount
@@ -339,7 +357,7 @@ function compareMatrixAndSummary(matrix, summary, yesterdaySummary, toup) {
 
     if (dashboardRegisterCount != yesterdayRegisterCount) {
         logger.error('数据汇总和时间维度数据统计的,昨日注册人数不相等')
-        logger.error(`数据汇总昨日注册人数:${yesterdayRegisterCount} 时间维度数据统计的昨日注册人数:${dashboardReisterNumber}`)
+        logger.error(`数据汇总昨日注册人数:${yesterdayRegisterCount} 时间维度数据统计的昨日注册人数:${dashboardRegisterCount}`)
         count++
         console.log('')
     }
@@ -404,6 +422,8 @@ function compareMatrixAndSummary(matrix, summary, yesterdaySummary, toup) {
     }
 
 }
+
+
 /**
  仪表盘的矩阵的数据
  * 

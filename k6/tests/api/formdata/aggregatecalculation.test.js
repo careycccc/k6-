@@ -7,13 +7,14 @@ import { logger } from "../../../libs/utils/logger.js";
  * @param {Array} results - 包含多个报表结果的数组，每个报表结果应包含success和data属性
  */
 export function performDataComparison(results) {
+    // console.log('单个表的数据', results)
     // 筛选出成功且包含数据的报表
     // const successReports = results.filter((r) => r.success && r.data);
-    results.forEach(item => {
-        console.log('')
-        console.log(item)
-        console.log('')
-    })
+    // results.forEach(item => {
+    //     console.log('')
+    //     console.log(item)
+    //     console.log('')
+    // })
     if (results.length < 2) {
         logger.error('执行数据对比分析函数的接受值的少于两项', results.length)
         return
@@ -31,6 +32,8 @@ export function performDataComparison(results) {
     const dashboardwithdrawCount = results[0].data.withdrawCount;
     const dashboardrechargeCount = results[0].data.rechargeCount;
     const dashboardActiveAmount = results[0].data.activeAmount;
+    const dashboardloginUserCount = results[0].data.loginUserCount;
+
 
     // 数据统计的数据
     const dataStatisticsRegisterNumber = results[1].data.SummaryView.registerCount;
@@ -131,4 +134,42 @@ export function performDataComparison(results) {
         console.log('')
     }
 
+    // 平台报表 和 仪表盘，或者数据统计进行比较
+    const DailyRegisterCount = results[2].data.totalRegisterCount
+    const DailyloginCount = results[2].data.loginCount
+    const DailybetUserCount = results[2].data.betUserCount
+    const DailytotalBetAmount = results[2].data.totalBetAmount
+    const DailyplatformFee = results[2].data.totalFeeAmount
+    // 中奖金额
+    const DailytotalWinAmount = results[2].data.totalWinAmount
+    const DailytotalActivityAmount = results[2].data.totalActivityAmount
+
+    if (DailyRegisterCount != dataStatisticsRegisterNumber) {
+        logger.error(`注册人数对不上 -- 平台报表的数据${DailyRegisterCount}<--->数据统计的数据${dataStatisticsRegisterNumber}`)
+        console.log('')
+    }
+    if (DailyloginCount != dashboardloginUserCount) {
+        logger.error(`登录人数对不上 -- 平台报表的数据${DailyloginCount}<--->仪表盘的汇总数据${dashboardloginUserCount}`)
+        console.log('')
+    }
+
+    if (dashboradbetUserCount != DailybetUserCount) {
+        logger.error(`投注人数对不上 -- 平台报表的数据${DailybetUserCount}<--->仪表盘的汇总数据${dashboradbetUserCount}`)
+        console.log('')
+
+    }
+    if (DailytotalBetAmount != dashboardbetAmount) {
+        logger.error(`投注金额对不上 -- 平台报表的数据${DailytotalBetAmount}<--->仪表盘的汇总数据${dashboardbetAmount}`)
+        console.log('')
+    }
+
+    if (DailyplatformFee != dataStatisticsplatformFee) {
+        logger.error(`手续费对不上 -- 平台报表的数据${DailyplatformFee}<--->数据统计的数据${dataStatisticsplatformFee}`)
+        console.log('')
+    }
+
+    if (DailytotalActivityAmount != dataStatisticsactiveAmount) {
+        logger.error(`活动金额对不上 -- 平台报表的数据${DailytotalActivityAmount}<--->数据统计的数据${dataStatisticsactiveAmount}`)
+        console.log('')
+    }
 }
