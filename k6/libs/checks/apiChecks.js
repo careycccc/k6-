@@ -1,4 +1,5 @@
 import { describe, expect } from 'https://jslib.k6.io/k6chaijs/4.5.0.1/index.js';
+import { validateResponse } from '../zodValidator.js';
 import { logger } from '../utils/logger.js';
 import { thresholds } from '../../config/thresholds.js';
 
@@ -63,7 +64,7 @@ export class ApiChecks {
    * 使用 Chai 进行全面响应检查
    * 返回 true 表示所有断言通过，false 表示有失败
    */
-  static ResponseChecks(response) {
+  static ResponseChecks(response, tag) {
     let allPassed = true;
 
     describe('API 响应全面检查', () => {
@@ -95,13 +96,32 @@ export class ApiChecks {
         // }
 
         try {
-          expect(
-            this.safeDurationCheck(response, thresholds.THRESHOLD_REQUEST_DURATION),
-            '响应时间应小于 1 秒'
-          ).to.be.true;
+          const maxDur = thresholds.THRESHOLD_REQUEST_DURATION;
+          expect(this.safeDurationCheck(response, maxDur), '响应时间应在阈值内').to.be.true;
         } catch (e) {
           allPassed = false;
           logger.warn('响应时间检查失败:', e.message);
+        }
+        // 额外：若传入 tag，则执行结构化校验
+        try {
+          if (tag) {
+            let parsedBody = null;
+            if (response?.body) {
+              try {
+                parsedBody =
+                  typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+              } catch {
+                parsedBody = null;
+              }
+            }
+            if (parsedBody) {
+              const valid = validateResponse(tag, parsedBody);
+              if (!valid) allPassed = false;
+            }
+          }
+        } catch (err) {
+          allPassed = false;
+          logger.warn('额外的 zod 校验失败:', err.message);
         }
       });
 

@@ -4,57 +4,59 @@
     "description": "企业级 K6 性能测试与自动化接口测试框架",
     "main": "index.js",
     "scripts": {
-      "test:smoke": "node scripts/run-test.js --type smoke",
-      "test:api": "node scripts/run-test.js --type api",
-      "test:load": "node scripts/run-test.js --type load",
-      "test:stress": "node scripts/run-test.js --type stress",
-      "test:endurance": "node scripts/run-test.js --type endurance",
-      "test:all": "npm run test:smoke && npm run test:api && npm run test:load",
-      "lint": "eslint k6/**/*.js",
-      "format": "prettier --write k6/**/*.js scripts/**/*.js",
-      "security:check": "npm audit",
-      "security:fix": "npm audit fix",
-      "clean": "rm -rf reports/* logs/*",
-      "report": "node scripts/generate-report.js",
-      "docker:build": "docker build -t k6-test-framework -f docker/Dockerfile .",
-      "docker:run": "docker-compose -f docker/docker-compose.yml up k6",
-      "precommit": "npm run lint && npm run format"
+        "test:smoke": "node scripts/run-test.js --type smoke",
+        "test:api": "node scripts/run-test.js --type api",
+        "test:load": "node scripts/run-test.js --type load",
+        "test:stress": "node scripts/run-test.js --type stress",
+        "test:endurance": "node scripts/run-test.js --type endurance",
+        "test:all": "npm run test:smoke && npm run test:api && npm run test:load",
+        "lint": "eslint k6/**/*.js",
+        "format": "prettier --write k6/**/*.js scripts/**/*.js",
+        "security:check": "npm audit",
+        "security:fix": "npm audit fix",
+        "clean": "rm -rf reports/* logs/*",
+        "report": "node scripts/generate-report.js",
+        "docker:build": "docker build -t k6-test-framework -f docker/Dockerfile .",
+        "docker:run": "docker-compose -f docker/docker-compose.yml up k6",
+        "precommit": "npm run lint && npm run format"
     },
     "keywords": [
-      "k6",
-      "performance",
-      "testing",
-      "load-testing",
-      "api-testing",
-      "automation"
+        "k6",
+        "performance",
+        "testing",
+        "load-testing",
+        "api-testing",
+        "automation"
     ],
     "author": "K6 Test Team",
     "license": "MIT",
     "devDependencies": {
-      "eslint": "^8.56.0",
-      "eslint-config-prettier": "^9.1.0",
-      "eslint-plugin-import": "^2.29.1",
-      "prettier": "^3.2.5",
-      "cross-env": "^7.0.3",
-      "dotenv": "^16.3.1",
-      "js-yaml": "^4.1.0",
-      "csv-parse": "^5.5.3",
-      "chalk": "^4.1.2",
-      "inquirer": "^8.2.6",
-      "yargs": "^17.7.2",
-      "glob": "^10.3.10"
+        "chalk": "^4.1.2",
+        "cross-env": "^7.0.3",
+        "csv-parse": "^5.5.3",
+        "dotenv": "^16.3.1",
+        "eslint": "^8.56.0",
+        "eslint-config-prettier": "^9.1.0",
+        "eslint-plugin-import": "^2.29.1",
+        "glob": "^10.3.10",
+        "inquirer": "^8.2.6",
+        "js-yaml": "^4.1.0",
+        "prettier": "^3.2.5",
+        "yargs": "^17.7.2"
     },
     "engines": {
-      "node": ">=14.0.0",
-      "npm": ">=6.0.0"
+        "node": ">=14.0.0",
+        "npm": ">=6.0.0"
     },
     "repository": {
-      "type": "git",
-      "url": "https://github.com/your-org/k6-test-framework.git"
+        "type": "git",
+        "url": "https://github.com/your-org/k6-test-framework.git"
     },
     "bugs": {
-      "url": "https://github.com/your-org/k6-test-framework/issues"
+        "url": "https://github.com/your-org/k6-test-framework/issues"
     },
-    "homepage": "https://github.com/your-org/k6-test-framework#readme"
-  }
-  
+    "homepage": "https://github.com/your-org/k6-test-framework#readme",
+    "dependencies": {
+        "zod": "^4.3.6"
+    }
+}

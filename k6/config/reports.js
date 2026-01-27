@@ -19,27 +19,27 @@ import {
 
 
 export const reportConfigs = [
-  {
-    name: '报表管理->仪表盘',
-    tag: Dashboardtag,
-    func: queryDashboardFunc,
-    priority: 1,
-    description: '查询商户后台仪表盘的数据'
-  },
-  {
-    name: '报表管理->数据统计',
-    tag: Statisticstag,
-    func: queryStatisticsFunc,
-    priority: 2,
-    description: '查询商户后台数据统计的数据'
-  },
-  {
-    name: '报表管理->平台报表',
-    tag: DailySummaryTag,
-    func: queryDailySummaryReportFunc,
-    priority: 3,
-    description: '查询商户后台平台报表的数据'
-  },
+  // {
+  //   name: '报表管理->仪表盘',
+  //   tag: Dashboardtag,
+  //   func: queryDashboardFunc,
+  //   priority: 1,
+  //   description: '查询商户后台仪表盘的数据'
+  // },
+  // {
+  //   name: '报表管理->数据统计',
+  //   tag: Statisticstag,
+  //   func: queryStatisticsFunc,
+  //   priority: 2,
+  //   description: '查询商户后台数据统计的数据'
+  // },
+  // {
+  //   name: '报表管理->平台报表',
+  //   tag: DailySummaryTag,
+  //   func: queryDailySummaryReportFunc,
+  //   priority: 3,
+  //   description: '查询商户后台平台报表的数据'
+  // },
   {
     name: '报表管理->会员报表',
     tag: memberTag,

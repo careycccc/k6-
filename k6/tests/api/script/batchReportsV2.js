@@ -10,7 +10,6 @@ import { performDataComparison } from '../formdata/aggregatecalculation.test.js'
 import { Dashboardtag } from '../formdata/Dashboard/Dashboard.test.js';
 import { Statisticstag } from '../formdata/Statistics/Statistics.test.js';
 
-
 export const options = {
   vus: 1,
   iterations: 1,
@@ -24,7 +23,7 @@ export const options = {
   summaryTimeUnit: 'ms'
 };
 
-// 自定义检查项目的函数 
+// 自定义检查项目的函数
 export const metrics = {
   reportDuration: new Trend('report_duration', true),
   reportSuccess: new Rate('report_success'),
@@ -73,6 +72,7 @@ export default function (data) {
   console.log(`║  执行方式: 串行查询（按优先级排序）${''.padEnd(27)}║`);
   console.log('╚═══════════════════════════════════════════════════════════╝');
   console.log('');
+  console.log('[DEBUG] about to call performDataComparison, results length placeholder check');
 
   const results = [];
   let successCount = 0;
@@ -82,7 +82,7 @@ export default function (data) {
     const report = reportList[i];
     const result = executeReport(data, report, i + 1, reportList.length);
     if (result == undefined) {
-      continue
+      continue;
     }
     results.push(result);
 
@@ -109,9 +109,13 @@ export default function (data) {
   console.log('');
 
   generateSummary(results);
+  // 调用数据对比前再做一次尽职检查
+  console.log(
+    '[DEBUG] 调用 performDataComparison，当前 results 长度=',
+    Array.isArray(results) ? results.length : 'not-array'
+  );
   performDataComparison(results);
 }
-
 
 /**
  * 主要是记录这个函数的执行状态
@@ -120,8 +124,8 @@ export default function (data) {
  * @current {number} 当前正在执行的报表的索引（从1开始）
  * @total {number} 总报表数
  * @returns {Object} 返回这个函数的执行状态和过程，其中的data表示函数返回结果
- * 
-*/
+ *
+ */
 function executeReport(data, report, current, total) {
   const startTime = Date.now();
   const progressBar = generateProgressBar(current, total);
@@ -145,8 +149,8 @@ function executeReport(data, report, current, total) {
         result = '';
     }
     if (result == '') {
-      logger.error(`${report.tag} 没有数据`)
-      return
+      logger.error(`${report.tag} 没有数据`);
+      return;
     }
     const duration = Date.now() - startTime;
     dataSize = JSON.stringify(result).length;
@@ -201,9 +205,6 @@ function generateProgressBar(current, total, width = 20) {
   return `[${'█'.repeat(filled)}${'░'.repeat(empty)}]`;
 }
 
-
-
-
 function countRecords(data) {
   if (Array.isArray(data)) {
     return data.length;
@@ -239,15 +240,15 @@ function generateSummary(results) {
 
   // 将汇总信息存储到reportResults对象中
   reportResults.summary = {
-    totalReports: results.length,    // 总报告数
-    successCount: results.filter((r) => r.success).length,  // 成功数量
-    failCount: results.filter((r) => !r.success).length,    // 失败数量
-    totalDuration: totalDuration,     // 总耗时
-    avgDuration: avgDuration,         // 平均耗时
-    minDuration: minDuration,         // 最小耗时
-    maxDuration: maxDuration,         // 最大耗时
-    totalDataSize: totalDataSize,     // 总数据量
-    timestamp: new Date().toISOString()  // 生成汇总信息的时间戳
+    totalReports: results.length, // 总报告数
+    successCount: results.filter((r) => r.success).length, // 成功数量
+    failCount: results.filter((r) => !r.success).length, // 失败数量
+    totalDuration: totalDuration, // 总耗时
+    avgDuration: avgDuration, // 平均耗时
+    minDuration: minDuration, // 最小耗时
+    maxDuration: maxDuration, // 最大耗时
+    totalDataSize: totalDataSize, // 总数据量
+    timestamp: new Date().toISOString() // 生成汇总信息的时间戳
   };
 
   // 打印格式化的汇总信息表格
@@ -260,9 +261,8 @@ function generateSummary(results) {
   console.log(`║  最慢: ${formatDuration(maxDuration).padEnd(48)}║`);
   console.log(`║  总数据量: ${formatBytes(totalDataSize).padEnd(43)}║`);
   console.log('╚═══════════════════════════════════════════════════════════╝');
-  console.log('');  // 打印空行以增加可读性
+  console.log(''); // 打印空行以增加可读性
 }
-
 
 function formatDuration(ms) {
   if (ms < 1000) return `${ms}ms`;

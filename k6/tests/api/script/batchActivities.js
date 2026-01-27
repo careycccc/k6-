@@ -367,14 +367,32 @@ function formatDuration(ms) {
   return `${(ms / 60000).toFixed(2)}m`;
 }
 
+// export function handleSummary(data) {
+//   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+//   return {
+//     stdout: textSummary(data, { indent: ' ', enableColors: true }),
+//     [`reports/batch-activities-${timestamp}.html`]: htmlReport(data, {
+//       title: '批量活动创建报告'
+//     }),
+//     [`reports/batch-activities-${timestamp}-summary.json`]: JSON.stringify(activityResults, null, 2)
+//   };
+// }
+
+// 确保报告生成代码正确处理目录不存在的情况
+
 export function handleSummary(data) {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  // 确保 reports 目录存在
+  const fs = require('fs');
+  const reportsDir = 'reports';
+  if (!fs.existsSync(reportsDir)) {
+    fs.mkdirSync(reportsDir, { recursive: true });
+  }
 
   return {
-    stdout: textSummary(data, { indent: ' ', enableColors: true }),
-    [`reports/batch-activities-${timestamp}.html`]: htmlReport(data, {
-      title: '批量活动创建报告'
-    }),
-    [`reports/batch-activities-${timestamp}-summary.json`]: JSON.stringify(activityResults, null, 2)
+    'stdout': textSummary(data, { indent: ' ', enableColors: true }),
+    [`reports/${new Date().toISOString().replace(/:/g, '-')}-summary.json`]: JSON.stringify(data),
+    [`reports/${new Date().toISOString().replace(/:/g, '-')}-report.html`]: htmlReport(data),
   };
 }
+

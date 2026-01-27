@@ -22,7 +22,6 @@ let DailySummaryReportData = {
     totalRegisterCount: 0,//注册人数
     totalBetAmount: 0,//投注金额
     totalFeeAmount: 0,//手续费
-    totalWinAmount: 0,//派奖金额
     totalActivityAmount: 0,//活动金额
     totalRechargeAmount: 0,//充值金额
     totalRechargeCount: 0,//充值次数
@@ -55,8 +54,11 @@ export function queryDailySummaryReportFunc(data) {
                 logger.error(`会员汇总的平台净入款的计算不正确，充值金额：${item.rechargeAmount},提现金额${item.withdrawAmount},平台净入款金额：${item.platNetDeposit}`)
                 console.log('')
             }
-            if (item.platNetDeposit + item.platWinLoseAmount != item.platNetProfit) {
-                logger.error(`会员汇总的平台净盈利的计算不正确，平台净入款金额：${item.platNetDeposit},平台盈亏金额：${item.platWinLoseAmount},平台净盈利金额：${item.platNetProfit}`)
+            // 在验证平台净盈利计算时使用容差比较
+            const calculatedProfit = item.platNetDeposit + item.platWinLoseAmount;
+            if (!isAmountEqual(calculatedProfit, item.platNetProfit)) {
+                const diff = Math.abs(calculatedProfit - item.platNetProfit);
+                logger.error(`每日汇总的平台净盈利的计算不正确，平台净入款金额：${item.platNetDeposit},平台盈亏金额：${item.platWinLoseAmount},平台净盈利金额：${item.platNetProfit}，计算结果：${calculatedProfit}，差异：${diff}`)
                 console.log('')
             }
 
@@ -79,6 +81,13 @@ export function queryDailySummaryReportFunc(data) {
     const rechargeResult = DailyRechargeReport(data)
     if (rechargeResult.list && rechargeResult.list.length > 0) {
         DailySummaryReportData.totalRechargeSummary = { ...rechargeResult.summary }
+        // 充值次数 - 充值成功次数 是否等于充值失败的次数
+        const totalRechargeCount = rechargeResult.summary.totalRechargeCount;
+        const totalRechargeSuccessCount = rechargeResult.summary.totalRechargeSuccessCount;
+        const totalRechargeFailCount = rechargeResult.summary.totalRechargeFailCount;
+        if (totalRechargeCount - totalRechargeSuccessCount != totalRechargeFailCount) {
+            logger.error(`充值次数:${totalRechargeCount} - 充值成功次数:${totalRechargeSuccessCount} 不等于充值失败的次数:${totalRechargeFailCount}`)
+        }
         // 充值金额进行对比
         if (rechargeResult.summary.totalRechargeSuccessAmount != DailySummaryReportData.totalRechargeAmount) {
             logger.error(`每日汇总报表${DailySummaryReportData.totalRechargeAmount}和每日充值报表${rechargeResult.summary.totalRechargeSuccessAmount}的充值金额对不上，`)
@@ -90,6 +99,12 @@ export function queryDailySummaryReportFunc(data) {
     const withdrawResult = DailyWithdrawReport(data)
     if (withdrawResult.list && withdrawResult.list.length > 0) {
         DailySummaryReportData.totalWithdrawSummary = { ...withdrawResult.summary }
+        const WithdrawCount = withdrawResult.summary.totalWithdrawCount
+        const WithdrawSuccessCount = withdrawResult.summary.totalWithdrawSuccessCount
+        if (WithdrawSuccessCount > WithdrawCount) {
+            logger.error(`每日提现报表的每日提现成功次数:${WithdrawSuccessCount}大于来每日提现次数:${WithdrawCount}`)
+            console.log('')
+        }
         // 提现金额进行对比
         if (withdrawResult.summary.totalWithdrawSuccessAmount != DailySummaryReportData.totalWithdrawAmount) {
             logger.error(`每日汇总报表${DailySummaryReportData.totalWithdrawAmount}和每日提现报表${withdrawResult.summary.totalWithdrawSuccessAmount}的提现金额对不上，`)
@@ -111,7 +126,7 @@ export function queryDailySummaryReportFunc(data) {
     // 渠道查询
     const channelResult = ChannelQuery(data);
     // 记录渠道查询的原始结果
-    console.log('渠道查询原始结果:', JSON.stringify(channelResult));
+    // console.log('渠道查询原始结果:', JSON.stringify(channelResult));
 
     // 初始化 channelSummary 变量
     let channelSummary = {
@@ -217,4 +232,10 @@ export function ChannelQuery(data) {
 
     }
     return commonRequest4(data, api, channelPayload, DailySummaryTag)
+}
+
+
+// 定义金额对比的容差函数
+function isAmountEqual(amount1, amount2, tolerance = 0.01) {
+    return Math.abs(amount1 - amount2) < tolerance;
 }

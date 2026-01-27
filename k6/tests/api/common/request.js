@@ -75,7 +75,8 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
       // 执行 ApiChecks
       let checkPassed = false;
       try {
-        checkPassed = ApiChecks.ResponseChecks(response);
+        // 传入 tag 以便后续进行结构化校验
+        checkPassed = ApiChecks.ResponseChecks(response, tag);
         checkCounter++;
       } catch (checkError) {
         logger.error(`${api} ApiChecks.ResponseChecks 执行异常`, checkError.message);
@@ -151,7 +152,7 @@ export function sendRequest(payload, api, tag, isDesk, token) {
     timestamp: timeData.timestamp,
     ...payload
   };
-  console.log('请求的data', data)
+  console.log('请求的data', data);
   const Reponsetoken = testCommonRequest(data, api, tag, isDesk, token);
   return Reponsetoken;
 }

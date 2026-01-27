@@ -1,6 +1,8 @@
 import { commonRequest3 } from '../config/formreqeust.js';
 import { fromOptions } from '../config/config.js';
 import { logger } from '../../../../libs/utils/logger.js';
+import { gameBetData } from '../MemberReport/gameBettypeQuery.test.js';
+import { sleep } from 'k6';
 
 export const memberTag = 'memberTag'
 
@@ -30,12 +32,36 @@ let memberReportData = {
         W3: {}// 会员三提报表的总计
     }, //会员提现报表的总计
     MemberLogin: {}, //会员登录报表的总计
+    memberGameProfitTotal: 0,// 会员盈亏 会游戏
+    winAmountSumTotal: 0,//  派奖金额的统计 游戏管理的游戏投注
+    feeAmountSumTotal: 0,//手续费的统计  游戏管理的游戏投注
+}
+
+/**
+ * 会员报表查询
+*/
+export function memberReport(data) {
+    const result = commonRequest3('/memberReport', data, memberTag)
+    if (result.code != 0) {
+        logger.error(`会员报表查询失败,${result.msg}`)
+        return
+    }
+    // 会员汇总查询
 }
 
 /**
  * 会员报表相关查询
 */
 export function queryMemberReportFunc(data) {
+    //游戏管理的游戏投注数据
+    const result = gameBetData(data)
+    // 会员报表的会员游戏的会员盈亏的累积
+    let memberGameProfit = 0
+    // 会员管理的投注报表
+    // 派奖金额的统计
+    let winAmountSum = 0
+    // 手续费的统计
+    let feeAmountSum = 0
     // 会员汇总查询
     const memberResult = MemberSummaryReport(data)
     if (memberResult.list && memberResult.list.length > 0) {
@@ -43,8 +69,47 @@ export function queryMemberReportFunc(data) {
     }
     // 会员游戏查询
     const memberGameResult = MemberGame(data)
+
     if (memberGameResult.list && memberGameResult.list.length > 0) {
         memberReportData.MemberGame = { ...memberGameResult.summary }
+        // 进行游戏数据对比
+        for (const item of memberGameResult.summary.gameDataList) {
+            sleep(0.5)
+            const key = getValueByKey(item.itemName, result)
+            if (key == null || key == undefined) {
+                logger.info(`${item.itemName}没有数据`)
+                continue;
+            }
+            const keyBetAmountSum = key.betAmountSum || 0;
+            const keyValidAmountSum = key.validAmountSum || 0;
+            const keyWinLoseAmount = key.winLoseAmount || 0;
+            const keyWinAmountSum = key.winAmountSum || 0;
+            const keyFeeAmountSum = key.feeAmountSum || 0;
+
+
+            if (item.betAmount != keyBetAmountSum) {
+                logger.error(`会员游戏报表的${item.itemName}的投注金额${item.betAmount}和游戏管理的游戏投注投注金额:${keyBetAmountSum}对不上`)
+                console.log('')
+            }
+            if (item.validAmount != keyValidAmountSum) {
+                logger.error(`会员游戏报表的${item.itemName}的有效投注金额${item.validAmount}和游戏管理的游戏投注有效投注金额:${keyValidAmountSum}对不上`)
+                console.log('')
+            }
+            if (item.winLoseAmount != keyWinLoseAmount) {
+                logger.error(`会员游戏报表的${item.itemName}的会员盈亏金额${item.winLoseAmount}和游戏管理的游戏投注会员盈亏金额:${keyWinLoseAmount}对不上`)
+                console.log('')
+            }
+
+            memberGameProfit += item.winLoseAmount
+            winAmountSum += keyWinAmountSum
+            feeAmountSum += keyFeeAmountSum
+        }
+        memberGameProfit = parseFloat(memberGameProfit.toFixed(2))
+        winAmountSum = parseFloat(winAmountSum.toFixed(2))
+        feeAmountSum = parseFloat(feeAmountSum.toFixed(2))
+        memberReportData.memberGameProfitTotal = memberGameProfit
+        memberReportData.winAmountSumTotal = winAmountSum
+        memberReportData.feeAmountSumTotal = feeAmountSum
     }
     // 会员活动查询
     const memberActivityResult = MemberActivity(data)
@@ -141,4 +206,28 @@ export function MemberWithdraw(data, type) {
 export function MemberLogin(data) {
     const api = '/api/RptUserInfo/GetUserLoginLogPageList'
     return commonRequest3(data, api, payload, memberTag)
+}
+
+
+
+/**
+ * 根据键名获取对象中对应的值
+ * @param {string} key - 要查找的键名
+ * @param {Object} obj - 要查找的对象
+ * @returns {*} 如果找到匹配的键，则返回对应的值；否则返回 undefined
+ */
+export function getValueByKey(key, obj) {
+    // 检查参数是否有效
+    if (typeof key !== 'string' || typeof obj !== 'object' || obj === null) {
+        console.error('无效的参数：key 必须是字符串，obj 必须是对象');
+        return undefined;
+    }
+
+    // 检查对象中是否存在该键
+    if (key in obj) {
+        return obj[key];
+    }
+
+    // 如果键不存在，返回 undefined
+    return undefined;
 }
