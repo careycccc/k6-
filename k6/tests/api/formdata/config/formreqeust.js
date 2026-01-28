@@ -84,6 +84,28 @@ export function commonRequest4(data, api, payload, tag) {
     return []
 }
 
+/**
+ * @param {string} api
+ * @param {object} payload  请求的数据
+ * @param {string} tag   每个请求的标志位
+ * @param {object} data 上下文的数据比如token
+ * @returns {object} 返对象，对象里面有数组，和totalcount
+*/
+export function commonRequest5(data, api, payload, tag) {
+    const token = data.token
+    let result = sendRequest(payload, api, tag, false, token)
+    if (typeof result != 'object') {
+        result = JSON.parse(result)
+    }
+    if (result && result.list.length > 0) {
+        return {
+            list: result.list,
+            totalCount: result.totalCount
+        }
+    }
+    return {}
+}
+
 
 /**
  * 比较两个列表是否包含相同的元素，基于指定的两个属性（不考虑顺序）

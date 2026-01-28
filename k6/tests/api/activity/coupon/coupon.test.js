@@ -1,4 +1,4 @@
-import { sendRequest, sendQueryRequest } from '../common/request.js';
+import { sendRequest, sendQueryRequest } from '../../common/request.js';
 import { sleep } from 'k6';
 // 用于收集 优惠券ID
 export const couponIds = [];

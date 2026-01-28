@@ -1,6 +1,6 @@
-import { systemJumpType } from '../common/type.js';
-import { sendQueryRequest, sendRequest } from '../common/request.js';
-import { logger } from '../../../libs/utils/logger.js';
+import { systemJumpType } from '../../common/type.js';
+import { sendQueryRequest, sendRequest } from '../../common/request.js';
+import { logger } from '../../../../libs/utils/logger.js';
 import { sleep } from 'k6';
 
 export const systemActiveTag = 'systemActiveTag'

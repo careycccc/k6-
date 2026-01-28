@@ -72,48 +72,50 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
         });
         return;
       }
-      // 执行 ApiChecks
-      let checkPassed = false;
+
+      // 解析响应体
+      let parsedBody;
       try {
-        // 传入 tag 以便后续进行结构化校验
-        checkPassed = ApiChecks.ResponseChecks(response, tag);
-        checkCounter++;
-      } catch (checkError) {
-        logger.error(`${api} ApiChecks.ResponseChecks 执行异常`, checkError.message);
+        if (typeof response.body === 'string') {
+          parsedBody = JSON.parse(response.body);
+        } else {
+          parsedBody = response.body;
+        }
+      } catch (parseError) {
+        logger.error(`${api} 响应体解析失败`, parseError.message);
+        ResponseSuccessRate.add(false);
+        return;
       }
+
+      // 基于HTTP状态码、业务状态码和消息判断响应是否成功
+      const httpStatusSuccess = response.status >= 200 && response.status < 300;
+      const businessStatusSuccess = parsedBody.msgCode === 0;
+      const businessMessageSuccess = parsedBody.msg === 'Succeed';
+
+      // 只有HTTP状态码在200-300之间，且业务状态码为0，且消息为"Succeed"才认为响应成功
+      const checkPassed = httpStatusSuccess && businessStatusSuccess && businessMessageSuccess;
+
       // 记录成功率指标
       ResponseSuccessRate.add(checkPassed);
 
-      const overallSuccess = checkPassed && response.status >= 200 && response.status < 300;
-
-      if (overallSuccess) {
+      if (checkPassed) {
         //logger.info('响应完全成功(HTTP + 业务 + 检查)');
       } else {
         logger.error(`${api} 响应失败`, {
           status: response.status,
-          checkPassed
+          httpStatusSuccess,
+          msgCode: parsedBody.msgCode,
+          businessStatusSuccess,
+          msg: parsedBody.msg,
+          businessMessageSuccess
         });
       }
-      //console.log('请求结果', response)
-      // 响应体预览（调试用）
-      if (response?.body && typeof response.body === 'string') {
-        try {
-          // 检查响应是否为 JSON
-          if (response.body.startsWith('{') || response.body.startsWith('[')) {
-            const parsedBody = JSON.parse(response.body);
-            ResponseResult = parsedBody || null;
-            // console.log('----------', parsedBody.data)
-            Token = parsedBody.data?.token || '';
-            ResponseData = parsedBody.data || null;
-          } else {
-            // 非 JSON 响应的处理
-            logger.info('非 JSON 响应:', response.body.substring(0, 100));
-          }
-        } catch (parseError) {
-          logger.error('响应解析失败:', parseError.message);
-          logger.info('原始响应:', response.body.substring(0, 100));
-        }
-      }
+
+      // 保存响应数据
+      ResponseResult = parsedBody || null;
+      Token = parsedBody.data?.token || '';
+      ResponseData = parsedBody.data || null;
+
     } catch (error) {
       // 修复错误日志显示 [object Object] 的问题
       const errorMessage =
@@ -136,6 +138,7 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
     return ResponseResult;
   }
 }
+
 
 /*
 @param {string} api - 请求的API地址

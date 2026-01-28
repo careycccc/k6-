@@ -18,7 +18,7 @@
 export const ENV_CONFIG = {
     BASE_ADMIN_URL: "https://arsitasdfghjklusa.com",  // 管理后台地址
     BASE_DESK_URL: "https://arplatsaassit4.club.club",  // 前台地址
-    PAGESIZE: 20,
+    PAGESIZE: 200,
     PAGENO: 1,
     ADMIN_USERNAME: "carey3004",
     ADMIN_PASSWORD: "qwer1234",

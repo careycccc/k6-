@@ -69,7 +69,18 @@ export function queryDailySummaryReportFunc(data) {
     const activeResult = DailyAcitveReport(data)
     if (activeResult.list && activeResult.list.length > 0) {
         // 活动的总计
-        DailySummaryReportData.totalActiveSummary = { ...activeResult.summary }
+        DailySummaryReportData.totalActiveSummary = {
+            summary: { ...activeResult.summary },
+            list: [...activeResult.list]
+        }
+        // 活动次数进行对比
+        if (activeResult.summary.totalActivityCount != DailySummaryReportData.totalBetCount) {
+            logger.error(`每日汇总报表${DailySummaryReportData.totalBetCount}和每日活动报表${activeResult.summary.totalActivityCount}的活动次数对不上，`)
+            console.log('')
+        }
+        // 活动金额进行对比
+        if (activeResult.summary.totalActivityAmount != DailySummaryReportData.totalActivityAmount) {
+        }
         // 活动金额进行对比
         if (activeResult.summary.totalActivityAmount != DailySummaryReportData.totalActivityAmount) {
             logger.error(`每日汇总报表${DailySummaryReportData.totalActivityAmount}和每日活动报表${activeResult.summary.totalActivityAmount}的活动金额对不上，`)

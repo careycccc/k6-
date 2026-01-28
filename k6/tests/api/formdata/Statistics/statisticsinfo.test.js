@@ -52,7 +52,7 @@ export function GetPageListRptDataSummaryGameTypeSumarry(data) {
  * 活动前4详情
 */
 export function GetPageListRptDataSummaryActivitySumarry(data) {
-    const api = '/api/RptDataSummary/GetPageListRptDataSummaryActivitySumarry'
+    const api = 'api/RptDataSummary/GetPageListRptDataSummaryActivitySumarry'
     return commonFunc(data, api, 'amount')
 }
 

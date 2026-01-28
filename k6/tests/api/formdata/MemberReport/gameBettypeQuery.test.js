@@ -51,11 +51,12 @@ export function queryGameBet(data, options) {
 }
 
 
-
+/**
+ * 查询游戏管理的游戏投注的数据
+*/
 export function gameBetData(data) {
     // 根据上面对象的长度进行调用
     const elementCount = Object.keys(gameBetInfoData).length;
-    console.log('**((()))))**', elementCount)
     const start = fromOptions.startTimeSecend;
     const end = fromOptions.endTimeSecend;
     const beginTimeUnix = dateStringToTimestamp(start)
@@ -70,6 +71,11 @@ export function gameBetData(data) {
             sortField: 'BetTime'
         }
         const reslult = queryGameBet(data, options)
+        // 检查 result 是否有效
+        if (!reslult || !reslult.data || !reslult.data.sum) {
+            console.log(`categoryType ${i} 没有数据`);
+            continue;
+        }
         switch (i) {
             case 0:
                 gameBetInfoData.Electronic = { ...reslult.data.sum }

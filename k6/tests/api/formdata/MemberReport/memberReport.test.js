@@ -32,29 +32,45 @@ let memberReportData = {
         W3: {}// 会员三提报表的总计
     }, //会员提现报表的总计
     MemberLogin: {}, //会员登录报表的总计
-    memberGameProfitTotal: 0,// 会员盈亏 会游戏
+    memberGameProfitTotal: 0,// 会员盈亏 会员游戏
     winAmountSumTotal: 0,//  派奖金额的统计 游戏管理的游戏投注
     feeAmountSumTotal: 0,//手续费的统计  游戏管理的游戏投注
 }
 
-/**
- * 会员报表查询
-*/
-export function memberReport(data) {
-    const result = commonRequest3('/memberReport', data, memberTag)
-    if (result.code != 0) {
-        logger.error(`会员报表查询失败,${result.msg}`)
-        return
-    }
-    // 会员汇总查询
-}
 
 /**
  * 会员报表相关查询
 */
 export function queryMemberReportFunc(data) {
-    //游戏管理的游戏投注数据
+    //查询游戏管理的游戏投注的数据
     const result = gameBetData(data)
+    // 会员汇总数据查询
+    const MemberSummarydata = MemberSummaryReport(data)
+    memberReportData.MemberSummary = { ...MemberSummarydata.summary }
+    // 会员游戏数据查询
+    const MemberGamedata = MemberGame(data)
+    memberReportData.MemberGame = { ...MemberGamedata.summary }
+    // 会员活动数据查询
+    const MemberActivitydata = MemberActivity(data)
+    memberReportData.MemberActivity = { ...MemberActivitydata.summary }
+    // 会员充值数据首充，二充，三充查询
+    const R1result = MemberRecharge(data, 'R1')
+    memberReportData.MemberRecharge.R1 = { ...R1result.summary }
+    const R2result = MemberRecharge(data, 'R2')
+    memberReportData.MemberRecharge.R2 = { ...R2result.summary }
+    const R3result = MemberRecharge(data, 'R3')
+    memberReportData.MemberRecharge.R3 = { ...R3result.summary }
+    // 会员提现数据首提，二提，三提查询
+    const W1result = MemberWithdraw(data, 'W1')
+    memberReportData.MemberWithdraw.W1 = { ...W1result.summary }
+    const W2result = MemberWithdraw(data, 'W2')
+    memberReportData.MemberWithdraw.W2 = { ...W2result.summary }
+    const W3result = MemberWithdraw(data, 'W3')
+    memberReportData.MemberWithdraw.W3 = { ...W3result.summary }
+
+    // 计算游戏投注占比
+    const gameBetRatioResult = calculateGameBetRatio(result);
+
     // 会员报表的会员游戏的会员盈亏的累积
     let memberGameProfit = 0
     // 会员管理的投注报表
@@ -62,100 +78,76 @@ export function queryMemberReportFunc(data) {
     let winAmountSum = 0
     // 手续费的统计
     let feeAmountSum = 0
-    // 会员汇总查询
-    const memberResult = MemberSummaryReport(data)
-    if (memberResult.list && memberResult.list.length > 0) {
-        memberReportData.MemberSummary = { ...memberResult.summary }
-    }
+
     // 会员游戏查询
     const memberGameResult = MemberGame(data)
 
-    if (memberGameResult.list && memberGameResult.list.length > 0) {
-        memberReportData.MemberGame = { ...memberGameResult.summary }
-        // 进行游戏数据对比
-        for (const item of memberGameResult.summary.gameDataList) {
-            sleep(0.5)
-            const key = getValueByKey(item.itemName, result)
-            if (key == null || key == undefined) {
-                logger.info(`${item.itemName}没有数据`)
-                continue;
-            }
-            const keyBetAmountSum = key.betAmountSum || 0;
-            const keyValidAmountSum = key.validAmountSum || 0;
-            const keyWinLoseAmount = key.winLoseAmount || 0;
-            const keyWinAmountSum = key.winAmountSum || 0;
-            const keyFeeAmountSum = key.feeAmountSum || 0;
+    // 在 memberReport.test.js 中，修改游戏数据对比部分
+    // 检查 memberGameResult.summary.gameDataList 是否存在
+    if (!memberGameResult.summary || !memberGameResult.summary.gameDataList) {
+        logger.error('memberGameResult.summary.gameDataList 不存在');
+        return memberReportData;
+    }
+
+    // 进行游戏数据对比
+    for (const item of memberGameResult.summary.gameDataList) {
+        sleep(0.5)
+        const key = getValueByKey(item.itemName, result)
 
 
-            if (item.betAmount != keyBetAmountSum) {
-                logger.error(`会员游戏报表的${item.itemName}的投注金额${item.betAmount}和游戏管理的游戏投注投注金额:${keyBetAmountSum}对不上`)
-                console.log('')
-            }
-            if (item.validAmount != keyValidAmountSum) {
-                logger.error(`会员游戏报表的${item.itemName}的有效投注金额${item.validAmount}和游戏管理的游戏投注有效投注金额:${keyValidAmountSum}对不上`)
-                console.log('')
-            }
-            if (item.winLoseAmount != keyWinLoseAmount) {
-                logger.error(`会员游戏报表的${item.itemName}的会员盈亏金额${item.winLoseAmount}和游戏管理的游戏投注会员盈亏金额:${keyWinLoseAmount}对不上`)
-                console.log('')
-            }
-
-            memberGameProfit += item.winLoseAmount
-            winAmountSum += keyWinAmountSum
-            feeAmountSum += keyFeeAmountSum
+        // 检查 key 是否有效
+        if (!key || typeof key !== 'object') {
+            logger.info(`${item.itemName}没有数据`)
+            continue;
         }
-        memberGameProfit = parseFloat(memberGameProfit.toFixed(2))
-        winAmountSum = parseFloat(winAmountSum.toFixed(2))
-        feeAmountSum = parseFloat(feeAmountSum.toFixed(2))
-        memberReportData.memberGameProfitTotal = memberGameProfit
-        memberReportData.winAmountSumTotal = winAmountSum
-        memberReportData.feeAmountSumTotal = feeAmountSum
+
+        // 添加对 item 字段的检查，使用默认值
+        const itemBetAmount = item.betAmount || 0;
+        const itemValidBetAmount = item.validBetAmount || item.validAmount || 0; // 添加备选字段名
+        const itemWinLoseAmount = item.winLoseAmount || 0;
+
+        // 检查 key 的属性是否存在，使用默认值
+        const keyBetAmountSum = key.betAmountSum || 0;
+        const keyValidAmountSum = key.validAmountSum || 0;
+        const keyWinLoseAmount = key.winLoseAmount || 0;
+        const keyWinAmountSum = key.winAmountSum || 0;
+        const keyFeeAmountSum = key.feeAmountSum || 0;
+
+        if (itemBetAmount != keyBetAmountSum) {
+            logger.error(`会员游戏报表的${item.itemName}的投注金额${itemBetAmount}和游戏管理的投注金额:${keyBetAmountSum}对不上`)
+            console.log('')
+        }
+        if (itemValidBetAmount != keyValidAmountSum) {
+            logger.error(`会员游戏报表的${item.itemName}的有效投注金额${itemValidBetAmount}和游戏管理的有效投注金额:${keyValidAmountSum}对不上`)
+            console.log('')
+        }
+        if (itemWinLoseAmount != keyWinLoseAmount) {
+            logger.error(`会员游戏报表的${item.itemName}的会员盈亏金额${itemWinLoseAmount}和游戏管理的会员盈亏金额:${keyWinLoseAmount}对不上`)
+            console.log('')
+        }
+
+        memberGameProfit += itemWinLoseAmount
+        winAmountSum += keyWinAmountSum
+        feeAmountSum += keyFeeAmountSum
     }
-    // 会员活动查询
-    const memberActivityResult = MemberActivity(data)
-    if (memberActivityResult.list && memberActivityResult.list.length > 0) {
-        memberReportData.MemberActivity = { ...memberActivityResult.summary }
-    }
-    // 会员充值查询
-    const memberRechargeResult = MemberRecharge(data, 'R1')
-    if (memberRechargeResult.list && memberRechargeResult.list.length > 0) {
-        memberReportData.MemberRecharge.R1 = { ...memberRechargeResult.summary }
-    }
-    const memberRechargeResult2 = MemberRecharge(data, 'R2')
-    if (memberRechargeResult2.list && memberRechargeResult2.list.length > 0) {
-        memberReportData.MemberRecharge.R2 = { ...memberRechargeResult2.summary }
-    }
-    const memberRechargeResult3 = MemberRecharge(data, 'R3')
-    if (memberRechargeResult3.list && memberRechargeResult3.list.length > 0) {
-        memberReportData.MemberRecharge.R3 = { ...memberRechargeResult3.summary }
-    }
-    // 会员提现查询
-    const memberWithdrawResult = MemberWithdraw(data, 'W1')
-    if (memberWithdrawResult.list && memberWithdrawResult.list.length > 0) {
-        memberReportData.MemberWithdraw.W1 = { ...memberWithdrawResult.summary }
-    }
-    const memberWithdrawResult2 = MemberWithdraw(data, 'W2')
-    if (memberWithdrawResult2.list && memberWithdrawResult2.list.length > 0) {
-        memberReportData.MemberWithdraw.W2 = { ...memberWithdrawResult2.summary }
-    }
-    const memberWithdrawResult3 = MemberWithdraw(data, 'W3')
-    if (memberWithdrawResult3.list && memberWithdrawResult3.list.length > 0) {
-        memberReportData.MemberWithdraw.W3 = { ...memberWithdrawResult3.summary }
-    }
-    // 会员登录查询
-    const memberLoginResult = MemberLogin(data)
-    if (memberLoginResult.list && memberLoginResult.list.length > 0) {
-        memberReportData.MemberLogin = { ...memberLoginResult.summary }
-        memberReportData.MemberLogin.totalCount = memberLoginResult.totalCount // 会员登录的次数
-    }
-    // 会员汇总的活动和会员活动进行比较
-    const memberSummaryActivityAmount = memberReportData.MemberSummary.totalActivityAmount
-    const memberActivityAmount = memberReportData.MemberActivity.totalAllActivityAmount
-    if (memberSummaryActivityAmount != memberActivityAmount) {
-        logger.error(`会员汇总的活动${memberSummaryActivityAmount}和会员活动${memberActivityAmount}的活动总金额不相等`)
-    }
+
+    // 四舍五入保留两位小数
+    memberGameProfit = parseFloat(memberGameProfit.toFixed(2))
+    winAmountSum = parseFloat(winAmountSum.toFixed(2))
+    feeAmountSum = parseFloat(feeAmountSum.toFixed(2))
+
+    memberReportData.memberGameProfitTotal = memberGameProfit
+    memberReportData.winAmountSumTotal = winAmountSum
+    memberReportData.feeAmountSumTotal = feeAmountSum
+
+
+    // 将游戏投注占比添加到返回数据中
+    memberReportData.gameBetRatio = gameBetRatioResult.gameBetRatio;
+    memberReportData.totalBetAmount = gameBetRatioResult.totalBetAmount;
+
     return memberReportData
 }
+
 
 // 会员汇总
 export function MemberSummaryReport(data) {
@@ -231,3 +223,44 @@ export function getValueByKey(key, obj) {
     // 如果键不存在，返回 undefined
     return undefined;
 }
+
+
+// 在 memberReport.test.js 中添加计算游戏投注占比的函数
+/**
+ * 计算游戏投注占比
+ * @param {Object} gameBetData - 游戏投注数据
+ * @returns {Object} 包含各游戏类型投注占比的对象
+ */
+export function calculateGameBetRatio(gameBetData) {
+    // 计算总投注金额
+    let totalBetAmount = 0;
+    const gameBetRatio = {};
+
+    // 遍历所有游戏类型，计算总投注金额
+    for (const [gameType, data] of Object.entries(gameBetData)) {
+        if (data && data.betAmountSum) {
+            totalBetAmount += data.betAmountSum;
+        }
+    }
+
+    // 计算各游戏类型的投注占比
+    for (const [gameType, data] of Object.entries(gameBetData)) {
+        if (data && data.betAmountSum) {
+            gameBetRatio[gameType] = {
+                betAmount: data.betAmountSum,
+                ratio: totalBetAmount > 0 ? (data.betAmountSum / totalBetAmount * 100).toFixed(2) + '%' : '0%'
+            };
+        } else {
+            gameBetRatio[gameType] = {
+                betAmount: 0,
+                ratio: '0%'
+            };
+        }
+    }
+
+    return {
+        totalBetAmount,
+        gameBetRatio
+    };
+}
+

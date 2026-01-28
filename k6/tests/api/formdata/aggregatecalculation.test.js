@@ -1,4 +1,5 @@
 import { logger } from '../../../libs/utils/logger.js';
+import { handlerActivefunc } from '../formdata/handlerActive.test.js';
 
 /**
  * 执行数据对比分析函数
@@ -30,35 +31,35 @@ export function performDataComparison(results) {
          * 从results数组中提取仪表盘相关的数据
          * 这些数据包含了注册人数、充值金额、编码金额等多种统计信息
          */
-        const dashboardRegisterNumber = results[0].data.registerCount;    // 仪表盘注册人数
-        const dashboardRechargeAmount = results[0].data.rechargeAmount;  // 仪表盘充值金额
+        const dashboardRegisterNumber = results[0].data.registerCount || 0;    // 仪表盘注册人数
+        const dashboardRechargeAmount = results[0].data.rechargeAmount || 0;  // 仪表盘充值金额
 
-        const dashboardcodingAmount = results[0].data.codingAmount;      // 仪表盘编码金额
-        const dashboardwithdrawAmount = results[0].data.withdrawAmount;   // 仪表盘提现金额
-        const dashboardwinLoseAmount = results[0].data.winLoseAmount;     // 仪表盘输赢金额
-        const dashboardfirstRechargeUserCount = results[0].data.firstRechargeUserCount;  // 仪表盘首次充值用户数
-        const dashboardbetAmount = results[0].data.betAmount;            // 仪表盘下注金额
-        const dashboradbetUserCount = results[0].data.betUserCount;      // 仪表盘下注用户数
-        const dashboardwithdrawCount = results[0].data.withdrawCount;     // 仪表盘提现次数
-        const dashboardrechargeCount = results[0].data.rechargeCount;    // 仪表盘充值次数
-        const dashboardActiveAmount = results[0].data.ActiveAmount;       // 仪表盘活跃金额
-        const dashboardloginUserCount = results[0].data.loginUserCount;   // 仪表盘登录用户数
+        const dashboardcodingAmount = results[0].data.codingAmount || 0;      // 仪表盘编码金额
+        const dashboardwithdrawAmount = results[0].data.withdrawAmount || 0;   // 仪表盘提现金额
+        const dashboardwinLoseAmount = results[0].data.winLoseAmount || 0;     // 仪表盘输赢金额
+        const dashboardfirstRechargeUserCount = results[0].data.firstRechargeUserCount || 0;  // 仪表盘首次充值用户数
+        const dashboardbetAmount = results[0].data.betAmount || 0;            // 仪表盘下注金额
+        const dashboradbetUserCount = results[0].data.betUserCount || 0;      // 仪表盘下注用户数
+        const dashboardwithdrawCount = results[0].data.withdrawCount || 0;     // 仪表盘提现次数
+        const dashboardrechargeCount = results[0].data.rechargeCount || 0;    // 仪表盘充值次数
+        const dashboardActiveAmount = results[0].data.ActiveAmount || 0;       // 仪表盘活跃金额
+        const dashboardloginUserCount = results[0].data.loginUserCount || 0;   // 仪表盘登录用户数
 
         // 数据统计的数据
         // 从results[1].data中获取各类统计数据
         // 注册用户数量
-        const dataStatisticsRegisterNumber = results[1].data.SummaryView.registerCount;
+        const dataStatisticsRegisterNumber = results[1].data.SummaryView.registerCount || 0;
         // 充值金额
-        const dataStatisticsRechargeAmount = results[1].data.SummaryView.rechargeAmount;
+        const dataStatisticsRechargeAmount = results[1].data.SummaryView.rechargeAmount || 0;
         // 下注金额
-        const dataStatisticscodingAmount = results[1].data.SummaryView.betAmount;
+        const dataStatisticscodingAmount = results[1].data.SummaryView.betAmount || 0;
         /**
          * 从results数组中提取统计数据
          * 这些数据包括提现金额、输赢金额和首次充值用户数
          */
-        const dataStatisticswithdrawAmount = results[1].data.SummaryView.withdrawAmount; // 提取提现金额数据
-        const dataStatisticswinLoseAmount = results[1].data.SummaryView.winLoseAmount; // 提取输赢金额数据
-        const dataStatisticsfirstRechargeUserCount = results[1].data.RechargeWithdraw;
+        const dataStatisticswithdrawAmount = results[1].data.SummaryView.withdrawAmount || 0; // 提取提现金额数据
+        const dataStatisticswinLoseAmount = results[1].data.SummaryView.winLoseAmount || 0; // 提取输赢金额数据
+        const dataStatisticsfirstRechargeUserCount = results[1].data.RechargeWithdraw || 0;
         // 需要找到首充值，R1
         const r1Type = dataStatisticsfirstRechargeUserCount.find((item) => item.type == 'R1');
 
@@ -89,10 +90,10 @@ export function performDataComparison(results) {
             plantinfoTotalData = JSON.parse(plantinfoTotalData);
         }
 
-        const dataStatisticsbetAmount = plantinfoTotalData.betAmount;
-        const dataStatisticsbetUserCount = plantinfoTotalData.userCount;
+        const dataStatisticsbetAmount = plantinfoTotalData.betAmount || 0;
+        const dataStatisticsbetUserCount = plantinfoTotalData.userCount || 0;
         // 数据统计的平台的手续费
-        const dataStatisticsplatformFee = plantinfoTotalData.feeAmount;
+        const dataStatisticsplatformFee = plantinfoTotalData.feeAmount || 0;
 
         // 提现通道总计
         const withdrawChannelTotal = dataStatisticsinformation.find(
@@ -101,35 +102,51 @@ export function performDataComparison(results) {
 
         // 检查 withdrawChannelTotal 是否存在
         if (!withdrawChannelTotal) {
-            logger.error('未找到名称为"提现通道详情总计"的数据');
-            return;
-        }
+            logger.error('数据统计的提现模块没有数据');
 
-        let withdrawChannelTotalData = withdrawChannelTotal.data;
-        if (typeof withdrawChannelTotalData != 'object') {
-            withdrawChannelTotalData = JSON.parse(withdrawChannelTotalData);
+        } else {
+            let withdrawChannelTotalData = withdrawChannelTotal.data;
+            if (typeof withdrawChannelTotalData != 'object') {
+                withdrawChannelTotalData = JSON.parse(withdrawChannelTotalData);
+            }
+            const dataStatisticswithdrawCount = withdrawChannelTotalData.count || 0;
+
+            // 提现次数对比
+            if (dashboardwithdrawCount != dataStatisticswithdrawCount) {
+                logger.error(
+                    `提现次数对不上 -- 仪表盘汇总的数据${dashboardwithdrawCount}<--->数据统计的数据${dataStatisticswithdrawCount}`
+                );
+                console.log('');
+            }
         }
-        const dataStatisticswithdrawCount = withdrawChannelTotalData.count;
 
         // 充值通道总计
         const rechargeChannelTotal = dataStatisticsinformation.find(
             (item) => item.name == '充值通道详情总计'
         );
-
+        let dataStatisticsrechargeUserCount = 0
         // 检查 rechargeChannelTotal 是否存在
         if (!rechargeChannelTotal) {
-            logger.error('未找到名称为"充值通道详情总计"的数据');
+            logger.error('数据统计的充值模块没有数据');
             return;
+        } else {
+            let rechargeChannelTotalData = rechargeChannelTotal.data;
+            if (typeof rechargeChannelTotalData != 'object') {
+                rechargeChannelTotalData = JSON.parse(rechargeChannelTotalData);
+            }
+            // 充值成功的次数
+            const dataStatisticsrechargeCount = rechargeChannelTotalData.count || 0;
+            // 充值成功的人数
+            dataStatisticsrechargeUserCount = rechargeChannelTotalData.userCount || 0;
+            // 充值次数对比
+            if (dashboardrechargeCount != dataStatisticsrechargeCount) {
+                logger.error(
+                    `充值次数对不上 -- 仪表盘汇总的数据${dashboardrechargeCount}<--->数据统计的数据${dataStatisticsrechargeCount}`
+                );
+                console.log('');
+            }
         }
 
-        let rechargeChannelTotalData = rechargeChannelTotal.data;
-        if (typeof rechargeChannelTotalData != 'object') {
-            rechargeChannelTotalData = JSON.parse(rechargeChannelTotalData);
-        }
-        // 充值成功的次数
-        const dataStatisticsrechargeCount = rechargeChannelTotalData.count;
-        // 充值成功的人数
-        const dataStatisticsrechargeUserCount = rechargeChannelTotalData.userCount;
 
         // 活动总计
         const activityTotal = dataStatisticsinformation.find((item) => item.name == '活动详情总计');
@@ -202,19 +219,7 @@ export function performDataComparison(results) {
             );
             console.log('');
         }
-        if (dashboardwithdrawCount !== dataStatisticswithdrawCount) {
-            logger.error(
-                `提现次数对不上 -- 仪表盘汇总的数据${dashboardwithdrawCount}<--->数据统计的数据${dataStatisticswithdrawCount}`
-            );
-            console.log('');
-        }
 
-        if (dashboardrechargeCount !== dataStatisticsrechargeCount) {
-            logger.error(
-                `充值次数对不上 -- 仪表盘汇总的数据${dashboardrechargeCount}<--->数据统计的数据${dataStatisticsrechargeCount}`
-            );
-            console.log('');
-        }
 
         if (dashboardActiveAmount !== dataStatisticsactiveAmount) {
             logger.error(
@@ -262,11 +267,12 @@ export function performDataComparison(results) {
         const DailywithdrawAmount = results[2].data.totalWithdrawAmount;
         const DailywithdrawCount = results[2].data.totalWithdrawCount;
         const DailytotalPlatWinLoseAmount = results[2].data.totalPlatWinLoseAmount;
-        const DailytotalActiveSummaryinfo = results[2].data.totalActiveSummary;
+        const DailytotalActiveSummaryinfo = results[2].data.totalActiveSummary;  // 平台报表的每日活动
+
         // 活动领取次数
-        const totalActivityCount = DailytotalActiveSummaryinfo.totalActivityCount
+        const totalActivityCount = DailytotalActiveSummaryinfo.summary.totalActivityCount
         // 活动领取人数
-        const totalUserCount = DailytotalActiveSummaryinfo.totalUserCount
+        const totalUserCount = DailytotalActiveSummaryinfo.summary.totalUserCount
         // 每日充值报表的充值成功的人数
         const totalRechargeSummary = results[2].data.totalRechargeSummary;
         const DailyRechargeUserCount = totalRechargeSummary.totalRechargeSuccessUserCount;
@@ -379,29 +385,28 @@ export function performDataComparison(results) {
             console.log('');
         }
 
+        // 修改会员报表数据对比部分，添加空对象检查
         // 会员报表数据的对比
+        // 添加对 MemberSummary 的检查
+        if (!results[3].data.MemberSummary || Object.keys(results[3].data.MemberSummary).length === 0) {
+            logger.error('会员报表的 MemberSummary 为空');
+            return;
+        }
+
         // 会员汇总的数据
-        const MemberSummaryinfo = results[2].data.MemberSummary
-        // 会员汇总的充值金额
-        const membertotalRechargeAmount = MemberSummaryinfo.totalRechargeAmount
-        // 会员汇总的充值次数
-        const membertotalRechargeCount = MemberSummaryinfo.totalRechargeCount
-        // 会员汇总的提现金额
-        const membertotalWithdrawAmount = MemberSummaryinfo.totalWithdrawAmount
-        // 会员汇总的提现次数
-        const membertotalWithdrawCount = MemberSummaryinfo.totalWithdrawCount
-        // 会员汇总活动金额
-        const membertotalActivityAmount = MemberSummaryinfo.totalActivityAmount
-        //会员汇总打码量
-        const membertotalCodingAmount = MemberSummaryinfo.totalCodingAmount
-        // 会员报表-会员游戏的会员盈亏
-        const memberGameProfitTotal = results[2].data.memberGameProfitTotal
-        // 会员汇总的会员盈亏
-        const membertotalWinLoseAmount = MemberSummaryinfo.totalWinLoseAmount
-        // 游戏管理的游戏投注的派奖金额
-        const gamemangewinAmountSumTotal = results[2].data.winAmountSumTotal
-        // 戏管理的游戏投注的手续费的统计
-        const gamemangefeeAmountSumTotal = results[2].data.feeAmountSumTotal
+        const MemberSummaryinfo = results[3].data.MemberSummary;
+
+        // 添加默认值，避免 undefined
+        const membertotalRechargeAmount = MemberSummaryinfo.totalRechargeAmount || 0;
+        const membertotalRechargeCount = MemberSummaryinfo.totalRechargeCount || 0;
+        const membertotalWithdrawAmount = MemberSummaryinfo.totalWithdrawAmount || 0;
+        const membertotalWithdrawCount = MemberSummaryinfo.totalWithdrawCount || 0;
+        const membertotalActivityAmount = MemberSummaryinfo.totalActivityAmount || 0;
+        const membertotalCodingAmount = MemberSummaryinfo.totalCodingAmount || 0;
+        const memberGameProfitTotal = results[3].data.memberGameProfitTotal || 0;
+        const membertotalWinLoseAmount = MemberSummaryinfo.totalWinLoseAmount || 0;
+        const gamemangewinAmountSumTotal = results[3].data.winAmountSumTotal || 0;
+        const gamemangefeeAmountSumTotal = results[3].data.feeAmountSumTotal || 0;
 
         // 会员报表和平台报表进行对比
         if (DailytotalRechargeAmount != membertotalRechargeAmount) {
@@ -461,11 +466,24 @@ export function performDataComparison(results) {
             console.log('');
         }
 
+        // 会员报表的会员活动，数据统计里面的活动，平台报表的每日活动
+        const MemberActivityData = results[3].data.MemberActivity;
+        const dataStatisticsActivityTotalList = activityTotal.arr;
 
-
+        // 检查 MemberActivityData 是否为空
+        if (!MemberActivityData || Object.keys(MemberActivityData).length === 0) {
+            logger.info('会员活动数据为空，跳过活动数据对比');
+        } else {
+            // 专门处理这三个数据的
+            handlerActivefunc(MemberActivityData, dataStatisticsActivityTotalList, DailytotalActiveSummaryinfo, activeLists);
+        }
 
         // 添加日志，确认函数执行完成
         console.log('performDataComparison 函数执行完成');
+
+
+
+
     } catch (error) {
         logger.error('performDataComparison 函数执行出错:', error.message);
         console.error('错误堆栈:', error.stack);
