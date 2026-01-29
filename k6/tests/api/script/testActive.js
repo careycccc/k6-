@@ -1,6 +1,8 @@
 
 import { AdminLogin, adminTag } from '../login/adminlogin.test.js';
-import { queryRanking as queryRankingfunc } from '../activity/ranking/ranking.test.js';
+import { querySignin as querySigninfunc } from '../activity/signin/signin.test.js';
+
+
 
 
 import { logger } from '../../../libs/utils/logger.js';
@@ -20,8 +22,8 @@ export function setup() {
     }
 }
 
-export function queryRanking(data) {
-    queryRankingfunc(data)
+export function querySignin(data) {
+    querySigninfunc(data)
 }
 
 
@@ -36,11 +38,11 @@ export const options = {
             maxDuration: '10s'
         },
         // 优惠券的场景
-        queryRanking: {
+        querySignin: {
             executor: 'shared-iterations',
             vus: 1,
             iterations: 1,
-            exec: 'queryRanking', // 注意：这里用函数名字符串
+            exec: 'querySignin', // 注意：这里用函数名字符串
             startTime: '2s'
         },
     },

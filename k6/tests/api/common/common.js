@@ -48,8 +48,8 @@ export function groupByAndSum(array, groupByProp, sumProp) {
         sum += Number(value) || 0;
     }
     return {
-        result,
-        count: Object.keys(result).length,
-        sum
+        result,  // 单个会员的单个数据
+        count: Object.keys(result).length,  // 单个会员的出现的次数
+        sum: sum,  // 单个会员的值的总和
     };
 }

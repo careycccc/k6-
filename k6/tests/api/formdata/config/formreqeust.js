@@ -74,7 +74,7 @@ export function commonRequest3(data, api, payload, tag) {
 */
 export function commonRequest4(data, api, payload, tag) {
     const token = data.token
-    let result = sendRequest(payload, api, tag, false, token)
+    let result = sendQueryRequest(payload, api, tag, false, token)
     if (typeof result != 'object') {
         result = JSON.parse(result)
     }
@@ -93,9 +93,12 @@ export function commonRequest4(data, api, payload, tag) {
 */
 export function commonRequest5(data, api, payload, tag) {
     const token = data.token
-    let result = sendRequest(payload, api, tag, false, token)
+    let result = sendQueryRequest(payload, api, tag, false, token)
     if (typeof result != 'object') {
         result = JSON.parse(result)
+    }
+    if (!result) {
+        return {}
     }
     if (result && result.list.length > 0) {
         return {
