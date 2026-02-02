@@ -221,7 +221,6 @@ async function runTest(testId, scriptPath, vus, duration, env) {
       --duration ${duration} \\
       --env ENV=${env} \\
       --summary-export=${reportFile} \\
-      --out json=${path.join(REPORTS_DIR, `${testId}-metrics.json`)} \\
       ${scriptPath}`;
     
     test.log.push(`执行命令: ${cmd}`);
