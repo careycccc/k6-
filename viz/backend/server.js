@@ -442,11 +442,23 @@ async function runTest(testId, scriptPath, vus, duration, env) {
         }
       }
       
+      // 处理 vus 数据：如果 vus.value 为 0，使用 vus_max 的值
+      let vusData = summary.metrics?.vus || {};
+      const vusMaxData = summary.metrics?.vus_max || {};
+      if (vusData.value === 0 && vusMaxData.value > 0) {
+        vusData = {
+          value: vusMaxData.value,
+          min: vusMaxData.min,
+          max: vusMaxData.max
+        };
+        test.log.push(`[DEBUG] vus 为 0，使用 vus_max: ${vusMaxData.value}`);
+      }
+      
       test.metrics = {
         http_req_duration: summary.metrics?.http_req_duration || {},
         http_req_failed: summary.metrics?.http_req_failed || {},
         http_reqs: summary.metrics?.http_reqs || {},
-        vus: summary.metrics?.vus || {},
+        vus: vusData,
         data_received: summary.metrics?.data_received || {},
         data_sent: summary.metrics?.data_sent || {}
       };
