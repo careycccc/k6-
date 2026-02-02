@@ -27,7 +27,7 @@
       "gridPos": {"h": 5, "w": 6, "x": 0, "y": 1},
       "id": 1,
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["mean"]}},
-      "targets": [{"query": "SELECT mean(\"value\") FROM \"http_req_duration\" WHERE $timeFilter", "rawQuery": true, "refId": "A"}],
+      "targets": [{"query": "SELECT mean(\"value\") FROM \"http_req_duration\" WHERE $timeFilter AND \"testid\" =~ /^$testid$/", "rawQuery": true, "refId": "A"}],
       "title": "⏱️ 平均响应时间",
       "type": "stat"
     },
@@ -37,7 +37,7 @@
       "gridPos": {"h": 5, "w": 6, "x": 6, "y": 1},
       "id": 2,
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["sum"]}},
-      "targets": [{"query": "SELECT count(\"value\") FROM \"http_reqs\" WHERE $timeFilter", "rawQuery": true, "refId": "A"}],
+      "targets": [{"query": "SELECT count(\"value\") FROM \"http_reqs\" WHERE $timeFilter AND \"testid\" =~ /^$testid$/", "rawQuery": true, "refId": "A"}],
       "title": "🚀 总请求数",
       "type": "stat"
     },
@@ -47,7 +47,7 @@
       "gridPos": {"h": 5, "w": 6, "x": 12, "y": 1},
       "id": 3,
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["mean"]}},
-      "targets": [{"query": "SELECT mean(\"value\") * 100 FROM \"http_req_failed\" WHERE $timeFilter", "rawQuery": true, "refId": "A"}],
+      "targets": [{"query": "SELECT mean(\"value\") * 100 FROM \"http_req_failed\" WHERE $timeFilter AND \"testid\" =~ /^$testid$/", "rawQuery": true, "refId": "A"}],
       "title": "❌ 错误率",
       "type": "stat"
     },
@@ -57,7 +57,7 @@
       "gridPos": {"h": 5, "w": 6, "x": 18, "y": 1},
       "id": 4,
       "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["max"]}},
-      "targets": [{"query": "SELECT max(\"value\") FROM \"vus\" WHERE $timeFilter", "rawQuery": true, "refId": "A"}],
+      "targets": [{"query": "SELECT max(\"value\") FROM \"vus\" WHERE $timeFilter AND \"testid\" =~ /^$testid$/", "rawQuery": true, "refId": "A"}],
       "title": "👥 最大 VUs",
       "type": "stat"
     },
@@ -82,9 +82,9 @@
       "id": 5,
       "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom"}},
       "targets": [
-        {"alias": "平均响应时间", "query": "SELECT mean(\"value\") FROM \"http_req_duration\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "refId": "A"},
-        {"alias": "P90", "query": "SELECT percentile(\"value\", 90) FROM \"http_req_duration\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "refId": "B"},
-        {"alias": "P95", "query": "SELECT percentile(\"value\", 95) FROM \"http_req_duration\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "refId": "C"}
+        {"alias": "平均响应时间", "query": "SELECT mean(\"value\") FROM \"http_req_duration\" WHERE $timeFilter AND \"testid\" =~ /^$testid$/ GROUP BY time($__interval) fill(null)", "rawQuery": true, "refId": "A"},
+        {"alias": "P90", "query": "SELECT percentile(\"value\", 90) FROM \"http_req_duration\" WHERE $timeFilter AND \"testid\" =~ /^$testid$/ GROUP BY time($__interval) fill(null)", "rawQuery": true, "refId": "B"},
+        {"alias": "P95", "query": "SELECT percentile(\"value\", 95) FROM \"http_req_duration\" WHERE $timeFilter AND \"testid\" =~ /^$testid$/ GROUP BY time($__interval) fill(null)", "rawQuery": true, "refId": "C"}
       ],
       "title": "⏱️ 响应时间趋势",
       "type": "timeseries"
@@ -101,7 +101,7 @@
       "gridPos": {"h": 10, "w": 12, "x": 12, "y": 7},
       "id": 6,
       "options": {"legend": {"calcs": ["mean"], "displayMode": "table", "placement": "bottom"}},
-      "targets": [{"query": "SELECT sum(\"value\") FROM \"http_reqs\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "refId": "A"}],
+      "targets": [{"query": "SELECT sum(\"value\") FROM \"http_reqs\" WHERE $timeFilter AND \"testid\" =~ /^$testid$/ GROUP BY time($__interval) fill(null)", "rawQuery": true, "refId": "A"}],
       "title": "🚀 请求速率 (RPS)",
       "type": "timeseries"
     },
@@ -125,7 +125,7 @@
       "gridPos": {"h": 8, "w": 24, "x": 0, "y": 18},
       "id": 7,
       "options": {"legend": {"displayMode": "table", "placement": "bottom"}},
-      "targets": [{"query": "SELECT last(\"value\") FROM \"vus\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "refId": "A"}],
+      "targets": [{"query": "SELECT last(\"value\") FROM \"vus\" WHERE $timeFilter AND \"testid\" =~ /^$testid$/ GROUP BY time($__interval) fill(null)", "rawQuery": true, "refId": "A"}],
       "title": "👥 虚拟用户数 (VUs)",
       "type": "timeseries"
     }
@@ -134,7 +134,27 @@
   "schemaVersion": 38,
   "style": "dark",
   "tags": ["k6", "performance"],
-  "templating": {"list": []},
+  "templating": {
+    "list": [
+      {
+        "current": {"selected": false, "text": "All", "value": "$__all"},
+        "datasource": {"type": "influxdb", "uid": "influxdb"},
+        "definition": "SHOW TAG VALUES FROM \"http_reqs\" WITH KEY = \"testid\"",
+        "hide": 0,
+        "includeAll": true,
+        "label": "测试ID",
+        "multi": false,
+        "name": "testid",
+        "options": [],
+        "query": "SHOW TAG VALUES FROM \"http_reqs\" WITH KEY = \"testid\"",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 2,
+        "type": "query"
+      }
+    ]
+  },
   "time": {"from": "now-1h", "to": "now"},
   "timepicker": {"refresh_intervals": ["5s", "10s", "30s", "1m", "5m"]},
   "timezone": "browser",

@@ -48,7 +48,7 @@ services:
       - "8080:8080"
     volumes:
       - ./viz/backend:/app
-      - ./k6/tests:/app/k6/tests
+      - ./k6:/app/k6
       - ./viz/reports:/app/viz/reports
       - ./viz/data:/app/viz/data
       - ./viz/frontend:/app/viz/frontend

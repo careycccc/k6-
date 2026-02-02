@@ -383,6 +383,9 @@ async function runTest(testId, scriptPath, vus, duration, env) {
     test.log.push(`[DEBUG] INFLUXDB_DB: ${process.env.INFLUXDB_DB || '未设置(使用默认)'}`);
     test.log.push(`[DEBUG] 实际使用的 InfluxDB URL: ${influxdbUrl}/${influxdbDb}`);
     
+    // 添加测试标签，用于在 Grafana 中筛选特定测试
+    const testTags = `--tag testid=${testId} --tag testname="${testName}" --tag script="${script}"`;
+    
     let cmd;
     if (scriptHasScenarios) {
       // 脚本已有 scenarios，只添加环境变量和报告导出
@@ -392,9 +395,10 @@ async function runTest(testId, scriptPath, vus, duration, env) {
         --summary-export=${reportFile} \\
         --summary-trend-stats="${summaryStats}" \\
         --out influxdb=${influxdbUrl}/${influxdbDb} \\
+        ${testTags} \\
         ${scriptPath}`;
       test.log.push('检测到脚本已包含 scenarios 配置，使用脚本内置配置');
-      test.log.push(`InfluxDB 输出: ${influxdbUrl}/${influxdbDb}`);
+      test.log.push(`InfluxDB 输出: ${influxdbUrl}/${influxdbDb} (带标签: ${testTags})`);
     } else {
       // 脚本没有 scenarios，添加 vus 和 duration
       cmd = `k6 run \\
@@ -405,9 +409,10 @@ async function runTest(testId, scriptPath, vus, duration, env) {
         --summary-export=${reportFile} \\
         --summary-trend-stats="${summaryStats}" \\
         --out influxdb=${influxdbUrl}/${influxdbDb} \\
+        ${testTags} \\
         ${scriptPath}`;
       test.log.push(`使用测试平台配置: VUs=${vus}, Duration=${duration}`);
-      test.log.push(`InfluxDB 输出: ${influxdbUrl}/${influxdbDb}`);
+      test.log.push(`InfluxDB 输出: ${influxdbUrl}/${influxdbDb} (带标签: ${testTags})`);
     }
     
     test.log.push(`执行命令: ${cmd}`);
