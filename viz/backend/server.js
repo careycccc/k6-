@@ -291,8 +291,8 @@ async function runTest(testId, scriptPath, vus, duration, env) {
     // 检查脚本是否已有 scenarios 配置
     const scriptHasScenarios = await hasScenarios(scriptPath);
     
-    // P99 和其他统计指标配置
-    const summaryStats = 'avg,min,med,max,p(90),p(95),p(99)';
+    // P99 和其他统计指标配置（注意：需要用引号包裹，防止 shell 解析括号）
+    const summaryStats = '"avg,min,med,max,p(90),p(95),p(99)"';
     
     let cmd;
     if (scriptHasScenarios) {
