@@ -216,6 +216,58 @@ app.post('/api/tests/run', async (req, res) => {
   }
 });
 
+// 获取测试列表
+app.get('/api/tests', (req, res) => {
+  try {
+    const testList = Array.from(tests.values()).sort((a, b) => 
+      new Date(b.startedAt) - new Date(a.startedAt)
+    );
+    res.json(testList);
+  } catch (error) {
+    console.error('获取测试列表失败:', error);
+    res.status(500).json({ error: '获取测试列表失败', message: error.message });
+  }
+});
+
+// 获取测试详情
+app.get('/api/tests/:id', (req, res) => {
+  try {
+    const test = tests.get(req.params.id);
+    if (!test) {
+      return res.status(404).json({ error: '测试不存在' });
+    }
+    res.json(test);
+  } catch (error) {
+    console.error('获取测试详情失败:', error);
+    res.status(500).json({ error: '获取测试详情失败', message: error.message });
+  }
+});
+
+// 停止测试
+app.post('/api/tests/:id/stop', async (req, res) => {
+  try {
+    const test = tests.get(req.params.id);
+    if (!test) {
+      return res.status(404).json({ error: '测试不存在' });
+    }
+    
+    if (test.status !== 'running') {
+      return res.status(400).json({ error: '测试未在运行中' });
+    }
+    
+    // MVP 版本：仅标记状态，实际进程管理需要更复杂的实现
+    test.status = 'stopped';
+    test.completedAt = new Date().toISOString();
+    test.log.push('测试被手动停止');
+    
+    await saveTests();
+    res.json({ testId: req.params.id, status: 'stopped' });
+  } catch (error) {
+    console.error('停止测试失败:', error);
+    res.status(500).json({ error: '停止测试失败', message: error.message });
+  }
+});
+
 // 检查脚本是否包含 scenarios 配置
 async function hasScenarios(scriptPath) {
   try {
