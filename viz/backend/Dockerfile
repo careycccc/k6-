@@ -2,11 +2,11 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# 安装 k6
+# 安装 k6 (v1.5.0 - 支持 ES2020+ 特性)
 RUN apk add --no-cache curl && \
-    curl -L https://github.com/grafana/k6/releases/download/v0.49.0/k6-v0.49.0-linux-amd64.tar.gz | tar -xz && \
-    mv k6-v0.49.0-linux-amd64/k6 /usr/local/bin/k6 && \
-    rm -rf k6-v0.49.0-linux-amd64
+    curl -L https://github.com/grafana/k6/releases/download/v1.5.0/k6-v1.5.0-linux-amd64.tar.gz | tar -xz && \
+    mv k6-v1.5.0-linux-amd64/k6 /usr/local/bin/k6 && \
+    rm -rf k6-v1.5.0-linux-amd64
 
 # 复制 package.json 并安装依赖
 COPY package.json ./
