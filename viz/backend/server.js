@@ -436,7 +436,7 @@ async function generateHtmlReport(testId, test) {
           </tr>
           <tr>
             <td>HTTP 请求失败率</td>
-            <td>${test.metrics?.http_req_failed?.values?.rate !== undefined ? (test.metrics.http_req_failed.values.rate * 100).toFixed(2) + ' %' : 'N/A'}</td>
+            <td>${(test.metrics?.http_req_failed?.values?.rate !== undefined) ? (test.metrics.http_req_failed.values.rate * 100).toFixed(2) + ' %' : (test.metrics?.http_req_failed?.rate !== undefined) ? (test.metrics.http_req_failed.rate * 100).toFixed(2) + ' %' : '0.00 %'}</td>
             <td>-</td>
             <td>-</td>
             <td>-</td>
