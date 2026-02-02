@@ -15,8 +15,8 @@ RUN npm install
 # 复制应用代码
 COPY server.js ./
 
-# 创建必要的目录
-RUN mkdir -p /app/viz/reports /app/viz/data /app/k6/tests
+# 创建必要的目录（frontend 将通过 volume 挂载）
+RUN mkdir -p /app/viz/frontend /app/viz/reports /app/viz/data /app/k6/tests
 
 EXPOSE 8080
 

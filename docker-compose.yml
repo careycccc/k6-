@@ -50,6 +50,7 @@ services:
       - ./k6/tests:/app/k6/tests
       - ./viz/reports:/app/viz/reports
       - ./viz/data:/app/viz/data
+      - ./viz/frontend:/app/viz/frontend
     environment:
       - VIZ_PORT=8080
       - INFLUXDB_URL=http://influxdb:8086
