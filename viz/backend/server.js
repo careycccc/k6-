@@ -291,6 +291,9 @@ async function runTest(testId, scriptPath, vus, duration, env) {
     // 检查脚本是否已有 scenarios 配置
     const scriptHasScenarios = await hasScenarios(scriptPath);
     
+    // P99 和其他统计指标配置
+    const summaryStats = 'avg,min,med,max,p(90),p(95),p(99)';
+    
     let cmd;
     if (scriptHasScenarios) {
       // 脚本已有 scenarios，只添加环境变量和报告导出
@@ -298,6 +301,7 @@ async function runTest(testId, scriptPath, vus, duration, env) {
         --quiet \\
         --env ENV=${env} \\
         --summary-export=${reportFile} \\
+        --summary-trend-stats=${summaryStats} \\
         ${scriptPath}`;
       test.log.push('检测到脚本已包含 scenarios 配置，使用脚本内置配置');
     } else {
@@ -308,6 +312,7 @@ async function runTest(testId, scriptPath, vus, duration, env) {
         --duration ${duration} \\
         --env ENV=${env} \\
         --summary-export=${reportFile} \\
+        --summary-trend-stats=${summaryStats} \\
         ${scriptPath}`;
       test.log.push(`使用测试平台配置: VUs=${vus}, Duration=${duration}`);
     }
@@ -393,9 +398,21 @@ async function generateHtmlReport(testId, test) {
   const formatNum = (val) => val !== null && val !== undefined ? val.toString() : 'N/A';
   
   // 计算成功率
-  const failedRate = getVal('http_req_failed', 'rate');
-  const totalReqs = getVal('http_reqs', 'count');
-  const successRate = failedRate !== null ? ((1 - failedRate) * 100).toFixed(2) : (totalReqs > 0 ? '100.00' : 'N/A');
+  let failedRate = getVal('http_req_failed', 'rate');
+  let totalReqs = getVal('http_reqs', 'count');
+  
+  // 确保值是数字
+  failedRate = (failedRate !== null && !isNaN(failedRate)) ? parseFloat(failedRate) : null;
+  totalReqs = (totalReqs !== null && !isNaN(totalReqs)) ? parseInt(totalReqs) : 0;
+  
+  let successRate;
+  if (failedRate !== null && !isNaN(failedRate)) {
+    successRate = ((1 - failedRate) * 100).toFixed(2);
+  } else if (totalReqs > 0) {
+    successRate = '100.00';
+  } else {
+    successRate = 'N/A';
+  }
   
   const htmlContent = `
 <!DOCTYPE html>
