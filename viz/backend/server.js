@@ -202,6 +202,16 @@ app.post('/api/tests/run', async (req, res) => {
   }
 });
 
+// 检查脚本是否包含 scenarios 配置
+async function hasScenarios(scriptPath) {
+  try {
+    const content = await fs.readFile(scriptPath, 'utf8');
+    return content.includes('scenarios') || content.includes('options');
+  } catch (e) {
+    return false;
+  }
+}
+
 // 执行测试的异步函数
 async function runTest(testId, scriptPath, vus, duration, env) {
   const test = tests.get(testId);
@@ -212,13 +222,29 @@ async function runTest(testId, scriptPath, vus, duration, env) {
     const reportFile = path.join(REPORTS_DIR, `${testId}-summary.json`);
     const htmlReport = path.join(REPORTS_DIR, `${testId}-report.html`);
     
-    const cmd = `k6 run \\
-      --quiet \\
-      --vus ${vus} \\
-      --duration ${duration} \\
-      --env ENV=${env} \\
-      --summary-export=${reportFile} \\
-      ${scriptPath}`;
+    // 检查脚本是否已有 scenarios 配置
+    const scriptHasScenarios = await hasScenarios(scriptPath);
+    
+    let cmd;
+    if (scriptHasScenarios) {
+      // 脚本已有 scenarios，只添加环境变量和报告导出
+      cmd = `k6 run \\
+        --quiet \\
+        --env ENV=${env} \\
+        --summary-export=${reportFile} \\
+        ${scriptPath}`;
+      test.log.push('检测到脚本已包含 scenarios 配置，使用脚本内置配置');
+    } else {
+      // 脚本没有 scenarios，添加 vus 和 duration
+      cmd = `k6 run \\
+        --quiet \\
+        --vus ${vus} \\
+        --duration ${duration} \\
+        --env ENV=${env} \\
+        --summary-export=${reportFile} \\
+        ${scriptPath}`;
+      test.log.push(`使用测试平台配置: VUs=${vus}, Duration=${duration}`);
+    }
     
     test.log.push(`执行命令: ${cmd}`);
     test.log.push(`开始时间: ${new Date().toISOString()}`);
@@ -371,12 +397,30 @@ async function generateHtmlReport(testId, test) {
         <div class="value">${test.metrics?.http_req_duration?.['p(95)'] ? (test.metrics.http_req_duration['p(95)'] / 1000).toFixed(2) : 'N/A'}<span class="unit">ms</span></div>
       </div>
       <div class="card">
+        <h3>P99 响应时间</h3>
+        <div class="value">${test.metrics?.http_req_duration?.['p(99)'] ? (test.metrics.http_req_duration['p(99)'] / 1000).toFixed(2) : (test.metrics?.http_req_duration?.values?.['p(99)'] ? (test.metrics.http_req_duration.values['p(99)'] / 1000).toFixed(2) : 'N/A')}<span class="unit">ms</span></div>
+      </div>
+      <div class="card">
         <h3>请求成功率</h3>
-        <div class="value">${test.metrics?.http_req_failed?.values?.rate !== undefined ? ((1 - test.metrics.http_req_failed.values.rate) * 100).toFixed(2) : (test.metrics?.http_reqs?.values?.count > 0 ? '100.00' : 'N/A')}<span class="unit">%</span></div>
+        <div class="value">${(() => {
+          let failedRate = null;
+          if (test.metrics?.http_req_failed?.values?.rate !== undefined) {
+            failedRate = test.metrics.http_req_failed.values.rate;
+          } else if (test.metrics?.http_req_failed?.rate !== undefined) {
+            failedRate = test.metrics.http_req_failed.rate;
+          }
+          const totalReqs = test.metrics?.http_reqs?.values?.count || test.metrics?.http_reqs?.count || 0;
+          if (failedRate !== null) {
+            return ((1 - failedRate) * 100).toFixed(2);
+          } else if (totalReqs > 0) {
+            return '100.00';
+          }
+          return 'N/A';
+        })()}<span class="unit">%</span></div>
       </div>
       <div class="card">
         <h3>总请求数</h3>
-        <div class="value">${test.metrics?.http_reqs?.count || 'N/A'}<span class="unit">reqs</span></div>
+        <div class="value">${test.metrics?.http_reqs?.values?.count || test.metrics?.http_reqs?.count || 'N/A'}<span class="unit">reqs</span></div>
       </div>
     </div>
     
@@ -428,11 +472,11 @@ async function generateHtmlReport(testId, test) {
         <tbody>
           <tr>
             <td>HTTP 请求持续时间</td>
-            <td>${test.metrics?.http_req_duration?.avg ? (test.metrics.http_req_duration.avg / 1000).toFixed(2) + ' ms' : 'N/A'}</td>
-            <td>${test.metrics?.http_req_duration?.min ? (test.metrics.http_req_duration.min / 1000).toFixed(2) + ' ms' : 'N/A'}</td>
-            <td>${test.metrics?.http_req_duration?.max ? (test.metrics.http_req_duration.max / 1000).toFixed(2) + ' ms' : 'N/A'}</td>
-            <td>${test.metrics?.http_req_duration?.['p(95)'] ? (test.metrics.http_req_duration['p(95)'] / 1000).toFixed(2) + ' ms' : 'N/A'}</td>
-            <td>${test.metrics?.http_req_duration?.['p(99)'] ? (test.metrics.http_req_duration['p(99)'] / 1000).toFixed(2) + ' ms' : 'N/A'}</td>
+            <td>${test.metrics?.http_req_duration?.avg ? (test.metrics.http_req_duration.avg / 1000).toFixed(2) + ' ms' : (test.metrics?.http_req_duration?.values?.avg ? (test.metrics.http_req_duration.values.avg / 1000).toFixed(2) + ' ms' : 'N/A')}</td>
+            <td>${test.metrics?.http_req_duration?.min ? (test.metrics.http_req_duration.min / 1000).toFixed(2) + ' ms' : (test.metrics?.http_req_duration?.values?.min ? (test.metrics.http_req_duration.values.min / 1000).toFixed(2) + ' ms' : 'N/A')}</td>
+            <td>${test.metrics?.http_req_duration?.max ? (test.metrics.http_req_duration.max / 1000).toFixed(2) + ' ms' : (test.metrics?.http_req_duration?.values?.max ? (test.metrics.http_req_duration.values.max / 1000).toFixed(2) + ' ms' : 'N/A')}</td>
+            <td>${test.metrics?.http_req_duration?.['p(95)'] ? (test.metrics.http_req_duration['p(95)'] / 1000).toFixed(2) + ' ms' : (test.metrics?.http_req_duration?.values?.['p(95)'] ? (test.metrics.http_req_duration.values['p(95)'] / 1000).toFixed(2) + ' ms' : 'N/A')}</td>
+            <td>${test.metrics?.http_req_duration?.['p(99)'] ? (test.metrics.http_req_duration['p(99)'] / 1000).toFixed(2) + ' ms' : (test.metrics?.http_req_duration?.values?.['p(99)'] ? (test.metrics.http_req_duration.values['p(99)'] / 1000).toFixed(2) + ' ms' : 'N/A')}</td>
           </tr>
           <tr>
             <td>HTTP 请求失败率</td>
