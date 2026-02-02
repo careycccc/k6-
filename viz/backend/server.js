@@ -12,28 +12,23 @@ const execAsync = promisify(exec);
 const app = express();
 const PORT = process.env.VIZ_PORT || 8080;
 
-// 辅助函数：安全获取 metric 值（支持 values.xxx 和直接 xxx 两种结构）
+// 辅助函数：安全获取 metric 值（支持直接 xxx 和 values.xxx 两种结构）
 function getMetricValue(metricObj, key) {
   if (!metricObj) return null;
   
-  // 对于 vus 指标，如果没有 value 但有 max，使用 max
-  if (key === 'value' && metricObj.values) {
-    if (metricObj.values.value !== undefined) {
-      return metricObj.values.value;
-    }
-    if (metricObj.values.max !== undefined) {
-      return metricObj.values.max;
-    }
+  // 优先尝试直接 xxx（k6 summary 格式）
+  if (metricObj[key] !== undefined) {
+    return metricObj[key];
   }
   
-  // 优先尝试 values.xxx
+  // 然后尝试 values.xxx
   if (metricObj.values && metricObj.values[key] !== undefined) {
     return metricObj.values[key];
   }
   
-  // 然后尝试直接 xxx
-  if (metricObj[key] !== undefined) {
-    return metricObj[key];
+  // 对于 vus.value，如果没有但有 max，返回 max
+  if (key === 'value' && metricObj.max !== undefined) {
+    return metricObj.max;
   }
   
   return null;
@@ -310,6 +305,11 @@ async function runTest(testId, scriptPath, vus, duration, env) {
     // InfluxDB 配置（从环境变量读取，Docker 中使用容器名）
     const influxdbUrl = process.env.INFLUXDB_URL || 'http://localhost:8086';
     const influxdbDb = process.env.INFLUXDB_DB || 'k6';
+    
+    // 调试：记录 InfluxDB 配置
+    test.log.push(`[DEBUG] INFLUXDB_URL: ${process.env.INFLUXDB_URL || '未设置(使用默认)'}`);
+    test.log.push(`[DEBUG] INFLUXDB_DB: ${process.env.INFLUXDB_DB || '未设置(使用默认)'}`);
+    test.log.push(`[DEBUG] 实际使用的 InfluxDB URL: ${influxdbUrl}/${influxdbDb}`);
     
     let cmd;
     if (scriptHasScenarios) {
