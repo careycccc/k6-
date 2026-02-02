@@ -46,8 +46,17 @@ let scripts = new Map();
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '..', 'frontend')));
+// 静态文件服务 - 支持本地开发和 Docker 环境
+const FRONTEND_DIR = process.env.NODE_ENV === 'docker' 
+  ? '/app/viz/frontend' 
+  : path.join(__dirname, '..', 'frontend');
+app.use(express.static(FRONTEND_DIR));
 app.use('/reports', express.static(REPORTS_DIR));
+
+// 健康检查端点
+app.get('/', (req, res) => {
+  res.sendFile(path.join(FRONTEND_DIR, 'index.html'));
+});
 
 // 初始化数据目录
 async function initDataDir() {

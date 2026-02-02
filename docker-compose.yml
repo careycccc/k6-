@@ -53,6 +53,7 @@ services:
       - ./viz/frontend:/app/viz/frontend
     environment:
       - VIZ_PORT=8080
+      - NODE_ENV=docker
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_DB=k6
     depends_on:
