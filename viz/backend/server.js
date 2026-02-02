@@ -229,7 +229,7 @@ async function runTest(testId, scriptPath, vus, duration, env) {
     
     const { stdout, stderr } = await execAsync(cmd, {
       timeout: 10 * 60 * 1000, // 10分钟超时
-      maxBuffer: 10 * 1024 * 1024 // 10MB 缓冲区
+      maxBuffer: 50 * 1024 * 1024 // 50MB 缓冲区，防止大输出导致错误
     });
     
     test.log.push(`标准输出: ${stdout}`);
@@ -263,7 +263,17 @@ async function runTest(testId, scriptPath, vus, duration, env) {
   } catch (error) {
     test.status = 'failed';
     test.completedAt = new Date().toISOString();
-    test.log.push(`测试失败: ${error.message}`);
+    
+    // 详细的错误日志
+    const errorMsg = `测试执行失败: ${error.message}`;
+    test.log.push(errorMsg);
+    
+    // 如果是缓冲区溢出错误，给出具体提示
+    if (error.message.includes('maxBuffer')) {
+      test.log.push('提示: k6 输出内容过多，请检查测试脚本是否包含大量日志输出');
+      test.log.push('建议: 减少 console.log 调用，或使用 --quiet 模式运行 k6');
+    }
+    
     console.error(`测试 ${testId} 执行失败:`, error);
   }
   
