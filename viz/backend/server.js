@@ -12,6 +12,20 @@ const execAsync = promisify(exec);
 const app = express();
 const PORT = process.env.VIZ_PORT || 8080;
 
+// 辅助函数：安全获取 metric 值（支持 values.xxx 和直接 xxx 两种结构）
+function getMetricValue(metricObj, key) {
+  if (!metricObj) return null;
+  // 优先尝试 values.xxx
+  if (metricObj.values && metricObj.values[key] !== undefined) {
+    return metricObj.values[key];
+  }
+  // 然后尝试直接 xxx
+  if (metricObj[key] !== undefined) {
+    return metricObj[key];
+  }
+  return null;
+}
+
 // 数据存储路径
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const REPORTS_DIR = path.join(__dirname, '..', 'reports');
@@ -263,6 +277,16 @@ async function runTest(testId, scriptPath, vus, duration, env) {
     try {
       const summaryData = await fs.readFile(reportFile, 'utf8');
       const summary = JSON.parse(summaryData);
+      
+      // 调试：记录数据结构
+      test.log.push(`[DEBUG] Summary keys: ${Object.keys(summary).join(', ')}`);
+      if (summary.metrics) {
+        test.log.push(`[DEBUG] Metrics keys: ${Object.keys(summary.metrics).join(', ')}`);
+        if (summary.metrics.http_req_duration) {
+          test.log.push(`[DEBUG] http_req_duration keys: ${Object.keys(summary.metrics.http_req_duration).join(', ')}`);
+        }
+      }
+      
       test.metrics = {
         http_req_duration: summary.metrics?.http_req_duration || {},
         http_req_failed: summary.metrics?.http_req_failed || {},
@@ -306,6 +330,16 @@ async function runTest(testId, scriptPath, vus, duration, env) {
 
 // 生成 HTML 报告
 async function generateHtmlReport(testId, test) {
+  // 使用辅助函数获取指标值
+  const getVal = (metric, key) => getMetricValue(test.metrics?.[metric], key);
+  const formatMs = (val) => val !== null ? (val / 1000).toFixed(2) + ' ms' : 'N/A';
+  const formatNum = (val) => val !== null ? val.toString() : 'N/A';
+  
+  // 计算成功率
+  const failedRate = getVal('http_req_failed', 'rate');
+  const totalReqs = getVal('http_reqs', 'count');
+  const successRate = failedRate !== null ? ((1 - failedRate) * 100).toFixed(2) : (totalReqs > 0 ? '100.00' : 'N/A');
+  
   const htmlContent = `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -321,6 +355,183 @@ async function generateHtmlReport(testId, test) {
       color: #333;
       line-height: 1.6;
     }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .header { 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+    }
+    .header h1 { font-size: 28px; margin-bottom: 10px; }
+    .header p { opacity: 0.9; }
+    .status-badge {
+      display: inline-block;
+      padding: 5px 15px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+    .status-completed { background: #10b981; }
+    .status-failed { background: #ef4444; }
+    .status-running { background: #f59e0b; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .card h3 { color: #667eea; margin-bottom: 10px; font-size: 14px; text-transform: uppercase; }
+    .card .value { font-size: 32px; font-weight: 700; color: #333; }
+    .card .unit { font-size: 14px; color: #666; margin-left: 5px; }
+    .section { background: white; padding: 30px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .section h2 { color: #333; margin-bottom: 20px; font-size: 20px; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
+    .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+    .info-row:last-child { border-bottom: none; }
+    .label { color: #666; }
+    .value { color: #333; font-weight: 500; }
+    .log-container {
+      background: #1a1a2e;
+      color: #eee;
+      padding: 20px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .log-line { margin: 2px 0; }
+    .timestamp { color: #64b5f6; }
+    .success { color: #81c784; }
+    .error { color: #e57373; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f8f9fa; font-weight: 600; color: #667eea; }
+    tr:hover { background: #f8f9fa; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚀 K6 性能测试报告</h1>
+      <p>${test.name}</p>
+      <span class="status-badge status-${test.status}">${test.status.toUpperCase()}</span>
+    </div>
+    
+    <div class="grid">
+      <div class="card">
+        <h3>平均响应时间</h3>
+        <div class="value">${formatMs(getVal('http_req_duration', 'avg'))}<span class="unit">ms</span></div>
+      </div>
+      <div class="card">
+        <h3>P95 响应时间</h3>
+        <div class="value">${formatMs(getVal('http_req_duration', 'p(95)'))}<span class="unit">ms</span></div>
+      </div>
+      <div class="card">
+        <h3>P99 响应时间</h3>
+        <div class="value">${formatMs(getVal('http_req_duration', 'p(99)'))}<span class="unit">ms</span></div>
+      </div>
+      <div class="card">
+        <h3>请求成功率</h3>
+        <div class="value">${successRate}<span class="unit">%</span></div>
+      </div>
+      <div class="card">
+        <h3>总请求数</h3>
+        <div class="value">${formatNum(totalReqs)}<span class="unit">reqs</span></div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>📋 测试配置</h2>
+      <div class="info-row">
+        <span class="label">测试 ID</span>
+        <span class="value">${testId}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">测试脚本</span>
+        <span class="value">${test.script}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">虚拟用户数 (VUs)</span>
+        <span class="value">${test.config.vus}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">持续时间</span>
+        <span class="value">${test.config.duration}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">环境</span>
+        <span class="value">${test.config.env}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">开始时间</span>
+        <span class="value">${new Date(test.startedAt).toLocaleString()}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">完成时间</span>
+        <span class="value">${test.completedAt ? new Date(test.completedAt).toLocaleString() : '运行中...'}</span>
+      </div>
+    </div>
+    
+    <div class="section">
+      <h2>📊 性能指标详情</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>指标</th>
+            <th>平均值</th>
+            <th>最小值</th>
+            <th>最大值</th>
+            <th>P95</th>
+            <th>P99</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>HTTP 请求持续时间</td>
+            <td>${formatMs(getVal('http_req_duration', 'avg'))}</td>
+            <td>${formatMs(getVal('http_req_duration', 'min'))}</td>
+            <td>${formatMs(getVal('http_req_duration', 'max'))}</td>
+            <td>${formatMs(getVal('http_req_duration', 'p(95)'))}</td>
+            <td>${formatMs(getVal('http_req_duration', 'p(99)'))}</td>
+          </tr>
+          <tr>
+            <td>HTTP 请求失败率</td>
+            <td>${failedRate !== null ? (failedRate * 100).toFixed(2) + ' %' : '0.00 %'}</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td>虚拟用户数</td>
+            <td>${formatNum(getVal('vus', 'value'))}</td>
+            <td>${formatNum(getVal('vus', 'min'))}</td>
+            <td>${formatNum(getVal('vus', 'max'))}</td>
+            <td>-</td>
+            <td>-</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="section">
+      <h2>📝 执行日志</h2>
+      <div class="log-container">
+        ${test.log.map((line, index) => `<div class="log-line"><span class="timestamp">[${index + 1}]</span> ${line.replace(/\n/g, '<br>')}</div>`).join('<div style="height: 8px;"></div>')}
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+  
+  const reportPath = path.join(REPORTS_DIR, `${testId}-report.html`);
+  await fs.writeFile(reportPath, htmlContent, 'utf8');
+}
     .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
     .header { 
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
