@@ -213,6 +213,7 @@ async function runTest(testId, scriptPath, vus, duration, env) {
     const htmlReport = path.join(REPORTS_DIR, `${testId}-report.html`);
     
     const cmd = `k6 run \\
+      --quiet \\
       --vus ${vus} \\
       --duration ${duration} \\
       --env ENV=${env} \\
