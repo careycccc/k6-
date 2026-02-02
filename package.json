@@ -18,7 +18,12 @@
         "report": "node scripts/generate-report.js",
         "docker:build": "docker build -t k6-test-framework -f docker/Dockerfile .",
         "docker:run": "docker-compose -f docker/docker-compose.yml up k6",
-        "precommit": "npm run lint && npm run format"
+        "precommit": "npm run lint && npm run format",
+        "viz:install": "cd viz/backend && npm install",
+        "viz:start": "cd viz/backend && npm start",
+        "viz:dev": "cd viz/backend && npm run dev",
+        "viz:open": "open http://localhost:8080",
+        "viz:setup": "npm run viz:install && npm run viz:start"
     },
     "keywords": [
         "k6",

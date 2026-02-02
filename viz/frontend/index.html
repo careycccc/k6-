@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>K6 可视化测试平台</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f0f2f5;
+      color: #333;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px 30px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .header h1 {
+      font-size: 24px;
+      font-weight: 600;
+    }
+    
+    .header p {
+      margin-top: 5px;
+      opacity: 0.9;
+      font-size: 14px;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 30px;
+    }
+    
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+      background: white;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .tab {
+      padding: 12px 24px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: #666;
+      border-radius: 6px;
+      transition: all 0.3s;
+    }
+    
+    .tab:hover {
+      background: #f0f2f5;
+      color: #667eea;
+    }
+    
+    .tab.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 25px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-secondary {
+      background: #f0f2f5;
+      color: #666;
+    }
+    
+    .btn-secondary:hover {
+      background: #e4e6e9;
+    }
+    
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+    
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+    
+    .btn-success {
+      background: #10b981;
+      color: white;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #555;
+    }
+    
+    .form-input,
+    .form-select,
+    .form-textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: border-color 0.3s;
+    }
+    
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .form-textarea {
+      min-height: 300px;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #667eea;
+      margin-bottom: 5px;
+    }
+    
+    .stat-label {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+    
+    th {
+      background: #f8f9fa;
+      font-weight: 600;
+      color: #555;
+      font-size: 13px;
+      text-transform: uppercase;
+    }
+    
+    tr:hover {
+      background: #f8f9fa;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .status-running {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    
+    .status-completed {
+      background: #d1fae5;
+      color: #059669;
+    }
+    
+    .status-failed {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    
+    .status-stopped {
+      background: #e5e7eb;
+      color: #6b7280;
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .modal.active {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 800px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 30px;
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .modal-title {
+      font-size: 20px;
+      font-weight: 600;
+    }
+    
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #666;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #666;
+    }
+    
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 20px;
+      border-radius: 6px;
+      color: white;
+      font-weight: 500;
+      z-index: 2000;
+      display: none;
+      animation: slideIn 0.3s ease;
+    }
+    
+    .toast.show {
+      display: block;
+    }
+    
+    .toast.success {
+      background: #10b981;
+    }
+    
+    .toast.error {
+      background: #ef4444;
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .action-btns {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .action-btn {
+      padding: 6px 12px;
+      font-size: 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .action-btn:hover {
+      transform: translateY(-1px);
+    }
+    
+    .action-btn.view {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+    
+    .action-btn.run {
+      background: #d1fae5;
+      color: #059669;
+    }
+    
+    .action-btn.report {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    
+    .action-btn.delete {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🚀 K6 可视化测试平台</h1>
+    <p>企业级性能测试与自动化测试管理</p>
+  </div>
+  
+  <div class="container">
+    <!-- 统计卡片 -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="totalScripts">-</div>
+        <div class="stat-label">测试脚本</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="totalTests">-</div>
+        <div class="stat-label">测试记录</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="runningTests">-</div>
+        <div class="stat-label">运行中</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="totalReports">-</div>
+        <div class="stat-label">测试报告</div>
+      </div>
+    </div>
+    
+    <!-- 标签页 -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('scripts')">📝 脚本管理</button>
+      <button class="tab" onclick="switchTab('tests')">▶️ 测试执行</button>
+      <button class="tab" onclick="switchTab('reports')">📊 测试报告</button>
+      <button class="tab" onclick="switchTab('dashboard')">📈 实时监控</button>
+    </div>
+    
+    <!-- 脚本管理 -->
+    <div id="scripts" class="tab-content active">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">测试脚本列表</h2>
+          <button class="btn btn-primary" onclick="openScriptModal()">➕ 新建脚本</button>
+        </div>
+        <div id="scriptsTable">
+          <div class="empty-state">
+            <div class="empty-state-icon">📂</div>
+            <p>加载中...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 测试执行 -->
+    <div id="tests" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">运行测试</h2>
+        </div>
+        <form id="runTestForm">
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">选择脚本 *</label>
+              <select class="form-select" id="testScript" required>
+                <option value="">请选择测试脚本</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">测试名称</label>
+              <input type="text" class="form-input" id="testName" placeholder="输入测试名称（可选）">
+            </div>
+          </div>
+          <div class="grid-3">
+            <div class="form-group">
+              <label class="form-label">虚拟用户数 (VUs) *</label>
+              <input type="number" class="form-input" id="testVus" value="10" min="1" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">持续时间 *</label>
+              <input type="text" class="form-input" id="testDuration" value="30s" placeholder="例如: 30s, 1m, 5m" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">环境 *</label>
+              <select class="form-select" id="testEnv" required>
+                <option value="local">本地 (local)</option>
+                <option value="dev">开发 (dev)</option>
+                <option value="staging">测试 (staging)</option>
+                <option value="prod">生产 (prod)</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary">▶️ 开始测试</button>
+        </form>
+      </div>
+      
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">测试记录</h2>
+          <button class="btn btn-secondary" onclick="loadTests()">🔄 刷新</button>
+        </div>
+        <div id="testsTable">
+          <div class="empty-state">
+            <div class="empty-state-icon">📝</div>
+            <p>暂无测试记录</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 测试报告 -->
+    <div id="reports" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">测试报告列表</h2>
+          <button class="btn btn-secondary" onclick="loadReports()">🔄 刷新</button>
+        </div>
+        <div id="reportsTable">
+          <div class="empty-state">
+            <div class="empty-state-icon">📊</div>
+            <p>暂无测试报告</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 实时监控 -->
+    <div id="dashboard" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">实时监控面板</h2>
+        </div>
+        <div class="empty-state">
+          <div class="empty-state-icon">📈</div>
+          <p>实时监控功能需要集成 Grafana</p>
+          <p style="margin-top: 10px; font-size: 14px;">
+            <a href="http://localhost:3000" target="_blank" style="color: #667eea;">打开 Grafana 仪表板 →</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 脚本编辑模态框 -->
+  <div id="scriptModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalTitle">新建脚本</h3>
+        <button class="close-btn" onclick="closeScriptModal()">&times;</button>
+      </div>
+      <form id="scriptForm">
+        <div class="form-group">
+          <label class="form-label">脚本名称 *</label>
+          <input type="text" class="form-input" id="scriptName" placeholder="例如: api/user.test.js" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">脚本内容 *</label>
+          <textarea class="form-textarea" id="scriptContent" placeholder="// 输入 K6 测试脚本代码..." required></textarea>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button type="button" class="btn btn-secondary" onclick="closeScriptModal()">取消</button>
+          <button type="submit" class="btn btn-primary">💾 保存脚本</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- 测试详情模态框 -->
+  <div id="testDetailModal" class="modal">
+    <div class="modal-content" style="max-width: 1000px;">
+      <div class="modal-header">
+        <h3 class="modal-title">测试详情</h3>
+        <button class="close-btn" onclick="closeTestDetailModal()">&times;</button>
+      </div>
+      <div id="testDetailContent">
+        <p>加载中...</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Toast 提示 -->
+  <div id="toast" class="toast"></div>
+  
+  <script>
+    const API_BASE = '/api';
+    let currentScripts = [];
+    let currentTests = [];
+    let editingScript = null;
+    
+    // 切换标签页
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById(tabName).classList.add('active');
+      
+      // 加载对应数据
+      if (tabName === 'scripts') loadScripts();
+      if (tabName === 'tests') {
+        loadScriptsForSelect();
+        loadTests();
+      }
+      if (tabName === 'reports') loadReports();
+    }
+    
+    // 显示 Toast
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `toast ${type} show`;
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+    
+    // 加载脚本列表
+    async function loadScripts() {
+      try {
+        const response = await fetch(`${API_BASE}/scripts`);
+        const scripts = await response.json();
+        currentScripts = scripts;
+        
+        document.getElementById('totalScripts').textContent = scripts.length;
+        
+        if (scripts.length === 0) {
+          document.getElementById('scriptsTable').innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">📂</div>
+              <p>暂无测试脚本</p>
+              <button class="btn btn-primary" onclick="openScriptModal()" style="margin-top: 16px;">➕ 新建脚本</button>
+            </div>
+          `;
+          return;
+        }
+        
+        const html = `
+          <table>
+            <thead>
+              <tr>
+                <th>脚本名称</th>
+                <th>大小</th>
+                <th>更新时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${scripts.map(script => `
+                <tr>
+                  <td>${script.name}</td>
+                  <td>${(script.size / 1024).toFixed(2)} KB</td>
+                  <td>${new Date(script.updatedAt).toLocaleString()}</td>
+                  <td>
+                    <div class="action-btns">
+                      <button class="action-btn view" onclick="viewScript('${script.name}')">查看</button>
+                      <button class="action-btn run" onclick="runScript('${script.name}')">运行</button>
+                      <button class="action-btn delete" onclick="deleteScript('${script.name}')">删除</button>
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+        document.getElementById('scriptsTable').innerHTML = html;
+      } catch (error) {
+        console.error('加载脚本失败:', error);
+        showToast('加载脚本失败', 'error');
+      }
+    }
+    
+    // 加载脚本到下拉框
+    async function loadScriptsForSelect() {
+      try {
+        const response = await fetch(`${API_BASE}/scripts`);
+        const scripts = await response.json();
+        
+        const select = document.getElementById('testScript');
+        select.innerHTML = '<option value="">请选择测试脚本</option>';
+        scripts.forEach(script => {
+          const option = document.createElement('option');
+          option.value = script.name;
+          option.textContent = script.name;
+          select.appendChild(option);
+        });
+      } catch (error) {
+        console.error('加载脚本列表失败:', error);
+      }
+    }
+    
+    // 查看脚本
+    async function viewScript(name) {
+      try {
+        const response = await fetch(`${API_BASE}/scripts/${encodeURIComponent(name)}`);
+        const script = await response.json();
+        
+        document.getElementById('modalTitle').textContent = '编辑脚本';
+        document.getElementById('scriptName').value = script.name;
+        document.getElementById('scriptContent').value = script.content;
+        editingScript = script.name;
+        
+        document.getElementById('scriptModal').classList.add('active');
+      } catch (error) {
+        console.error('加载脚本内容失败:', error);
+        showToast('加载脚本内容失败', 'error');
+      }
+    }
+    
+    // 打开脚本模态框
+    function openScriptModal() {
+      document.getElementById('modalTitle').textContent = '新建脚本';
+      document.getElementById('scriptName').value = '';
+      document.getElementById('scriptContent').value = '';
+      editingScript = null;
+      document.getElementById('scriptModal').classList.add('active');
+    }
+    
+    // 关闭脚本模态框
+    function closeScriptModal() {
+      document.getElementById('scriptModal').classList.remove('active');
+    }
+    
+    // 保存脚本
+    document.getElementById('scriptForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const name = document.getElementById('scriptName').value;
+      const content = document.getElementById('scriptContent').value;
+      
+      try {
+        const response = await fetch(`${API_BASE}/scripts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, content })
+        });
+        
+        if (response.ok) {
+          showToast('脚本保存成功');
+          closeScriptModal();
+          loadScripts();
+        } else {
+          const error = await response.json();
+          showToast(error.message || '保存失败', 'error');
+        }
+      } catch (error) {
+        console.error('保存脚本失败:', error);
+        showToast('保存脚本失败', 'error');
+      }
+    });
+    
+    // 删除脚本
+    async function deleteScript(name) {
+      if (!confirm(`确定要删除脚本 "${name}" 吗？`)) return;
+      
+      try {
+        const response = await fetch(`${API_BASE}/scripts/${encodeURIComponent(name)}`, {
+          method: 'DELETE'
+        });
+        
+        if (response.ok) {
+          showToast('脚本删除成功');
+          loadScripts();
+        } else {
+          const error = await response.json();
+          showToast(error.message || '删除失败', 'error');
+        }
+      } catch (error) {
+        console.error('删除脚本失败:', error);
+        showToast('删除脚本失败', 'error');
+      }
+    }
+    
+    // 运行脚本
+    function runScript(name) {
+      switchTab('tests');
+      document.getElementById('testScript').value = name;
+      document.querySelector('.tab:nth-child(2)').click();
+    }
+    
+    // 提交测试表单
+    document.getElementById('runTestForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const script = document.getElementById('testScript').value;
+      const name = document.getElementById('testName').value;
+      const vus = document.getElementById('testVus').value;
+      const duration = document.getElementById('testDuration').value;
+      const env = document.getElementById('testEnv').value;
+      
+      try {
+        const response = await fetch(`${API_BASE}/tests/run`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ script, name, vus, duration, env })
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          showToast(`测试已启动: ${result.testId}`);
+          loadTests();
+        } else {
+          const error = await response.json();
+          showToast(error.message || '启动测试失败', 'error');
+        }
+      } catch (error) {
+        console.error('启动测试失败:', error);
+        showToast('启动测试失败', 'error');
+      }
+    });
+    
+    // 加载测试列表
+    async function loadTests() {
+      try {
+        const response = await fetch(`${API_BASE}/tests`);
+        const tests = await response.json();
+        currentTests = tests;
+        
+        document.getElementById('totalTests').textContent = tests.length;
+        document.getElementById('runningTests').textContent = tests.filter(t => t.status === 'running').length;
+        
+        if (tests.length === 0) {
+          document.getElementById('testsTable').innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">📝</div>
+              <p>暂无测试记录</p>
+            </div>
+          `;
+          return;
+        }
+        
+        const html = `
+          <table>
+            <thead>
+              <tr>
+                <th>测试名称</th>
+                <th>脚本</th>
+                <th>状态</th>
+                <th>VUs</th>
+                <th>持续时间</th>
+                <th>开始时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tests.map(test => `
+                <tr>
+                  <td>${test.name}</td>
+                  <td>${test.script}</td>
+                  <td><span class="status-badge status-${test.status}">${test.status.toUpperCase()}</span></td>
+                  <td>${test.config.vus}</td>
+                  <td>${test.config.duration}</td>
+                  <td>${new Date(test.startedAt).toLocaleString()}</td>
+                  <td>
+                    <div class="action-btns">
+                      <button class="action-btn view" onclick="viewTest('${test.testId}')">详情</button>
+                      ${test.status === 'running' ? `<button class="action-btn delete" onclick="stopTest('${test.testId}')">停止</button>` : ''}
+                      ${test.status === 'completed' ? `<button class="action-btn report" onclick="viewReport('${test.testId}')">报告</button>` : ''}
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+        document.getElementById('testsTable').innerHTML = html;
+      } catch (error) {
+        console.error('加载测试列表失败:', error);
+        showToast('加载测试列表失败', 'error');
+      }
+    }
+    
+    // 查看测试详情
+    async function viewTest(testId) {
+      try {
+        const response = await fetch(`${API_BASE}/tests/${testId}`);
+        const test = await response.json();
+        
+        const html = `
+          <div style="margin-bottom: 20px;">
+            <h4 style="margin-bottom: 10px;">基本信息</h4>
+            <div class="grid-2">
+              <div><strong>测试 ID:</strong> ${test.testId}</div>
+              <div><strong>测试名称:</strong> ${test.name}</div>
+              <div><strong>脚本:</strong> ${test.script}</div>
+              <div><strong>状态:</strong> <span class="status-badge status-${test.status}">${test.status.toUpperCase()}</span></div>
+              <div><strong>VUs:</strong> ${test.config.vus}</div>
+              <div><strong>持续时间:</strong> ${test.config.duration}</div>
+              <div><strong>环境:</strong> ${test.config.env}</div>
+              <div><strong>开始时间:</strong> ${new Date(test.startedAt).toLocaleString()}</div>
+              ${test.completedAt ? `<div><strong>完成时间:</strong> ${new Date(test.completedAt).toLocaleString()}</div>` : ''}
+            </div>
+          </div>
+          
+          ${test.metrics ? `
+            <div style="margin-bottom: 20px;">
+              <h4 style="margin-bottom: 10px;">性能指标</h4>
+              <div class="grid-2">
+                <div><strong>平均响应时间:</strong> ${(test.metrics.http_req_duration?.avg / 1000).toFixed(2)} ms</div>
+                <div><strong>P95 响应时间:</strong> ${(test.metrics.http_req_duration?.['p(95)'] / 1000).toFixed(2)} ms</div>
+                <div><strong>成功率:</strong> ${((1 - test.metrics.http_req_failed?.rate) * 100).toFixed(2)}%</div>
+                <div><strong>总请求数:</strong> ${test.metrics.http_reqs?.count || 0}</div>
+              </div>
+            </div>
+          ` : ''}
+          
+          <div>
+            <h4 style="margin-bottom: 10px;">执行日志</h4>
+            <div style="background: #1a1a2e; color: #eee; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto;">
+              ${test.log.map(line => `<div style="margin: 2px 0;">${line}</div>`).join('')}
+            </div>
+          </div>
+          
+          ${test.reportUrl ? `
+            <div style="margin-top: 20px;">
+              <a href="${test.reportUrl}" target="_blank" class="btn btn-primary">查看完整报告</a>
+            </div>
+          ` : ''}
+        `;
+        
+        document.getElementById('testDetailContent').innerHTML = html;
+        document.getElementById('testDetailModal').classList.add('active');
+      } catch (error) {
+        console.error('加载测试详情失败:', error);
+        showToast('加载测试详情失败', 'error');
+      }
+    }
+    
+    // 关闭测试详情模态框
+    function closeTestDetailModal() {
+      document.getElementById('testDetailModal').classList.remove('active');
+    }
+    
+    // 停止测试
+    async function stopTest(testId) {
+      if (!confirm('确定要停止这个测试吗？')) return;
+      
+      try {
+        const response = await fetch(`${API_BASE}/tests/${testId}/stop`, {
+          method: 'POST'
+        });
+        
+        if (response.ok) {
+          showToast('测试已停止');
+          loadTests();
+        } else {
+          const error = await response.json();
+          showToast(error.message || '停止失败', 'error');
+        }
+      } catch (error) {
+        console.error('停止测试失败:', error);
+        showToast('停止测试失败', 'error');
+      }
+    }
+    
+    // 查看报告
+    function viewReport(testId) {
+      const test = currentTests.find(t => t.testId === testId);
+      if (test && test.reportUrl) {
+        window.open(test.reportUrl, '_blank');
+      } else {
+        showToast('报告尚未生成', 'error');
+      }
+    }
+    
+    // 加载报告列表
+    async function loadReports() {
+      try {
+        const response = await fetch(`${API_BASE}/reports`);
+        const reports = await response.json();
+        
+        document.getElementById('totalReports').textContent = reports.length;
+        
+        if (reports.length === 0) {
+          document.getElementById('reportsTable').innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">📊</div>
+              <p>暂无测试报告</p>
+            </div>
+          `;
+          return;
+        }
+        
+        const html = `
+          <table>
+            <thead>
+              <tr>
+                <th>报告 ID</th>
+                <th>测试名称</th>
+                <th>状态</th>
+                <th>生成时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reports.map(report => `
+                <tr>
+                  <td>${report.id}</td>
+                  <td>${report.name}</td>
+                  <td><span class="status-badge status-${report.status}">${report.status.toUpperCase()}</span></td>
+                  <td>${new Date(report.createdAt).toLocaleString()}</td>
+                  <td>
+                    <div class="action-btns">
+                      <a href="${report.url}" target="_blank" class="action-btn report">查看报告</a>
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+        document.getElementById('reportsTable').innerHTML = html;
+      } catch (error) {
+        console.error('加载报告列表失败:', error);
+        showToast('加载报告列表失败', 'error');
+      }
+    }
+    
+    // 刷新统计数据
+    async function refreshStats() {
+      try {
+        const [scriptsRes, testsRes, reportsRes] = await Promise.all([
+          fetch(`${API_BASE}/scripts`),
+          fetch(`${API_BASE}/tests`),
+          fetch(`${API_BASE}/reports`)
+        ]);
+        
+        const scripts = await scriptsRes.json();
+        const tests = await testsRes.json();
+        const reports = await reportsRes.json();
+        
+        document.getElementById('totalScripts').textContent = scripts.length;
+        document.getElementById('totalTests').textContent = tests.length;
+        document.getElementById('runningTests').textContent = tests.filter(t => t.status === 'running').length;
+        document.getElementById('totalReports').textContent = reports.length;
+      } catch (error) {
+        console.error('刷新统计失败:', error);
+      }
+    }
+    
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      loadScripts();
+      refreshStats();
+      
+      // 每 5 秒刷新一次测试状态
+      setInterval(() => {
+        const testsTab = document.querySelector('.tab:nth-child(2)');
+        if (testsTab.classList.contains('active')) {
+          loadTests();
+        }
+        refreshStats();
+      }, 5000);
+    });
+    
+    // 点击模态框外部关闭
+    window.onclick = function(event) {
+      if (event.target.classList.contains('modal')) {
+        event.target.classList.remove('active');
+      }
+    }
+  </script>
+</body>
+</html>
