@@ -6,5 +6,6 @@ datasources:
     access: proxy
     url: http://influxdb:8086
     database: k6
+    uid: influxdb
     isDefault: true
     editable: false
