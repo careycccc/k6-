@@ -389,7 +389,7 @@ async function runTest(testId, scriptPath, vus, duration, env) {
 async function generateHtmlReport(testId, test) {
   // 使用辅助函数获取指标值
   const getVal = (metric, key) => getMetricValue(test.metrics?.[metric], key);
-  const formatMs = (val) => val !== null && val !== undefined ? (val / 1000).toFixed(2) : 'N/A';
+  const formatMs = (val) => val !== null && val !== undefined ? val.toFixed(2) : 'N/A';
   const formatNum = (val) => val !== null && val !== undefined ? val.toString() : 'N/A';
   
   // 计算成功率
