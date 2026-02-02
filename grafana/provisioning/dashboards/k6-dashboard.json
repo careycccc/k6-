@@ -1,0 +1,144 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "id": 100,
+      "panels": [],
+      "title": "📊 概览指标",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "influxdb", "uid": "influxdb"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 200}, {"color": "red", "value": 500}]},
+          "unit": "ms"
+        }
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 1},
+      "id": 1,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["mean"]}},
+      "targets": [{"query": "SELECT mean(\"value\") FROM \"http_req_duration\" WHERE $timeFilter", "rawQuery": true, "refId": "A"}],
+      "title": "⏱️ 平均响应时间",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "influxdb", "uid": "influxdb"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"steps": [{"color": "green"}]}, "unit": "short"}},
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 1},
+      "id": 2,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["sum"]}},
+      "targets": [{"query": "SELECT count(\"value\") FROM \"http_reqs\" WHERE $timeFilter", "rawQuery": true, "refId": "A"}],
+      "title": "🚀 总请求数",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "influxdb", "uid": "influxdb"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"steps": [{"color": "green"}, {"color": "red", "value": 1}]}, "unit": "percent"}},
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 1},
+      "id": 3,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["mean"]}},
+      "targets": [{"query": "SELECT mean(\"value\") * 100 FROM \"http_req_failed\" WHERE $timeFilter", "rawQuery": true, "refId": "A"}],
+      "title": "❌ 错误率",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "influxdb", "uid": "influxdb"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"steps": [{"color": "blue"}]}, "unit": "short"}},
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 1},
+      "id": 4,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["max"]}},
+      "targets": [{"query": "SELECT max(\"value\") FROM \"vus\" WHERE $timeFilter", "rawQuery": true, "refId": "A"}],
+      "title": "👥 最大 VUs",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 6},
+      "id": 101,
+      "panels": [],
+      "title": "📈 性能趋势",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "influxdb", "uid": "influxdb"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"drawStyle": "line", "fillOpacity": 20, "lineInterpolation": "smooth", "lineWidth": 2, "showPoints": "never"},
+          "unit": "ms"
+        }
+      },
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 7},
+      "id": 5,
+      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom"}},
+      "targets": [
+        {"alias": "平均响应时间", "query": "SELECT mean(\"value\") FROM \"http_req_duration\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "refId": "A"},
+        {"alias": "P90", "query": "SELECT percentile(\"value\", 90) FROM \"http_req_duration\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "refId": "B"},
+        {"alias": "P95", "query": "SELECT percentile(\"value\", 95) FROM \"http_req_duration\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "refId": "C"}
+      ],
+      "title": "⏱️ 响应时间趋势",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "influxdb", "uid": "influxdb"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"drawStyle": "line", "fillOpacity": 30, "lineInterpolation": "smooth", "lineWidth": 2},
+          "unit": "reqps"
+        }
+      },
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 7},
+      "id": 6,
+      "options": {"legend": {"calcs": ["mean"], "displayMode": "table", "placement": "bottom"}},
+      "targets": [{"query": "SELECT sum(\"value\") FROM \"http_reqs\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "refId": "A"}],
+      "title": "🚀 请求速率 (RPS)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 17},
+      "id": 102,
+      "panels": [],
+      "title": "👥 虚拟用户",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "influxdb", "uid": "influxdb"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"drawStyle": "line", "fillOpacity": 40, "lineInterpolation": "linear", "lineWidth": 2},
+          "unit": "short"
+        }
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 18},
+      "id": 7,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}},
+      "targets": [{"query": "SELECT last(\"value\") FROM \"vus\" WHERE $timeFilter GROUP BY time($__interval) fill(null)", "rawQuery": true, "refId": "A"}],
+      "title": "👥 虚拟用户数 (VUs)",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["k6", "performance"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {"refresh_intervals": ["5s", "10s", "30s", "1m", "5m"]},
+  "timezone": "browser",
+  "title": "K6 实时监控仪表板",
+  "uid": "k6-dashboard",
+  "version": 1
+}
