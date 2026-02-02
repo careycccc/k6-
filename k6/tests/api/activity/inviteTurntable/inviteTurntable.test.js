@@ -28,6 +28,7 @@ export function queryInviteTurntable(data) {
     const groupResult = groupByAndSum(result.list, 'userId', 'withdrawAmount')
     inviteTurntableInfo.amount = groupResult.sum
     inviteTurntableInfo.amountUsercount = groupResult.count
+    console.log(inviteTurntableInfo)
     return inviteTurntableInfo
 }
 

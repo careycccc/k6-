@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  influxdb:
+    image: influxdb:1.8
+    container_name: k6-influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - INFLUXDB_DB=k6
+      - INFLUXDB_HTTP_AUTH_ENABLED=false
+    volumes:
+      - influxdb_data:/var/lib/influxdb
+    networks:
+      - k6-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: k6-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    networks:
+      - k6-network
+
+  viz-backend:
+    build:
+      context: ./viz/backend
+      dockerfile: Dockerfile
+    container_name: k6-viz-backend
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./k6/tests:/app/k6/tests
+      - ./viz/reports:/app/viz/reports
+      - ./viz/data:/app/viz/data
+    environment:
+      - VIZ_PORT=8080
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_DB=k6
+    depends_on:
+      - influxdb
+    networks:
+      - k6-network
+
+volumes:
+  influxdb_data:
+  grafana_data:
+
+networks:
+  k6-network:
+    driver: bridge

@@ -15,14 +15,27 @@ const PORT = process.env.VIZ_PORT || 8080;
 // 辅助函数：安全获取 metric 值（支持 values.xxx 和直接 xxx 两种结构）
 function getMetricValue(metricObj, key) {
   if (!metricObj) return null;
+  
+  // 对于 vus 指标，如果没有 value 但有 max，使用 max
+  if (key === 'value' && metricObj.values) {
+    if (metricObj.values.value !== undefined) {
+      return metricObj.values.value;
+    }
+    if (metricObj.values.max !== undefined) {
+      return metricObj.values.max;
+    }
+  }
+  
   // 优先尝试 values.xxx
   if (metricObj.values && metricObj.values[key] !== undefined) {
     return metricObj.values[key];
   }
+  
   // 然后尝试直接 xxx
   if (metricObj[key] !== undefined) {
     return metricObj[key];
   }
+  
   return null;
 }
 
@@ -291,8 +304,12 @@ async function runTest(testId, scriptPath, vus, duration, env) {
     // 检查脚本是否已有 scenarios 配置
     const scriptHasScenarios = await hasScenarios(scriptPath);
     
-    // P99 和其他统计指标配置（注意：需要用引号包裹，防止 shell 解析括号）
-    const summaryStats = '"avg,min,med,max,p(90),p(95),p(99)"';
+    // P99 和其他统计指标配置
+    const summaryStats = 'avg,min,med,max,p(90),p(95),p(99)';
+    
+    // InfluxDB 配置（从环境变量读取，Docker 中使用容器名）
+    const influxdbUrl = process.env.INFLUXDB_URL || 'http://localhost:8086';
+    const influxdbDb = process.env.INFLUXDB_DB || 'k6';
     
     let cmd;
     if (scriptHasScenarios) {
@@ -301,9 +318,11 @@ async function runTest(testId, scriptPath, vus, duration, env) {
         --quiet \\
         --env ENV=${env} \\
         --summary-export=${reportFile} \\
-        --summary-trend-stats=${summaryStats} \\
+        --summary-trend-stats="${summaryStats}" \\
+        --out influxdb=${influxdbUrl}/${influxdbDb} \\
         ${scriptPath}`;
       test.log.push('检测到脚本已包含 scenarios 配置，使用脚本内置配置');
+      test.log.push(`InfluxDB 输出: ${influxdbUrl}/${influxdbDb}`);
     } else {
       // 脚本没有 scenarios，添加 vus 和 duration
       cmd = `k6 run \\
@@ -312,9 +331,11 @@ async function runTest(testId, scriptPath, vus, duration, env) {
         --duration ${duration} \\
         --env ENV=${env} \\
         --summary-export=${reportFile} \\
-        --summary-trend-stats=${summaryStats} \\
+        --summary-trend-stats="${summaryStats}" \\
+        --out influxdb=${influxdbUrl}/${influxdbDb} \\
         ${scriptPath}`;
       test.log.push(`使用测试平台配置: VUs=${vus}, Duration=${duration}`);
+      test.log.push(`InfluxDB 输出: ${influxdbUrl}/${influxdbDb}`);
     }
     
     test.log.push(`执行命令: ${cmd}`);

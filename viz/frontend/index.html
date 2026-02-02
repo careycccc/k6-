@@ -549,14 +549,43 @@
     <div id="dashboard" class="tab-content">
       <div class="card">
         <div class="card-header">
-          <h2 class="card-title">实时监控面板</h2>
+          <h2 class="card-title">📊 Grafana 实时监控</h2>
+          <a href="http://localhost:3000/d/k6-dashboard" target="_blank" class="btn btn-primary">🔍 打开 Grafana</a>
         </div>
-        <div class="empty-state">
-          <div class="empty-state-icon">📈</div>
-          <p>实时监控功能需要集成 Grafana</p>
-          <p style="margin-top: 10px; font-size: 14px;">
-            <a href="http://localhost:3000" target="_blank" style="color: #667eea;">打开 Grafana 仪表板 →</a>
-          </p>
+        <div style="padding: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 20px;">
+            <h3 style="margin-bottom: 15px;">🚀 实时性能监控</h3>
+            <p style="opacity: 0.9; margin-bottom: 20px;">通过 Grafana 实时查看测试指标，包括响应时间、请求速率、虚拟用户数等</p>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+              <a href="http://localhost:3000/d/k6-dashboard" target="_blank" style="background: white; color: #667eea; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">📈 查看仪表板</a>
+              <span style="opacity: 0.8; padding: 12px 0;">账号: admin / 密码: admin123</span>
+            </div>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h4 style="color: #667eea; margin-bottom: 10px;">⏱️ 响应时间趋势</h4>
+              <p style="color: #666; font-size: 14px;">实时查看平均响应时间、P90、P95 趋势线</p>
+            </div>
+            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h4 style="color: #667eea; margin-bottom: 10px;">🚀 请求速率 (RPS)</h4>
+              <p style="color: #666; font-size: 14px;">监控每秒请求数，了解系统吞吐量</p>
+            </div>
+            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h4 style="color: #667eea; margin-bottom: 10px;">👥 虚拟用户数</h4>
+              <p style="color: #666; font-size: 14px;">实时查看当前活跃的虚拟用户数量</p>
+            </div>
+            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h4 style="color: #667eea; margin-bottom: 10px;">❌ 错误率监控</h4>
+              <p style="color: #666; font-size: 14px;">实时监控请求失败率和错误趋势</p>
+            </div>
+          </div>
+          
+          <div style="margin-top: 20px; padding: 15px; background: #f0f2f5; border-radius: 8px; border-left: 4px solid #667eea;">
+            <p style="margin: 0; color: #555; font-size: 14px;">
+              <strong>💡 提示：</strong>使用 Docker 部署时会自动启动 InfluxDB 和 Grafana。运行测试后，数据会自动写入 InfluxDB，Grafana 会实时展示图表。
+            </p>
+          </div>
         </div>
       </div>
     </div>

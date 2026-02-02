@@ -1,6 +1,6 @@
 
 import { AdminLogin, adminTag } from '../login/adminlogin.test.js';
-import { querySignin as querySigninfunc } from '../activity/signin/signin.test.js';
+import { queryInviteTurntable as queryInviteTurntablefunc } from '../activity/inviteTurntable/inviteTurntable.test.js';
 
 
 
@@ -22,8 +22,8 @@ export function setup() {
     }
 }
 
-export function querySignin(data) {
-    querySigninfunc(data)
+export function queryInviteTurntable(data) {
+    queryInviteTurntablefunc(data)
 }
 
 
@@ -38,11 +38,11 @@ export const options = {
             maxDuration: '10s'
         },
         // 优惠券的场景
-        querySignin: {
+        queryInviteTurntable: {
             executor: 'shared-iterations',
             vus: 1,
             iterations: 1,
-            exec: 'querySignin', // 注意：这里用函数名字符串
+            exec: 'queryInviteTurntable', // 注意：这里用函数名字符串
             startTime: '2s'
         },
     },
