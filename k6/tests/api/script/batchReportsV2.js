@@ -5,10 +5,31 @@ import { RebateLevel, RebateLevelRate } from '../sixearn/RebateLevel.test.js';
 import { logger } from '../../../libs/utils/logger.js';
 import { htmlReport } from 'https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js';
 import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js';
-import { getReportsByPriority } from '../../../config/reports.js';
 import { performDataComparison } from '../formdata/aggregatecalculation.test.js';
-import { Dashboardtag } from '../formdata/Dashboard/Dashboard.test.js';
-import { Statisticstag } from '../formdata/Statistics/Statistics.test.js';
+import { Dashboardtag, queryDashboardFunc } from '../formdata/Dashboard/Dashboard.test.js';
+import { Statisticstag, queryStatisticsFunc } from '../formdata/Statistics/Statistics.test.js';
+
+// 简化的报表配置（替代已删除的 reports.js）
+const reportConfigs = [
+  {
+    name: '报表管理->仪表盘',
+    tag: Dashboardtag,
+    func: queryDashboardFunc,
+    priority: 1,
+    description: '查询商户后台仪表盘的数据'
+  },
+  {
+    name: '报表管理->数据统计',
+    tag: Statisticstag,
+    func: queryStatisticsFunc,
+    priority: 2,
+    description: '查询商户后台数据统计的数据'
+  }
+];
+
+function getReportsByPriority() {
+  return reportConfigs.sort((a, b) => a.priority - b.priority);
+}
 
 export const options = {
   vus: 1,
