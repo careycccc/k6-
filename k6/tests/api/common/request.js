@@ -113,8 +113,8 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
 
       // 保存响应数据
       ResponseResult = parsedBody || null;
-      Token = parsedBody.data?.token || '';
-      ResponseData = parsedBody.data || null;
+      Token = (parsedBody && parsedBody.data && parsedBody.data.token) || '';
+      ResponseData = (parsedBody && parsedBody.data) || null;
 
     } catch (error) {
       // 修复错误日志显示 [object Object] 的问题
