@@ -14,9 +14,9 @@ const PORT = process.env.VIZ_PORT || 8080;
 
 // 数据存储路径
 const DATA_DIR = path.join(__dirname, '..', 'data');
-const SCRIPTS_DIR = path.join(__dirname, '..', '..', 'k6', 'tests');
 const REPORTS_DIR = path.join(__dirname, '..', 'reports');
-const K6_TESTS_DIR = path.join(__dirname, '..', '..', 'k6', 'tests');
+// 只扫描 k6/tests/api/script 目录下的脚本
+const K6_SCRIPTS_DIR = path.join(__dirname, '..', '..', 'k6', 'tests', 'api', 'script');
 
 // 内存存储（MVP 版本）
 let tests = new Map();
@@ -59,34 +59,30 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// 获取脚本列表
+// 获取脚本列表 - 只返回 k6/tests/api/script 目录下的脚本
 app.get('/api/scripts', async (req, res) => {
   try {
     const scripts = [];
     
-    // 递归扫描 k6/tests 目录
-    async function scanDir(dir, basePath = '') {
-      const entries = await fs.readdir(dir, { withFileTypes: true });
-      
-      for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
-        const relativePath = path.join(basePath, entry.name);
-        
-        if (entry.isDirectory()) {
-          await scanDir(fullPath, relativePath);
-        } else if (entry.name.endsWith('.test.js') || entry.name.endsWith('.js')) {
-          const stats = await fs.stat(fullPath);
-          scripts.push({
-            name: relativePath,
-            path: fullPath,
-            size: stats.size,
-            updatedAt: stats.mtime.toISOString()
-          });
-        }
+    // 只扫描 k6/tests/api/script 目录，不递归子目录
+    const entries = await fs.readdir(K6_SCRIPTS_DIR, { withFileTypes: true });
+    
+    for (const entry of entries) {
+      if (!entry.isDirectory() && entry.name.endsWith('.js')) {
+        const fullPath = path.join(K6_SCRIPTS_DIR, entry.name);
+        const stats = await fs.stat(fullPath);
+        scripts.push({
+          name: entry.name,
+          path: fullPath,
+          size: stats.size,
+          updatedAt: stats.mtime.toISOString()
+        });
       }
     }
     
-    await scanDir(K6_TESTS_DIR);
+    // 按文件名排序
+    scripts.sort((a, b) => a.name.localeCompare(b.name));
+    
     res.json(scripts);
   } catch (error) {
     console.error('获取脚本列表失败:', error);
@@ -98,10 +94,10 @@ app.get('/api/scripts', async (req, res) => {
 app.get('/api/scripts/:name(*)', async (req, res) => {
   try {
     const scriptName = req.params.name;
-    const scriptPath = path.join(K6_TESTS_DIR, scriptName);
+    const scriptPath = path.join(K6_SCRIPTS_DIR, scriptName);
     
     // 安全检查：确保路径在允许的目录内
-    if (!scriptPath.startsWith(K6_TESTS_DIR)) {
+    if (!scriptPath.startsWith(K6_SCRIPTS_DIR)) {
       return res.status(403).json({ error: '非法路径' });
     }
     
@@ -122,10 +118,10 @@ app.post('/api/scripts', async (req, res) => {
       return res.status(400).json({ error: '缺少必要参数' });
     }
     
-    const scriptPath = path.join(K6_TESTS_DIR, name);
+    const scriptPath = path.join(K6_SCRIPTS_DIR, name);
     
     // 安全检查
-    if (!scriptPath.startsWith(K6_TESTS_DIR)) {
+    if (!scriptPath.startsWith(K6_SCRIPTS_DIR)) {
       return res.status(403).json({ error: '非法路径' });
     }
     
@@ -146,10 +142,10 @@ app.post('/api/scripts', async (req, res) => {
 app.delete('/api/scripts/:name(*)', async (req, res) => {
   try {
     const scriptName = req.params.name;
-    const scriptPath = path.join(K6_TESTS_DIR, scriptName);
+    const scriptPath = path.join(K6_SCRIPTS_DIR, scriptName);
     
     // 安全检查
-    if (!scriptPath.startsWith(K6_TESTS_DIR)) {
+    if (!scriptPath.startsWith(K6_SCRIPTS_DIR)) {
       return res.status(403).json({ error: '非法路径' });
     }
     
@@ -172,10 +168,10 @@ app.post('/api/tests/run', async (req, res) => {
     
     const testId = uuidv4();
     const testName = name || `Test-${Date.now()}`;
-    const scriptPath = path.join(K6_TESTS_DIR, script);
+    const scriptPath = path.join(K6_SCRIPTS_DIR, script);
     
     // 安全检查
-    if (!scriptPath.startsWith(K6_TESTS_DIR)) {
+    if (!scriptPath.startsWith(K6_SCRIPTS_DIR)) {
       return res.status(403).json({ error: '非法脚本路径' });
     }
     
