@@ -336,6 +336,11 @@ async function runTest(testId, scriptPath, vus, duration, env) {
         test.log.push(`[DEBUG] Metrics keys: ${Object.keys(summary.metrics).join(', ')}`);
         if (summary.metrics.http_req_duration) {
           test.log.push(`[DEBUG] http_req_duration keys: ${Object.keys(summary.metrics.http_req_duration).join(', ')}`);
+          test.log.push(`[DEBUG] http_req_duration.values: ${JSON.stringify(summary.metrics.http_req_duration.values || {})}`);
+        }
+        if (summary.metrics.vus) {
+          test.log.push(`[DEBUG] vus keys: ${Object.keys(summary.metrics.vus).join(', ')}`);
+          test.log.push(`[DEBUG] vus.values: ${JSON.stringify(summary.metrics.vus.values || {})}`);
         }
       }
       
@@ -384,8 +389,8 @@ async function runTest(testId, scriptPath, vus, duration, env) {
 async function generateHtmlReport(testId, test) {
   // 使用辅助函数获取指标值
   const getVal = (metric, key) => getMetricValue(test.metrics?.[metric], key);
-  const formatMs = (val) => val !== null ? (val / 1000).toFixed(2) + ' ms' : 'N/A';
-  const formatNum = (val) => val !== null ? val.toString() : 'N/A';
+  const formatMs = (val) => val !== null && val !== undefined ? (val / 1000).toFixed(2) : 'N/A';
+  const formatNum = (val) => val !== null && val !== undefined ? val.toString() : 'N/A';
   
   // 计算成功率
   const failedRate = getVal('http_req_failed', 'rate');
@@ -477,15 +482,15 @@ async function generateHtmlReport(testId, test) {
     <div class="grid">
       <div class="card">
         <h3>平均响应时间</h3>
-        <div class="value">${formatMs(getVal('http_req_duration', 'avg'))}<span class="unit">ms</span></div>
+        <div class="value">${formatMs(getVal('http_req_duration', 'avg'))}<span class="unit"> ms</span></div>
       </div>
       <div class="card">
         <h3>P95 响应时间</h3>
-        <div class="value">${formatMs(getVal('http_req_duration', 'p(95)'))}<span class="unit">ms</span></div>
+        <div class="value">${formatMs(getVal('http_req_duration', 'p(95)'))}<span class="unit"> ms</span></div>
       </div>
       <div class="card">
         <h3>P99 响应时间</h3>
-        <div class="value">${formatMs(getVal('http_req_duration', 'p(99)'))}<span class="unit">ms</span></div>
+        <div class="value">${formatMs(getVal('http_req_duration', 'p(99)'))}<span class="unit"> ms</span></div>
       </div>
       <div class="card">
         <h3>请求成功率</h3>
@@ -545,11 +550,11 @@ async function generateHtmlReport(testId, test) {
         <tbody>
           <tr>
             <td>HTTP 请求持续时间</td>
-            <td>${formatMs(getVal('http_req_duration', 'avg'))}</td>
-            <td>${formatMs(getVal('http_req_duration', 'min'))}</td>
-            <td>${formatMs(getVal('http_req_duration', 'max'))}</td>
-            <td>${formatMs(getVal('http_req_duration', 'p(95)'))}</td>
-            <td>${formatMs(getVal('http_req_duration', 'p(99)'))}</td>
+            <td>${formatMs(getVal('http_req_duration', 'avg'))} ms</td>
+            <td>${formatMs(getVal('http_req_duration', 'min'))} ms</td>
+            <td>${formatMs(getVal('http_req_duration', 'max'))} ms</td>
+            <td>${formatMs(getVal('http_req_duration', 'p(95)'))} ms</td>
+            <td>${formatMs(getVal('http_req_duration', 'p(99)'))} ms</td>
           </tr>
           <tr>
             <td>HTTP 请求失败率</td>
