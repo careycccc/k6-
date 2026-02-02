@@ -420,6 +420,7 @@ async function generateHtmlReport(testId, test) {
             <th>最小值</th>
             <th>最大值</th>
             <th>P95</th>
+            <th>P99</th>
           </tr>
         </thead>
         <tbody>
@@ -429,10 +430,12 @@ async function generateHtmlReport(testId, test) {
             <td>${test.metrics?.http_req_duration?.min ? (test.metrics.http_req_duration.min / 1000).toFixed(2) + ' ms' : 'N/A'}</td>
             <td>${test.metrics?.http_req_duration?.max ? (test.metrics.http_req_duration.max / 1000).toFixed(2) + ' ms' : 'N/A'}</td>
             <td>${test.metrics?.http_req_duration?.['p(95)'] ? (test.metrics.http_req_duration['p(95)'] / 1000).toFixed(2) + ' ms' : 'N/A'}</td>
+            <td>${test.metrics?.http_req_duration?.['p(99)'] ? (test.metrics.http_req_duration['p(99)'] / 1000).toFixed(2) + ' ms' : 'N/A'}</td>
           </tr>
           <tr>
             <td>HTTP 请求失败率</td>
             <td>${test.metrics?.http_req_failed?.rate ? (test.metrics.http_req_failed.rate * 100).toFixed(2) + ' %' : 'N/A'}</td>
+            <td>-</td>
             <td>-</td>
             <td>-</td>
             <td>-</td>
@@ -442,6 +445,7 @@ async function generateHtmlReport(testId, test) {
             <td>${test.metrics?.vus?.value || 'N/A'}</td>
             <td>${test.metrics?.vus?.min || 'N/A'}</td>
             <td>${test.metrics?.vus?.max || 'N/A'}</td>
+            <td>-</td>
             <td>-</td>
           </tr>
         </tbody>
