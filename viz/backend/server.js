@@ -245,16 +245,18 @@ async function runTest(testId, scriptPath, vus, duration, env) {
         data_received: summary.metrics?.data_received || {},
         data_sent: summary.metrics?.data_sent || {}
       };
+      test.log.push('✓ 测试结果解析成功');
     } catch (e) {
-      test.log.push(`读取结果文件失败: ${e.message}`);
+      test.log.push(`✗ 读取结果文件失败: ${e.message}`);
     }
     
-    // 生成 HTML 报告
-    await generateHtmlReport(testId, test);
-    
+    // 先更新测试状态和时间，再生成报告
     test.status = 'completed';
     test.completedAt = new Date().toISOString();
     test.reportUrl = `/reports/${testId}-report.html`;
+    
+    // 生成 HTML 报告（在状态更新之后）
+    await generateHtmlReport(testId, test);
     
   } catch (error) {
     test.status = 'failed';
@@ -370,7 +372,7 @@ async function generateHtmlReport(testId, test) {
       </div>
       <div class="card">
         <h3>请求成功率</h3>
-        <div class="value">${test.metrics?.http_req_failed?.rate ? ((1 - test.metrics.http_req_failed.rate) * 100).toFixed(2) : 'N/A'}<span class="unit">%</span></div>
+        <div class="value">${test.metrics?.http_req_failed?.values?.rate !== undefined ? ((1 - test.metrics.http_req_failed.values.rate) * 100).toFixed(2) : (test.metrics?.http_reqs?.values?.count > 0 ? '100.00' : 'N/A')}<span class="unit">%</span></div>
       </div>
       <div class="card">
         <h3>总请求数</h3>
@@ -434,7 +436,7 @@ async function generateHtmlReport(testId, test) {
           </tr>
           <tr>
             <td>HTTP 请求失败率</td>
-            <td>${test.metrics?.http_req_failed?.rate ? (test.metrics.http_req_failed.rate * 100).toFixed(2) + ' %' : 'N/A'}</td>
+            <td>${test.metrics?.http_req_failed?.values?.rate !== undefined ? (test.metrics.http_req_failed.values.rate * 100).toFixed(2) + ' %' : 'N/A'}</td>
             <td>-</td>
             <td>-</td>
             <td>-</td>
@@ -455,7 +457,7 @@ async function generateHtmlReport(testId, test) {
     <div class="section">
       <h2>📝 执行日志</h2>
       <div class="log-container">
-        ${test.log.map(line => `<div class="log-line"><span class="timestamp">[${new Date().toLocaleTimeString()}]</span> ${line}</div>`).join('')}
+        ${test.log.map((line, index) => `<div class="log-line"><span class="timestamp">[${index + 1}]</span> ${line.replace(/\n/g, '<br>')}</div>`).join('<div style="height: 8px;"></div>')}
       </div>
     </div>
   </div>
