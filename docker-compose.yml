@@ -47,6 +47,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
+      - ./viz/backend:/app
       - ./k6/tests:/app/k6/tests
       - ./viz/reports:/app/viz/reports
       - ./viz/data:/app/viz/data

@@ -38,7 +38,10 @@ function getMetricValue(metricObj, key) {
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const REPORTS_DIR = path.join(__dirname, '..', 'reports');
 // 只扫描 k6/tests/api/script 目录下的脚本
-const K6_SCRIPTS_DIR = path.join(__dirname, '..', '..', 'k6', 'tests', 'api', 'script');
+// Docker 中使用绝对路径 /app/k6/tests/api/script，本地使用相对路径
+const K6_SCRIPTS_DIR = process.env.NODE_ENV === 'docker' 
+  ? '/app/k6/tests/api/script'
+  : path.join(__dirname, '..', '..', 'k6', 'tests', 'api', 'script');
 
 // 内存存储（MVP 版本）
 let tests = new Map();
@@ -46,16 +49,27 @@ let scripts = new Map();
 
 app.use(cors());
 app.use(express.json());
-// 静态文件服务 - 支持本地开发和 Docker 环境
-const FRONTEND_DIR = process.env.NODE_ENV === 'docker' 
-  ? '/app/viz/frontend' 
-  : path.join(__dirname, '..', 'frontend');
+
+// 静态文件服务 - 自动检测正确的路径
+let FRONTEND_DIR = path.join(__dirname, '..', 'frontend');
+// 如果在 Docker 中且本地路径不存在，使用 Docker 路径
+if (!require('fs').existsSync(FRONTEND_DIR)) {
+  FRONTEND_DIR = '/app/viz/frontend';
+}
+
+console.log(`[DEBUG] __dirname: ${__dirname}`);
+console.log(`[DEBUG] FRONTEND_DIR: ${FRONTEND_DIR}`);
+console.log(`[DEBUG] NODE_ENV: ${process.env.NODE_ENV || 'not set'}`);
+console.log(`[DEBUG] Directory exists: ${require('fs').existsSync(FRONTEND_DIR)}`);
+
 app.use(express.static(FRONTEND_DIR));
 app.use('/reports', express.static(REPORTS_DIR));
 
-// 健康检查端点
+// 根路径 - 返回前端页面
 app.get('/', (req, res) => {
-  res.sendFile(path.join(FRONTEND_DIR, 'index.html'));
+  const indexPath = path.join(FRONTEND_DIR, 'index.html');
+  console.log(`[DEBUG] Serving index.html from: ${indexPath}`);
+  res.sendFile(indexPath);
 });
 
 // 初始化数据目录
@@ -282,6 +296,55 @@ app.post('/api/tests/:id/stop', async (req, res) => {
   } catch (error) {
     console.error('停止测试失败:', error);
     res.status(500).json({ error: '停止测试失败', message: error.message });
+  }
+});
+
+// 获取报告列表
+app.get('/api/reports', async (req, res) => {
+  try {
+    const files = await fs.readdir(REPORTS_DIR);
+    const reports = files
+      .filter(f => f.endsWith('-report.html'))
+      .map(f => {
+        const testId = f.replace('-report.html', '');
+        const test = tests.get(testId);
+        return {
+          id: testId,
+          testId: testId,
+          name: test?.name || 'Unknown',
+          createdAt: test?.completedAt || new Date().toISOString(),
+          url: `/reports/${f}`,
+          status: test?.status || 'unknown'
+        };
+      })
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    res.json(reports);
+  } catch (error) {
+    console.error('获取报告列表失败:', error);
+    res.status(500).json({ error: '获取报告列表失败', message: error.message });
+  }
+});
+
+// 生成报告
+app.post('/api/reports/:id/generate', async (req, res) => {
+  try {
+    const test = tests.get(req.params.id);
+    if (!test) {
+      return res.status(404).json({ error: '测试不存在' });
+    }
+    
+    // 重新生成报告
+    await generateHtmlReport(req.params.id, test);
+    
+    res.json({ 
+      id: req.params.id, 
+      reportUrl: `/reports/${req.params.id}-report.html`,
+      message: '报告生成成功'
+    });
+  } catch (error) {
+    console.error('生成报告失败:', error);
+    res.status(500).json({ error: '生成报告失败', message: error.message });
   }
 });
 
