@@ -25,7 +25,7 @@ export function queryGiftPack(data) {
         receiveState: 4 // 领取状态已完成
     }
     const result = commonRequest5(data, api, payload, giftPackTag)
-    if (!result) {
+    if (!result || !result.list) {
         logger.error('动礼包查询失败', result)
         return {}
     }
@@ -39,9 +39,9 @@ export function queryGiftPack(data) {
     })
 
     const groupResult = groupByAndSum(infolist, 'userid', 'amount')
-    giftPackInfo.amount = groupResult.sum
-    giftPackInfo.amountUsercount = groupResult.count
-    giftPackInfo.amountcountTotal = groupResult.count
+    giftPackInfo.amount = groupResult.sum || 0;
+    giftPackInfo.amountUsercount = groupResult.count || 0;
+    giftPackInfo.amountcountTotal = groupResult.count || 0;
     return giftPackInfo
 }
 
@@ -57,11 +57,8 @@ function queryGiftPackDetail(data, ele) {
         orderNo: ele.orderNo
     }
     const result = commonRequest(data, api, payload, giftPackTag)
-    if (!result) {
-        logger.error('动礼包详情查询失败', result)
-        return {}
-    }
-    if (!result) {
+
+    if (!result || !result.list) {
         logger.error(`${orderNo}动礼包详情查询失败`, result)
     }
     // 活动礼包里面的奖励金额

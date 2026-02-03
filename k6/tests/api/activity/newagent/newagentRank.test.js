@@ -1,4 +1,3 @@
-import { newagentTag } from '../newagent/newagent.test.js';
 import { commonRequest5, commonRequest } from '../../formdata/config/formreqeust.js';
 import { fromOptions } from '../../formdata/config/config.js';
 import { logger } from '../../../../libs/utils/logger.js';
@@ -10,6 +9,7 @@ let newagentRandInfo = {
     amountUsercount: 0, // 领奖人数
     amountcountTotal: 0 // 总共领奖多少次
 }
+export const newagentRankTag = 'newagentRank'
 
 // 新版返佣的排行榜的统计
 export function queryNewagentRank(data) {
@@ -19,8 +19,8 @@ export function queryNewagentRank(data) {
         rankDateMax: fromOptions.endTime,
         state: 'Approved'
     }
-    const result = commonRequest5(data, api, payload, newagentTag)
-    if (!result) {
+    const result = commonRequest5(data, api, payload, newagentRankTag)
+    if (!result || !result.list) {
         logger.error('新版返佣的排行榜的统计查询没有数据')
         return {}
     }

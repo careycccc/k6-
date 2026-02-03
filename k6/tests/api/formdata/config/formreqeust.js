@@ -12,6 +12,9 @@ import { sendRequest, sendQueryRequest } from "../../common/request.js";
 export function commonRequest(data, api, payload, tag) {
     const token = data.token
     let result = sendRequest(payload, api, tag, false, token)
+    if (!result || !result.list) {
+        return {}
+    }
     // console.log('')
     // console.log(`${api}请求的结果:${result}'`)
     // console.log(typeof result)
@@ -36,6 +39,9 @@ export function commonRequest(data, api, payload, tag) {
 export function commonRequest2(data, api, payload, tag) {
     const token = data.token
     let result = sendRequest(payload, api, tag, false, token)
+    if (!result) {
+        return {}
+    }
     if (typeof result != 'object') {
         result = JSON.parse(result)
     }
@@ -56,6 +62,9 @@ export function commonRequest2(data, api, payload, tag) {
 export function commonRequest3(data, api, payload, tag) {
     const token = data.token
     let result = sendQueryRequest(payload, api, tag, false, token)
+    if (!result || !result.list) {
+        return {}
+    }
     if (typeof result != 'object') {
         result = JSON.parse(result)
     }
@@ -75,6 +84,12 @@ export function commonRequest3(data, api, payload, tag) {
 export function commonRequest4(data, api, payload, tag) {
     const token = data.token
     let result = sendQueryRequest(payload, api, tag, false, token)
+    if (!result || !result.list) {
+        return {}
+    }
+    if (!result || !result.list.list) {
+        return {}
+    }
     if (typeof result != 'object') {
         result = JSON.parse(result)
     }
@@ -97,9 +112,10 @@ export function commonRequest5(data, api, payload, tag) {
     if (typeof result != 'object') {
         result = JSON.parse(result)
     }
-    if (!result) {
+    if (!result || !result.list) {
         return {}
     }
+
     if (result && result.list.length > 0) {
         return {
             list: result.list,
@@ -163,10 +179,6 @@ export function compareListsByTwoProperties(list1, list2, prop1, prop2) {
 }
 
 
-
-
-
-
 /**
  * 返回数组中指定属性值最大的4个对象
  * @param {Array<Object>} arr - 输入的对象数组
@@ -198,5 +210,12 @@ export function getMaxFourElements(arr, propertyName) {
     return sorted.slice(0, 4);
 }
 
-
+/**
+ * 判断是否是空对象
+ * @param {Object} obj 
+ * @returns 
+ */
+export function isEmptyfunc(obj) {
+    return Object.keys(obj).length === 0 && obj.constructor === Object;
+}
 

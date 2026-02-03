@@ -106,10 +106,9 @@ export function GetRptDataSummaryRechargeSumarryByState(data) {
 export function GetRptDataSummaryRechargeSumarryTop4(data) {
     const api = '/api/RptDataSummary/GetRptDataSummaryRechargeSumarryTop4'
     let result = commonRequest2(data, api, payload, Statisticstag)
-
     // 检查 result 是否有效，并且是数组且有数据
     if (!result || !Array.isArray(result) || result.length === 0) {
-        logger.info('充值通道前4模块返回的数据为空或无效');
+        logger.error('充值通道前4模块返回的数据为空或无效');
         return false;
     }
 
@@ -162,7 +161,7 @@ export function GetRptDataSummaryWithdrawSumarryTop4(data) {
 
     // 检查 result 是否有效，并且是数组且有数据
     if (!result || !Array.isArray(result) || result.length === 0) {
-        logger.info('提现通道前4模块返回的数据为空或无效');
+        logger.error('提现通道前4模块返回的数据为空或无效');
         return false;
     }
 

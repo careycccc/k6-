@@ -1,10 +1,11 @@
-import { couponTag } from '../coupon/coupon.test.js';
 import { commonRequest5, commonRequest } from '../../formdata/config/formreqeust.js';
 import { stringToTimestamp } from '../../formdata/config/config.js';
-import logger from '../../../../libs/utils/logger.js';
+import { logger } from '../../../../libs/utils/logger.js';
 import { groupByAndSum } from '../../common/common.js';
 
 //优惠券的查询
+
+export const couponTag = 'coupon'
 
 let couponinfo = {
     amount: 0, // 领奖金额
@@ -24,8 +25,8 @@ export function queryCoupon(data) {
         state: 2
     }
     const result = commonRequest5(data, api, payload, couponTag)
-    if (!result) {
-        logger.error('优惠券的查询失败')
+    if (!result || !result.list) {
+        logger.error('优惠券的查询失败', result)
         return {}
     }
     // 用户存放符合金额的对象（充值优惠券和奖励优惠券）

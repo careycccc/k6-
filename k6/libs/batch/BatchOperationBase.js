@@ -127,7 +127,7 @@ export class BatchOperationBase {
     console.log('');
 
     this.generateSummary(results);
-    this.performComparison(results);
+    // this.performComparison(results);  // 对比分析
 
     return results;
   }
@@ -294,11 +294,11 @@ export class BatchOperationBase {
       return;
     }
 
-    console.log('╔═══════════════════════════════════════════════════════════╗');
-    console.log(
-      `║                    ${this.operationType}对比分析                               ║`
-    );
-    console.log('╠═══════════════════════════════════════════════════════════╣');
+    // console.log('╔═══════════════════════════════════════════════════════════╗');
+    // console.log(
+    //   `║                    ${this.operationType}对比分析                               ║`
+    // );
+    // console.log('╠═══════════════════════════════════════════════════════════╣');
 
     const comparisons = [];
 
@@ -312,17 +312,17 @@ export class BatchOperationBase {
         const diff = duration1 - duration2;
         const diffPercent = duration2 > 0 ? ((diff / duration2) * 100).toFixed(2) : 'N/A';
 
-        console.log(
-          `║  ${item1.name.substring(0, 15).padEnd(15)} vs ${item2.name.substring(0, 15).padEnd(15)}║`
-        );
-        console.log(
-          `║    耗时: ${duration1.toString().padEnd(10)}ms vs ${duration2.toString().padEnd(10)}ms     ║`
-        );
-        console.log(
-          `║    差值: ${diff.toString().padEnd(10)}ms (${diffPercent}%)${''.padEnd(15)}║`
-        );
-        console.log(`║    ${this.getComparisonDisplayInfo(item1, item2)}`);
-        console.log('║    ──────────────────────────────────────────────────────║');
+        // console.log(
+        //   `║  ${item1.name.substring(0, 15).padEnd(15)} vs ${item2.name.substring(0, 15).padEnd(15)}║`
+        // );
+        // console.log(
+        //   `║    耗时: ${duration1.toString().padEnd(10)}ms vs ${duration2.toString().padEnd(10)}ms     ║`
+        // );
+        // console.log(
+        //   `║    差值: ${diff.toString().padEnd(10)}ms (${diffPercent}%)${''.padEnd(15)}║`
+        // );
+        // console.log(`║    ${this.getComparisonDisplayInfo(item1, item2)}`);
+        // console.log('║    ──────────────────────────────────────────────────────║');
 
         comparisons.push({
           item1: item1.name,

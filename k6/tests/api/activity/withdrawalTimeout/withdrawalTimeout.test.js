@@ -25,15 +25,14 @@ export function querywithdrawalTimeout(data) {
         state: 2,// 已领取
     }
     const result = commonRequest3(data, api, payload, withdrawalTimeoutTag)
-    if (!result) {
-        logger.error('超时提现赔付查询失败')
+    if (!result || !result.list) {
+        logger.error('超时提现赔付查询失败', result)
         return {}
     }
-    withdrawalTimeoutInfo.amount = result.summary.totalCompensationAmount
-    withdrawalTimeoutInfo.amountcountTotal = result.totalCount
+    withdrawalTimeoutInfo.amount = result.summary.totalCompensationAmount || 0;
+    withdrawalTimeoutInfo.amountcountTotal = result.totalCount || 0;
 
     const groupResult = groupByAndSum(result.list, 'userId', 'compensationAmount')
-    withdrawalTimeoutInfo.amountUsercount = groupResult.count
-    console.log(withdrawalTimeoutInfo)
+    withdrawalTimeoutInfo.amountUsercount = groupResult.count || 0;
     return withdrawalTimeoutInfo
 }

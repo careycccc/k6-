@@ -384,7 +384,7 @@ async function runTest(testId, scriptPath, vus, duration, env) {
     test.log.push(`[DEBUG] 实际使用的 InfluxDB URL: ${influxdbUrl}/${influxdbDb}`);
     
     // 添加测试标签，用于在 Grafana 中筛选特定测试
-    const testTags = `--tag testid=${testId} --tag testname="${testName}" --tag script="${script}"`;
+    const testTags = `--tag testid=${testId} --tag testname="${test.name}" --tag script="${test.script}"`;
     
     let cmd;
     if (scriptHasScenarios) {

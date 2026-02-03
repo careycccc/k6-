@@ -53,7 +53,7 @@ export class HttpClient extends SignedHttpClient {
 
   request(method, endpoint, data = null, config = {}, isDesk = true) {
     const url = config.fullUrl || getApiUrl(endpoint, isDesk);
-    logger.info(`请求的url:  ${url}`);
+    //logger.info(`请求的url:  ${url}`);
     // 为前后端请求的时候添加不同的heades
     const deskUrl = loader.local.API_BASE_URL;
     const adminUrl = loader.local.API_ADMIN_URL;

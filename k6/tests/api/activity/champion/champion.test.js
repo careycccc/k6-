@@ -1,5 +1,5 @@
 import { commonRequest5 } from '../../formdata/config/formreqeust.js';
-
+import { logger } from '../../../../libs/utils/logger.js';
 
 //锦标赛
 let championInfo = {
@@ -19,6 +19,10 @@ export function queryChampion(data) {
         rewardState: 2,
     }
     const result = commonRequest5(data, api, payload, championTag)
+    if (!result || !result.list) {
+        logger.error('锦标赛的查询失败', result)
+        return {}
+    }
     championInfo.amountcountTotal = result.totalCount
     // 必须找到状态是已派发的
     // 找到所有状态是已派发的项

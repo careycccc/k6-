@@ -1,41 +1,8 @@
 import { BatchReportOperation } from '../../../libs/batch/BatchOperationBase.js';
 import { performDataComparison } from '../formdata/aggregatecalculation.test.js';
-import { Dashboardtag, queryDashboardFunc } from '../formdata/Dashboard/Dashboard.test.js';
-import { Statisticstag, queryStatisticsFunc } from '../formdata/Statistics/Statistics.test.js';
-import { DailySummaryTag, queryDailySummaryReportFunc } from '../formdata/DailySummaryReport/DailySummaryReport.test.js';
-import { memberTag, queryMemberReportFunc } from '../formdata/memberReport/memberReport.test.js';
 
-// 简化的报表配置（替代已删除的 reports.js）
-const reportConfigs = [
-  {
-    name: '报表管理->仪表盘',
-    tag: Dashboardtag,
-    func: queryDashboardFunc,
-    priority: 1,
-    description: '查询商户后台仪表盘的数据'
-  },
-  {
-    name: '报表管理->数据统计',
-    tag: Statisticstag,
-    func: queryStatisticsFunc,
-    priority: 2,
-    description: '查询商户后台数据统计的数据'
-  },
-  {
-    name: '报表管理->平台报表',
-    tag: DailySummaryTag,
-    func: queryDailySummaryReportFunc,
-    priority: 3,
-    description: '查询商户后台平台报表的数据'
-  },
-  {
-    name: '报表管理->会员报表',
-    tag: memberTag,
-    func: queryMemberReportFunc,
-    priority: 4,
-    description: '查询商户后台会员报表的数据'
-  }
-];
+import { reportConfigs } from '../../../config/fromConfig.js';
+
 
 function getReportsByPriority() {
   return reportConfigs.sort((a, b) => a.priority - b.priority);

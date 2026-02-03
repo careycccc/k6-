@@ -10,12 +10,12 @@ let newagentInfo = {
     amountcountTotal: 0 // 总共领奖多少次
 }
 
-// 排行榜的返佣查询
+// 新版返佣的的查询
 export const newagentTag = 'newagent'
 
 
 /**
- * 排行榜的返佣查询
+ * 新版返佣的返佣查询
 */
 export function queryNewagent(data) {
     const api = '/api/AgentL3/GetPageListRebateList'
@@ -23,10 +23,14 @@ export function queryNewagent(data) {
         reportDate: fromOptions.reportTime
     }
     const result = commonRequest5(data, api, payload, newagentTag)
-    if (!result) {
-        logger.error('排行榜的返佣查询失败')
+    if (!result || !result.list) {
+        logger.error('新版返佣的查询失败', result)
         return {}
     }
+    // if (!result || !result.list.list) {
+    //     logger.error('新版返佣的查询result.list为null')
+    //     return {}
+    // }
     // 总返佣数据
     let newagentTotal = 0
     // 返佣人数统计

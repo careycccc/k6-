@@ -22,7 +22,7 @@ export function queryCodeWashing(data) {
         endTime: fromOptions.endTimeSecend
     }
     const result = commonRequest3(data, api, payload, codeWashingTag)
-    if (!result) {
+    if (!result || !result.list) {
         logger.error('洗码查询失败', result)
         return {}
     }

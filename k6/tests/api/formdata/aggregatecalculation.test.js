@@ -7,6 +7,10 @@ import { handlerActivefunc } from '../formdata/handlerActive.test.js';
  * @param {Array} results - 包含多个报表结果的数组，每个报表结果应包含success和data属性
  */
 export function performDataComparison(results) {
+    let activeLists = []
+    if (results.length > 4) {
+        activeLists = results.slice(4)
+    }
     try {
         // 添加日志，确认函数被调用
         // 防护：确保 results 是数组，避免 undefined 导致读取 length 出错
@@ -475,7 +479,11 @@ export function performDataComparison(results) {
             logger.info('会员活动数据为空，跳过活动数据对比');
         } else {
             // 专门处理这三个数据的
-            handlerActivefunc(MemberActivityData, dataStatisticsActivityTotalList, DailytotalActiveSummaryinfo, activeLists);
+            if (activeLists.length > 0) {
+                handlerActivefunc(MemberActivityData, dataStatisticsActivityTotalList, DailytotalActiveSummaryinfo, activeLists);
+            } else {
+                handlerActivefunc(MemberActivityData, dataStatisticsActivityTotalList, DailytotalActiveSummaryinfo);
+            }
         }
 
         // 添加日志，确认函数执行完成

@@ -90,7 +90,7 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
       // 基于HTTP状态码、业务状态码和消息判断响应是否成功
       const httpStatusSuccess = response.status >= 200 && response.status < 300;
       const businessStatusSuccess = parsedBody.msgCode === 0;
-      // const businessMessageSuccess = parsedBody.msg === 'Succeed';
+      const businessMessageSuccess = parsedBody.msg === 'Succeed';
 
       // 只有HTTP状态码在200-300之间，且业务状态码为0，且消息为"Succeed"才认为响应成功
       const checkPassed = httpStatusSuccess && businessStatusSuccess;

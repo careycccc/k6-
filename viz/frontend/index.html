@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>K6 可视化测试平台</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
   <style>
     * {
       margin: 0;
@@ -550,14 +551,19 @@
       <div class="card">
         <div class="card-header">
           <h2 class="card-title">📊 Grafana 实时监控</h2>
-          <a href="http://localhost:3000/d/k6-dashboard" target="_blank" class="btn btn-primary">🔍 打开 Grafana</a>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <select class="form-select" id="grafanaTestFilter" style="width: 200px;" onchange="updateGrafanaLink()">
+              <option value="">查看全部数据</option>
+            </select>
+            <a href="#" id="grafanaLink" target="_blank" class="btn btn-primary">🔍 打开 Grafana</a>
+          </div>
         </div>
         <div style="padding: 20px;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 20px;">
             <h3 style="margin-bottom: 15px;">🚀 实时性能监控</h3>
             <p style="opacity: 0.9; margin-bottom: 20px;">通过 Grafana 实时查看测试指标，包括响应时间、请求速率、虚拟用户数等</p>
             <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-              <a href="http://localhost:3000/d/k6-dashboard" target="_blank" style="background: white; color: #667eea; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">📈 查看仪表板</a>
+              <a href="http://localhost:3000/d/k6-dashboard" id="grafanaLink2" target="_blank" style="background: white; color: #667eea; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">📈 查看仪表板</a>
               <span style="opacity: 0.8; padding: 12px 0;">账号: admin / 密码: admin123</span>
             </div>
           </div>
@@ -1082,11 +1088,38 @@
         document.getElementById('totalTests').textContent = tests.length;
         document.getElementById('runningTests').textContent = tests.filter(t => t.status === 'running').length;
         document.getElementById('totalReports').textContent = reports.length;
+
+        // 更新 Grafana 测试过滤下拉框
+        const grafanaFilter = document.getElementById('grafanaTestFilter');
+        const currentValue = grafanaFilter.value;
+        grafanaFilter.innerHTML = '<option value="">查看全部数据</option>';
+        tests.forEach(test => {
+          const option = document.createElement('option');
+          option.value = test.testId;
+          option.textContent = `${test.name} (${test.testId})`;
+          grafanaFilter.appendChild(option);
+        });
+        grafanaFilter.value = currentValue;
+        updateGrafanaLink();
       } catch (error) {
         console.error('刷新统计失败:', error);
       }
     }
-    
+
+    // 更新 Grafana 链接（带 testid 过滤）
+    function updateGrafanaLink() {
+      const testId = document.getElementById('grafanaTestFilter').value;
+      const baseUrl = 'http://localhost:3000/d/k6-dashboard';
+      if (testId) {
+        const url = `${baseUrl}?var-testid=${testId}`;
+        document.getElementById('grafanaLink').href = url;
+        document.getElementById('grafanaLink2').href = url;
+      } else {
+        document.getElementById('grafanaLink').href = baseUrl;
+        document.getElementById('grafanaLink2').href = baseUrl;
+      }
+    }
+
     // 页面加载时初始化
     document.addEventListener('DOMContentLoaded', () => {
       loadScripts();

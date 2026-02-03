@@ -24,13 +24,13 @@ export function queryRechargeGiftPack(data) {
     }
     const result = commonRequest5(data, api, payload, rechargeGiftPackTag)
     // 检查 result 是否有效
-    if (!result) {
+    if (!result || !result.list) {
         logger.error('充值礼包查询失败')
         return {}
     }
 
     // 检查 result.list 是否存在
-    if (!result.list) {
+    if (!result || !result.list.list) {
         console.log('充值礼包查询结果中没有list属性');
         return {};
     }
@@ -63,7 +63,7 @@ export function queryRechargeGiftPack(data) {
             })
         })
     }
-    rechargeGiftPackInfo.amountcountTotal = count
+    rechargeGiftPackInfo.amountcountTotal = count || 0;
 
     groupResultList.forEach(ele => {
         rechargeGiftPackInfo.amount += ele.sum
@@ -96,7 +96,7 @@ function getRechargeGiftPackDail(data, activityId) {
     // console.log('充值礼包详情查询结果:', result);
 
     // 检查 result 是否有效
-    if (!result) {
+    if (!result || !result.list) {
         logger.error(`充值礼包每日数据查询失败, activityId: ${activityId}`);
         return {
             totalCount: 0,
@@ -105,7 +105,7 @@ function getRechargeGiftPackDail(data, activityId) {
     }
 
     // 检查 result.list 是否存在
-    if (!result.list && result.list !== undefined) {
+    if (!result || !result.list.list && result.list !== undefined) {
         logger.error(`充值礼包详情查询结果中没有list属性, activityId: ${activityId}`);
         return {
             totalCount: result.totalCount || 0,

@@ -1,10 +1,6 @@
 
 import { AdminLogin, adminTag } from '../login/adminlogin.test.js';
-import { queryInviteTurntable as queryInviteTurntablefunc } from '../activity/inviteTurntable/inviteTurntable.test.js';
-
-
-
-
+import { queryL3InviteOkReward as queryL3InviteOkRewardfunc } from '../formdata/newagentForm/newagentForm.test.js';
 import { logger } from '../../../libs/utils/logger.js';
 
 // ==================== setup：全局登录一次 ====================
@@ -22,8 +18,8 @@ export function setup() {
     }
 }
 
-export function queryInviteTurntable(data) {
-    queryInviteTurntablefunc(data)
+export function queryL3InviteOkReward(data) {
+    queryL3InviteOkRewardfunc(data)
 }
 
 
@@ -38,11 +34,11 @@ export const options = {
             maxDuration: '10s'
         },
         // 优惠券的场景
-        queryInviteTurntable: {
+        queryL3InviteOkReward: {
             executor: 'shared-iterations',
             vus: 1,
             iterations: 1,
-            exec: 'queryInviteTurntable', // 注意：这里用函数名字符串
+            exec: 'queryL3InviteOkReward', // 注意：这里用函数名字符串
             startTime: '2s'
         },
     },
