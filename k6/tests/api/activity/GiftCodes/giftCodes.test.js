@@ -23,7 +23,7 @@ export function queryGiftcodes(data) {
     }
     const result = commonRequest5(data, api, payload, giftCodesTag)
     if (!result || !result.list) {
-        logger.error('礼品码的查询失败', result)
+        logger.info('礼品码查询结果为空，跳过后续处理', result)
         return {}
     }
     giftcodesInfo.amountcountTotal = result.totalCount

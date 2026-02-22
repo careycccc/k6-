@@ -4,7 +4,12 @@ import { performDataComparison } from '../formdata/aggregatecalculation.test.js'
 import { reportConfigs } from '../../../config/fromConfig.js';
 
 
+/**
+ * 根据优先级对报告配置进行排序
+ * @returns {Array} 排序后的报告配置数组
+ */
 function getReportsByPriority() {
+  // 使用数组的sort方法，按照priority属性进行升序排序
   return reportConfigs.sort((a, b) => a.priority - b.priority);
 }
 
@@ -31,8 +36,12 @@ export default function (data) {
     return report.func(data);
   }
 
-  // 执行批量操作
-  const results = reportOperation.execute(data, reportList, executeReport);
+  // 执行批量操作 - 串行模式（避免 Token 并发问题）
+  const results = reportOperation.execute(data, reportList, executeReport, {
+    parallel: false,  // 禁用并行执行，使用串行模式
+    batchSize: 5      // 串行模式下此参数无效
+  });
+
   // 调试日志：记录结果长度，帮助定位 performDataComparison 调用路径
   try {
     console.log(

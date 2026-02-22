@@ -64,7 +64,7 @@ export function queryRanking(data) {
 
         // 检查 result 是否有效
         if (!result || !result.list) {
-            logger.error(`查询${i}榜返回空结果`);
+            logger.info(`查询${i}榜结果为空，跳过该榜单处理`);
             continue;
         }
 
@@ -72,7 +72,7 @@ export function queryRanking(data) {
 
         // 检查 result.list 是否存在
         if (!result || !result.list.list) {
-            logger.error(`查询${i}榜的list不存在`);
+            logger.info(`查询${i}榜的list为空，跳过该榜单处理`);
             continue;
         }
 

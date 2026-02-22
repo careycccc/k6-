@@ -108,7 +108,7 @@ export function GetRptDataSummaryRechargeSumarryTop4(data) {
     let result = commonRequest2(data, api, payload, Statisticstag)
     // 检查 result 是否有效，并且是数组且有数据
     if (!result || !Array.isArray(result) || result.length === 0) {
-        logger.error('充值通道前4模块返回的数据为空或无效');
+        logger.info('充值通道前4模块查询结果为空，跳过后续处理')
         return false;
     }
 
@@ -116,7 +116,7 @@ export function GetRptDataSummaryRechargeSumarryTop4(data) {
 
     // 检查 results 和 results.arr 是否有效
     if (!results || !results.arr || !Array.isArray(results.arr)) {
-        logger.error('充值详情的数据无效', results);
+        logger.info('充值详情查询结果为空，跳过后续处理', results)
         return false;
     }
 
@@ -161,7 +161,7 @@ export function GetRptDataSummaryWithdrawSumarryTop4(data) {
 
     // 检查 result 是否有效，并且是数组且有数据
     if (!result || !Array.isArray(result) || result.length === 0) {
-        logger.error('提现通道前4模块返回的数据为空或无效');
+        logger.info('提现通道前4模块查询结果为空，跳过后续处理')
         return false;
     }
 
@@ -169,7 +169,7 @@ export function GetRptDataSummaryWithdrawSumarryTop4(data) {
 
     // 检查 results 和 results.arr 是否有效
     if (!results || !results.arr || !Array.isArray(results.arr)) {
-        logger.error('提现详情的数据无效', results);
+        logger.info('提现详情查询结果为空，跳过后续处理', results)
         return false;
     }
 

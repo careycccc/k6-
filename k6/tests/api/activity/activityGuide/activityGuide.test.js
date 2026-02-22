@@ -26,7 +26,7 @@ export function queryActivityGuide(data) {
     }
     const result = commonRequest5(data, api, payload, activityGuideTag)
     if (!result || !result.list) {
-        logger.error('引导活动查询失败', result)
+        logger.info('引导活动查询结果为空，跳过后续处理', result)
         return {}
     }
     activityGuideInfo.amountcountTotal = result.totalCount

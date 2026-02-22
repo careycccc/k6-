@@ -10,6 +10,23 @@
 
 ---
 
+## 🔥 快速链接
+
+**最新更新 (2026-02-22)**:
+
+- 📖 [当前状态和使用指南](README_CURRENT_STATE.md) - 完整的功能状态和推荐工作流
+- 🚀 [Grafana 快速修复](GRAFANA_QUICK_FIX.md) - Grafana 问题快速解决方案
+- 📝 [viz-backend 日志说明](VIZ_BACKEND_LOGS_EXPLANATION.md) - 实时日志功能说明
+- 📊 [完整状态文档](CURRENT_STATUS.md) - 详细的功能说明和故障排查
+
+**重要提示**:
+- ✅ Grafana 网络吞吐量负数问题已修复
+- ✅ 报表查询成功率面板已修复
+- ⚠️ viz-backend 实时日志功能有限（推荐使用命令行查看详细日志）
+- 💡 推荐工作流：命令行运行测试 + Grafana 查看结果
+
+---
+
 ## 📋 目录
 
 - [功能特性](#-功能特性)

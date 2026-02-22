@@ -25,7 +25,7 @@ export function queryInviteTurntable(data) {
     }
     const result = commonRequest5(data, api, payload, inviteTurntableTag)
     if (!result || !result.list) {
-        logger.error('邀请转盘查询失败', result)
+        logger.info('邀请转盘查询结果为空，跳过后续处理', result)
         return {}
     }
     inviteTurntableInfo.amountcountTotal = result.totalCount || 0;

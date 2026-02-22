@@ -4,33 +4,34 @@ import { DailySummaryTag, queryDailySummaryReportFunc } from '../tests/api/formd
 import { memberTag, queryMemberReportFunc } from '../tests/api/formdata/memberReport/memberReport.test.js';
 import { activityGuideTag, queryActivityGuide } from '../tests/api/activity/activityGuide/activityGuide.test.js';
 import { championTag, queryChampion } from '../tests/api/activity/champion/champion.test.js';
-import { codeWashingTag, queryCodeWashing } from '../tests/api/activity/codeWashing/codeWashing.test.js'
+import { codeWashingTag, queryCodeWashing } from '../tests/api/activity/codeWashing/codeWashing.test.js';
 import { couponTag, queryCoupon } from '../tests/api/activity/coupon/querycoupon.test.js';
-import { dailyTasksTag, queryDailyTasks } from '../tests/api/activity/dailyTasks/dailyTasks.test.js'
-import { giftCodesTag, queryGiftcodes } from '../tests/api/activity/GiftCodes/giftCodes.test.js'
+import { dailyTasksTag, queryDailyTasks } from '../tests/api/activity/dailyTasks/dailyTasks.test.js';
+import { giftCodesTag, queryGiftcodes } from '../tests/api/activity/GiftCodes/giftCodes.test.js';
 import { giftPackTag, queryGiftPack } from '../tests/api/activity/giftPack/giftPack.test.js';
 import { inviteTurntableTag, queryInviteTurntable } from '../tests/api/activity/inviteTurntable/inviteTurntable.test.js';
-import { megaJackpotTag, queryMegaJackpot } from '../tests/api/activity/MegaJackpot/megaJackpot.test.js'
-import { newagentTag, queryNewagent } from '../tests/api/activity/newagent/newagent.test.js'
-import { newagentRankTag, queryNewagentRank } from '../tests/api/activity/newagent/newagentRank.test.js'
-import { rankingTag, queryRanking } from '../tests/api/activity/ranking/ranking.test.js'
+import { megaJackpotTag, queryMegaJackpot } from '../tests/api/activity/MegaJackpot/megaJackpot.test.js';
+import { newagentTag, queryNewagent } from '../tests/api/activity/newagent/newagent.test.js';
+import { newagentRankTag, queryNewagentRank } from '../tests/api/activity/newagent/newagentRank.test.js';
+import { rankingTag, queryRanking } from '../tests/api/activity/ranking/ranking.test.js';
 import { rechargeGiftPackTag, queryRechargeGiftPack } from '../tests/api/activity/rechargeGiftPack/rechargeGiftPack.test.js'
 import { rechargeWheelTag, queryRechargeWheel } from '../tests/api/activity/rechargeWheel/rechargeWheel.test.js';
-import { redRainActivityTag, queryRedRainActivity } from '../tests/api/activity/RedRainActivity/redRainActivity.test.js'
-import { rescueTag, queryRescue } from '../tests/api/activity/rescue/rescue.test.js'
+import { redRainActivityTag, queryRedRainActivity } from '../tests/api/activity/RedRainActivity/redRainActivity.test.js';
+import { rescueTag, queryRescue } from '../tests/api/activity/rescue/rescue.test.js';
 import { signinTag, querySignin } from '../tests/api/activity/signin/signin.test.js';
-import { weekCardTag, queryWeekCard } from '../tests/api/activity/weekCard/weekCard.test.js'
-import { withdrawalTimeoutTag, querywithdrawalTimeout } from '../tests/api/activity/withdrawalTimeout/withdrawalTimeout.test.js'
+import { weekCardTag, queryWeekCard } from '../tests/api/activity/weekCard/weekCard.test.js';
+import { withdrawalTimeoutTag, querywithdrawalTimeout } from '../tests/api/activity/withdrawalTimeout/withdrawalTimeout.test.js';
 import {
-    queryVipinfo, accountChangesTag,
-    queryRechargeGift, accountChangesTag
+    queryVipinfo,
+    queryRechargeGift,
+    accountChangesTag
 } from '../tests/api/formdata/accountChanges/accountChanges.test.js';
 import {
     queryBonusToup, manualRechargeTag,
     queryBonusReduce
 } from '../tests/api/formdata/manualRecharge/manualRecharge.test.js';
 
-import { queryMessageManage, messageManageTag } from '../tests/api/formdata/messageManage/messageManage.test.js'
+import { queryMessageManage, messageManageTag } from '../tests/api/formdata/messageManage/messageManage.test.js';
 
 
 export const reportConfigs = [
@@ -239,8 +240,8 @@ export const reportConfigs = [
     {
         title: '运营管理->消息管-站内信领取记录',
         name: 'InmailReward',
-        tag: manualRechargeTag,
-        func: messageManageTag,
+        tag: messageManageTag,
+        func: queryMessageManage,
         priority: 28,
         description: '站内信领取记录报表的数据'
     },

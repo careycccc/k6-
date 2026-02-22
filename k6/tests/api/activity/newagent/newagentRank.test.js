@@ -21,7 +21,7 @@ export function queryNewagentRank(data) {
     }
     const result = commonRequest5(data, api, payload, newagentRankTag)
     if (!result || !result.list) {
-        logger.error('新版返佣的排行榜的统计查询没有数据')
+        logger.info('新版返佣排行榜查询结果为空，跳过后续处理')
         return {}
     }
 

@@ -23,7 +23,7 @@ export function queryCodeWashing(data) {
     }
     const result = commonRequest3(data, api, payload, codeWashingTag)
     if (!result || !result.list) {
-        logger.error('洗码查询失败', result)
+        logger.info('洗码查询结果为空，跳过后续处理', result)
         return {}
     }
     codeWashingInfo.amountcountTotal = result.totalCount

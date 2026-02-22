@@ -51,7 +51,7 @@ function common(data, financialType, commonObj) {
     }
     const result = commonRequest5(data, api, payload, newagentFromtag)
     if (!result || !result.list) {
-        logger.error(`新版返佣的数据为空类型为${financialType}`, result)
+        logger.info(`新版返佣查询结果为空，跳过后续处理，类型为${financialType}`, result)
         console.log('')
         return {}
     }

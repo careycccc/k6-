@@ -24,7 +24,7 @@ export function queryNewagent(data) {
     }
     const result = commonRequest5(data, api, payload, newagentTag)
     if (!result || !result.list) {
-        logger.error('新版返佣的查询失败', result)
+        logger.info('新版返佣查询结果为空，跳过后续处理', result)
         return {}
     }
     // if (!result || !result.list.list) {

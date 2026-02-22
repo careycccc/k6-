@@ -15,22 +15,22 @@ const PORT = process.env.VIZ_PORT || 8080;
 // 辅助函数：安全获取 metric 值（支持直接 xxx 和 values.xxx 两种结构）
 function getMetricValue(metricObj, key) {
   if (!metricObj) return null;
-  
+
   // 优先尝试直接 xxx（k6 summary 格式）
   if (metricObj[key] !== undefined) {
     return metricObj[key];
   }
-  
+
   // 然后尝试 values.xxx
   if (metricObj.values && metricObj.values[key] !== undefined) {
     return metricObj.values[key];
   }
-  
+
   // 对于 vus.value，如果没有但有 max，返回 max
   if (key === 'value' && metricObj.max !== undefined) {
     return metricObj.max;
   }
-  
+
   return null;
 }
 
@@ -39,7 +39,7 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 const REPORTS_DIR = path.join(__dirname, '..', 'reports');
 // 只扫描 k6/tests/api/script 目录下的脚本
 // Docker 中使用绝对路径 /app/k6/tests/api/script，本地使用相对路径
-const K6_SCRIPTS_DIR = process.env.NODE_ENV === 'docker' 
+const K6_SCRIPTS_DIR = process.env.NODE_ENV === 'docker'
   ? '/app/k6/tests/api/script'
   : path.join(__dirname, '..', '..', 'k6', 'tests', 'api', 'script');
 
@@ -77,7 +77,7 @@ async function initDataDir() {
   try {
     await fs.mkdir(DATA_DIR, { recursive: true });
     await fs.mkdir(REPORTS_DIR, { recursive: true });
-    
+
     // 加载已存在的测试数据
     const testsFile = path.join(DATA_DIR, 'tests.json');
     try {
@@ -108,10 +108,10 @@ app.get('/api/health', (req, res) => {
 app.get('/api/scripts', async (req, res) => {
   try {
     const scripts = [];
-    
+
     // 只扫描 k6/tests/api/script 目录，不递归子目录
     const entries = await fs.readdir(K6_SCRIPTS_DIR, { withFileTypes: true });
-    
+
     for (const entry of entries) {
       if (!entry.isDirectory() && entry.name.endsWith('.js')) {
         const fullPath = path.join(K6_SCRIPTS_DIR, entry.name);
@@ -124,10 +124,10 @@ app.get('/api/scripts', async (req, res) => {
         });
       }
     }
-    
+
     // 按文件名排序
     scripts.sort((a, b) => a.name.localeCompare(b.name));
-    
+
     res.json(scripts);
   } catch (error) {
     console.error('获取脚本列表失败:', error);
@@ -140,12 +140,12 @@ app.get('/api/scripts/:name(*)', async (req, res) => {
   try {
     const scriptName = req.params.name;
     const scriptPath = path.join(K6_SCRIPTS_DIR, scriptName);
-    
+
     // 安全检查：确保路径在允许的目录内
     if (!scriptPath.startsWith(K6_SCRIPTS_DIR)) {
       return res.status(403).json({ error: '非法路径' });
     }
-    
+
     const content = await fs.readFile(scriptPath, 'utf8');
     res.json({ name: scriptName, content });
   } catch (error) {
@@ -158,24 +158,24 @@ app.get('/api/scripts/:name(*)', async (req, res) => {
 app.post('/api/scripts', async (req, res) => {
   try {
     const { name, content } = req.body;
-    
+
     if (!name || !content) {
       return res.status(400).json({ error: '缺少必要参数' });
     }
-    
+
     const scriptPath = path.join(K6_SCRIPTS_DIR, name);
-    
+
     // 安全检查
     if (!scriptPath.startsWith(K6_SCRIPTS_DIR)) {
       return res.status(403).json({ error: '非法路径' });
     }
-    
+
     // 确保目录存在
     await fs.mkdir(path.dirname(scriptPath), { recursive: true });
-    
+
     // 写入文件
     await fs.writeFile(scriptPath, content, 'utf8');
-    
+
     res.json({ name, status: 'saved', message: '脚本保存成功' });
   } catch (error) {
     console.error('保存脚本失败:', error);
@@ -188,12 +188,12 @@ app.delete('/api/scripts/:name(*)', async (req, res) => {
   try {
     const scriptName = req.params.name;
     const scriptPath = path.join(K6_SCRIPTS_DIR, scriptName);
-    
+
     // 安全检查
     if (!scriptPath.startsWith(K6_SCRIPTS_DIR)) {
       return res.status(403).json({ error: '非法路径' });
     }
-    
+
     await fs.unlink(scriptPath);
     res.json({ name: scriptName, status: 'deleted', message: '脚本删除成功' });
   } catch (error) {
@@ -205,41 +205,41 @@ app.delete('/api/scripts/:name(*)', async (req, res) => {
 // 运行测试
 app.post('/api/tests/run', async (req, res) => {
   try {
-    const { script, name, vus = 10, duration = '30s', env = 'local' } = req.body;
-    
+    const { script, name } = req.body;
+
     if (!script) {
       return res.status(400).json({ error: '缺少脚本参数' });
     }
-    
+
     const testId = uuidv4();
     const testName = name || `Test-${Date.now()}`;
     const scriptPath = path.join(K6_SCRIPTS_DIR, script);
-    
+
     // 安全检查
     if (!scriptPath.startsWith(K6_SCRIPTS_DIR)) {
       return res.status(403).json({ error: '非法脚本路径' });
     }
-    
+
     // 创建测试记录
     const test = {
       testId,
       name: testName,
       script,
       status: 'running',
-      config: { vus, duration, env },
+      config: { note: '配置由脚本控制' },
       startedAt: new Date().toISOString(),
       completedAt: null,
       metrics: null,
       reportUrl: null,
       log: []
     };
-    
+
     tests.set(testId, test);
     await saveTests();
-    
+
     // 异步执行测试
-    runTest(testId, scriptPath, vus, duration, env);
-    
+    runTest(testId, scriptPath);
+
     res.json({ testId, status: 'running', message: '测试启动成功' });
   } catch (error) {
     console.error('启动测试失败:', error);
@@ -250,7 +250,7 @@ app.post('/api/tests/run', async (req, res) => {
 // 获取测试列表
 app.get('/api/tests', (req, res) => {
   try {
-    const testList = Array.from(tests.values()).sort((a, b) => 
+    const testList = Array.from(tests.values()).sort((a, b) =>
       new Date(b.startedAt) - new Date(a.startedAt)
     );
     res.json(testList);
@@ -281,21 +281,238 @@ app.post('/api/tests/:id/stop', async (req, res) => {
     if (!test) {
       return res.status(404).json({ error: '测试不存在' });
     }
-    
+
     if (test.status !== 'running') {
       return res.status(400).json({ error: '测试未在运行中' });
     }
-    
+
     // MVP 版本：仅标记状态，实际进程管理需要更复杂的实现
     test.status = 'stopped';
     test.completedAt = new Date().toISOString();
     test.log.push('测试被手动停止');
-    
+
     await saveTests();
     res.json({ testId: req.params.id, status: 'stopped' });
   } catch (error) {
     console.error('停止测试失败:', error);
     res.status(500).json({ error: '停止测试失败', message: error.message });
+  }
+});
+
+// 删除测试记录（只删除测试记录，保留报告文件）
+app.delete('/api/tests/:id', async (req, res) => {
+  try {
+    const testId = req.params.id;
+    const test = tests.get(testId);
+
+    if (!test) {
+      return res.status(404).json({ error: '测试不存在' });
+    }
+
+    // 不允许删除正在运行的测试
+    if (test.status === 'RUNNING') {
+      return res.status(400).json({ error: '无法删除正在运行的测试，请先停止测试' });
+    }
+
+    // 只从内存中删除测试记录
+    tests.delete(testId);
+
+    // 保存更新后的测试数据
+    await saveTests();
+
+    console.log(`[DELETE TEST] 测试记录已删除: ${testId}`);
+
+    res.json({
+      success: true,
+      message: '测试记录删除成功',
+      testId: testId,
+      note: '报告文件已保留'
+    });
+  } catch (error) {
+    console.error('删除测试记录失败:', error);
+    res.status(500).json({ error: '删除测试记录失败', message: error.message });
+  }
+});
+
+// 删除报告（只删除报告文件，保留测试记录）
+app.delete('/api/reports/:id', async (req, res) => {
+  try {
+    const testId = req.params.id;
+    const deletedFiles = [];
+    const errors = [];
+
+    // 1. 删除 HTML 报告文件
+    const reportFile = path.join(REPORTS_DIR, `${testId}-report.html`);
+    try {
+      await fs.unlink(reportFile);
+      deletedFiles.push(`${testId}-report.html`);
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        errors.push(`删除报告文件失败: ${error.message}`);
+      } else {
+        return res.status(404).json({ error: '报告文件不存在' });
+      }
+    }
+
+    // 2. 删除 summary JSON 文件
+    const summaryFile = path.join(REPORTS_DIR, `${testId}-summary.json`);
+    try {
+      await fs.unlink(summaryFile);
+      deletedFiles.push(`${testId}-summary.json`);
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        errors.push(`删除 summary 文件失败: ${error.message}`);
+      }
+    }
+
+    console.log(`[DELETE REPORT] 报告已删除: ${testId}, 删除的文件: ${deletedFiles.join(', ')}`);
+
+    res.json({
+      success: true,
+      message: '报告删除成功',
+      testId: testId,
+      deletedFiles: deletedFiles,
+      errors: errors.length > 0 ? errors : undefined,
+      note: '测试记录已保留'
+    });
+  } catch (error) {
+    console.error('删除报告失败:', error);
+    res.status(500).json({ error: '删除报告失败', message: error.message });
+  }
+});
+
+// 彻底删除（删除测试记录和报告文件）
+app.delete('/api/tests/:id/complete', async (req, res) => {
+  try {
+    const testId = req.params.id;
+    const test = tests.get(testId);
+
+    if (!test) {
+      return res.status(404).json({ error: '测试不存在' });
+    }
+
+    // 不允许删除正在运行的测试
+    if (test.status === 'RUNNING') {
+      return res.status(400).json({ error: '无法删除正在运行的测试，请先停止测试' });
+    }
+
+    const deletedFiles = [];
+    const errors = [];
+
+    // 1. 删除 HTML 报告文件
+    const reportFile = path.join(REPORTS_DIR, `${testId}-report.html`);
+    try {
+      await fs.unlink(reportFile);
+      deletedFiles.push(`${testId}-report.html`);
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        errors.push(`删除报告文件失败: ${error.message}`);
+      }
+    }
+
+    // 2. 删除 summary JSON 文件
+    const summaryFile = path.join(REPORTS_DIR, `${testId}-summary.json`);
+    try {
+      await fs.unlink(summaryFile);
+      deletedFiles.push(`${testId}-summary.json`);
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        errors.push(`删除 summary 文件失败: ${error.message}`);
+      }
+    }
+
+    // 3. 从内存中删除测试记录
+    tests.delete(testId);
+
+    // 4. 保存更新后的测试数据
+    await saveTests();
+
+    console.log(`[DELETE COMPLETE] 测试和报告已彻底删除: ${testId}, 删除的文件: ${deletedFiles.join(', ')}`);
+
+    res.json({
+      success: true,
+      message: '测试和报告彻底删除成功',
+      testId: testId,
+      deletedFiles: deletedFiles,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    console.error('彻底删除失败:', error);
+    res.status(500).json({ error: '彻底删除失败', message: error.message });
+  }
+});
+
+// 批量删除测试
+app.post('/api/tests/batch-delete', async (req, res) => {
+  try {
+    const { testIds } = req.body;
+
+    if (!Array.isArray(testIds) || testIds.length === 0) {
+      return res.status(400).json({ error: '请提供要删除的测试 ID 列表' });
+    }
+
+    const results = {
+      success: [],
+      failed: [],
+      skipped: []
+    };
+
+    for (const testId of testIds) {
+      const test = tests.get(testId);
+
+      if (!test) {
+        results.skipped.push({ testId, reason: '测试不存在' });
+        continue;
+      }
+
+      if (test.status === 'RUNNING') {
+        results.skipped.push({ testId, reason: '测试正在运行' });
+        continue;
+      }
+
+      try {
+        // 删除报告文件
+        const reportFile = path.join(REPORTS_DIR, `${testId}-report.html`);
+        try {
+          await fs.unlink(reportFile);
+        } catch (error) {
+          if (error.code !== 'ENOENT') {
+            console.warn(`删除报告文件失败: ${error.message}`);
+          }
+        }
+
+        // 删除 summary 文件
+        const summaryFile = path.join(REPORTS_DIR, `${testId}-summary.json`);
+        try {
+          await fs.unlink(summaryFile);
+        } catch (error) {
+          if (error.code !== 'ENOENT') {
+            console.warn(`删除 summary 文件失败: ${error.message}`);
+          }
+        }
+
+        // 从内存中删除
+        tests.delete(testId);
+
+        results.success.push(testId);
+      } catch (error) {
+        results.failed.push({ testId, error: error.message });
+      }
+    }
+
+    // 保存更新后的测试数据
+    await saveTests();
+
+    console.log(`[BATCH DELETE] 成功: ${results.success.length}, 失败: ${results.failed.length}, 跳过: ${results.skipped.length}`);
+
+    res.json({
+      success: true,
+      message: `批量删除完成`,
+      results: results
+    });
+  } catch (error) {
+    console.error('批量删除测试失败:', error);
+    res.status(500).json({ error: '批量删除测试失败', message: error.message });
   }
 });
 
@@ -318,7 +535,7 @@ app.get('/api/reports', async (req, res) => {
         };
       })
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    
+
     res.json(reports);
   } catch (error) {
     console.error('获取报告列表失败:', error);
@@ -333,12 +550,12 @@ app.post('/api/reports/:id/generate', async (req, res) => {
     if (!test) {
       return res.status(404).json({ error: '测试不存在' });
     }
-    
+
     // 重新生成报告
     await generateHtmlReport(req.params.id, test);
-    
-    res.json({ 
-      id: req.params.id, 
+
+    res.json({
+      id: req.params.id,
       reportUrl: `/reports/${req.params.id}-report.html`,
       message: '报告生成成功'
     });
@@ -359,80 +576,123 @@ async function hasScenarios(scriptPath) {
 }
 
 // 执行测试的异步函数
-async function runTest(testId, scriptPath, vus, duration, env) {
+async function runTest(testId, scriptPath) {
   const test = tests.get(testId);
   if (!test) return;
-  
+
   try {
-    // 构建 k6 命令
-    const reportFile = path.join(REPORTS_DIR, `${testId}-summary.json`);
-    const htmlReport = path.join(REPORTS_DIR, `${testId}-report.html`);
-    
-    // 检查脚本是否已有 scenarios 配置
-    const scriptHasScenarios = await hasScenarios(scriptPath);
-    
-    // P99 和其他统计指标配置
-    const summaryStats = 'avg,min,med,max,p(90),p(95),p(99)';
-    
-    // InfluxDB 配置（从环境变量读取，Docker 中使用容器名）
+    // ========================================
+    // 步骤 1: 清理该 testid 的旧数据（确保每次测试从 0 开始）
+    // ========================================
+    test.log.push('');
+    test.log.push('╔═══════════════════════════════════════════════════════════╗');
+    test.log.push('║          清理旧数据 - 确保测试数据独立                    ║');
+    test.log.push('╚═══════════════════════════════════════════════════════════╝');
+    test.log.push('');
+
     const influxdbUrl = process.env.INFLUXDB_URL || 'http://localhost:8086';
     const influxdbDb = process.env.INFLUXDB_DB || 'k6';
-    
-    // 调试：记录 InfluxDB 配置
-    test.log.push(`[DEBUG] INFLUXDB_URL: ${process.env.INFLUXDB_URL || '未设置(使用默认)'}`);
-    test.log.push(`[DEBUG] INFLUXDB_DB: ${process.env.INFLUXDB_DB || '未设置(使用默认)'}`);
-    test.log.push(`[DEBUG] 实际使用的 InfluxDB URL: ${influxdbUrl}/${influxdbDb}`);
-    
+
+    try {
+      // 删除 InfluxDB 中该 testid 的所有数据
+      const deleteQuery = `DROP SERIES WHERE testid = '${testId}'`;
+      const deleteCmd = `curl -X POST '${influxdbUrl}/query?db=${influxdbDb}' --data-urlencode "q=${deleteQuery}"`;
+
+      test.log.push(`[1/2] 清理 InfluxDB 数据: testid=${testId}`);
+      await execAsync(deleteCmd);
+      test.log.push('[1/2] ✓ InfluxDB 数据清理完成');
+    } catch (error) {
+      test.log.push(`[1/2] ⚠ InfluxDB 数据清理失败: ${error.message}`);
+      // 继续执行，不中断测试
+    }
+
+    // 删除旧的报告文件
+    try {
+      const oldHtmlReport = path.join(REPORTS_DIR, `${testId}-report.html`);
+      const oldSummaryReport = path.join(REPORTS_DIR, `${testId}-summary.json`);
+
+      test.log.push('[2/2] 清理旧报告文件');
+
+      try {
+        await fs.unlink(oldHtmlReport);
+        test.log.push('  ✓ 删除旧 HTML 报告');
+      } catch (e) {
+        // 文件不存在，忽略
+      }
+
+      try {
+        await fs.unlink(oldSummaryReport);
+        test.log.push('  ✓ 删除旧 JSON 报告');
+      } catch (e) {
+        // 文件不存在，忽略
+      }
+
+      test.log.push('[2/2] ✓ 报告文件清理完成');
+    } catch (error) {
+      test.log.push(`[2/2] ⚠ 报告文件清理失败: ${error.message}`);
+    }
+
+    test.log.push('');
+    test.log.push('✓ 数据清理完成，开始运行测试...');
+    test.log.push('');
+
+    // ========================================
+    // 步骤 2: 确保报告目录存在
+    // ========================================
+    const k6ReportsDir = '/app/reports';
+    try {
+      await fs.mkdir(k6ReportsDir, { recursive: true });
+    } catch (error) {
+      test.log.push(`[WARN] 创建报告目录失败: ${error.message}`);
+    }
+
+    // ========================================
+    // 步骤 3: 构建并执行 k6 命令
+    // ========================================
+    const reportFile = path.join(REPORTS_DIR, `${testId}-summary.json`);
+    const htmlReport = path.join(REPORTS_DIR, `${testId}-report.html`);
+
+    // P99 和其他统计指标配置
+    const summaryStats = 'avg,min,med,max,p(90),p(95),p(99)';
+
     // 添加测试标签，用于在 Grafana 中筛选特定测试
     const testTags = `--tag testid=${testId} --tag testname="${test.name}" --tag script="${test.script}"`;
-    
-    let cmd;
-    if (scriptHasScenarios) {
-      // 脚本已有 scenarios，只添加环境变量和报告导出
-      cmd = `k6 run \\
-        --quiet \\
-        --env ENV=${env} \\
-        --summary-export=${reportFile} \\
-        --summary-trend-stats="${summaryStats}" \\
-        --out influxdb=${influxdbUrl}/${influxdbDb} \\
-        ${testTags} \\
-        ${scriptPath}`;
-      test.log.push('检测到脚本已包含 scenarios 配置，使用脚本内置配置');
-      test.log.push(`InfluxDB 输出: ${influxdbUrl}/${influxdbDb} (带标签: ${testTags})`);
-    } else {
-      // 脚本没有 scenarios，添加 vus 和 duration
-      cmd = `k6 run \\
-        --quiet \\
-        --vus ${vus} \\
-        --duration ${duration} \\
-        --env ENV=${env} \\
-        --summary-export=${reportFile} \\
-        --summary-trend-stats="${summaryStats}" \\
-        --out influxdb=${influxdbUrl}/${influxdbDb} \\
-        ${testTags} \\
-        ${scriptPath}`;
-      test.log.push(`使用测试平台配置: VUs=${vus}, Duration=${duration}`);
-      test.log.push(`InfluxDB 输出: ${influxdbUrl}/${influxdbDb} (带标签: ${testTags})`);
-    }
-    
-    test.log.push(`执行命令: ${cmd}`);
+
+    // 脚本自己控制所有配置，只添加报告导出和 InfluxDB 输出
+    const cmd = `k6 run \\
+      --quiet \\
+      --summary-export=${reportFile} \\
+      --summary-trend-stats="${summaryStats}" \\
+      --out influxdb=${influxdbUrl}/${influxdbDb} \\
+      ${testTags} \\
+      ${scriptPath}`;
+
+    test.log.push('╔═══════════════════════════════════════════════════════════╗');
+    test.log.push('║          开始执行测试                                      ║');
+    test.log.push('╚═══════════════════════════════════════════════════════════╝');
+    test.log.push('');
+    test.log.push(`测试 ID: ${testId}`);
+    test.log.push(`测试名称: ${test.name}`);
+    test.log.push(`测试脚本: ${test.script}`);
+    test.log.push(`InfluxDB: ${influxdbUrl}/${influxdbDb}`);
     test.log.push(`开始时间: ${new Date().toISOString()}`);
-    
+    test.log.push('');
+
     const { stdout, stderr } = await execAsync(cmd, {
       timeout: 10 * 60 * 1000, // 10分钟超时
       maxBuffer: 50 * 1024 * 1024 // 50MB 缓冲区，防止大输出导致错误
     });
-    
+
     test.log.push(`标准输出: ${stdout}`);
     if (stderr) {
       test.log.push(`标准错误: ${stderr}`);
     }
-    
+
     // 读取测试结果
     try {
       const summaryData = await fs.readFile(reportFile, 'utf8');
       const summary = JSON.parse(summaryData);
-      
+
       // 调试：记录数据结构
       test.log.push(`[DEBUG] Summary keys: ${Object.keys(summary).join(', ')}`);
       if (summary.metrics) {
@@ -446,7 +706,7 @@ async function runTest(testId, scriptPath, vus, duration, env) {
           test.log.push(`[DEBUG] vus.values: ${JSON.stringify(summary.metrics.vus.values || {})}`);
         }
       }
-      
+
       // 处理 vus 数据：如果 vus.value 为 0，使用 vus_max 的值
       let vusData = summary.metrics?.vus || {};
       const vusMaxData = summary.metrics?.vus_max || {};
@@ -458,7 +718,7 @@ async function runTest(testId, scriptPath, vus, duration, env) {
         };
         test.log.push(`[DEBUG] vus 为 0，使用 vus_max: ${vusMaxData.value}`);
       }
-      
+
       test.metrics = {
         http_req_duration: summary.metrics?.http_req_duration || {},
         http_req_failed: summary.metrics?.http_req_failed || {},
@@ -471,32 +731,72 @@ async function runTest(testId, scriptPath, vus, duration, env) {
     } catch (e) {
       test.log.push(`✗ 读取结果文件失败: ${e.message}`);
     }
-    
+
     // 先更新测试状态和时间，再生成报告
     test.status = 'completed';
     test.completedAt = new Date().toISOString();
     test.reportUrl = `/reports/${testId}-report.html`;
-    
+
     // 生成 HTML 报告（在状态更新之后）
     await generateHtmlReport(testId, test);
-    
+
   } catch (error) {
+    // 测试执行失败（可能是阈值失败、超时或其他错误）
     test.status = 'failed';
     test.completedAt = new Date().toISOString();
-    
+    test.reportUrl = `/reports/${testId}-report.html`;
+
     // 详细的错误日志
     const errorMsg = `测试执行失败: ${error.message}`;
     test.log.push(errorMsg);
-    
+
     // 如果是缓冲区溢出错误，给出具体提示
     if (error.message.includes('maxBuffer')) {
       test.log.push('提示: k6 输出内容过多，请检查测试脚本是否包含大量日志输出');
       test.log.push('建议: 减少 console.log 调用，或使用 --quiet 模式运行 k6');
     }
-    
+
+    // 尝试读取测试结果（即使测试失败，summary 文件可能已生成）
+    const reportFile = path.join(REPORTS_DIR, `${testId}-summary.json`);
+    try {
+      const summaryData = await fs.readFile(reportFile, 'utf8');
+      const summary = JSON.parse(summaryData);
+
+      // 处理 vus 数据
+      let vusData = summary.metrics?.vus || {};
+      const vusMaxData = summary.metrics?.vus_max || {};
+      if (vusData.value === 0 && vusMaxData.value > 0) {
+        vusData = {
+          value: vusMaxData.value,
+          min: vusMaxData.min,
+          max: vusMaxData.max
+        };
+      }
+
+      test.metrics = {
+        http_req_duration: summary.metrics?.http_req_duration || {},
+        http_req_failed: summary.metrics?.http_req_failed || {},
+        http_reqs: summary.metrics?.http_reqs || {},
+        vus: vusData,
+        data_received: summary.metrics?.data_received || {},
+        data_sent: summary.metrics?.data_sent || {}
+      };
+      test.log.push('✓ 测试结果解析成功（测试失败但数据已收集）');
+    } catch (e) {
+      test.log.push(`✗ 读取结果文件失败: ${e.message}`);
+    }
+
+    // 即使测试失败，也生成 HTML 报告
+    try {
+      await generateHtmlReport(testId, test);
+      test.log.push('✓ HTML 报告已生成');
+    } catch (reportError) {
+      test.log.push(`✗ 生成报告失败: ${reportError.message}`);
+    }
+
     console.error(`测试 ${testId} 执行失败:`, error);
   }
-  
+
   await saveTests();
 }
 
@@ -506,15 +806,15 @@ async function generateHtmlReport(testId, test) {
   const getVal = (metric, key) => getMetricValue(test.metrics?.[metric], key);
   const formatMs = (val) => val !== null && val !== undefined ? val.toFixed(2) : 'N/A';
   const formatNum = (val) => val !== null && val !== undefined ? val.toString() : 'N/A';
-  
+
   // 计算成功率
   let failedRate = getVal('http_req_failed', 'rate');
   let totalReqs = getVal('http_reqs', 'count');
-  
+
   // 确保值是数字
   failedRate = (failedRate !== null && !isNaN(failedRate)) ? parseFloat(failedRate) : null;
   totalReqs = (totalReqs !== null && !isNaN(totalReqs)) ? parseInt(totalReqs) : 0;
-  
+
   let successRate;
   if (failedRate !== null && !isNaN(failedRate)) {
     successRate = ((1 - failedRate) * 100).toFixed(2);
@@ -523,7 +823,7 @@ async function generateHtmlReport(testId, test) {
   } else {
     successRate = 'N/A';
   }
-  
+
   const htmlContent = `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -577,21 +877,6 @@ async function generateHtmlReport(testId, test) {
     .info-row:last-child { border-bottom: none; }
     .label { color: #666; }
     .value { color: #333; font-weight: 500; }
-    .log-container {
-      background: #1a1a2e;
-      color: #eee;
-      padding: 20px;
-      border-radius: 5px;
-      font-family: 'Courier New', monospace;
-      font-size: 13px;
-      overflow-x: auto;
-      max-height: 400px;
-      overflow-y: auto;
-    }
-    .log-line { margin: 2px 0; }
-    .timestamp { color: #64b5f6; }
-    .success { color: #81c784; }
-    .error { color: #e57373; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
     th { background: #f8f9fa; font-weight: 600; color: #667eea; }
@@ -640,16 +925,8 @@ async function generateHtmlReport(testId, test) {
         <span class="value">${test.script}</span>
       </div>
       <div class="info-row">
-        <span class="label">虚拟用户数 (VUs)</span>
-        <span class="value">${test.config.vus}</span>
-      </div>
-      <div class="info-row">
-        <span class="label">持续时间</span>
-        <span class="value">${test.config.duration}</span>
-      </div>
-      <div class="info-row">
-        <span class="label">环境</span>
-        <span class="value">${test.config.env}</span>
+        <span class="label">配置说明</span>
+        <span class="value">由脚本代码控制</span>
       </div>
       <div class="info-row">
         <span class="label">开始时间</span>
@@ -702,17 +979,10 @@ async function generateHtmlReport(testId, test) {
         </tbody>
       </table>
     </div>
-    
-    <div class="section">
-      <h2>📝 执行日志</h2>
-      <div class="log-container">
-        ${test.log.map((line, index) => `<div class="log-line"><span class="timestamp">[${index + 1}]</span> ${line.replace(/\n/g, '<br>')}</div>`).join('<div style="height: 8px;"></div>')}
-      </div>
-    </div>
   </div>
 </body>
 </html>`;
-  
+
   const reportPath = path.join(REPORTS_DIR, `${testId}-report.html`);
   await fs.writeFile(reportPath, htmlContent, 'utf8');
 }

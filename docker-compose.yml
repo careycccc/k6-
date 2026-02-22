@@ -29,7 +29,8 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin123
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/provisioning/dashboards/k6-dashboard.json
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
@@ -49,6 +50,7 @@ services:
     volumes:
       - ./viz/backend:/app
       - ./k6:/app/k6
+      - ./reports:/app/reports
       - ./viz/reports:/app/viz/reports
       - ./viz/data:/app/viz/data
       - ./viz/frontend:/app/viz/frontend

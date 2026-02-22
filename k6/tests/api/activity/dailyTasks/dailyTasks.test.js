@@ -38,7 +38,7 @@ export function GetDayWeekTaskReportPageList(data) {
 
     const result = commonRequest5(data, api, payload, dailyTasksTag)
     if (!result || !result.list) {
-        logger.error('每日每周任务报表的查询失败')
+        logger.info('每日每周任务报表查询结果为空，跳过后续处理')
         return {}
     }
     // 任务id和领取的金额
@@ -54,7 +54,7 @@ export function GetAccumulateTaskReportPageList(data) {
     const api = 'api/DayWeek/GetAccumulateTaskReportPageList'
     const result = commonRequest3(data, api, payload, dailyTasksTag)
     if (!result || !result.list) {
-        logger.error('累计任务报表的查询失败')
+        logger.info('累计任务报表查询结果为空，跳过后续处理')
         return {}
     }
     return result.summary

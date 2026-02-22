@@ -36,25 +36,25 @@ export function queryWeekCard(data) {
     }
     // 检查 result 是否有效
     if (!result || !result.list) {
-        logger.error('周卡月卡查询失败', result)
+        logger.info('周卡月卡查询结果为空，跳过后续处理', result)
         return weekCardinfo;
     }
 
     // 检查 result.list 是否存在
     if (!result || !result.list && result.list !== undefined) {
-        logger.error('周卡月卡查询结果中没有list属性');
+        logger.info('周卡月卡查询结果中list为空，跳过后续处理');
         return weekCardinfo;
     }
 
     // 如果 result.list 是 undefined，返回默认值
     if (result.list === undefined) {
-        logger.error('周卡月卡查询结果中list为undefined');
+        logger.info('周卡月卡查询结果中list为undefined，跳过后续处理');
         return weekCardinfo;
     }
 
     // 检查 result.list 是否为数组
     if (!Array.isArray(result.list)) {
-        logger.error('周卡月卡查询结果中的list不是数组');
+        logger.info('周卡月卡查询结果中的list不是数组，跳过后续处理');
         return weekCardinfo;
     }
 
@@ -63,7 +63,7 @@ export function queryWeekCard(data) {
 
     // 检查 result.summary 是否存在
     if (!result || !result.summary) {
-        logger.error('周卡月卡查询结果中没有summary属性');
+        logger.info('周卡月卡查询结果中summary为空，尝试从list计算总金额');
         // 如果没有 summary，尝试从 list 中计算总金额
         const totalAmount = result.list.reduce((sum, item) => sum + (item.rewardAmount || 0), 0);
         weekCardinfo.amount = totalAmount;

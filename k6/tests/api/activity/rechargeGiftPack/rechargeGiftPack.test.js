@@ -25,19 +25,19 @@ export function queryRechargeGiftPack(data) {
     const result = commonRequest5(data, api, payload, rechargeGiftPackTag)
     // 检查 result 是否有效
     if (!result || !result.list) {
-        logger.error('充值礼包查询失败')
+        logger.info('充值礼包查询结果为空，跳过后续处理')
         return {}
     }
 
     // 检查 result.list 是否存在
     if (!result || !result.list.list) {
-        console.log('充值礼包查询结果中没有list属性');
+        logger.info('充值礼包查询结果中list为空，跳过后续处理');
         return {};
     }
 
     // 检查 result.list 是否为数组
     if (!Array.isArray(result.list)) {
-        console.log('充值礼包查询结果中的list不是数组');
+        logger.info('充值礼包查询结果中的list不是数组，跳过后续处理');
         return {};
     }
 
@@ -97,7 +97,7 @@ function getRechargeGiftPackDail(data, activityId) {
 
     // 检查 result 是否有效
     if (!result || !result.list) {
-        logger.error(`充值礼包每日数据查询失败, activityId: ${activityId}`);
+        logger.info(`充值礼包每日数据查询结果为空，跳过后续处理, activityId: ${activityId}`)
         return {
             totalCount: 0,
             list: []
@@ -106,7 +106,7 @@ function getRechargeGiftPackDail(data, activityId) {
 
     // 检查 result.list 是否存在
     if (!result || !result.list.list && result.list !== undefined) {
-        logger.error(`充值礼包详情查询结果中没有list属性, activityId: ${activityId}`);
+        logger.info(`充值礼包详情查询结果中list为空，跳过后续处理, activityId: ${activityId}`);
         return {
             totalCount: result.totalCount || 0,
             list: []

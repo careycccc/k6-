@@ -20,7 +20,7 @@ export function queryChampion(data) {
     }
     const result = commonRequest5(data, api, payload, championTag)
     if (!result || !result.list) {
-        logger.error('锦标赛的查询失败', result)
+        logger.info('锦标赛查询结果为空，跳过后续处理', result)
         return {}
     }
     championInfo.amountcountTotal = result.totalCount

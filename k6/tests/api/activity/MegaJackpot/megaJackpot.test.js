@@ -28,7 +28,7 @@ export function queryMegaJackpot(data) {
     }
     const result = commonRequest3(data, api, payload, megaJackpotTag)
     if (!result || !result.list) {
-        logger.error('超级大奖查询失败', result)
+        logger.info('超级大奖查询结果为空，跳过后续处理', result)
         return {}
     }
     megaJackpoInfo.amountcountTotal = result.totalCount || 0;

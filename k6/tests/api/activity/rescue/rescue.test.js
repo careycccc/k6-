@@ -28,7 +28,7 @@ export function queryRescue(data) {
     }
     const result = commonRequest5(data, api, payload, rescueTag)
     if (!result || !result.list) {
-        logger.error('亏损救援金查询失败')
+        logger.info('亏损救援金查询结果为空，跳过后续处理')
         return {}
     }
     rescueInfo.amountcountTotal = result.totalCount || 0;

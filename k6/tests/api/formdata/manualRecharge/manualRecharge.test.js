@@ -68,7 +68,7 @@ function common(data, artificialRechargeType) {
     }
     const result = commonRequest5(data, api, payload, manualRechargeTag)
     if (!result || !result.list) {
-        logger.error(`人工充值查询数据为空,类型:${artificialRechargeType}`, result)
+        logger.info(`人工充值查询结果为空，跳过后续处理，类型:${artificialRechargeType}`, result)
         return {}
     }
     return result

@@ -986,42 +986,16 @@
           
           <div>
             <h4 style="margin-bottom: 10px;">执行日志 ${test.log.length > 300 ? `(显示最后 300 条，共 ${test.log.length} 条)` : `(共 ${test.log.length} 条)`}</h4>
-            <div style="background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 5px; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; max-height: 500px; overflow-y: auto; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;">
-              ${test.log.slice(-300).map(line => {
-          const escapedLine = line.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          let color = '#d4d4d4';
-          let bgColor = 'transparent';
-          let fontWeight = 'normal';
-
-          // 根据日志级别设置颜色
-          if (escapedLine.includes('[ERROR]') || escapedLine.includes('ERROR') || escapedLine.includes('✗') || escapedLine.includes('❌')) {
-            color = '#f48771';
-            fontWeight = 'bold';
-          } else if (escapedLine.includes('[WARN]') || escapedLine.includes('WARN') || escapedLine.includes('⚠')) {
-            color = '#dcdcaa';
-          } else if (escapedLine.includes('[INFO]') || escapedLine.includes('INFO') || escapedLine.includes('ℹ')) {
-            color = '#4ec9b0';
-          } else if (escapedLine.includes('[DEBUG]') || escapedLine.includes('DEBUG')) {
-            color = '#9cdcfe';
-          } else if (escapedLine.includes('✓') || escapedLine.includes('✔') || escapedLine.includes('成功')) {
-            color = '#4ec9b0';
-          } else if (escapedLine.includes('═') || escapedLine.includes('║') || escapedLine.includes('╔') || escapedLine.includes('╚') || escapedLine.includes('╠')) {
-            color = '#569cd6';
-            fontWeight = 'bold';
-          } else if (escapedLine.includes('█') || escapedLine.includes('░')) {
-            color = '#ce9178';
-          }
-
-          return '<div style="margin: 1px 0; color: ' + color + '; font-weight: ' + fontWeight + '; background: ' + bgColor + ';">' + escapedLine + '</div>';
-        }).join('')}
+            <div style="background: #1a1a2e; color: #eee; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto;">
+              ${test.log.slice(-300).map(line => `<div style="margin: 2px 0;">${line.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`).join('')}
             </div>
           </div>
           
           ${test.status === 'failed' || test.status === 'FAILED' ? `
             <div style="margin-top: 20px;">
-              <h4 style="margin-bottom: 10px; color: #f48771;">❌ 失败原因</h4>
-              <div style="background: #2d1e1e; color: #f48771; padding: 15px; border-radius: 5px; border-left: 4px solid #f48771; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;">
-                ${test.log.filter(line => line.includes('ERROR') || line.includes('失败') || line.includes('crossed') || line.includes('✗') || line.includes('❌')).slice(-10).map(line => `<div style="margin: 5px 0;">${line.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`).join('') || '测试执行失败，请查看执行日志了解详情'}
+              <h4 style="margin-bottom: 10px; color: #dc2626;">❌ 失败原因</h4>
+              <div style="background: #fee2e2; color: #dc2626; padding: 15px; border-radius: 5px; border-left: 4px solid #dc2626;">
+                ${test.log.filter(line => line.includes('ERROR') || line.includes('失败') || line.includes('crossed')).slice(-10).map(line => `<div style="margin: 5px 0;">${line.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`).join('') || '测试执行失败，请查看执行日志了解详情'}
               </div>
             </div>
           ` : ''}
@@ -1465,6 +1439,199 @@
           window.open(baseUrl, '_blank');
         });
     }
+
+    // ============ 实时日志功能 ============
+    let currentLogTestId = null;
+    let logAutoScroll = true;
+    let logUpdateInterval = null;
+    let logLines = [];
+    const MAX_LOG_LINES = 1000; // 最多保留 1000 行日志
+
+    // 切换日志测试
+    function switchLogTest() {
+      const testId = document.getElementById('logTestFilter').value;
+
+      if (!testId) {
+        currentLogTestId = null;
+        clearLogs();
+        stopLogUpdates();
+        return;
+      }
+
+      currentLogTestId = testId;
+      clearLogs();
+      startLogUpdates();
+    }
+
+    // 开始日志更新
+    function startLogUpdates() {
+      if (logUpdateInterval) {
+        clearInterval(logUpdateInterval);
+      }
+
+      // 立即获取一次日志
+      fetchLogs();
+
+      // 每 2 秒更新一次日志
+      logUpdateInterval = setInterval(fetchLogs, 2000);
+    }
+
+    // 停止日志更新
+    function stopLogUpdates() {
+      if (logUpdateInterval) {
+        clearInterval(logUpdateInterval);
+        logUpdateInterval = null;
+      }
+    }
+
+    // 获取日志
+    async function fetchLogs() {
+      if (!currentLogTestId) return;
+
+      try {
+        const response = await fetch(`${API_BASE}/tests/${currentLogTestId}/logs`);
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            appendLog('⚠️ 测试日志不可用', 'warning');
+            stopLogUpdates();
+          }
+          return;
+        }
+
+        const data = await response.json();
+
+        if (data.logs && data.logs.length > 0) {
+          data.logs.forEach(log => appendLog(log));
+        }
+      } catch (error) {
+        console.error('获取日志失败:', error);
+      }
+    }
+
+    // 添加日志行
+    function appendLog(text, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const logConsole = document.getElementById('logConsole');
+
+      // 清空初始提示
+      if (logLines.length === 0 && logConsole.querySelector('div[style*="text-align: center"]')) {
+        logConsole.innerHTML = '';
+      }
+
+      // 限制日志行数
+      if (logLines.length >= MAX_LOG_LINES) {
+        logLines.shift();
+        const firstLine = logConsole.firstChild;
+        if (firstLine) {
+          logConsole.removeChild(firstLine);
+        }
+      }
+
+      logLines.push(text);
+
+      // 创建日志行
+      const logLine = document.createElement('div');
+      logLine.style.marginBottom = '2px';
+
+      // 根据类型设置颜色
+      let color = '#d4d4d4';
+      if (type === 'error' || text.includes('ERROR') || text.includes('error')) {
+        color = '#f48771';
+      } else if (type === 'warning' || text.includes('WARN') || text.includes('warn')) {
+        color = '#dcdcaa';
+      } else if (type === 'success' || text.includes('SUCCESS') || text.includes('✓')) {
+        color = '#4ec9b0';
+      } else if (text.includes('INFO') || text.includes('info')) {
+        color = '#9cdcfe';
+      }
+
+      logLine.innerHTML = `<span style="color: #858585;">[${timestamp}]</span> <span style="color: ${color};">${escapeHtml(text)}</span>`;
+
+      logConsole.appendChild(logLine);
+
+      // 自动滚动到底部
+      if (logAutoScroll) {
+        logConsole.scrollTop = logConsole.scrollHeight;
+      }
+    }
+
+    // HTML 转义
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // 清空日志
+    function clearLogs() {
+      logLines = [];
+      const logConsole = document.getElementById('logConsole');
+      logConsole.innerHTML = `
+        <div style="color: #888; text-align: center; padding: 20px;">
+          <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
+          <div>日志已清空</div>
+        </div>
+      `;
+    }
+
+    // 切换自动滚动
+    function toggleAutoScroll() {
+      logAutoScroll = !logAutoScroll;
+      const icon = document.getElementById('autoScrollIcon');
+      icon.textContent = logAutoScroll ? '✅' : '⬜';
+
+      if (logAutoScroll) {
+        const logConsole = document.getElementById('logConsole');
+        logConsole.scrollTop = logConsole.scrollHeight;
+      }
+    }
+
+    // 更新日志测试下拉框
+    function updateLogTestFilter() {
+      const logFilter = document.getElementById('logTestFilter');
+      const currentValue = logFilter.value;
+
+      logFilter.innerHTML = '<option value="">选择测试</option>';
+
+      // 只显示正在运行的测试
+      const runningTests = currentTests.filter(t => t.status === 'RUNNING');
+
+      runningTests.forEach(test => {
+        const option = document.createElement('option');
+        option.value = test.testId;
+        option.textContent = `${test.name} (运行中)`;
+        logFilter.appendChild(option);
+      });
+
+      // 如果当前选择的测试还在运行，保持选择
+      if (currentValue && runningTests.find(t => t.testId === currentValue)) {
+        logFilter.value = currentValue;
+      } else if (currentLogTestId && !runningTests.find(t => t.testId === currentLogTestId)) {
+        // 当前测试已结束，停止更新
+        stopLogUpdates();
+        appendLog('✓ 测试已完成', 'success');
+        currentLogTestId = null;
+      }
+    }
+
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      loadScripts();
+      refreshStats();
+
+      // 每 5 秒刷新一次测试状态
+      setInterval(() => {
+        const testsTab = document.querySelector('.tab:nth-child(2)');
+        if (testsTab.classList.contains('active')) {
+          loadTests();
+        }
+        refreshStats();
+
+        // 更新日志测试下拉框
+        updateLogTestFilter();
+      }, 5000);
+    });
 
     // 点击模态框外部关闭
     window.onclick = function (event) {

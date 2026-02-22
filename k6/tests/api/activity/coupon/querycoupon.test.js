@@ -26,7 +26,7 @@ export function queryCoupon(data) {
     }
     const result = commonRequest5(data, api, payload, couponTag)
     if (!result || !result.list) {
-        logger.error('优惠券的查询失败', result)
+        logger.info('优惠券查询结果为空，跳过后续处理', result)
         return {}
     }
     // 用户存放符合金额的对象（充值优惠券和奖励优惠券）

@@ -26,7 +26,7 @@ export function queryGiftPack(data) {
     }
     const result = commonRequest5(data, api, payload, giftPackTag)
     if (!result || !result.list) {
-        logger.error('动礼包查询失败', result)
+        logger.info('活动礼包查询结果为空，跳过后续处理', result)
         return {}
     }
     giftPackInfo.amountcountTotal = result.totalCount
@@ -59,7 +59,7 @@ function queryGiftPackDetail(data, ele) {
     const result = commonRequest(data, api, payload, giftPackTag)
 
     if (!result || !result.list) {
-        logger.error(`${orderNo}动礼包详情查询失败`, result)
+        logger.info(`${orderNo}活动礼包详情查询结果为空，跳过后续处理`, result)
     }
     // 活动礼包里面的奖励金额
     let amount = 0

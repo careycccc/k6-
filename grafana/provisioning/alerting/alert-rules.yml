@@ -1,0 +1,116 @@
+apiVersion: 1
+
+groups:
+  - name: k6_performance_alerts
+    folder: K6 Performance
+    interval: 1m
+    rules:
+      # 高响应时间告警
+      - uid: high_response_time
+        title: P95响应时间过高
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: influxdb
+            model:
+              expr: 'SELECT percentile("value", 95) FROM "http_req_duration" WHERE $timeFilter GROUP BY time(1m)'
+        noDataState: NoData
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: 'P95响应时间超过阈值'
+          description: '当前P95响应时间为 {{ $values.A }}ms，超过2000ms阈值'
+        labels:
+          severity: warning
+          team: performance
+      
+      # 高错误率告警
+      - uid: high_error_rate
+        title: 错误率过高
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: influxdb
+            model:
+              expr: 'SELECT mean("value") FROM "http_req_failed" WHERE $timeFilter GROUP BY time(1m)'
+        noDataState: NoData
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: 'HTTP请求错误率过高'
+          description: '当前错误率为 {{ $values.A | humanizePercentage }}，超过5%阈值'
+        labels:
+          severity: critical
+          team: performance
+      
+      # 低吞吐量告警
+      - uid: low_throughput
+        title: 吞吐量过低
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: influxdb
+            model:
+              expr: 'SELECT sum("value") FROM "http_reqs" WHERE $timeFilter GROUP BY time(1m)'
+        noDataState: NoData
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: '系统吞吐量过低'
+          description: '当前RPS为 {{ $values.A }}，低于10 RPS阈值'
+        labels:
+          severity: info
+          team: performance
+      
+      # P99响应时间告警
+      - uid: p99_response_time
+        title: P99响应时间异常
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: influxdb
+            model:
+              expr: 'SELECT percentile("value", 99) FROM "http_req_duration" WHERE $timeFilter GROUP BY time(1m)'
+        noDataState: NoData
+        execErrState: Alerting
+        for: 3m
+        annotations:
+          summary: 'P99响应时间异常'
+          description: '当前P99响应时间为 {{ $values.A }}ms，超过5000ms阈值'
+        labels:
+          severity: warning
+          team: performance
+      
+      # 检查失败率告警
+      - uid: check_failure_rate
+        title: 检查失败率过高
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: influxdb
+            model:
+              expr: 'SELECT mean("value") FROM "checks" WHERE $timeFilter GROUP BY time(1m)'
+        noDataState: NoData
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: '业务检查失败率过高'
+          description: '当前检查通过率为 {{ $values.A | humanizePercentage }}，低于95%阈值'
+        labels:
+          severity: critical
+          team: performance

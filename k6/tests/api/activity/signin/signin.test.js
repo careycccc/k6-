@@ -29,7 +29,7 @@ export function querySignin(data) {
         }
         result1 = common(data, api, payload1)
     } catch {
-        logger.error('每日签到手动领取查询失败')
+        logger.info('每日签到手动领取查询结果为空，跳过后续处理')
         return signininfo
     }
 
@@ -42,12 +42,12 @@ export function querySignin(data) {
         result2 = common(data, api, payload2)
 
     } catch {
-        logger.error('每日签到自动领取查询失败')
+        logger.info('每日签到自动领取查询结果为空，跳过后续处理')
         return signininfo
     }
 
     if (!result1 || !result1.list || !result2 || !result2.list) {
-        logger.error('每日签到的系统发放或者手动发放查询失败')
+        logger.info('每日签到的系统发放或手动发放查询结果为空，跳过后续处理')
         return {}
     }
     signininfo.amountcountTotal = result1.totalCount + result2.totalCount || 0;
@@ -60,7 +60,7 @@ export function querySignin(data) {
 export function common(data, api, payload) {
     const result = commonRequest3(data, api, payload, signinTag)
     if (!result || !result.list) {
-        logger.error('每日签到查询失败')
+        logger.info('每日签到查询结果为空，跳过后续处理')
         return {}
     }
     return result

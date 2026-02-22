@@ -67,8 +67,8 @@ export function handlerActivefunc(memberActivityData, dataStatisticsActivityList
             console.log('____***&*', memberActivityData)
             console.log('')
         }
-    } catch {
-        logger.error('handlerActivefunc 参数无效');
+    } catch (error) {
+        logger.error('handlerActivefunc 参数无效:', error.message);
     }
 }
 

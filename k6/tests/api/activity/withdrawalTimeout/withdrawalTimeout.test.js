@@ -26,7 +26,7 @@ export function querywithdrawalTimeout(data) {
     }
     const result = commonRequest3(data, api, payload, withdrawalTimeoutTag)
     if (!result || !result.list) {
-        logger.error('超时提现赔付查询失败', result)
+        logger.info('超时提现赔付查询结果为空，跳过后续处理', result)
         return {}
     }
     withdrawalTimeoutInfo.amount = result.summary.totalCompensationAmount || 0;

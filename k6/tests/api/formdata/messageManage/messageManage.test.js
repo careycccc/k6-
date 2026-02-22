@@ -28,7 +28,7 @@ export function queryMessageManage(data) {
     }
     const result = commonRequest5(data, api, payload, messageManageTag)
     if (!result || !result.list) {
-        logger.error('站内信领取记录数据为空', result)
+        logger.info('站内信领取记录查询结果为空，跳过后续处理', result)
         return {}
     }
     // 统计站内信的
