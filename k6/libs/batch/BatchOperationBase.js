@@ -259,7 +259,7 @@ export class BatchOperationBase {
     const startTime = Date.now();
     const progressBar = this.generateProgressBar(current, total);
 
-    console.log(`[${current}/${total}] ${progressBar} ${item.name}`);
+    console.log(`[${current}/${total}] ${progressBar} ${item.name || item.title}`);
     console.log('─'.repeat(60));
 
     try {
@@ -289,7 +289,7 @@ export class BatchOperationBase {
 
       return {
         tag: item.tag,
-        name: item.name,
+        name: item.name || item.title,
         category: item.category,
         success: true,
         duration: duration,
@@ -311,7 +311,7 @@ export class BatchOperationBase {
 
       return {
         tag: item.tag,
-        name: item.name,
+        name: item.name || item.title,
         category: item.category,
         success: false,
         duration: duration,

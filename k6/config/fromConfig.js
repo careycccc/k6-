@@ -37,6 +37,7 @@ import { queryMessageManage, messageManageTag } from '../tests/api/formdata/mess
 export const reportConfigs = [
     {
         title: '报表管理->仪表盘',
+        name: 'Dashboard',
         tag: Dashboardtag,
         func: queryDashboardFunc,
         priority: 1,
@@ -44,6 +45,7 @@ export const reportConfigs = [
     },
     {
         title: '报表管理->数据统计',
+        name: 'Statistics',
         tag: Statisticstag,
         func: queryStatisticsFunc,
         priority: 2,
@@ -51,6 +53,7 @@ export const reportConfigs = [
     },
     {
         title: '报表管理->平台报表',
+        name: 'DailySummaryReport',
         tag: DailySummaryTag,
         func: queryDailySummaryReportFunc,
         priority: 3,
@@ -58,6 +61,7 @@ export const reportConfigs = [
     },
     {
         title: '报表管理->会员报表',
+        name: 'MemberReport',
         tag: memberTag,
         func: queryMemberReportFunc,
         priority: 4,
@@ -73,8 +77,8 @@ export const reportConfigs = [
     },
     {
         title: '活动管理->锦标赛活动',
-        tag: championTag,
         name: 'Champion',
+        tag: championTag,
         func: queryChampion,
         priority: 6,
         description: '查询锦标赛报表的数据'
@@ -89,6 +93,7 @@ export const reportConfigs = [
     },
     {
         title: '活动管理->优惠券活动',
+        name: 'Coupon',
         tag: couponTag,
         func: queryCoupon,
         priority: 8,
@@ -96,6 +101,7 @@ export const reportConfigs = [
     },
     {
         title: '活动管理->每日每周活动',
+        name: 'DailyTasks',
         tag: dailyTasksTag,
         func: queryDailyTasks,
         priority: 9,
@@ -143,6 +149,7 @@ export const reportConfigs = [
     },
     {
         title: '活动管理-> 新版返佣的排行榜活动',
+        name: 'NewAgentRank',
         tag: newagentRankTag,
         func: queryNewagentRank,
         priority: 15,
@@ -150,6 +157,7 @@ export const reportConfigs = [
     },
     {
         title: '活动管理-> 会员排行榜活动',
+        name: 'Ranking',
         tag: rankingTag,
         func: queryRanking,
         priority: 16,
@@ -157,6 +165,7 @@ export const reportConfigs = [
     },
     {
         title: '活动管理-> 充值礼包活动',
+        name: 'RechargeGiftPack',
         tag: rechargeGiftPackTag,
         func: queryRechargeGiftPack,
         priority: 17,
@@ -172,6 +181,7 @@ export const reportConfigs = [
     },
     {
         title: '活动管理-> 红包雨活动',
+        name: 'RedRainActivity',
         tag: redRainActivityTag,
         func: queryRedRainActivity,
         priority: 19,
@@ -179,6 +189,7 @@ export const reportConfigs = [
     },
     {
         title: '活动管理-> 亏损救援金活动',
+        name: 'Rescue',
         tag: rescueTag,
         func: queryRescue,
         priority: 20,
@@ -186,6 +197,7 @@ export const reportConfigs = [
     },
     {
         title: '活动管理-> 每日签到活动',
+        name: 'Signin',
         tag: signinTag,
         func: querySignin,
         priority: 21,
@@ -193,6 +205,7 @@ export const reportConfigs = [
     },
     {
         title: '活动管理-> 周卡月卡活动',
+        name: 'WeekCard',
         tag: weekCardTag,
         func: queryWeekCard,
         priority: 22,
@@ -200,6 +213,7 @@ export const reportConfigs = [
     },
     {
         title: '活动管理-> 超时提现赔付活动',
+        name: 'WithdrawalTimeout',
         tag: withdrawalTimeoutTag,
         func: querywithdrawalTimeout,
         priority: 23,

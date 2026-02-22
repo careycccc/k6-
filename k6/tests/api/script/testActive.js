@@ -1,6 +1,6 @@
 
 import { AdminLogin, adminTag } from '../login/adminlogin.test.js';
-import { queryL3InviteOkReward as queryL3InviteOkRewardfunc } from '../formdata/newagentForm/newagentForm.test.js';
+import { createInmail as createInmailfunc } from '../activity/inmail/createInmail.js';
 import { logger } from '../../../libs/utils/logger.js';
 
 // ==================== setup：全局登录一次 ====================
@@ -18,8 +18,8 @@ export function setup() {
     }
 }
 
-export function queryL3InviteOkReward(data) {
-    queryL3InviteOkRewardfunc(data)
+export function createInmail(data) {
+    createInmailfunc(data)
 }
 
 
@@ -34,11 +34,11 @@ export const options = {
             maxDuration: '10s'
         },
         // 优惠券的场景
-        queryL3InviteOkReward: {
+        createInmail: {
             executor: 'shared-iterations',
             vus: 1,
             iterations: 1,
-            exec: 'queryL3InviteOkReward', // 注意：这里用函数名字符串
+            exec: 'createInmail', // 注意：这里用函数名字符串
             startTime: '2s'
         },
     },

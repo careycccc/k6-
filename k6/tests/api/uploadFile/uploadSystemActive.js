@@ -10,7 +10,7 @@ export const uploadInmailFileTag = 'uploadInmailFile';
 // 导出文件路径配置
 export const FILE_CONFIG = {
     fileCount: systemJumpType.length,
-    basePath: './img/systemActive/',
+    basePath: '../uploadFile/img/systemActive/',
     getFilePaths: () => {
         const paths = [];
         systemJumpType.forEach(item => {

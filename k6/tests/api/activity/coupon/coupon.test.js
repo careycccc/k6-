@@ -46,8 +46,8 @@ export function createCoupons(data) {
   });
 }
 
-// 优惠券的启用
-export function startCoupons(data) {
+// 查询优惠券ID列表（不启用）
+export function queryCouponIds(data) {
   // 必须接收 data 参数来拿 token
   const token = data.token;
   // 优惠券的查询
@@ -66,6 +66,15 @@ export function startCoupons(data) {
       couponIds.push(item.id);
     });
   }
+  return idList;
+}
+
+// 优惠券的启用
+export function startCoupons(data) {
+  // 必须接收 data 参数来拿 token
+  const token = data.token;
+  // 查询优惠券ID列表
+  const idList = queryCouponIds(data);
   // 启动优惠券
   idList.forEach((id) => {
     //logger.info(`启用优惠券 ID: ${id}`);
