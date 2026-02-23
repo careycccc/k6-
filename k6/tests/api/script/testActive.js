@@ -1,6 +1,6 @@
 
 import { AdminLogin, adminTag } from '../login/adminlogin.test.js';
-import { createInmail as createInmailfunc } from '../activity/inmail/createInmail.js';
+import { createChampion as createChampionfunc } from '../activity/champion/createChampion.js';
 import { logger } from '../../../libs/utils/logger.js';
 
 // ==================== setup：全局登录一次 ====================
@@ -18,8 +18,8 @@ export function setup() {
     }
 }
 
-export function createInmail(data) {
-    createInmailfunc(data)
+export function createChampion(data) {
+    createChampionfunc(data)
 }
 
 
@@ -34,11 +34,11 @@ export const options = {
             maxDuration: '10s'
         },
         // 优惠券的场景
-        createInmail: {
+        createChampion: {
             executor: 'shared-iterations',
             vus: 1,
             iterations: 1,
-            exec: 'createInmail', // 注意：这里用函数名字符串
+            exec: 'createChampion', // 注意：这里用函数名字符串
             startTime: '2s'
         },
     },

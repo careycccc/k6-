@@ -155,7 +155,8 @@ export function getUploadFileName() {
             uploadResults
         };
     } catch (error) {
-        logger.error('Setup 发生异常:', error.message);
+        const errorMsg = error && error.message ? error.message : String(error);
+        logger.error('Setup 发生异常:', errorMsg);
         throw error;
     }
 }
