@@ -13,8 +13,8 @@ export function createCodeWashing(data) {
     // TODO: 在这里添加具体的创建逻辑
 
     return {
-        success: true,
+        success: false,
         tag: createCodeWashingTag,
-        message: '洗码活动创建成功'
+        message: '洗码活动不用创建,直接在后台开启就可以了'
     };
 }
