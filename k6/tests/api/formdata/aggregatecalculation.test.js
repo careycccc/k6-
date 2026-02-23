@@ -7,20 +7,24 @@ import { handlerActivefunc } from '../formdata/handlerActive.test.js';
  * @param {Array} results - 包含多个报表结果的数组，每个报表结果应包含success和data属性
  */
 export function performDataComparison(results) {
+    let activeLists = []
+    if (results.length > 4) {
+        activeLists = results.slice(4)
+    }
     try {
         // 添加日志，确认函数被调用
         // 防护：确保 results 是数组，避免 undefined 导致读取 length 出错
 
         // 检查 results 是否有效
         if (!results || results.length < 3) {
-            logger.error('执行数据对比分析函数的接受值的少于三项', results ? results.length : 0);
+            logger.info('执行数据对比分析函数接收的数据少于三项，跳过对比分析', results ? results.length : 0);
             return;
         }
 
         // 检查每个 result 是否有效
         for (let i = 0; i < results.length; i++) {
             if (!results[i] || !results[i].data) {
-                logger.error(`results[${i}] 无效或缺少 data 属性`, results[i]);
+                logger.info(`results[${i}] 数据为空或缺少 data 属性，跳过对比分析`, results[i]);
                 return;
             }
         }
@@ -65,7 +69,7 @@ export function performDataComparison(results) {
 
         // 检查 r1Type 是否存在
         if (!r1Type) {
-            logger.error('未找到类型为 R1 的首充值数据');
+            logger.info('未找到类型为 R1 的首充值数据，数据为空，跳过后续对比');
             return;
         }
 
@@ -73,7 +77,7 @@ export function performDataComparison(results) {
 
         // 检查 dataStatisticsinformation 是否存在
         if (!dataStatisticsinformation) {
-            logger.error('results[1].data.information 不存在');
+            logger.info('results[1].data.information 数据为空，跳过后续对比');
             return;
         }
 
@@ -81,7 +85,7 @@ export function performDataComparison(results) {
 
         // 检查 plantinfoTotal 是否存在
         if (!plantinfoTotal) {
-            logger.error('未找到名称为"平台详情总计"的数据');
+            logger.info('未找到名称为"平台详情总计"的数据，数据为空，跳过后续对比');
             return;
         }
 
@@ -102,7 +106,7 @@ export function performDataComparison(results) {
 
         // 检查 withdrawChannelTotal 是否存在
         if (!withdrawChannelTotal) {
-            logger.error('数据统计的提现模块没有数据');
+            logger.info('数据统计的提现模块数据为空，跳过提现次数对比');
 
         } else {
             let withdrawChannelTotalData = withdrawChannelTotal.data;
@@ -127,7 +131,7 @@ export function performDataComparison(results) {
         let dataStatisticsrechargeUserCount = 0
         // 检查 rechargeChannelTotal 是否存在
         if (!rechargeChannelTotal) {
-            logger.error('数据统计的充值模块没有数据');
+            logger.info('数据统计的充值模块数据为空，跳过后续对比');
             return;
         } else {
             let rechargeChannelTotalData = rechargeChannelTotal.data;
@@ -153,7 +157,7 @@ export function performDataComparison(results) {
 
         // 检查 activityTotal 是否存在
         if (!activityTotal) {
-            logger.error('未找到名称为"活动详情总计"的数据');
+            logger.info('未找到名称为"活动详情总计"的数据，数据为空，跳过后续对比');
             return;
         }
 
@@ -237,7 +241,7 @@ export function performDataComparison(results) {
 
         // 检查 results[2] 是否存在
         if (!results[2] || !results[2].data) {
-            logger.error('results[2] 无效或缺少 data 属性', results[2]);
+            logger.info('results[2] 数据为空或缺少 data 属性，跳过对比分析', results[2]);
             return;
         }
 
@@ -389,7 +393,7 @@ export function performDataComparison(results) {
         // 会员报表数据的对比
         // 添加对 MemberSummary 的检查
         if (!results[3].data.MemberSummary || Object.keys(results[3].data.MemberSummary).length === 0) {
-            logger.error('会员报表的 MemberSummary 为空');
+            logger.info('会员报表的 MemberSummary 数据为空，跳过会员报表对比分析');
             return;
         }
 
@@ -475,7 +479,11 @@ export function performDataComparison(results) {
             logger.info('会员活动数据为空，跳过活动数据对比');
         } else {
             // 专门处理这三个数据的
-            handlerActivefunc(MemberActivityData, dataStatisticsActivityTotalList, DailytotalActiveSummaryinfo, activeLists);
+            if (activeLists.length > 0) {
+                handlerActivefunc(MemberActivityData, dataStatisticsActivityTotalList, DailytotalActiveSummaryinfo, activeLists);
+            } else {
+                handlerActivefunc(MemberActivityData, dataStatisticsActivityTotalList, DailytotalActiveSummaryinfo);
+            }
         }
 
         // 添加日志，确认函数执行完成

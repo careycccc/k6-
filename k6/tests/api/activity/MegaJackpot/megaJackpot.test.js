@@ -1,7 +1,7 @@
 import { commonRequest3 } from '../../formdata/config/formreqeust.js';
 import { stringToTimestamp } from '../../formdata/config/config.js';
 import { groupByAndSum } from '../../common/common.js';
-
+import { logger } from '../../../../libs/utils/logger.js';
 
 //超级大奖
 export const megaJackpotTag = 'MegaJackpot'
@@ -27,9 +27,13 @@ export function queryMegaJackpot(data) {
         pageSize: 200
     }
     const result = commonRequest3(data, api, payload, megaJackpotTag)
-    megaJackpoInfo.amountcountTotal = result.totalCount
-    megaJackpoInfo.amount = result.summary.totalBonusAmount
+    if (!result || !result.list) {
+        logger.info('超级大奖查询结果为空，跳过后续处理', result)
+        return {}
+    }
+    megaJackpoInfo.amountcountTotal = result.totalCount || 0;
+    megaJackpoInfo.amount = result.summary.totalBonusAmount || 0;
     const groupResult = groupByAndSum(result.list, 'userId', 'awardAmount')
-    megaJackpoInfo.amountUsercount = groupResult.count
+    megaJackpoInfo.amountUsercount = groupResult.count || 0;
     return megaJackpoInfo
 }

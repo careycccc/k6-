@@ -1,6 +1,8 @@
 import { stringToTimestamp } from '../../formdata/config/config.js';
 import { groupByAndSum } from '../../common/common.js';
 import { commonRequest5 } from '../../formdata/config/formreqeust.js';
+import { logger } from '../../../../libs/utils/logger.js';
+
 export const giftCodesTag = 'giftCodes'
 
 // 礼品码
@@ -20,6 +22,10 @@ export function queryGiftcodes(data) {
         pageSize: 200
     }
     const result = commonRequest5(data, api, payload, giftCodesTag)
+    if (!result || !result.list) {
+        logger.info('礼品码查询结果为空，跳过后续处理', result)
+        return {}
+    }
     giftcodesInfo.amountcountTotal = result.totalCount
     const groupResult = groupByAndSum(result.list, 'userId', 'amount')
     giftcodesInfo.amountUsercount = groupResult.count

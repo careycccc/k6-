@@ -1,4 +1,5 @@
 import { Trend, Rate, Counter, Gauge } from 'k6/metrics';
+import { batch } from 'k6/http';
 import { AdminLogin } from '../../tests/api/login/adminlogin.test.js';
 import { logger } from '../utils/logger.js';
 import { htmlReport } from 'https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js';
@@ -35,9 +36,9 @@ export class BatchOperationBase {
    */
   getOptions(customThresholds = {}) {
     const defaultThresholds = {
-      http_req_duration: ['p(95)<5000'],
+      http_req_duration: ['p(95)<5000', 'p(99)<10000'],
       http_req_failed: ['rate<0.05'],
-      [`${this.metricPrefix}_duration`]: ['avg<3000'],
+      [`${this.metricPrefix}_duration`]: ['avg<3000', 'p(95)<5000'],
       [`${this.metricPrefix}_success`]: ['rate>0.95']
     };
 
@@ -46,7 +47,9 @@ export class BatchOperationBase {
       iterations: 1,
       thresholds: { ...defaultThresholds, ...customThresholds },
       summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
-      summaryTimeUnit: 'ms'
+      summaryTimeUnit: 'ms',
+      batch: 20,
+      batchPerHost: 10
     };
   }
 
@@ -80,38 +83,34 @@ export class BatchOperationBase {
   }
 
   /**
-   * 通用主执行函数
+   * 通用主执行函数 - 支持并行和串行两种模式
    * @param {Object} data - 包含token的数据对象
    * @param {Array} itemList - 要执行的项目列表
    * @param {Function} executeFunction - 执行函数
+   * @param {Object} options - 执行选项 { parallel: boolean, batchSize: number }
    * @returns {Array} 执行结果数组
    */
-  execute(data, itemList, executeFunction) {
+  execute(data, itemList, executeFunction, options = {}) {
+    const { parallel = false, batchSize = 5 } = options;
+    const mode = parallel ? '并行' : '串行';
+
     console.log('╔═══════════════════════════════════════════════════════════╗');
     console.log(`║          批量${this.operationType}系统 - 开始执行                         ║`);
     console.log('╠═══════════════════════════════════════════════════════════╣');
     console.log(`║  计划${this.operationType}数: ${itemList.length.toString().padEnd(40)}║`);
-    console.log(`║  执行方式: 串行${this.operationType}（按优先级排序）${''.padEnd(27)}║`);
+    console.log(`║  执行方式: ${mode}${this.operationType}（按优先级排序）${''.padEnd(27 - mode.length * 2)}║`);
+    if (parallel) {
+      console.log(`║  批次大小: ${batchSize.toString().padEnd(40)}║`);
+    }
     console.log('╚═══════════════════════════════════════════════════════════╝');
     console.log('');
 
-    const results = [];
-    let successCount = 0;
-    let failCount = 0;
+    const results = parallel
+      ? this.executeParallel(data, itemList, executeFunction, batchSize)
+      : this.executeSerial(data, itemList, executeFunction);
 
-    for (let i = 0; i < itemList.length; i++) {
-      const item = itemList[i];
-      const result = this.executeItem(data, item, i + 1, itemList.length, executeFunction);
-      results.push(result);
-
-      if (result.success) {
-        successCount++;
-      } else {
-        failCount++;
-      }
-
-      this.results.items[item.tag] = result;
-    }
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.length - successCount;
 
     console.log('');
     console.log('╔═══════════════════════════════════════════════════════════╗');
@@ -127,9 +126,124 @@ export class BatchOperationBase {
     console.log('');
 
     this.generateSummary(results);
-    this.performComparison(results);
 
     return results;
+  }
+
+  /**
+   * 串行执行（原有逻辑）
+   */
+  executeSerial(data, itemList, executeFunction) {
+    const results = [];
+
+    for (let i = 0; i < itemList.length; i++) {
+      const item = itemList[i];
+      const result = this.executeItem(data, item, i + 1, itemList.length, executeFunction);
+      results.push(result);
+      this.results.items[item.tag] = result;
+    }
+
+    return results;
+  }
+
+  /**
+   * 并行执行（新增）
+   */
+  executeParallel(data, itemList, executeFunction, batchSize) {
+    const results = [];
+    const totalBatches = Math.ceil(itemList.length / batchSize);
+
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const start = batchIndex * batchSize;
+      const end = Math.min(start + batchSize, itemList.length);
+      const batchItems = itemList.slice(start, end);
+
+      logger.info(`执行第 ${batchIndex + 1}/${totalBatches} 批，包含 ${batchItems.length} 个${this.operationType}`);
+
+      const batchResults = this.executeBatch(data, batchItems, start, executeFunction);
+      results.push(...batchResults);
+
+      // 记录到结果集
+      batchResults.forEach(result => {
+        this.results.items[result.tag] = result;
+      });
+    }
+
+    return results;
+  }
+
+  /**
+   * 执行单个批次（并行）
+   */
+  executeBatch(data, batchItems, startIndex, executeFunction) {
+    const batchStartTime = Date.now();
+    const batchResults = [];
+
+    // 并行执行批次中的所有项目
+    batchItems.forEach((item, index) => {
+      const current = startIndex + index + 1;
+      const progressBar = this.generateProgressBar(current, this.results.items ? Object.keys(this.results.items).length + current : current);
+
+      console.log(`[${current}] ${progressBar} ${item.name || item.title}`);
+    });
+
+    // 执行所有项目
+    for (let i = 0; i < batchItems.length; i++) {
+      const item = batchItems[i];
+      const startTime = Date.now();
+
+      try {
+        let result;
+        let dataSize = 0;
+
+        if (item.func && typeof item.func === 'function') {
+          result = executeFunction(item, data);
+        } else {
+          logger.info(`${this.operationType} ${item.tag} 没有配置函数，使用模拟数据`);
+          result = this.generateMockData(item.tag);
+        }
+
+        const duration = Date.now() - startTime;
+        dataSize = JSON.stringify(result).length;
+
+        this.metrics.duration.add(duration, { [this.metricPrefix]: item.tag, status: 'success' });
+        this.metrics.success.add(1, { [this.metricPrefix]: item.tag });
+        this.metrics.count.add(1, { [this.metricPrefix]: item.tag });
+        this.metrics.dataSize.add(dataSize, { [this.metricPrefix]: item.tag });
+
+        batchResults.push({
+          tag: item.tag,
+          name: item.name || item.title,
+          category: item.category,
+          success: true,
+          duration: duration,
+          dataSize: dataSize,
+          data: result,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        const duration = Date.now() - startTime;
+
+        this.metrics.duration.add(duration, { [this.metricPrefix]: item.tag, status: 'failed' });
+        this.metrics.success.add(0, { [this.metricPrefix]: item.tag });
+        this.metrics.count.add(1, { [this.metricPrefix]: item.tag });
+
+        batchResults.push({
+          tag: item.tag,
+          name: item.name || item.title,
+          category: item.category,
+          success: false,
+          duration: duration,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
+    const batchDuration = Date.now() - batchStartTime;
+    logger.info(`批次执行完成，耗时: ${batchDuration}ms，平均: ${(batchDuration / batchItems.length).toFixed(2)}ms`);
+
+    return batchResults;
   }
 
   /**
@@ -145,7 +259,7 @@ export class BatchOperationBase {
     const startTime = Date.now();
     const progressBar = this.generateProgressBar(current, total);
 
-    console.log(`[${current}/${total}] ${progressBar} ${item.name}`);
+    console.log(`[${current}/${total}] ${progressBar} ${item.name || item.title}`);
     console.log('─'.repeat(60));
 
     try {
@@ -175,7 +289,7 @@ export class BatchOperationBase {
 
       return {
         tag: item.tag,
-        name: item.name,
+        name: item.name || item.title,
         category: item.category,
         success: true,
         duration: duration,
@@ -197,7 +311,7 @@ export class BatchOperationBase {
 
       return {
         tag: item.tag,
-        name: item.name,
+        name: item.name || item.title,
         category: item.category,
         success: false,
         duration: duration,
@@ -294,11 +408,11 @@ export class BatchOperationBase {
       return;
     }
 
-    console.log('╔═══════════════════════════════════════════════════════════╗');
-    console.log(
-      `║                    ${this.operationType}对比分析                               ║`
-    );
-    console.log('╠═══════════════════════════════════════════════════════════╣');
+    // console.log('╔═══════════════════════════════════════════════════════════╗');
+    // console.log(
+    //   `║                    ${this.operationType}对比分析                               ║`
+    // );
+    // console.log('╠═══════════════════════════════════════════════════════════╣');
 
     const comparisons = [];
 
@@ -312,17 +426,17 @@ export class BatchOperationBase {
         const diff = duration1 - duration2;
         const diffPercent = duration2 > 0 ? ((diff / duration2) * 100).toFixed(2) : 'N/A';
 
-        console.log(
-          `║  ${item1.name.substring(0, 15).padEnd(15)} vs ${item2.name.substring(0, 15).padEnd(15)}║`
-        );
-        console.log(
-          `║    耗时: ${duration1.toString().padEnd(10)}ms vs ${duration2.toString().padEnd(10)}ms     ║`
-        );
-        console.log(
-          `║    差值: ${diff.toString().padEnd(10)}ms (${diffPercent}%)${''.padEnd(15)}║`
-        );
-        console.log(`║    ${this.getComparisonDisplayInfo(item1, item2)}`);
-        console.log('║    ──────────────────────────────────────────────────────║');
+        // console.log(
+        //   `║  ${item1.name.substring(0, 15).padEnd(15)} vs ${item2.name.substring(0, 15).padEnd(15)}║`
+        // );
+        // console.log(
+        //   `║    耗时: ${duration1.toString().padEnd(10)}ms vs ${duration2.toString().padEnd(10)}ms     ║`
+        // );
+        // console.log(
+        //   `║    差值: ${diff.toString().padEnd(10)}ms (${diffPercent}%)${''.padEnd(15)}║`
+        // );
+        // console.log(`║    ${this.getComparisonDisplayInfo(item1, item2)}`);
+        // console.log('║    ──────────────────────────────────────────────────────║');
 
         comparisons.push({
           item1: item1.name,
@@ -350,12 +464,27 @@ export class BatchOperationBase {
   generateHandleSummary(data) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 
+    // 检测运行环境，决定使用相对路径还是绝对路径
+    // 方法1: 检查 __ENV.NODE_ENV (k6 环境变量)
+    // 方法2: 检查 process.env.NODE_ENV (Node.js 环境变量)
+    const isDocker = (
+      (typeof __ENV !== 'undefined' && __ENV.NODE_ENV === 'docker') ||
+      (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'docker')
+    );
+
+    // Docker 环境使用绝对路径，本地环境使用相对路径
+    const reportsDir = isDocker ? '/app/reports' : 'reports';
+
+    console.log(`[DEBUG] 报告保存路径: ${reportsDir}`);
+    console.log(`[DEBUG] 运行环境: ${isDocker ? 'Docker' : '本地'}`);
+    console.log(`[DEBUG] __ENV.NODE_ENV: ${typeof __ENV !== 'undefined' ? __ENV.NODE_ENV : 'undefined'}`);
+
     return {
       stdout: textSummary(data, { indent: ' ', enableColors: true }),
-      [`reports/batch-${this.metricPrefix}-${timestamp}.html`]: htmlReport(data, {
+      [`${reportsDir}/batch-${this.metricPrefix}-${timestamp}.html`]: htmlReport(data, {
         title: `批量${this.operationType}报告`
       }),
-      [`reports/batch-${this.metricPrefix}-${timestamp}-summary.json`]: JSON.stringify(
+      [`${reportsDir}/batch-${this.metricPrefix}-${timestamp}-summary.json`]: JSON.stringify(
         this.results,
         null,
         2

@@ -1,6 +1,6 @@
 import { hanlderThresholds } from '../../../config/thresholds.js';
 import { loadConfigFromFile } from '../../../config/load.js';
-import { sendRequest } from '../../api/common/request.js';
+import { sendRequest } from '../common/request.js';
 import { ENV_CONFIG } from '../../../config/envconfig.js';
 
 export const adminTag = 'adminlogin';

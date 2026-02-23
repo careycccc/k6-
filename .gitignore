@@ -91,3 +91,4 @@ docker-compose.override.yml
 *.rw2
 *.rwl
 *.sr2
+*.json

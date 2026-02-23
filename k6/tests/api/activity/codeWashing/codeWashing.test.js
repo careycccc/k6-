@@ -22,8 +22,8 @@ export function queryCodeWashing(data) {
         endTime: fromOptions.endTimeSecend
     }
     const result = commonRequest3(data, api, payload, codeWashingTag)
-    if (!result) {
-        logger.error('洗码查询失败', result)
+    if (!result || !result.list) {
+        logger.info('洗码查询结果为空，跳过后续处理', result)
         return {}
     }
     codeWashingInfo.amountcountTotal = result.totalCount

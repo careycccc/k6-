@@ -27,13 +27,19 @@ export function queryRescue(data) {
         state: 1
     }
     const result = commonRequest5(data, api, payload, rescueTag)
-    if (!result) {
-        logger.error('亏损救援金查询失败')
+    if (!result || !result.list) {
+        logger.info('亏损救援金查询结果为空，跳过后续处理')
         return {}
     }
-    rescueInfo.amountcountTotal = result.totalCount
-    const groupResult = groupByAndSum(result.list, 'userId', 'rewardAmount')
-    rescueInfo.amountUsercount = groupResult.count
-    rescueInfo.amount = groupResult.sum
-    return rescueInfo
+    rescueInfo.amountcountTotal = result.totalCount || 0;
+    if (result.list) {
+        const groupResult = groupByAndSum(result.list, 'userId', 'rewardAmount')
+        rescueInfo.amountUsercount = groupResult.count || 0;
+        rescueInfo.amount = groupResult.sum || 0;
+        return rescueInfo
+    } else {
+        logger.error('亏损救援金result.list为null')
+        return {}
+    }
+
 }

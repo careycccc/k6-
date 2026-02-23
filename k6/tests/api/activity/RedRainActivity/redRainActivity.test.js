@@ -4,7 +4,7 @@ import { groupByAndSum } from '../../common/common.js';
 
 
 // 红包雨
-const redRainActivityTag = 'redRainActivity';
+export const redRainActivityTag = 'redRainActivity';
 let redRainActivityInfo = {
     amount: 0, // 领奖金额
     amountUsercount: 0, // 领奖人数

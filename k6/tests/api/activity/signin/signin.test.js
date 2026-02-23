@@ -2,8 +2,7 @@
 import { commonRequest3 } from '../../formdata/config/formreqeust.js';
 import { fromOptions } from '../../formdata/config/config.js';
 import { logger } from '../../../../libs/utils/logger.js';
-import { groupByAndSum } from '../../common/common.js';
-import { sleep } from 'k6'
+
 
 //每日签到。昨日的手动领取 + 进入的系统发放，才是昨日的完整数据
 
@@ -21,16 +20,16 @@ let signininfo = {
  */
 export function querySignin(data) {
     const api = '/api/CardPlan/GetCardPlanUserRewardRecordPageList'
+    let result1, result2
     try {
         const payload1 = {
             startDate: fromOptions.startTimeSecend,
             endDate: fromOptions.endTimeSecend,
             receiveMode: 2   // 1表示系统发放 2手动领取
         }
-        const result1 = common(data, api, payload1)
-        console.log('()()()(', result1)
+        result1 = common(data, api, payload1)
     } catch {
-        logger.error('每日签到手动领取查询失败')
+        logger.info('每日签到手动领取查询结果为空，跳过后续处理')
         return signininfo
     }
 
@@ -40,30 +39,28 @@ export function querySignin(data) {
             endDate: fromOptions.endTimeLastdaySecend,
             receiveMode: 1
         }
-        const result2 = common(data, api, payload2)
+        result2 = common(data, api, payload2)
 
-        console.log('^^^^^^^', result2)
     } catch {
-        logger.error('每日签到自动领取查询失败')
+        logger.info('每日签到自动领取查询结果为空，跳过后续处理')
         return signininfo
     }
 
-    if (!result1 || !result2) {
-        logger.error('每日签到的系统发放或者手动发放查询失败')
+    if (!result1 || !result1.list || !result2 || !result2.list) {
+        logger.info('每日签到的系统发放或手动发放查询结果为空，跳过后续处理')
         return {}
     }
-    signininfo.amountcountTotal = result1.totalCount + result2.totalCount
-    signininfo.amount = result1.summary.rewardAmountTotal + result2.summary.rewardAmountTotal
-    signininfo.amountUsercount = result1.summary.userCountTotal + result2.summary.userCountTotal
+    signininfo.amountcountTotal = result1.totalCount + result2.totalCount || 0;
+    signininfo.amount = result1.summary.rewardAmountTotal + result2.summary.rewardAmountTotal || 0;
+    signininfo.amountUsercount = result1.summary.userCountTotal + result2.summary.userCountTotal || 0;
 
-    console.log(signininfo)
     return signininfo
 }
 
 export function common(data, api, payload) {
     const result = commonRequest3(data, api, payload, signinTag)
-    if (!result) {
-        logger.error('每日签到查询失败')
+    if (!result || !result.list) {
+        logger.info('每日签到查询结果为空，跳过后续处理')
         return {}
     }
     return result

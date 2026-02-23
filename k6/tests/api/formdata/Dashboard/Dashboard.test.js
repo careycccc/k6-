@@ -69,6 +69,13 @@ let yesterdayDashboardData = {
 export function queryDashboardFunc(data) {
     // 矩阵
     const matrix = queryDashboardMatrixFunc(data)
+
+    // 检查关键数据是否存在
+    if (!matrix || !matrix.betAmount) {
+        logger.info('仪表盘矩阵数据查询结果为空，跳过后续处理')
+        return yesterdayDashboardData
+    }
+
     // 仪表盘的汇总数据
     queryDashboardSummaryFunc(data)
     //仪表盘vip各个阶段的人数统计
@@ -81,10 +88,28 @@ export function queryDashboardFunc(data) {
     queryDashboardTimeFunc(data)
     // 数据汇总
     const sumargData = queryDashboardSummaryFunc(data)
+
+    if (!sumargData || sumargData.length === 0) {
+        logger.info('仪表盘数据汇总查询结果为空，跳过后续处理')
+        return yesterdayDashboardData
+    }
+
     const todaySumargData = sumargData.find(item => item.statisticDate == 'Today')
     const yesterdaySumargData = sumargData.find(item => item.statisticDate == 'Yesterday')
+
+    if (!todaySumargData || !yesterdaySumargData) {
+        logger.error('仪表盘今日或昨日数据汇总不存在')
+        return yesterdayDashboardData
+    }
+
     // 近七日的充值趋势
     const seventoup = queryDashboardRechargeWithdrawFunc(data)
+
+    if (!seventoup || seventoup.length === 0) {
+        logger.info('仪表盘近七日充值提现数据查询结果为空，跳过后续处理')
+        return yesterdayDashboardData
+    }
+
     CalculationDashboard(gameData, matrix, profitData, todaySumargData, yesterdaySumargData, seventoup, vipCount)
     return yesterdayDashboardData
 }
@@ -95,19 +120,32 @@ export function queryDashboardFunc(data) {
  * 
 */
 export function CalculationDashboard(gameData, matrix, sevenBetinfo, todaySumargData, yesterdaySumargData, seventoup, vipCount) {
+    // 检查必要的数据
+    if (!gameData || !Array.isArray(gameData)) {
+        logger.error('游戏数据无效')
+        return
+    }
+
+    if (!matrix || typeof matrix !== 'object') {
+        logger.error('矩阵数据无效')
+        return
+    }
+
     gameData.forEach(element => {
         dashboardGameBetCalculation.gameType.push({ ...element })
-        dashboardGameBetCalculation.betAmount += element.betAmount
-        dashboardGameBetCalculation.betCount += element.betCount
+        dashboardGameBetCalculation.betAmount += element.betAmount || 0
+        dashboardGameBetCalculation.betCount += element.betCount || 0
     });
-    if (sevenBetinfo.length < 0) {
+
+    if (!sevenBetinfo || sevenBetinfo.length < 0) {
         logger.error('近7日投注/盈亏趋势为空')
     }
+
     // vip的统计
-    if (vipCount.length > 0) {
+    if (vipCount && vipCount.length > 0) {
         let count = 0;
         vipCount.forEach(item => {
-            count += item.count
+            count += item.count || 0
         })
         yesterdayDashboardData.vipData.vipCount = count
         yesterdayDashboardData.vipData.vipInfo = [...vipCount]
@@ -116,12 +154,15 @@ export function CalculationDashboard(gameData, matrix, sevenBetinfo, todaySumarg
     }
 
     // 矩阵和游戏饼状图比较,sevenBetinfo[sevenBetinfo.length-1]表示今日的数据
-    const result = compareMatrixAndGame(matrix, dashboardGameBetCalculation, sevenBetinfo[sevenBetinfo.length - 1])
-    const result2 = compareMatrixAndSummary(matrix, todaySumargData, yesterdaySumargData, seventoup[seventoup.length - 1])
-    if (result && result2) {
-        logger.info('仪表盘内数据比对统计正确')
+    if (sevenBetinfo && sevenBetinfo.length > 0) {
+        const result = compareMatrixAndGame(matrix, dashboardGameBetCalculation, sevenBetinfo[sevenBetinfo.length - 1])
+        const result2 = compareMatrixAndSummary(matrix, todaySumargData, yesterdaySumargData, seventoup[seventoup.length - 1])
+        if (result && result2) {
+            logger.info('仪表盘内数据比对统计正确')
+        }
+    } else {
+        logger.error('近7日投注/盈亏趋势数据不足')
     }
-
 }
 
 
@@ -136,8 +177,8 @@ function compareMatrixAndGame(matrix, dashboardGameBetCalculation, sevenBetinfo)
     // 饼图
     const BetCalculation = dashboardGameBetCalculation.betAmount
     const BetCalculationCount = dashboardGameBetCalculation.betCount
-  
-   
+
+
 
     // 矩阵的是投注金额，饼图的是有效投注，时间维度数据统计里面的投注也是有效投注
     let count = 0;
@@ -146,7 +187,7 @@ function compareMatrixAndGame(matrix, dashboardGameBetCalculation, sevenBetinfo)
         console.log('')
         count++
     }
-     // 时间维度数据统计
+    // 时间维度数据统计
     const reportNum = dashboardTimeStatsToday[6].reportNum
     const reportCount = dashboardTimeStatsToday[7].reportNum
 
@@ -281,13 +322,13 @@ function compareMatrixAndSummary(matrix, summary, yesterdaySummary, toup) {
         logger.error('昨日时间维度数据统计为空')
         return false
     }
-    
+
     // 检查dashboardTimeStatsYesterday数组是否有足够的元素
     if (dashboardTimeStatsYesterday.length < 11) {
         logger.error(`昨日时间维度数据统计数组长度不足，需要11个元素，实际只有${dashboardTimeStatsYesterday.length}个`)
         return false
     }
-    
+
     // 检查每个元素是否存在
     for (let i = 0; i < 11; i++) {
         if (!dashboardTimeStatsYesterday[i]) {
@@ -295,7 +336,7 @@ function compareMatrixAndSummary(matrix, summary, yesterdaySummary, toup) {
             return false
         }
     }
-    
+
     let yesterdaySummaryObject = yesterdaySummary.statisticDataRsp
     if (typeof yesterdaySummaryObject != 'object') {
         yesterdaySummaryObject = JSON.parse(yesterdaySummaryObject)

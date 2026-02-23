@@ -10,7 +10,7 @@ export const uploadInmailFileTag = 'uploadInmailFile';
 // 导出文件路径配置
 export const FILE_CONFIG = {
     fileCount: systemJumpType.length,
-    basePath: './img/systemActive/',
+    basePath: '../uploadFile/img/systemActive/',
     getFilePaths: () => {
         const paths = [];
         systemJumpType.forEach(item => {
@@ -25,33 +25,21 @@ export const FILE_CONFIG = {
 // 在模块顶层定义fileContents并预加载所有文件
 const fileContents = {};
 const filePaths = FILE_CONFIG.getFilePaths();
+let filesLoaded = false;
 
-for (const filePath of filePaths) {
-    try {
-        // 检查文件是否存在
-        const file = open(filePath, 'b');
-        fileContents[filePath] = file;
-        logger.info(`✓ 成功加载文件: ${filePath.split('/').pop()}`);
-    } catch (error) {
-        // 安全地获取错误信息
-        let errorMessage = '未知错误';
-        if (error instanceof Error) {
-            errorMessage = error.message;
-        } else if (typeof error === 'object') {
-            errorMessage = JSON.stringify(error);
-        } else if (typeof error === 'string') {
-            errorMessage = error;
-        } else {
-            errorMessage = String(error);
+if (!filesLoaded) {
+    for (const filePath of filePaths) {
+        try {
+            // 检查文件是否存在
+            const file = open(filePath, 'b');
+            fileContents[filePath] = file;
+        } catch (e) {
+            // 简化错误处理，不输出日志避免重复
+            fileContents[filePath] = null;
         }
-
-        logger.error(`✗ 加载文件失败: ${filePath},错误信息: ${errorMessage}`);
-        // 继续加载其他文件，不中断整个流程
-        fileContents[filePath] = null;
     }
+    filesLoaded = true;
 }
-
-logger.info(`文件加载完成: 成功 ${Object.values(fileContents).filter(f => f !== null).length}/${filePaths.length}`);
 
 
 
@@ -148,7 +136,8 @@ export function uploadAllFiles(filePaths, token) {
             try {
                 data = JSON.parse(res.body);
             } catch (parseError) {
-                logger.error(`✗ 文件 ${filePath} 响应解析失败:`, parseError.message);
+                const errorMsg = parseError && parseError.message ? parseError.message : String(parseError);
+                logger.error(`✗ 文件 ${filePath} 响应解析失败:`, errorMsg);
                 results.push({
                     file: filePath,
                     success: false,
@@ -183,12 +172,13 @@ export function uploadAllFiles(filePaths, token) {
                 });
             }
         } catch (error) {
-            logger.error(`✗ 文件 ${filePath} 上传异常:`, error.message);
+            const errorMsg = error && error.message ? error.message : String(error);
+            logger.error(`✗ 文件 ${filePath} 上传异常:`, errorMsg);
             results.push({
                 file: filePath,
                 success: false,
                 error: 'Upload exception',
-                message: error.message
+                message: errorMsg
             });
         }
     }
@@ -256,7 +246,8 @@ export function getUploadFileName() {
             uploadResults
         };
     } catch (error) {
-        logger.error('Setup 发生异常:', error.message);
+        const errorMsg = error && error.message ? error.message : String(error);
+        logger.error('Setup 发生异常:', errorMsg);
         throw error;
     }
 }

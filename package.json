@@ -18,7 +18,18 @@
         "report": "node scripts/generate-report.js",
         "docker:build": "docker build -t k6-test-framework -f docker/Dockerfile .",
         "docker:run": "docker-compose -f docker/docker-compose.yml up k6",
-        "precommit": "npm run lint && npm run format"
+        "precommit": "npm run lint && npm run format",
+        "viz:install": "cd viz/backend && npm install",
+        "viz:start": "cd viz/backend && npm start",
+        "viz:dev": "cd viz/backend && npm run dev",
+        "viz:open": "open http://localhost:3000",
+        "viz:setup": "npm run viz:install && npm run viz:start",
+        "viz:check-port": "lsof -ti:3000 || echo 'Port 3000 is available'",
+        "docker:up": "docker-compose up -d",
+        "docker:down": "docker-compose down",
+        "docker:logs": "docker-compose logs -f",
+        "docker:build": "docker-compose build",
+        "docker:clean": "docker-compose down -v"
     },
     "keywords": [
         "k6",

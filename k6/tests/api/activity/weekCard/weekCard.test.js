@@ -34,15 +34,14 @@ export function queryWeekCard(data) {
         console.error('错误堆栈:', error.stack);
         return weekCardinfo;
     }
-
     // 检查 result 是否有效
-    if (!result) {
-        logger.error('周卡月卡查询失败')
+    if (!result || !result.list) {
+        logger.error('周卡月卡查询为空', result)
         return weekCardinfo;
     }
 
     // 检查 result.list 是否存在
-    if (!result.list && result.list !== undefined) {
+    if (!result || !result.list && result.list !== undefined) {
         logger.error('周卡月卡查询结果中没有list属性');
         return weekCardinfo;
     }
@@ -63,7 +62,7 @@ export function queryWeekCard(data) {
     weekCardinfo.amountcountTotal = result.totalCount || 0;
 
     // 检查 result.summary 是否存在
-    if (!result.summary) {
+    if (!result || !result.summary) {
         logger.error('周卡月卡查询结果中没有summary属性');
         // 如果没有 summary，尝试从 list 中计算总金额
         const totalAmount = result.list.reduce((sum, item) => sum + (item.rewardAmount || 0), 0);
@@ -89,7 +88,6 @@ export function queryWeekCard(data) {
     // 按照 userId 分组并统计人数
     const groupResult = groupByAndSum(result.list, 'userId', 'rewardAmount')
     weekCardinfo.amountUsercount = groupResult.count;
-
 
     return weekCardinfo;
 }

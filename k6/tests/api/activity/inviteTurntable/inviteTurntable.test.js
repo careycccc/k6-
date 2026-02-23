@@ -1,6 +1,7 @@
 import { fromOptions } from '../../formdata/config/config.js';
 import { commonRequest5 } from '../../formdata/config/formreqeust.js';
 import { groupByAndSum } from '../../common/common.js';
+import { logger } from '../../../../libs/utils/logger.js';
 
 // 邀请转盘
 let inviteTurntableInfo = {
@@ -23,11 +24,15 @@ export function queryInviteTurntable(data) {
         endDay: fromOptions.endTime,
     }
     const result = commonRequest5(data, api, payload, inviteTurntableTag)
-
-    inviteTurntableInfo.amountcountTotal = result.totalCount
+    if (!result || !result.list) {
+        logger.info('邀请转盘查询结果为空，跳过后续处理', result)
+        return {}
+    }
+    inviteTurntableInfo.amountcountTotal = result.totalCount || 0;
     const groupResult = groupByAndSum(result.list, 'userId', 'withdrawAmount')
-    inviteTurntableInfo.amount = groupResult.sum
-    inviteTurntableInfo.amountUsercount = groupResult.count
+    inviteTurntableInfo.amount = groupResult.sum || 0;
+    inviteTurntableInfo.amountUsercount = groupResult.count || 0;
+    //console.log(inviteTurntableInfo)
     return inviteTurntableInfo
 }
 

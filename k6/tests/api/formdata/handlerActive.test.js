@@ -7,9 +7,9 @@ import { logger } from '../../../libs/utils/logger.js';
  * @param {Object} memberActivityData - 会员活动数据
  * @param {Array} dataStatisticsActivityList - 数据统计活动列表
  * @param {Object} dailyActiveSummary - 每日活动汇总
- * @param {Array} activeLists 所有后台活动的查询结果统计
+ * @param {Array} args[0] 所有后台活动的查询结果统计
  */
-export function handlerActivefunc(memberActivityData, dataStatisticsActivityList, dailyActiveSummary, activeLists) {
+export function handlerActivefunc(memberActivityData, dataStatisticsActivityList, dailyActiveSummary, ...args) {
     try {
         // 检查参数是否有效
         const dataStatisticsActivityData = dataStatisticsActivityList.length
@@ -17,16 +17,19 @@ export function handlerActivefunc(memberActivityData, dataStatisticsActivityList
 
         if (dataStatisticsActivityData < 0) {
             logger.error('dataStatisticsActivityList 参数无效');
+            console.log('')
             return;
         }
 
         if (dailyActiveSummaryData < 0) {
             logger.error('dailyActiveSummary 参数无效');
+            console.log('')
             return;
         }
         // 检查 memberActivityData 是否为空对象
         if (Object.keys(memberActivityData).length === 0) {
             logger.info('memberActivityData 会员活动数据为空');
+            console.log('')
             return;
         }
 
@@ -49,26 +52,23 @@ export function handlerActivefunc(memberActivityData, dataStatisticsActivityList
 
         const dailytotalActivityAmount = dailyActiveSummary.summary.totalActivityAmount
         // 比较每日活动的活动金额 和 会员活动的金额
-        if (dailytotalActivityAmount !== memberActivityData.totalAllActivityAmount) {
-            logger.error(`每日活动的活动金额:${dailytotalActivityAmount} 和 会员活动的金额${memberActivityData.totalAllActivityAmoun} 不匹配`);
+        if (dailytotalActivityAmount.toFixed(2) != memberActivityData.totalAllActivityAmount) {
+            logger.error(`每日活动的活动金额:${dailytotalActivityAmount} 和 会员活动的金额${memberActivityData.totalAllActivityAmount} 不匹配`);
+            console.log('')
         }
-
-        // 每日活动和各个活动的查询进行比较了。。。。。
-        // const activeListsData = activeLists.length
-        // if (activeListsData < 0) {
-        //     logger.error('activeLists 参数无效');
-        // }
-        // if (activeListsData != dataStatisticsActivityData) {
-        //     logger.error(`activeLists 参数无效,activeListsData:${activeListsData},dataStatisticsActivityData:${dataStatisticsActivityData}`);
-        // }
-        // if (activeListsData != dailyActiveSummaryData) {
-        //     logger.error(`activeLists 参数无效,activeListsData:${activeListsData},dailyActiveSummaryData:${dailyActiveSummaryData}`);
-        // }
-
-
-
-    } catch {
-        logger.error('handlerActivefunc 参数无效');
+        let activeLists = []
+        if (args.length > 0) {
+            activeLists = args[0]
+            // 获取的数据直接和每日活动报表里面的数据进行比较
+            console.log('')
+            console.log('获取的数据----', activeLists)
+            console.log('')
+            console.log('')
+            console.log('____***&*', memberActivityData)
+            console.log('')
+        }
+    } catch (error) {
+        logger.error('handlerActivefunc 参数无效:', error.message);
     }
 }
 

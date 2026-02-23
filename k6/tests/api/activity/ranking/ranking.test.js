@@ -7,7 +7,7 @@ import { sleep } from 'k6'
 export const rankingTag = 'ranking'
 
 
-// 礼品码
+// 会员排行榜
 let rankingInfo = {
     amount: 0, // 领奖金额
     amountUsercount: 0, // 领奖人数
@@ -63,16 +63,16 @@ export function queryRanking(data) {
         const result = commonRequest5(data, api, payload, rankingTag)
 
         // 检查 result 是否有效
-        if (!result) {
-            logger.error(`查询${i}榜返回空结果`);
+        if (!result || !result.list) {
+            logger.info(`查询${i}榜结果为空，跳过该榜单处理`);
             continue;
         }
 
         //console.log(`查询${i}榜结果:`, result);
 
         // 检查 result.list 是否存在
-        if (!result.list) {
-            logger.error(`查询${i}榜的list不存在`);
+        if (!result || !result.list.list) {
+            logger.info(`查询${i}榜的list为空，跳过该榜单处理`);
             continue;
         }
 

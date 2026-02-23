@@ -90,7 +90,7 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
       // 基于HTTP状态码、业务状态码和消息判断响应是否成功
       const httpStatusSuccess = response.status >= 200 && response.status < 300;
       const businessStatusSuccess = parsedBody.msgCode === 0;
-      // const businessMessageSuccess = parsedBody.msg === 'Succeed';
+      const businessMessageSuccess = parsedBody.msg === 'Succeed';
 
       // 只有HTTP状态码在200-300之间，且业务状态码为0，且消息为"Succeed"才认为响应成功
       const checkPassed = httpStatusSuccess && businessStatusSuccess;
@@ -101,20 +101,32 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
       if (checkPassed) {
         //logger.info('响应完全成功(HTTP + 业务 + 检查)');
       } else {
-        logger.error(`${api} 响应失败`, {
-          status: response.status,
-          httpStatusSuccess,
-          msgCode: parsedBody.msgCode,
-          businessStatusSuccess,
-          msg: parsedBody.msg,
-          businessMessageSuccess
-        });
+        // 如果是错误码 6026，使用警告级别而不是错误级别
+        if (parsedBody.msgCode === 6026) {
+          logger.warn(`${api} 响应警告`, {
+            status: response.status,
+            httpStatusSuccess,
+            msgCode: parsedBody.msgCode,
+            businessStatusSuccess,
+            msg: parsedBody.msg,
+            businessMessageSuccess
+          });
+        } else {
+          logger.error(`${api} 响应失败`, {
+            status: response.status,
+            httpStatusSuccess,
+            msgCode: parsedBody.msgCode,
+            businessStatusSuccess,
+            msg: parsedBody.msg,
+            businessMessageSuccess
+          });
+        }
       }
 
       // 保存响应数据
       ResponseResult = parsedBody || null;
-      Token = parsedBody.data?.token || '';
-      ResponseData = parsedBody.data || null;
+      Token = (parsedBody && parsedBody.data && parsedBody.data.token) || '';
+      ResponseData = (parsedBody && parsedBody.data) || null;
 
     } catch (error) {
       // 修复错误日志显示 [object Object] 的问题

@@ -8,7 +8,7 @@ export const uploadInmailFileTag = 'uploadInmailFile';
 // 导出文件路径配置
 export const FILE_CONFIG = {
     fileCount: 1,
-    basePath: './img/inmail/',
+    basePath: '../uploadFile/img/inmail/',
     getFilePaths: () => {
         const paths = [];
         for (let i = 1; i <= FILE_CONFIG.fileCount; i++) {
@@ -155,7 +155,8 @@ export function getUploadFileName() {
             uploadResults
         };
     } catch (error) {
-        logger.error('Setup 发生异常:', error.message);
+        const errorMsg = error && error.message ? error.message : String(error);
+        logger.error('Setup 发生异常:', errorMsg);
         throw error;
     }
 }

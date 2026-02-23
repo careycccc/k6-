@@ -1,10 +1,6 @@
 
 import { AdminLogin, adminTag } from '../login/adminlogin.test.js';
-import { querySignin as querySigninfunc } from '../activity/signin/signin.test.js';
-
-
-
-
+import { createInviteTurntable as createInviteTurntablefunc } from '../activity/inviteTurntable/createInviteTurntable.js';
 import { logger } from '../../../libs/utils/logger.js';
 
 // ==================== setup：全局登录一次 ====================
@@ -22,8 +18,8 @@ export function setup() {
     }
 }
 
-export function querySignin(data) {
-    querySigninfunc(data)
+export function createInviteTurntable(data) {
+    createInviteTurntablefunc(data)
 }
 
 
@@ -38,11 +34,11 @@ export const options = {
             maxDuration: '10s'
         },
         // 优惠券的场景
-        querySignin: {
+        createInviteTurntable: {
             executor: 'shared-iterations',
             vus: 1,
             iterations: 1,
-            exec: 'querySignin', // 注意：这里用函数名字符串
+            exec: 'createInviteTurntable',
             startTime: '2s'
         },
     },
