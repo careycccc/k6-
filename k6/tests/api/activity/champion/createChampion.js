@@ -35,6 +35,16 @@ export function createChampion(data) {
             };
         }
 
+        // 检查并配置锦标赛设置
+        const settingResult = checkAndConfigureChampionSettings(data);
+        if (!settingResult.success) {
+            return {
+                success: false,
+                tag: createChampionTag,
+                message: `配置锦标赛设置失败: ${settingResult.message}`
+            };
+        }
+
         // 处理图片上传
         const imageResult = handleImageUpload(data, 'championImagePath', uploadChampionImage, createChampionTag);
 
@@ -99,6 +109,119 @@ export function createChampion(data) {
             success: false,
             tag: createChampionTag,
             message: `创建锦标赛活动失败: ${errorMsg}`
+        };
+    }
+}
+
+/**
+ * 检查并配置锦标赛设置
+ * @param {*} data
+ * @returns {Object} 配置结果 { success, message }
+ */
+function checkAndConfigureChampionSettings(data) {
+    const token = data.token;
+    const getSettingApi = '/api/Champion/GetChampionSetting';
+    const updateSettingApi = '/api/Champion/UpdateChampionSetting';
+
+    try {
+        // 1. 获取当前配置
+        logger.info(`[${createChampionTag}] 获取锦标赛配置`);
+        const settingsResult = sendRequest({}, getSettingApi, createChampionTag, false, token);
+
+        logger.info(`[${createChampionTag}] 配置响应: ${JSON.stringify(settingsResult)}`);
+
+        // 检查响应是否有效
+        if (!settingsResult) {
+            logger.error(`[${createChampionTag}] 获取配置失败: 响应为空`);
+            return {
+                success: false,
+                message: '获取配置失败: 响应为空'
+            };
+        }
+
+        // 判断响应格式：如果有 msgCode 字段，说明是标准响应格式
+        let settings;
+        if (settingsResult.msgCode !== undefined) {
+            // 标准响应格式
+            if (settingsResult.msgCode !== 0) {
+                logger.error(`[${createChampionTag}] 获取配置失败: msgCode=${settingsResult.msgCode}, msg=${settingsResult.msg}`);
+                return {
+                    success: false,
+                    message: `获取配置失败: ${settingsResult.msg || '未知错误'}`
+                };
+            }
+            settings = settingsResult.data;
+        } else {
+            // 直接返回配置对象
+            settings = settingsResult;
+        }
+
+        if (!settings) {
+            logger.error(`[${createChampionTag}] 配置数据为空`);
+            return {
+                success: false,
+                message: '配置数据为空'
+            };
+        }
+
+        logger.info(`[${createChampionTag}] 配置数据: ${JSON.stringify(settings)}`);
+
+        // 2. 检查并启用锦标赛功能
+        const isOpenChampion = settings.isOpenChampion;
+        logger.info(`[${createChampionTag}] isOpenChampion: ${JSON.stringify(isOpenChampion)}, value1: ${isOpenChampion?.value1}`);
+
+        if (isOpenChampion && isOpenChampion.value1 !== "1") {
+            logger.info(`[${createChampionTag}] 锦标赛功能未启用，正在启用...`);
+            const enablePayload = {
+                "settingKey": "IsOpenChampion",
+                "value1": "1"
+            };
+            const enableResult = sendRequest(enablePayload, updateSettingApi, createChampionTag, false, token);
+
+            if (!enableResult || enableResult.msgCode !== 0) {
+                return {
+                    success: false,
+                    message: `启用锦标赛功能失败: ${enableResult?.msg || '未知错误'}`
+                };
+            }
+            logger.info(`[${createChampionTag}] 锦标赛功能已启用`);
+            sleep(0.3);
+        } else {
+            logger.info(`[${createChampionTag}] 锦标赛功能已启用，跳过`);
+        }
+
+        // 3. 检查并设置打码量倍数
+        const championCodingMultiple = settings.championCodingMultiple;
+        logger.info(`[${createChampionTag}] championCodingMultiple: ${JSON.stringify(championCodingMultiple)}, value1: ${championCodingMultiple?.value1}`);
+
+        if (championCodingMultiple && championCodingMultiple.value1 === "0") {
+            logger.info(`[${createChampionTag}] 打码量倍数未设置，正在设置为2...`);
+            const codingPayload = {
+                "settingKey": "ChampionCodingMultiple",
+                "value1": "2"
+            };
+            const codingResult = sendRequest(codingPayload, updateSettingApi, createChampionTag, false, token);
+
+            if (!codingResult || codingResult.msgCode !== 0) {
+                return {
+                    success: false,
+                    message: `设置打码量倍数失败: ${codingResult?.msg || '未知错误'}`
+                };
+            }
+            logger.info(`[${createChampionTag}] 打码量倍数已设置为2`);
+            sleep(0.3);
+        } else {
+            logger.info(`[${createChampionTag}] 打码量倍数已设置(${championCodingMultiple?.value1 || '未知'})，跳过`);
+        }
+
+        return { success: true };
+
+    } catch (error) {
+        const errorMsg = getErrorMessage(error);
+        logger.error(`[${createChampionTag}] 配置锦标赛设置时发生错误: ${errorMsg}`);
+        return {
+            success: false,
+            message: `配置失败: ${errorMsg}`
         };
     }
 }

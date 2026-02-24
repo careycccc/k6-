@@ -29,6 +29,16 @@ export function createInviteTurntable(data) {
             };
         }
 
+        // 检查并配置邀请转盘设置
+        const settingResult = checkAndConfigureInviteTurntableSettings(data);
+        if (!settingResult.success) {
+            return {
+                success: false,
+                tag: createInviteTurntableTag,
+                message: `配置邀请转盘设置失败: ${settingResult.message}`
+            };
+        }
+
         // 定义两种配置模式
         const configs = [
             {
@@ -164,6 +174,10 @@ function createInviteTurntableConfig(data, config) {
         if (result && result.msgCode === 0) {
             logger.info(`[${createInviteTurntableTag}] ${config.name}配置成功 - ${payload.configName}`);
             return { success: true };
+        } else if (result && result.msgCode === 6040) {
+            // 错误码 6040：优先级重复，说明配置已存在
+            logger.info(`[${createInviteTurntableTag}] ${config.name}配置已存在，跳过 - ${payload.configName}`);
+            return { success: true };
         } else {
             return {
                 success: false,
@@ -177,6 +191,201 @@ function createInviteTurntableConfig(data, config) {
         return {
             success: false,
             message: `请求异常: ${errorMsg}`
+        };
+    }
+}
+
+/**
+ * 检查并配置邀请转盘设置
+ * @param {*} data
+ * @returns {Object} 配置结果 { success, message }
+ */
+function checkAndConfigureInviteTurntableSettings(data) {
+    const token = data.token;
+    const getSettingApi = '/api/InvitedWheel/GetConfig';
+    const updateSettingApi = '/api/InvitedWheel/UpdateConfig';
+
+    try {
+        // 1. 获取当前配置
+        logger.info(`[${createInviteTurntableTag}] 获取邀请转盘配置`);
+        const settingsResult = sendRequest({}, getSettingApi, createInviteTurntableTag, false, token);
+
+        //logger.info(`[${createInviteTurntableTag}] 配置响应: ${JSON.stringify(settingsResult)}`);
+
+        // 检查响应是否有效
+        if (!settingsResult) {
+            logger.error(`[${createInviteTurntableTag}] 获取配置失败: 响应为空`);
+            return {
+                success: false,
+                message: '获取配置失败: 响应为空'
+            };
+        }
+
+        // 判断响应格式
+        let settings;
+        if (settingsResult.msgCode !== undefined) {
+            // 标准响应格式
+            if (settingsResult.msgCode !== 0) {
+                logger.error(`[${createInviteTurntableTag}] 获取配置失败: msgCode=${settingsResult.msgCode}, msg=${settingsResult.msg}`);
+                return {
+                    success: false,
+                    message: `获取配置失败: ${settingsResult.msg || '未知错误'}`
+                };
+            }
+            settings = settingsResult.data;
+        } else {
+            // 直接返回配置对象
+            settings = settingsResult;
+        }
+
+        if (!settings) {
+            logger.error(`[${createInviteTurntableTag}] 配置数据为空`);
+            return {
+                success: false,
+                message: '配置数据为空'
+            };
+        }
+
+        // 2. 检查并启用邀请转盘活动开关
+        const isOpenInvitedWheel = settings.isOpenInvitedWheel;
+        if (isOpenInvitedWheel && isOpenInvitedWheel.value1 !== "1") {
+            logger.info(`[${createInviteTurntableTag}] 邀请转盘活动未启用，正在启用...`);
+            const enablePayload = {
+                "settingKey": "IsOpenInvitedWheel",
+                "value1": "1"
+            };
+            const enableResult = sendRequest(enablePayload, updateSettingApi, createInviteTurntableTag, false, token);
+
+            if (!enableResult || (enableResult.msgCode !== undefined && enableResult.msgCode !== 0)) {
+                return {
+                    success: false,
+                    message: `启用邀请转盘活动失败: ${enableResult?.msg || '未知错误'}`
+                };
+            }
+            logger.info(`[${createInviteTurntableTag}] 邀请转盘活动已启用`);
+            sleep(0.3);
+        } else {
+            logger.info(`[${createInviteTurntableTag}] 邀请转盘活动已启用，跳过`);
+        }
+
+        // 3. 检查并设置是否提现到主钱包
+        const isInvitedWheelCashToMainWallet = settings.isInvitedWheelCashToMainWallet;
+        if (isInvitedWheelCashToMainWallet && isInvitedWheelCashToMainWallet.value1 !== "0") {
+            logger.info(`[${createInviteTurntableTag}] 提现到主钱包设置不正确，正在设置为0...`);
+            const cashPayload = {
+                "settingKey": "IsInvitedWheelCashToMainWallet",
+                "value1": "0"
+            };
+            const cashResult = sendRequest(cashPayload, updateSettingApi, createInviteTurntableTag, false, token);
+
+            if (!cashResult || (cashResult.msgCode !== undefined && cashResult.msgCode !== 0)) {
+                return {
+                    success: false,
+                    message: `设置提现到主钱包失败: ${cashResult?.msg || '未知错误'}`
+                };
+            }
+            logger.info(`[${createInviteTurntableTag}] 提现到主钱包已设置为0`);
+            sleep(0.3);
+        } else {
+            logger.info(`[${createInviteTurntableTag}] 提现到主钱包已正确设置(${isInvitedWheelCashToMainWallet?.value1 || '未知'})，跳过`);
+        }
+
+        // 4. 检查并设置提现到主钱包打码量倍数
+        const invitedWheelWithdrawCashCodeWash = settings.invitedWheelWithdrawCashCodeWash;
+        if (invitedWheelWithdrawCashCodeWash && invitedWheelWithdrawCashCodeWash.value1 === "0") {
+            logger.info(`[${createInviteTurntableTag}] 提现打码量倍数未设置，正在设置为4...`);
+            const codeWashPayload = {
+                "settingKey": "InvitedWheelWithdrawCashCodeWash",
+                "value1": "4"
+            };
+            const codeWashResult = sendRequest(codeWashPayload, updateSettingApi, createInviteTurntableTag, false, token);
+
+            if (!codeWashResult || (codeWashResult.msgCode !== undefined && codeWashResult.msgCode !== 0)) {
+                return {
+                    success: false,
+                    message: `设置提现打码量倍数失败: ${codeWashResult?.msg || '未知错误'}`
+                };
+            }
+            logger.info(`[${createInviteTurntableTag}] 提现打码量倍数已设置为4`);
+            sleep(0.3);
+        } else {
+            logger.info(`[${createInviteTurntableTag}] 提现打码量倍数已设置(${invitedWheelWithdrawCashCodeWash?.value1 || '未知'})，跳过`);
+        }
+
+        // 5. 检查并设置周期时间
+        const invitedWheelCycleTime = settings.invitedWheelCycleTime;
+        if (invitedWheelCycleTime && invitedWheelCycleTime.value1 === "0") {
+            logger.info(`[${createInviteTurntableTag}] 周期时间未设置，正在设置为72...`);
+            const cyclePayload = {
+                "settingKey": "InvitedWheelCycleTime",
+                "value1": "72"
+            };
+            const cycleResult = sendRequest(cyclePayload, updateSettingApi, createInviteTurntableTag, false, token);
+
+            if (!cycleResult || (cycleResult.msgCode !== undefined && cycleResult.msgCode !== 0)) {
+                return {
+                    success: false,
+                    message: `设置周期时间失败: ${cycleResult?.msg || '未知错误'}`
+                };
+            }
+            logger.info(`[${createInviteTurntableTag}] 周期时间已设置为72`);
+            sleep(0.3);
+        } else {
+            logger.info(`[${createInviteTurntableTag}] 周期时间已设置(${invitedWheelCycleTime?.value1 || '未知'})，跳过`);
+        }
+
+        // 6. 检查并启用邀请次数是否自动旋转
+        const inviteAutoRotate = settings.inviteAutoRotate;
+        if (inviteAutoRotate && inviteAutoRotate.value1 !== "1") {
+            logger.info(`[${createInviteTurntableTag}] 邀请自动旋转未启用，正在启用...`);
+            const autoRotatePayload = {
+                "settingKey": "InviteAutoRotate",
+                "value1": "1"
+            };
+            const autoRotateResult = sendRequest(autoRotatePayload, updateSettingApi, createInviteTurntableTag, false, token);
+
+            if (!autoRotateResult || (autoRotateResult.msgCode !== undefined && autoRotateResult.msgCode !== 0)) {
+                return {
+                    success: false,
+                    message: `启用邀请自动旋转失败: ${autoRotateResult?.msg || '未知错误'}`
+                };
+            }
+            logger.info(`[${createInviteTurntableTag}] 邀请自动旋转已启用`);
+            sleep(0.3);
+        } else {
+            logger.info(`[${createInviteTurntableTag}] 邀请自动旋转已启用，跳过`);
+        }
+
+        // 7. 检查并设置首次邀请中奖生效系数
+        const firstInvitedSpinWinProbabilityRate = settings.firstInvitedSpinWinProbabilityRate;
+        if (firstInvitedSpinWinProbabilityRate && firstInvitedSpinWinProbabilityRate.value1 === "0") {
+            logger.info(`[${createInviteTurntableTag}] 首次邀请中奖生效系数未设置，正在设置为30...`);
+            const probabilityPayload = {
+                "settingKey": "FirstInvitedSpinWinProbabilityRate",
+                "value1": "30"
+            };
+            const probabilityResult = sendRequest(probabilityPayload, updateSettingApi, createInviteTurntableTag, false, token);
+
+            if (!probabilityResult || (probabilityResult.msgCode !== undefined && probabilityResult.msgCode !== 0)) {
+                return {
+                    success: false,
+                    message: `设置首次邀请中奖生效系数失败: ${probabilityResult?.msg || '未知错误'}`
+                };
+            }
+            logger.info(`[${createInviteTurntableTag}] 首次邀请中奖生效系数已设置为30`);
+            sleep(0.3);
+        } else {
+            logger.info(`[${createInviteTurntableTag}] 首次邀请中奖生效系数已设置(${firstInvitedSpinWinProbabilityRate?.value1 || '未知'})，跳过`);
+        }
+
+        return { success: true };
+
+    } catch (error) {
+        const errorMsg = getErrorMessage(error);
+        logger.error(`[${createInviteTurntableTag}] 配置邀请转盘设置时发生错误: ${errorMsg}`);
+        return {
+            success: false,
+            message: `配置失败: ${errorMsg}`
         };
     }
 }

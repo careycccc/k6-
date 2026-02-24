@@ -33,6 +33,16 @@ export function createDailyTasks(data) {
             };
         }
 
+        // 检查并配置每日每周任务设置
+        const settingResult = checkAndConfigureDailyTasksSettings(data);
+        if (!settingResult.success) {
+            return {
+                success: false,
+                tag: createDailyTasksTag,
+                message: `配置每日每周任务设置失败: ${settingResult.message}`
+            };
+        }
+
         // 恢复图片上传功能 - taskLogoType=1 是支持的
         const uploadFunctions = [uploadDailyTasksImage1, uploadDailyTasksImage2];
         const cacheKeys = ['dailyTasksImagePath1', 'dailyTasksImagePath2'];
@@ -162,6 +172,100 @@ export function createDailyTasks(data) {
             success: false,
             tag: createDailyTasksTag,
             message: `创建每日任务活动失败: ${errorMsg}`
+        };
+    }
+}
+
+/**
+ * 检查并配置每日每周任务设置
+ * @param {*} data
+ * @returns {Object} 配置结果 { success, message }
+ */
+function checkAndConfigureDailyTasksSettings(data) {
+    const token = data.token;
+    const getSettingApi = '/api/DayWeek/GetConfig';
+    const updateSettingApi = '/api/DayWeek/UpdateConfig';
+
+    try {
+        // 1. 获取当前配置
+        logger.info(`[${createDailyTasksTag}] 获取每日每周任务配置`);
+        const settingsResult = sendRequest({}, getSettingApi, createDailyTasksTag, false, token);
+
+        logger.info(`[${createDailyTasksTag}] 配置响应: ${JSON.stringify(settingsResult)}`);
+
+        // 检查响应是否有效
+        if (!settingsResult) {
+            logger.error(`[${createDailyTasksTag}] 获取配置失败: 响应为空`);
+            return {
+                success: false,
+                message: '获取配置失败: 响应为空'
+            };
+        }
+
+        // 判断响应格式
+        let isOpenDailyWeeklyTask;
+
+        if (settingsResult.msgCode !== undefined) {
+            // 标准响应格式（有 msgCode 和 data）
+            if (settingsResult.msgCode !== 0) {
+                logger.error(`[${createDailyTasksTag}] 获取配置失败: msgCode=${settingsResult.msgCode}, msg=${settingsResult.msg}`);
+                return {
+                    success: false,
+                    message: `获取配置失败: ${settingsResult.msg || '未知错误'}`
+                };
+            }
+            const settings = settingsResult.data;
+            if (!settings) {
+                logger.error(`[${createDailyTasksTag}] 配置数据为空`);
+                return {
+                    success: false,
+                    message: '配置数据为空'
+                };
+            }
+            isOpenDailyWeeklyTask = settings.isOpenDailyWeeklyTask;
+        } else if (settingsResult.settingKey === "IsOpenDailyWeeklyTask") {
+            // 直接返回单个配置对象
+            isOpenDailyWeeklyTask = settingsResult;
+        } else {
+            logger.error(`[${createDailyTasksTag}] 无法识别的响应格式`);
+            return {
+                success: false,
+                message: '无法识别的响应格式'
+            };
+        }
+
+        // 2. 检查并启用每日每周任务功能
+        logger.info(`[${createDailyTasksTag}] isOpenDailyWeeklyTask: ${JSON.stringify(isOpenDailyWeeklyTask)}, value1: ${isOpenDailyWeeklyTask?.value1}`);
+
+        if (isOpenDailyWeeklyTask && isOpenDailyWeeklyTask.value1 !== "1") {
+            logger.info(`[${createDailyTasksTag}] 每日每周任务功能未启用，正在启用...`);
+            const enablePayload = {
+                "value1": "1",
+                "value2": "",
+                "settingKey": "isOpenDailyWeeklyTask"
+            };
+            const enableResult = sendRequest(enablePayload, updateSettingApi, createDailyTasksTag, false, token);
+
+            if (!enableResult || enableResult.msgCode !== 0) {
+                return {
+                    success: false,
+                    message: `启用每日每周任务功能失败: ${enableResult?.msg || '未知错误'}`
+                };
+            }
+            logger.info(`[${createDailyTasksTag}] 每日每周任务功能已启用`);
+            sleep(0.3);
+        } else {
+            logger.info(`[${createDailyTasksTag}] 每日每周任务功能已启用，跳过`);
+        }
+
+        return { success: true };
+
+    } catch (error) {
+        const errorMsg = getErrorMessage(error);
+        logger.error(`[${createDailyTasksTag}] 配置每日每周任务设置时发生错误: ${errorMsg}`);
+        return {
+            success: false,
+            message: `配置失败: ${errorMsg}`
         };
     }
 }
