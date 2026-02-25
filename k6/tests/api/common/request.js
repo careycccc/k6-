@@ -101,8 +101,11 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
       if (checkPassed) {
         //logger.info('响应完全成功(HTTP + 业务 + 检查)');
       } else {
-        // 如果是错误码 6026 或 6040，使用警告级别而不是错误级别
-        if (parsedBody.msgCode === 6026 || parsedBody.msgCode === 6040) {
+        // 如果是错误码 6026、6040、2021、2103，使用警告级别而不是错误级别
+        // 6026, 6040: 特定业务警告
+        // 2021, 2103: 标签名称已存在
+        if (parsedBody.msgCode === 6026 || parsedBody.msgCode === 6040 ||
+          parsedBody.msgCode === 2021 || parsedBody.msgCode === 2103) {
           logger.warn(`${api} 响应警告`, {
             status: response.status,
             httpStatusSuccess,

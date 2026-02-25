@@ -2,6 +2,7 @@ import { sleep } from 'k6';
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest } from '../../common/request.js';
 import { createImageUploader, handleImageUpload, getErrorMessage } from '../../uploadFile/uploadFactory.js';
+import { handleMultipleConfigs, ConfigType } from '../../common/activityConfigHandler.js';
 
 export const createChampionTag = 'createChampion';
 
@@ -166,55 +167,21 @@ function checkAndConfigureChampionSettings(data) {
 
         logger.info(`[${createChampionTag}] 配置数据: ${JSON.stringify(settings)}`);
 
-        // 2. 检查并启用锦标赛功能
-        const isOpenChampion = settings.isOpenChampion;
-        logger.info(`[${createChampionTag}] isOpenChampion: ${JSON.stringify(isOpenChampion)}, value1: ${isOpenChampion?.value1}`);
+        // 2. 使用统一配置处理器处理所有配置
+        const configRules = [
+            { settingKey: 'IsOpenChampion', configType: ConfigType.SWITCH },
+            { settingKey: 'ChampionCodingMultiple', configType: ConfigType.NUMBER }
+        ];
 
-        if (isOpenChampion && isOpenChampion.value1 !== "1") {
-            logger.info(`[${createChampionTag}] 锦标赛功能未启用，正在启用...`);
-            const enablePayload = {
-                "settingKey": "IsOpenChampion",
-                "value1": "1"
-            };
-            const enableResult = sendRequest(enablePayload, updateSettingApi, createChampionTag, false, token);
+        const result = handleMultipleConfigs({
+            token,
+            settings,
+            configRules,
+            updateApi: updateSettingApi,
+            tag: createChampionTag
+        });
 
-            if (!enableResult || enableResult.msgCode !== 0) {
-                return {
-                    success: false,
-                    message: `启用锦标赛功能失败: ${enableResult?.msg || '未知错误'}`
-                };
-            }
-            logger.info(`[${createChampionTag}] 锦标赛功能已启用`);
-            sleep(0.3);
-        } else {
-            logger.info(`[${createChampionTag}] 锦标赛功能已启用，跳过`);
-        }
-
-        // 3. 检查并设置打码量倍数
-        const championCodingMultiple = settings.championCodingMultiple;
-        logger.info(`[${createChampionTag}] championCodingMultiple: ${JSON.stringify(championCodingMultiple)}, value1: ${championCodingMultiple?.value1}`);
-
-        if (championCodingMultiple && championCodingMultiple.value1 === "0") {
-            logger.info(`[${createChampionTag}] 打码量倍数未设置，正在设置为2...`);
-            const codingPayload = {
-                "settingKey": "ChampionCodingMultiple",
-                "value1": "2"
-            };
-            const codingResult = sendRequest(codingPayload, updateSettingApi, createChampionTag, false, token);
-
-            if (!codingResult || codingResult.msgCode !== 0) {
-                return {
-                    success: false,
-                    message: `设置打码量倍数失败: ${codingResult?.msg || '未知错误'}`
-                };
-            }
-            logger.info(`[${createChampionTag}] 打码量倍数已设置为2`);
-            sleep(0.3);
-        } else {
-            logger.info(`[${createChampionTag}] 打码量倍数已设置(${championCodingMultiple?.value1 || '未知'})，跳过`);
-        }
-
-        return { success: true };
+        return result;
 
     } catch (error) {
         const errorMsg = getErrorMessage(error);

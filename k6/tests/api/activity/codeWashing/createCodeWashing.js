@@ -2,6 +2,7 @@ import { sleep } from 'k6';
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest } from '../../common/request.js';
 import { getErrorMessage } from '../../uploadFile/uploadFactory.js';
+import { handleMultipleConfigs, ConfigType } from '../../common/activityConfigHandler.js';
 
 export const createCodeWashingTag = 'createCodeWashing';
 
@@ -105,99 +106,23 @@ function checkAndConfigureCodeWashingSettings(data) {
             };
         }
 
-        // 2. 检查并启用洗码功能
-        const isOpenCodeWashing = settings.isOpenCodeWashing;
-        if (isOpenCodeWashing && isOpenCodeWashing.value1 !== "1") {
-            logger.info(`[${createCodeWashingTag}] 洗码功能未启用，正在启用...`);
-            const enablePayload = {
-                "settingKey": "IsOpenCodeWashing",
-                "value1": "1",
-                "value2": ""
-            };
-            const enableResult = sendRequest(enablePayload, updateSettingApi, createCodeWashingTag, false, token);
+        // 2. 使用统一配置处理器处理所有配置
+        const configRules = [
+            { settingKey: 'IsOpenCodeWashing', configType: ConfigType.SWITCH },
+            { settingKey: 'IsSettleTheWashingAmount', configType: ConfigType.SWITCH },
+            { settingKey: 'IsFrontManualCodeWashing', configType: ConfigType.SWITCH },
+            { settingKey: 'CodeWashingMultiple', configType: ConfigType.NUMBER }
+        ];
 
-            if (!enableResult || (enableResult.msgCode !== undefined && enableResult.msgCode !== 0)) {
-                return {
-                    success: false,
-                    message: `启用洗码功能失败: ${enableResult?.msg || '未知错误'}`
-                };
-            }
-            logger.info(`[${createCodeWashingTag}] 洗码功能已启用`);
-            sleep(0.3);
-        } else {
-            logger.info(`[${createCodeWashingTag}] 洗码功能已启用，跳过`);
-        }
+        const result = handleMultipleConfigs({
+            token,
+            settings,
+            configRules,
+            updateApi: updateSettingApi,
+            tag: createCodeWashingTag
+        });
 
-        // 3. 检查并启用自动结算剩余洗码量
-        const isSettleTheWashingAmount = settings.isSettleTheWashingAmount;
-        if (isSettleTheWashingAmount && isSettleTheWashingAmount.value1 !== "1") {
-            logger.info(`[${createCodeWashingTag}] 自动结算剩余洗码量未启用，正在启用...`);
-            const settlePayload = {
-                "settingKey": "IsSettleTheWashingAmount",
-                "value1": "1",
-                "value2": ""
-            };
-            const settleResult = sendRequest(settlePayload, updateSettingApi, createCodeWashingTag, false, token);
-
-            if (!settleResult || (settleResult.msgCode !== undefined && settleResult.msgCode !== 0)) {
-                return {
-                    success: false,
-                    message: `启用自动结算剩余洗码量失败: ${settleResult?.msg || '未知错误'}`
-                };
-            }
-            logger.info(`[${createCodeWashingTag}] 自动结算剩余洗码量已启用`);
-            sleep(0.3);
-        } else {
-            logger.info(`[${createCodeWashingTag}] 自动结算剩余洗码量已启用，跳过`);
-        }
-
-        // 4. 检查并启用前端显示手动洗码
-        const isFrontManualCodeWashing = settings.isFrontManualCodeWashing;
-        if (isFrontManualCodeWashing && isFrontManualCodeWashing.value1 !== "1") {
-            logger.info(`[${createCodeWashingTag}] 前端显示手动洗码未启用，正在启用...`);
-            const frontPayload = {
-                "settingKey": "IsFrontManualCodeWashing",
-                "value1": "1",
-                "value2": ""
-            };
-            const frontResult = sendRequest(frontPayload, updateSettingApi, createCodeWashingTag, false, token);
-
-            if (!frontResult || (frontResult.msgCode !== undefined && frontResult.msgCode !== 0)) {
-                return {
-                    success: false,
-                    message: `启用前端显示手动洗码失败: ${frontResult?.msg || '未知错误'}`
-                };
-            }
-            logger.info(`[${createCodeWashingTag}] 前端显示手动洗码已启用`);
-            sleep(0.3);
-        } else {
-            logger.info(`[${createCodeWashingTag}] 前端显示手动洗码已启用，跳过`);
-        }
-
-        // 5. 检查并设置洗码量返水打码量倍数
-        const codeWashingMultiple = settings.codeWashingMultiple;
-        if (codeWashingMultiple && codeWashingMultiple.value1 === "0") {
-            logger.info(`[${createCodeWashingTag}] 洗码量返水打码量倍数未设置，正在设置为3...`);
-            const multiplePayload = {
-                "settingKey": "CodeWashingMultiple",
-                "value1": "3",
-                "value2": ""
-            };
-            const multipleResult = sendRequest(multiplePayload, updateSettingApi, createCodeWashingTag, false, token);
-
-            if (!multipleResult || (multipleResult.msgCode !== undefined && multipleResult.msgCode !== 0)) {
-                return {
-                    success: false,
-                    message: `设置洗码量返水打码量倍数失败: ${multipleResult?.msg || '未知错误'}`
-                };
-            }
-            logger.info(`[${createCodeWashingTag}] 洗码量返水打码量倍数已设置为3`);
-            sleep(0.3);
-        } else {
-            logger.info(`[${createCodeWashingTag}] 洗码量返水打码量倍数已设置(${codeWashingMultiple?.value1 || '未知'})，跳过`);
-        }
-
-        return { success: true };
+        return result;
 
     } catch (error) {
         const errorMsg = getErrorMessage(error);

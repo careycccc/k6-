@@ -1,4 +1,4 @@
-// 导入所有活动创建函数和标签
+// 导入所有活动创建函数和tag
 import { createActivityGuideTag, createActivityGuide } from '../tests/api/activity/activityGuide/createActivityGuide.js';
 import { createChampionTag, createChampion } from '../tests/api/activity/champion/createChampion.js';
 import { createCodeWashingTag, createCodeWashing } from '../tests/api/activity/codeWashing/createCodeWashing.js';
@@ -19,7 +19,7 @@ import { createSigninTag, createSignin } from '../tests/api/activity/signin/crea
 import { createWeekCardTag, createWeekCard } from '../tests/api/activity/weekCard/createWeekCard.js';
 import { createWithdrawalTimeoutTag, createWithdrawalTimeout } from '../tests/api/activity/withdrawalTimeout/createWithdrawalTimeout.js';
 import { createSystemActiveTag, createSystemActive } from '../tests/api/activity/systemActive/createSystemActive.js';
-import { createRechargeActivityTag, createRechargeActivity } from '../tests/api/activity/rechargeActivity/createRechargeActivity.js';
+import { createTagTag, createTagfunc } from '../tests/api/activity/tag/createTag.js';
 import { createSigninActivityTag, createSigninActivity } from '../tests/api/activity/signinActivity/createSigninActivity.js';
 import { createLotteryActivityTag, createLotteryActivity } from '../tests/api/activity/lotteryActivity/createLotteryActivity.js';
 import { createInmailTag, createInmail } from '../tests/api/activity/inmail/createInmail.js';
@@ -27,14 +27,31 @@ import { createInmailTag, createInmail } from '../tests/api/activity/inmail/crea
 /**
  * 活动创建配置列表
  * 每个配置包含活动的基本信息和创建函数
+ * priority 值越小，优先级越高（先执行）
  */
 export const createActivityConfigs = [
+  {
+    title: '会员管理->标签管理',
+    name: 'TagMangent',
+    tag: createTagTag,
+    func: createTagfunc,
+    priority: 0,
+    description: '创建标签（最高优先级，其他活动依赖标签）'
+  },
+  {
+    title: '活动管理->优惠券活动',
+    name: 'Coupon',
+    tag: createCouponTag,
+    func: createCoupon,
+    priority: 1,
+    description: '创建优惠券活动'
+  },
   {
     title: '活动管理->引导活动',
     name: 'ActivityGuideReward',
     tag: createActivityGuideTag,
     func: createActivityGuide,
-    priority: 1,
+    priority: 2,
     description: '创建引导活动'
   },
   {
@@ -42,7 +59,7 @@ export const createActivityConfigs = [
     name: 'Champion',
     tag: createChampionTag,
     func: createChampion,
-    priority: 2,
+    priority: 3,
     description: '创建锦标赛活动'
   },
   {
@@ -50,16 +67,8 @@ export const createActivityConfigs = [
     name: 'CodeWashing',
     tag: createCodeWashingTag,
     func: createCodeWashing,
-    priority: 3,
-    description: '创建洗码活动'
-  },
-  {
-    title: '活动管理->优惠券活动',
-    name: 'Coupon',
-    tag: createCouponTag,
-    func: createCoupon,
     priority: 4,
-    description: '创建优惠券活动'
+    description: '创建洗码活动'
   },
   {
     title: '活动管理->每日每周活动',
@@ -190,19 +199,11 @@ export const createActivityConfigs = [
     description: '创建系统活动'
   },
   {
-    title: '活动管理->充值活动',
-    name: 'RechargeActivity',
-    tag: createRechargeActivityTag,
-    func: createRechargeActivity,
-    priority: 21,
-    description: '创建充值活动'
-  },
-  {
     title: '活动管理->签到活动',
     name: 'SigninActivity',
     tag: createSigninActivityTag,
     func: createSigninActivity,
-    priority: 22,
+    priority: 21,
     description: '创建签到活动'
   },
   {
@@ -210,7 +211,7 @@ export const createActivityConfigs = [
     name: 'LotteryActivity',
     tag: createLotteryActivityTag,
     func: createLotteryActivity,
-    priority: 23,
+    priority: 22,
     description: '创建抽奖活动'
   },
   {
@@ -218,7 +219,7 @@ export const createActivityConfigs = [
     name: 'Inmail',
     tag: createInmailTag,
     func: createInmail,
-    priority: 24,
+    priority: 23,
     description: '创建站内信活动'
   }
 ];

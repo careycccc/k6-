@@ -23,7 +23,8 @@ export const ENV_CONFIG = {
     ADMIN_USERNAME: "carey3004",
     ADMIN_PASSWORD: "qwer1234",
     START_TIME: "2026-01-08 00:00:00",
-    END_TIME: "2026-01-08 23:59:59"
+    END_TIME: "2026-01-08 23:59:59",
+    TENANTID: 3004
 };
 
 // 3002 arplatsaassit2.club

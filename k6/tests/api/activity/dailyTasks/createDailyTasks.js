@@ -2,6 +2,7 @@ import { sleep } from 'k6';
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest, sendQueryRequest } from '../../common/request.js';
 import { createImageUploader, handleImageUpload, getErrorMessage } from '../../uploadFile/uploadFactory.js';
+import { handleMultipleConfigs, ConfigType } from '../../common/activityConfigHandler.js';
 
 export const createDailyTasksTag = 'createDailyTasks';
 
@@ -203,8 +204,7 @@ function checkAndConfigureDailyTasksSettings(data) {
         }
 
         // 判断响应格式
-        let isOpenDailyWeeklyTask;
-
+        let settings;
         if (settingsResult.msgCode !== undefined) {
             // 标准响应格式（有 msgCode 和 data）
             if (settingsResult.msgCode !== 0) {
@@ -214,18 +214,12 @@ function checkAndConfigureDailyTasksSettings(data) {
                     message: `获取配置失败: ${settingsResult.msg || '未知错误'}`
                 };
             }
-            const settings = settingsResult.data;
-            if (!settings) {
-                logger.error(`[${createDailyTasksTag}] 配置数据为空`);
-                return {
-                    success: false,
-                    message: '配置数据为空'
-                };
-            }
-            isOpenDailyWeeklyTask = settings.isOpenDailyWeeklyTask;
+            settings = settingsResult.data;
         } else if (settingsResult.settingKey === "IsOpenDailyWeeklyTask") {
-            // 直接返回单个配置对象
-            isOpenDailyWeeklyTask = settingsResult;
+            // 直接返回单个配置对象，需要包装成对象
+            settings = {
+                isOpenDailyWeeklyTask: settingsResult
+            };
         } else {
             logger.error(`[${createDailyTasksTag}] 无法识别的响应格式`);
             return {
@@ -234,31 +228,28 @@ function checkAndConfigureDailyTasksSettings(data) {
             };
         }
 
-        // 2. 检查并启用每日每周任务功能
-        logger.info(`[${createDailyTasksTag}] isOpenDailyWeeklyTask: ${JSON.stringify(isOpenDailyWeeklyTask)}, value1: ${isOpenDailyWeeklyTask?.value1}`);
-
-        if (isOpenDailyWeeklyTask && isOpenDailyWeeklyTask.value1 !== "1") {
-            logger.info(`[${createDailyTasksTag}] 每日每周任务功能未启用，正在启用...`);
-            const enablePayload = {
-                "value1": "1",
-                "value2": "",
-                "settingKey": "isOpenDailyWeeklyTask"
+        if (!settings) {
+            logger.error(`[${createDailyTasksTag}] 配置数据为空`);
+            return {
+                success: false,
+                message: '配置数据为空'
             };
-            const enableResult = sendRequest(enablePayload, updateSettingApi, createDailyTasksTag, false, token);
-
-            if (!enableResult || enableResult.msgCode !== 0) {
-                return {
-                    success: false,
-                    message: `启用每日每周任务功能失败: ${enableResult?.msg || '未知错误'}`
-                };
-            }
-            logger.info(`[${createDailyTasksTag}] 每日每周任务功能已启用`);
-            sleep(0.3);
-        } else {
-            logger.info(`[${createDailyTasksTag}] 每日每周任务功能已启用，跳过`);
         }
 
-        return { success: true };
+        // 2. 使用统一配置处理器处理所有配置
+        const configRules = [
+            { settingKey: 'isOpenDailyWeeklyTask', configType: ConfigType.SWITCH }
+        ];
+
+        const result = handleMultipleConfigs({
+            token,
+            settings,
+            configRules,
+            updateApi: updateSettingApi,
+            tag: createDailyTasksTag
+        });
+
+        return result;
 
     } catch (error) {
         const errorMsg = getErrorMessage(error);

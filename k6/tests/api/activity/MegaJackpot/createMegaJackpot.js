@@ -2,6 +2,7 @@ import { sleep } from 'k6';
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest, sendQueryRequest } from '../../common/request.js';
 import { getErrorMessage } from '../../uploadFile/uploadFactory.js';
+import { handleMultipleConfigs, ConfigType } from '../../common/activityConfigHandler.js';
 
 export const createMegaJackpotTag = 'createMegaJackpot';
 
@@ -52,65 +53,19 @@ export function createMegaJackpot(data) {
         const config = configResult.config;
         logger.info(`[${createMegaJackpotTag}] 配置查询成功`);
 
-        // 第二步：检查并启用超级大奖开关
-        logger.info(`[${createMegaJackpotTag}] 步骤2: 检查超级大奖开关...`);
-        if (config.isOpenJackpotRewardSwitch.value1 !== "1") {
-            logger.info(`[${createMegaJackpotTag}] 超级大奖开关未启用，正在启用...`);
-            const enableResult = updateJackpotConfig(data, "IsOpenJackpotRewardSwitch", "1", "");
-            if (!enableResult.success) {
-                logger.error(`[${createMegaJackpotTag}] 启用超级大奖开关失败`);
-                return {
-                    success: false,
-                    tag: createMegaJackpotTag,
-                    message: '启用超级大奖开关失败'
-                };
-            }
-            logger.info(`[${createMegaJackpotTag}] 超级大奖开关已启用`);
-        } else {
-            logger.info(`[${createMegaJackpotTag}] 超级大奖开关已启用，跳过`);
-        }
-
-        // 第三步：更新三个配置项
-        logger.info(`[${createMegaJackpotTag}] 步骤3: 检查并更新配置项...`);
-
-        const configUpdates = [
-            {
-                key: "JackpotEveryDayRewardLimitNum",
-                name: "超级大奖单个会员每日限制",
-                currentValue: config.jackpotEveryDayRewardLimitNum.value1,
-                newValue: String(JACKPOT_CONFIG.everyDayRewardLimitNum)
-            },
-            {
-                key: "JackpotRewardCodeAmount",
-                name: "爆大奖奖励打码量倍数",
-                currentValue: config.jackpotRewardCodeAmount.value1,
-                newValue: String(JACKPOT_CONFIG.rewardCodeAmount)
-            },
-            {
-                key: "JackpotRewardValidityTime",
-                name: "超级大奖超时时间(天)",
-                currentValue: config.jackpotRewardValidityTime.value1,
-                newValue: String(JACKPOT_CONFIG.rewardValidityTime)
-            }
-        ];
-
-        for (const configItem of configUpdates) {
-            sleep(0.5);
-            if (configItem.currentValue === "0") {
-                logger.info(`[${createMegaJackpotTag}] ${configItem.name}当前为0，正在更新为${configItem.newValue}...`);
-                const updateResult = updateJackpotConfig(data, configItem.key, configItem.newValue, "");
-                if (!updateResult.success) {
-                    logger.error(`[${createMegaJackpotTag}] 更新${configItem.name}失败`);
-                } else {
-                    logger.info(`[${createMegaJackpotTag}] ${configItem.name}更新成功`);
-                }
-            } else {
-                logger.info(`[${createMegaJackpotTag}] ${configItem.name}当前值为${configItem.currentValue}，跳过更新`);
-            }
+        // 第二步：检查并配置超级大奖设置
+        logger.info(`[${createMegaJackpotTag}] 步骤2: 配置超级大奖设置...`);
+        const settingResult = checkAndConfigureMegaJackpotSettings(data, config);
+        if (!settingResult.success) {
+            return {
+                success: false,
+                tag: createMegaJackpotTag,
+                message: `配置超级大奖设置失败: ${settingResult.message}`
+            };
         }
 
         // 第四步：创建超级大奖活动
-        logger.info(`[${createMegaJackpotTag}] 步骤4: 创建超级大奖活动...`);
+        logger.info(`[${createMegaJackpotTag}] 步骤3: 创建超级大奖活动...`);
         sleep(1);
         const createResult = createMegaJackpotActivity(data);
 
@@ -126,7 +81,7 @@ export function createMegaJackpot(data) {
         logger.info(`[${createMegaJackpotTag}] 超级大奖活动创建成功`);
 
         // 第五步：查询活动ID
-        logger.info(`[${createMegaJackpotTag}] 步骤5: 查询活动ID...`);
+        logger.info(`[${createMegaJackpotTag}] 步骤4: 查询活动ID...`);
         sleep(1);
         const activityIdResult = getActivityId(data);
 
@@ -143,7 +98,7 @@ export function createMegaJackpot(data) {
         logger.info(`[${createMegaJackpotTag}] 活动ID: ${activityId}`);
 
         // 第六步：启用活动
-        logger.info(`[${createMegaJackpotTag}] 步骤6: 启用超级大奖活动...`);
+        logger.info(`[${createMegaJackpotTag}] 步骤5: 启用超级大奖活动...`);
         sleep(1);
         const enableResult = enableActivity(data, activityId);
 
@@ -170,6 +125,45 @@ export function createMegaJackpot(data) {
             success: false,
             tag: createMegaJackpotTag,
             message: `创建超级大奖活动失败: ${errorMsg}`
+        };
+    }
+}
+
+/**
+ * 检查并配置超级大奖设置
+ * @param {*} data
+ * @param {Object} config 当前配置对象
+ * @returns {Object} 配置结果 { success, message }
+ */
+function checkAndConfigureMegaJackpotSettings(data, config) {
+    const token = data.token;
+    const updateSettingApi = '/api/BigJackpot/UpdateJackpotConfig';
+
+    try {
+        // 使用统一配置处理器处理所有配置
+        const configRules = [
+            { settingKey: 'IsOpenJackpotRewardSwitch', configType: ConfigType.SWITCH },
+            { settingKey: 'JackpotEveryDayRewardLimitNum', configType: ConfigType.NUMBER },
+            { settingKey: 'JackpotRewardCodeAmount', configType: ConfigType.NUMBER },
+            { settingKey: 'JackpotRewardValidityTime', configType: ConfigType.NUMBER }
+        ];
+
+        const result = handleMultipleConfigs({
+            token,
+            settings: config,
+            configRules,
+            updateApi: updateSettingApi,
+            tag: createMegaJackpotTag
+        });
+
+        return result;
+
+    } catch (error) {
+        const errorMsg = getErrorMessage(error);
+        logger.error(`[${createMegaJackpotTag}] 配置超级大奖设置时发生错误: ${errorMsg}`);
+        return {
+            success: false,
+            message: `配置失败: ${errorMsg}`
         };
     }
 }

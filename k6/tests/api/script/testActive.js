@@ -1,7 +1,10 @@
 
 import { AdminLogin, adminTag } from '../login/adminlogin.test.js';
-import { createInviteTurntable as createInviteTurntablefunc } from '../activity/inviteTurntable/createInviteTurntable.js';
+import { createRechargeWheel as createRechargeWheelfunc } from '../activity/rechargeWheel/createRechargeWheel.js';
+import { createTagfunc as createTagfuncfunc } from '../activity/tag/createTag.js'
+
 import { logger } from '../../../libs/utils/logger.js';
+import { sleep } from 'k6';
 
 // ==================== setup：全局登录一次 ====================
 export function setup() {
@@ -18,34 +21,43 @@ export function setup() {
     }
 }
 
-export function createInviteTurntable(data) {
-    createInviteTurntablefunc(data)
-}
-
-
 // ==================== scenarios 定义 ====================
 export const options = {
     scenarios: {
-        // 场景1：后台登录
-        login: {
-            executor: 'shared-iterations',
-            vus: 1,
-            iterations: 1, // 只运行一次
-            maxDuration: '10s'
-        },
-        // 优惠券的场景
-        createInviteTurntable: {
+        // 单一场景：按顺序执行所有活动
+        sequentialExecution: {
             executor: 'shared-iterations',
             vus: 1,
             iterations: 1,
-            exec: 'createInviteTurntable',
-            startTime: '2s'
-        },
+            maxDuration: '120s'
+        }
     },
 };
 
-// ==================== 必须的 default（多场景脚本要求） ====================
-export default function () {
-    // 不执行任何逻辑
-    logger.info('此脚本通过 scenarios 运行');
+// ==================== 必须的 default（按顺序执行所有活动） ====================
+export default function (data) {
+    logger.info('开始按顺序执行活动创建');
+
+    // 步骤1：创建标签
+    // logger.info('========== 步骤1：创建标签 ==========');
+    // const tagResult = createTagfuncfunc(data);
+    // if (!tagResult || !tagResult.success) {
+    //     logger.error(`标签创建失败: ${tagResult?.message || '未知错误'}`);
+    //     return;
+    // }
+    // logger.info('标签创建成功');
+
+    // // 等待2秒
+    // sleep(2);
+
+    // 步骤2：创建充值礼包
+    logger.info('========== 步骤2：创建充值礼包 ==========');
+    const giftPackResult = createRechargeWheelfunc(data);
+    if (!giftPackResult || !giftPackResult.success) {
+        logger.error(`充值礼包创建失败: ${giftPackResult?.message || '未知错误'}`);
+        return;
+    }
+    logger.info('充值礼包创建成功');
+
+    logger.info('所有活动创建完成');
 }
