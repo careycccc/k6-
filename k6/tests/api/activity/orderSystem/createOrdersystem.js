@@ -1,9 +1,9 @@
 import { logger } from '../../../../libs/utils/logger.js';
 
-export const createSigninActivityTag = 'createSigninActivity';
+export const createOrdersystemTag = 'createOrdersystem';
 
 /**
- * 创建签到活动
+ * 创建工单系统
  * @param {*} data 
  * @returns {Object} 创建结果
  * 
@@ -11,8 +11,8 @@ export const createSigninActivityTag = 'createSigninActivity';
  * - success: true  表示活动创建成功
  * - success: false 表示跳过该活动，不进行创建
  */
-export function createSigninActivity(data) {
-    logger.info(`[${createSigninActivityTag}] 开始创建签到活动`);
+export function createOrdersystem(data) {
+    logger.info(`[${createOrdersystemTag}] 开始创建工单活动`);
 
     // TODO: 在这里添加具体的创建逻辑
 
@@ -25,7 +25,7 @@ export function createSigninActivity(data) {
 
     return {
         success: true,
-        tag: createSigninActivityTag,
-        message: '签到活动创建成功'
+        tag: createOrdersystemTag,
+        message: '创建工单成功'
     };
 }

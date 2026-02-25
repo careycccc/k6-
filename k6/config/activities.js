@@ -20,7 +20,7 @@ import { createWeekCardTag, createWeekCard } from '../tests/api/activity/weekCar
 import { createWithdrawalTimeoutTag, createWithdrawalTimeout } from '../tests/api/activity/withdrawalTimeout/createWithdrawalTimeout.js';
 import { createSystemActiveTag, createSystemActive } from '../tests/api/activity/systemActive/createSystemActive.js';
 import { createTagTag, createTagfunc } from '../tests/api/activity/tag/createTag.js';
-import { createSigninActivityTag, createSigninActivity } from '../tests/api/activity/signinActivity/createSigninActivity.js';
+import { createOrdersystemTag, createOrdersystem } from '../tests/api/activity/orderSystem/createOrdersystem.js';
 import { createLotteryActivityTag, createLotteryActivity } from '../tests/api/activity/lotteryActivity/createLotteryActivity.js';
 import { createInmailTag, createInmail } from '../tests/api/activity/inmail/createInmail.js';
 
@@ -199,12 +199,12 @@ export const createActivityConfigs = [
     description: '创建系统活动'
   },
   {
-    title: '活动管理->签到活动',
-    name: 'SigninActivity',
-    tag: createSigninActivityTag,
-    func: createSigninActivity,
+    title: '运营管理->工单系统',
+    name: 'OrderSystem',
+    tag: createOrdersystemTag,
+    func: createOrdersystem,
     priority: 21,
-    description: '创建签到活动'
+    description: '创建工单系统'
   },
   {
     title: '活动管理->抽奖活动',
