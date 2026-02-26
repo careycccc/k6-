@@ -1,6 +1,6 @@
 
 import { AdminLogin, adminTag } from '../login/adminlogin.test.js';
-import { createRechargeWheel as createRechargeWheelfunc } from '../activity/rechargeWheel/createRechargeWheel.js';
+import { createRedRainActivity as createRedRainActivityfunc } from '../activity/RedRainActivity/createRedRainActivity.js';
 import { createTagfunc as createTagfuncfunc } from '../activity/tag/createTag.js'
 
 import { logger } from '../../../libs/utils/logger.js';
@@ -51,13 +51,13 @@ export default function (data) {
     // sleep(2);
 
     // 步骤2：创建充值礼包
-    logger.info('========== 步骤2：创建充值礼包 ==========');
-    const giftPackResult = createRechargeWheelfunc(data);
+    logger.info('========== 步骤2：创建红包雨 ==========');
+    const giftPackResult = createRedRainActivityfunc(data);
     if (!giftPackResult || !giftPackResult.success) {
-        logger.error(`充值礼包创建失败: ${giftPackResult?.message || '未知错误'}`);
+        logger.error(`红包雨创建失败: ${giftPackResult?.message || '未知错误'}`);
         return;
     }
-    logger.info('充值礼包创建成功');
+    logger.info('红包雨创建成功');
 
     logger.info('所有活动创建完成');
 }
