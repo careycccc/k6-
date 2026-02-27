@@ -21,7 +21,7 @@ import { createWithdrawalTimeoutTag, createWithdrawalTimeout } from '../tests/ap
 import { createSystemActiveTag, createSystemActive } from '../tests/api/activity/systemActive/createSystemActive.js';
 import { createTagTag, createTagfunc } from '../tests/api/activity/tag/createTag.js';
 import { createOrdersystemTag, createOrdersystem } from '../tests/api/activity/orderSystem/createOrdersystem.js';
-import { createLotteryActivityTag, createLotteryActivity } from '../tests/api/activity/lotteryActivity/createLotteryActivity.js';
+import { createluckyDoubleBonusTag, createluckyDoubleBonus } from '../tests/api/activity/luckyDoubleBonus/createluckyDoubleBonus.js';
 import { createInmailTag, createInmail } from '../tests/api/activity/inmail/createInmail.js';
 
 /**
@@ -207,12 +207,12 @@ export const createActivityConfigs = [
     description: '创建工单系统'
   },
   {
-    title: '活动管理->抽奖活动',
-    name: 'LotteryActivity',
-    tag: createLotteryActivityTag,
-    func: createLotteryActivity,
+    title: '活动管理->幸运加倍活动',
+    name: 'luckyDoubleBonus',
+    tag: createluckyDoubleBonusTag,
+    func: createluckyDoubleBonus,
     priority: 22,
-    description: '创建抽奖活动'
+    description: '创建幸运加倍活动'
   },
   {
     title: '运营管理->站内信活动',
