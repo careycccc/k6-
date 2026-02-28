@@ -101,14 +101,16 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
       if (checkPassed) {
         //logger.info('响应完全成功(HTTP + 业务 + 检查)');
       } else {
-        // 如果是错误码 6026、6040、2021、2103、6103、6056，使用警告级别而不是错误级别
+        // 如果是错误码 6026、6040、2021、2103、6103、6056、6063，使用警告级别而不是错误级别
         // 6026, 6040: 特定业务警告
         // 2021, 2103: 标签名称已存在
         // 6103: 活动启动条件冲突
         // 6056: 活动时间重叠
+        // 6063: 同类型活动已开启
         if (parsedBody.msgCode === 6026 || parsedBody.msgCode === 6040 ||
           parsedBody.msgCode === 2021 || parsedBody.msgCode === 2103 ||
-          parsedBody.msgCode === 6103 || parsedBody.msgCode === 6056) {
+          parsedBody.msgCode === 6103 || parsedBody.msgCode === 6056 ||
+          parsedBody.msgCode === 6063) {
           logger.warn(`${api} 响应警告`, {
             status: response.status,
             httpStatusSuccess,

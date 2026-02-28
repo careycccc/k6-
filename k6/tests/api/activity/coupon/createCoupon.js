@@ -191,11 +191,15 @@ function startCoupons(data) {
         return false;
     }
 
-    logger.info(`[${createCouponTag}] 准备启用 ${idList.length} 个优惠券`);
+    // 只启用最新创建的前2个优惠券（如果只有1个就启用1个）
+    const couponCountToEnable = Math.min(2, idList.length);
+    const couponsToEnable = idList.slice(0, couponCountToEnable);
+
+    logger.info(`[${createCouponTag}] 查询到 ${idList.length} 个优惠券，准备启用前 ${couponCountToEnable} 个`);
 
     // 启动优惠券
     let allSuccess = true;
-    idList.forEach((id) => {
+    couponsToEnable.forEach((id) => {
         // 睡眠1s
         sleep(1);
         const startResult = startCouponsById(id, token);

@@ -2,7 +2,7 @@ import { sleep } from 'k6';
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest, sendQueryRequest } from '../../common/request.js';
 import { createImageUploader, handleImageUpload, getErrorMessage } from '../../uploadFile/uploadFactory.js';
-import { handleMultipleConfigs, ConfigType } from '../../common/activityConfigHandler.js';
+import { handleMultipleConfigs, ConfigType } from '../common/activityConfigHandler.js';
 
 export const createDailyTasksTag = 'createDailyTasks';
 

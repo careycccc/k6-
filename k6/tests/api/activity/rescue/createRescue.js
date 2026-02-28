@@ -2,6 +2,12 @@ import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest, sendQueryRequest } from '../../common/request.js';
 import { createImageUploader, handleImageUpload, getErrorMessage } from '../../uploadFile/uploadFactory.js';
 import { sleep } from 'k6';
+import {
+    formatDateTime,
+    calculateStartTime,
+    calculateEndTime,
+    calculateCycleRounds
+} from '../common/dateTimeUtils.js';
 
 export const createRescueTag = 'createRescue';
 export const createRescue2Tag = 'createRescue2';
@@ -19,48 +25,6 @@ const uploadRescueRuleZh = createImageUploader('../../uploadFile/img/rescue/rule
 const uploadRescue2RuleHi = createImageUploader('../../uploadFile/img/rescue/rule2_hi.png', 'rescue2_rule_hi');
 const uploadRescue2RuleEn = createImageUploader('../../uploadFile/img/rescue/rule2_en.png', 'rescue2_rule_en');
 const uploadRescue2RuleZh = createImageUploader('../../uploadFile/img/rescue/rule2_zh.png', 'rescue2_rule_zh');
-
-
-
-/**
- * 格式化日期时间为 "YYYY-MM-DD HH:mm:ss" 格式
- * @param {Date} date 
- * @returns {string}
- */
-function formatDateTime(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
-
-/**
- * 计算活动开始时间（第二天00:00:00）
- * @returns {Date}
- */
-function calculateStartTime() {
-    const now = new Date();
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-    return tomorrow;
-}
-
-/**
- * 计算活动结束时间（开始时间后第5天的23:59:59）
- * @param {Date} startTime 
- * @returns {Date}
- */
-function calculateEndTime(startTime) {
-    const endTime = new Date(startTime);
-    endTime.setDate(endTime.getDate() + 5);
-    endTime.setHours(23, 59, 59, 0);
-    return endTime;
-}
 
 /**
  * 创建亏损救援金活动（自动创建两个活动）

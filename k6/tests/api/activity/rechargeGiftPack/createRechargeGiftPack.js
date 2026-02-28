@@ -169,7 +169,7 @@ function createRechargeGiftPackActivity(data, imagePath) {
             ]
         };
 
-        logger.info(`[${createRechargeGiftPackTag}] 创建充值礼包payload: ${JSON.stringify(payload)}`);
+        //logger.info(`[${createRechargeGiftPackTag}] 创建充值礼包payload: ${JSON.stringify(payload)}`);
 
         const result = sendRequest(payload, api, createRechargeGiftPackTag, false, token);
 
@@ -225,7 +225,7 @@ function queryRechargeGiftPackList(data, notificationText) {
             };
         }
 
-        logger.info(`[${createRechargeGiftPackTag}] 查询响应: ${JSON.stringify(result)}`);
+        //logger.info(`[${createRechargeGiftPackTag}] 查询响应: ${JSON.stringify(result)}`);
 
         // 解析响应
         let giftPackList;
@@ -377,7 +377,7 @@ function createActivityRecharge(data, imagePath, giftPackId) {
         logger.info(`[${createRechargeGiftPackTag}] - compositeTagIdMap 存在: ${!!compositeTagIdMap}`);
         if (compositeTagIdMap) {
             logger.info(`[${createRechargeGiftPackTag}] - compositeTagIdMap 键数量: ${Object.keys(compositeTagIdMap).length}`);
-            logger.info(`[${createRechargeGiftPackTag}] - compositeTagIdMap 键列表: ${Object.keys(compositeTagIdMap).join(', ')}`);
+            //logger.info(`[${createRechargeGiftPackTag}] - compositeTagIdMap 键列表: ${Object.keys(compositeTagIdMap).join(', ')}`);
         }
 
         if (!compositeTagIdMap || !compositeTagIdMap[targetTagName]) {
@@ -441,11 +441,11 @@ function createActivityRecharge(data, imagePath, giftPackId) {
             ]
         };
 
-        logger.info(`[${createRechargeGiftPackTag}] 惊喜礼包活动payload: ${JSON.stringify(payload)}`);
+        //logger.info(`[${createRechargeGiftPackTag}] 惊喜礼包活动payload: ${JSON.stringify(payload)}`);
 
         const result = sendRequest(payload, api, createRechargeGiftPackTag, false, token);
 
-        logger.info(`[${createRechargeGiftPackTag}] 惊喜礼包活动创建响应: ${JSON.stringify(result)}`);
+        //logger.info(`[${createRechargeGiftPackTag}] 惊喜礼包活动创建响应: ${JSON.stringify(result)}`);
 
         // 检查返回结果
         if (result && result.msgCode === 0) {

@@ -2,7 +2,7 @@ import { sleep } from 'k6';
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest } from '../../common/request.js';
 import { getErrorMessage } from '../../uploadFile/uploadFactory.js';
-import { handleMultipleConfigs, ConfigType } from '../../common/activityConfigHandler.js';
+import { handleMultipleConfigs, ConfigType } from '../common/activityConfigHandler.js';
 
 export const createCodeWashingTag = 'createCodeWashing';
 

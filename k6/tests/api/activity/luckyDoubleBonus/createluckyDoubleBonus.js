@@ -1,52 +1,9 @@
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest, sendQueryRequest } from '../../common/request.js';
 import { getErrorMessage } from '../../uploadFile/uploadFactory.js';
+import { getTomorrowDate, getTodayTimeRange } from '../common/dateTimeUtils.js';
 
 export const createluckyDoubleBonusTag = 'createluckyDoubleBonus';
-
-/**
- * 格式化日期为 "YYYY-MM-DD" 格式
- * @param {Date} date 
- * @returns {string}
- */
-function formatDate(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
-
-/**
- * 格式化日期时间为 "YYYY-MM-DD HH:mm:ss" 格式
- * @param {Date} date 
- * @param {string} time - "00:00:00" 或 "23:59:59"
- * @returns {string}
- */
-function formatDateTime(date, time) {
-    return `${formatDate(date)} ${time}`;
-}
-
-/**
- * 计算明天的日期
- * @returns {string} YYYY-MM-DD 格式
- */
-function getTomorrowDate() {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return formatDate(tomorrow);
-}
-
-/**
- * 获取今天的开始和结束时间
- * @returns {Object} { beginTime, endTime }
- */
-function getTodayTimeRange() {
-    const today = new Date();
-    return {
-        beginTime: formatDateTime(today, '00:00:00'),
-        endTime: formatDateTime(today, '23:59:59')
-    };
-}
 
 /**
  * 创建幸运加倍活动
@@ -255,7 +212,7 @@ function addRegisterLuckyDouble(data) {
             }
         };
 
-        logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
+        //logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
 
         const result = sendRequest(payload, api, tag, false, token);
 
@@ -313,7 +270,7 @@ function queryRegisterActivity(data) {
             };
         }
 
-        logger.info(`[${tag}] 查询响应: ${JSON.stringify(result)}`);
+        //logger.info(`[${tag}] 查询响应: ${JSON.stringify(result)}`);
 
         // 解析响应
         let activityList;
@@ -381,7 +338,7 @@ function openRegisterActivity(data, activityId) {
             "status": 1
         };
 
-        logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
+        //logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
 
         const result = sendRequest(payload, api, tag, false, token);
 
@@ -535,7 +492,7 @@ function addAutoLuckyDouble(data) {
             }
         };
 
-        logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
+        //logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
 
         const result = sendRequest(payload, api, tag, false, token);
 
@@ -593,7 +550,7 @@ function queryAutoActivity(data) {
             };
         }
 
-        logger.info(`[${tag}] 查询响应: ${JSON.stringify(result)}`);
+        //logger.info(`[${tag}] 查询响应: ${JSON.stringify(result)}`);
 
         // 解析响应
         let activityList;
@@ -661,7 +618,7 @@ function openAutoActivity(data, activityId) {
             "status": 1
         };
 
-        logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
+        //logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
 
         const result = sendRequest(payload, api, tag, false, token);
 
@@ -811,7 +768,7 @@ function addManualLuckyDouble(data) {
             }
         };
 
-        logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
+        //logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
         logger.info(`[${tag}] 首充日期设置为: ${tomorrowDate}`);
 
         const result = sendRequest(payload, api, tag, false, token);
@@ -858,7 +815,17 @@ function queryManualActivity(data) {
     try {
         logger.info(`[${tag}] 查询手动优惠活动列表`);
 
-        const payload = {};
+        // 获取今天的时间范围
+        const { beginTime, endTime } = getTodayTimeRange();
+
+        const payload = {
+            "pageNo": 1,
+            "pageSize": 20,
+            "beginTime": beginTime,
+            "endTime": endTime
+        };
+
+        logger.info(`[${tag}] 查询时间范围: ${beginTime} - ${endTime}`);
 
         const result = sendQueryRequest(payload, api, tag, false, token);
 
@@ -870,7 +837,7 @@ function queryManualActivity(data) {
             };
         }
 
-        logger.info(`[${tag}] 查询响应: ${JSON.stringify(result)}`);
+        //logger.info(`[${tag}] 查询响应: ${JSON.stringify(result)}`);
 
         // 解析响应
         let activityList;
@@ -938,7 +905,7 @@ function openManualActivity(data, activityId) {
             "status": 1
         };
 
-        logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
+        //logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
 
         const result = sendRequest(payload, api, tag, false, token);
 
