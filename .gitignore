@@ -47,6 +47,10 @@ temp/
 test-data/
 *.testdata.*
 
+# 敏感信息文件
+docs/工作.txt
+**/工作.txt
+
 # Docker
 *.dockerignore
 docker-compose.override.yml

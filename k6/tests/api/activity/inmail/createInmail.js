@@ -63,8 +63,8 @@ export function createInmail(data) {
         data.uploadedUrls = uploadedUrls;
 
         // 第一步：创建站内信
-        const createResult = createInmailMessages(data);
-        if (!createResult) {
+        const createdCount = createInmailMessages(data);
+        if (createdCount === 0) {
             logger.error(`[${createInmailTag}] 站内信创建失败`);
             return {
                 success: false,
@@ -73,8 +73,8 @@ export function createInmail(data) {
             };
         }
 
-        // 第二步：启用站内信
-        const startResult = startInmail(data);
+        // 第二步：启用站内信（只启用本次创建的）
+        const startResult = startInmail(data, createdCount);
         if (!startResult) {
             logger.error(`[${createInmailTag}] 站内信启用失败`);
             return {
@@ -106,7 +106,7 @@ export function createInmail(data) {
 /**
  * 创建站内信消息
  * @param {*} data 
- * @returns {boolean} 创建是否成功
+ * @returns {number} 成功创建的站内信数量，失败返回0
  */
 function createInmailMessages(data) {
     const api = '/api/Inmail/Add';
@@ -214,15 +214,17 @@ function createInmailMessages(data) {
 
     logger.info(`[${createInmailTag}] 站内信创建完成，成功: ${successCount}/${inmailList.length}`);
 
-    return allSuccess;
+    // 返回成功创建的数量
+    return successCount;
 }
 
 /**
  * 启用站内信
  * @param {*} data 
+ * @param {number} countToEnable 要启用的站内信数量（本次创建的数量）
  * @returns {boolean} 启用是否成功
  */
-function startInmail(data) {
+function startInmail(data, countToEnable) {
     const api = '/api/Inmail/GetPageList';
     const token = data.token;
 
@@ -247,30 +249,33 @@ function startInmail(data) {
                 inmailIds.push(item.id);
             });
 
-            logger.info(`[${createInmailTag}] 查询到 ${idList.length} 条站内信，准备启用`);
+            // 只启用最新创建的站内信（取前 countToEnable 个）
+            const inmailsToEnable = idList.slice(0, Math.min(countToEnable, idList.length));
+
+            logger.info(`[${createInmailTag}] 查询到 ${idList.length} 条站内信，准备启用最新的 ${inmailsToEnable.length} 条`);
+
+            // 启动站内信
+            let allSuccess = true;
+            let successCount = 0;
+
+            inmailsToEnable.forEach(id => {
+                // 睡眠1s
+                sleep(1);
+                const startResult = startInmailById(id, token);
+                if (startResult) {
+                    successCount++;
+                } else {
+                    allSuccess = false;
+                }
+            });
+
+            logger.info(`[${createInmailTag}] 站内信启用完成，成功: ${successCount}/${inmailsToEnable.length}`);
+
+            return allSuccess;
         } else {
             logger.warn(`[${createInmailTag}] 未查询到站内信列表`);
             return false;
         }
-
-        // 启动站内信
-        let allSuccess = true;
-        let successCount = 0;
-
-        idList.forEach(id => {
-            // 睡眠1s
-            sleep(1);
-            const startResult = startInmailById(id, token);
-            if (startResult) {
-                successCount++;
-            } else {
-                allSuccess = false;
-            }
-        });
-
-        logger.info(`[${createInmailTag}] 站内信启用完成，成功: ${successCount}/${idList.length}`);
-
-        return allSuccess;
 
     } catch (error) {
         logger.error(`[${createInmailTag}] 启用站内信时发生错误: ${error.message}`);

@@ -2,6 +2,7 @@ import { sleep } from 'k6';
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest, sendQueryRequest } from '../../common/request.js';
 import { createImageUploader, handleImageUpload, getErrorMessage } from '../../uploadFile/uploadFactory.js';
+import { handleMultipleConfigs, ConfigType } from '../common/activityConfigHandler.js';
 
 export const createDailyTasksTag = 'createDailyTasks';
 
@@ -30,6 +31,16 @@ export function createDailyTasks(data) {
                 success: false,
                 tag: createDailyTasksTag,
                 message: 'Token 不存在，跳过每日任务活动创建'
+            };
+        }
+
+        // 检查并配置每日每周任务设置
+        const settingResult = checkAndConfigureDailyTasksSettings(data);
+        if (!settingResult.success) {
+            return {
+                success: false,
+                tag: createDailyTasksTag,
+                message: `配置每日每周任务设置失败: ${settingResult.message}`
             };
         }
 
@@ -162,6 +173,90 @@ export function createDailyTasks(data) {
             success: false,
             tag: createDailyTasksTag,
             message: `创建每日任务活动失败: ${errorMsg}`
+        };
+    }
+}
+
+/**
+ * 检查并配置每日每周任务设置
+ * @param {*} data
+ * @returns {Object} 配置结果 { success, message }
+ */
+function checkAndConfigureDailyTasksSettings(data) {
+    const token = data.token;
+    const getSettingApi = '/api/DayWeek/GetConfig';
+    const updateSettingApi = '/api/DayWeek/UpdateConfig';
+
+    try {
+        // 1. 获取当前配置
+        logger.info(`[${createDailyTasksTag}] 获取每日每周任务配置`);
+        const settingsResult = sendRequest({}, getSettingApi, createDailyTasksTag, false, token);
+
+        logger.info(`[${createDailyTasksTag}] 配置响应: ${JSON.stringify(settingsResult)}`);
+
+        // 检查响应是否有效
+        if (!settingsResult) {
+            logger.error(`[${createDailyTasksTag}] 获取配置失败: 响应为空`);
+            return {
+                success: false,
+                message: '获取配置失败: 响应为空'
+            };
+        }
+
+        // 判断响应格式
+        let settings;
+        if (settingsResult.msgCode !== undefined) {
+            // 标准响应格式（有 msgCode 和 data）
+            if (settingsResult.msgCode !== 0) {
+                logger.error(`[${createDailyTasksTag}] 获取配置失败: msgCode=${settingsResult.msgCode}, msg=${settingsResult.msg}`);
+                return {
+                    success: false,
+                    message: `获取配置失败: ${settingsResult.msg || '未知错误'}`
+                };
+            }
+            settings = settingsResult.data;
+        } else if (settingsResult.settingKey === "IsOpenDailyWeeklyTask") {
+            // 直接返回单个配置对象，需要包装成对象
+            settings = {
+                isOpenDailyWeeklyTask: settingsResult
+            };
+        } else {
+            logger.error(`[${createDailyTasksTag}] 无法识别的响应格式`);
+            return {
+                success: false,
+                message: '无法识别的响应格式'
+            };
+        }
+
+        if (!settings) {
+            logger.error(`[${createDailyTasksTag}] 配置数据为空`);
+            return {
+                success: false,
+                message: '配置数据为空'
+            };
+        }
+
+        // 2. 使用统一配置处理器处理所有配置
+        const configRules = [
+            { settingKey: 'isOpenDailyWeeklyTask', configType: ConfigType.SWITCH }
+        ];
+
+        const result = handleMultipleConfigs({
+            token,
+            settings,
+            configRules,
+            updateApi: updateSettingApi,
+            tag: createDailyTasksTag
+        });
+
+        return result;
+
+    } catch (error) {
+        const errorMsg = getErrorMessage(error);
+        logger.error(`[${createDailyTasksTag}] 配置每日每周任务设置时发生错误: ${errorMsg}`);
+        return {
+            success: false,
+            message: `配置失败: ${errorMsg}`
         };
     }
 }

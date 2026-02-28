@@ -1,5 +1,5 @@
 import http from 'k6/http';
-import { check } from 'k6';
+import { check, sleep } from 'k6';
 import { ENV_CONFIG } from '../../../config/envconfig.js';
 import { logger } from '../../../libs/utils/logger.js';
 
@@ -39,87 +39,112 @@ export function createImageUploader(imagePath, activityName) {
         fileName = imagePath.split('/').pop();
         logger.info(`[${activityName}] 图片预加载成功: ${imagePath}`);
     } catch (error) {
-        logger.error(`[${activityName}] 图片预加载失败: ${imagePath}`, error.message);
-        // 返回一个总是失败的函数
-        return function (token) {
+        logger.warn(`[${activityName}] 图片预加载失败（文件不存在）: ${imagePath}`);
+        // 返回一个总是失败的函数，并标记为预加载失败
+        const failedUploader = function (token) {
             return {
                 success: false,
                 error: `Image preload failed: ${error.message}`
             };
         };
+        failedUploader.preloadFailed = true;
+        return failedUploader;
     }
 
     // 返回实际的上传函数（在 VU 代码中调用）
     return function uploadImage(token) {
-        try {
-            // 构建表单数据
-            const formData = {
-                files: http.file(imageContent, fileName, 'image/png'),
-                fileType: 'other',
-                customPath: '',
-            };
+        // 内部上传执行函数
+        const executeUpload = () => {
+            try {
+                // 构建表单数据
+                const formData = {
+                    files: http.file(imageContent, fileName, 'image/png'),
+                    fileType: 'other',
+                    customPath: '',
+                };
 
-            const headerUrl = ENV_CONFIG.BASE_ADMIN_URL;
-            const host = headerUrl.replace(/^(https?:\/\/)?([^:\/\s]+).*$/, '$2');
+                const headerUrl = ENV_CONFIG.BASE_ADMIN_URL;
+                const host = headerUrl.replace(/^(https?:\/\/)?([^:\/\s]+).*$/, '$2');
 
-            // 设置请求头
-            const params = {
-                headers: {
-                    'Host': `${host}`,
-                    'ignorecanceltoken': 'true',
-                    'referer': `${headerUrl}/`,
-                    'sec-ch-ua-mobile': '?0',
-                    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
-                    'accept': 'application/json, text/plain, */*',
-                    'origin': `${headerUrl}/`,
-                    'sec-ch-ua': '"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
-                    'accept-language': 'zh-CN,zh;q=0.9',
-                    'authorization': `Bearer ${token}`,
-                    'sec-fetch-dest': 'empty',
-                    'sec-fetch-site': 'same-origin',
-                    'accept-encoding': 'gzip, deflate, br, zstd',
-                    'priority': 'u=1, i',
-                    'domainurl': `${headerUrl}/`,
-                    'sec-fetch-mode': 'cors',
-                    'sec-ch-ua-platform': '"Windows"',
-                },
-            };
+                // 设置请求头
+                const params = {
+                    headers: {
+                        'Host': `${host}`,
+                        'ignorecanceltoken': 'true',
+                        'referer': `${headerUrl}/`,
+                        'sec-ch-ua-mobile': '?0',
+                        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
+                        'accept': 'application/json, text/plain, */*',
+                        'origin': `${headerUrl}/`,
+                        'sec-ch-ua': '"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
+                        'accept-language': 'zh-CN,zh;q=0.9',
+                        'authorization': `Bearer ${token}`,
+                        'sec-fetch-dest': 'empty',
+                        'sec-fetch-site': 'same-origin',
+                        'accept-encoding': 'gzip, deflate, br, zstd',
+                        'priority': 'u=1, i',
+                        'domainurl': `${headerUrl}/`,
+                        'sec-fetch-mode': 'cors',
+                        'sec-ch-ua-platform': '"Windows"',
+                    },
+                };
 
-            // 发送POST请求
-            const res = http.post(`${ENV_CONFIG.BASE_ADMIN_URL}/api/UploadFile/UploadToOss`, formData, params);
+                // 发送POST请求
+                const res = http.post(`${ENV_CONFIG.BASE_ADMIN_URL}/api/UploadFile/UploadToOss`, formData, params);
 
-            // 检查响应
-            check(res, {
-                'status is 200': (r) => r.status === 200,
-            });
+                // 检查响应
+                check(res, {
+                    'status is 200': (r) => r.status === 200,
+                });
 
-            if (res.status === 200) {
-                const data = JSON.parse(res.body);
-                if (data.code === 0 && data.data && data.data.length > 0) {
-                    return {
-                        success: true,
-                        file: data.data[0].title,
-                        src: data.data[0].src
-                    };
+                if (res.status === 200) {
+                    const data = JSON.parse(res.body);
+                    if (data.code === 0 && data.data && data.data.length > 0) {
+                        return {
+                            success: true,
+                            file: data.data[0].title,
+                            src: data.data[0].src
+                        };
+                    } else {
+                        return {
+                            success: false,
+                            error: `Upload failed: ${data.msg || 'Unknown error'}`
+                        };
+                    }
                 } else {
                     return {
                         success: false,
-                        error: `Upload failed: ${data.msg || 'Unknown error'}`
+                        error: `HTTP ${res.status}`
                     };
                 }
-            } else {
+            } catch (error) {
+                const errorMsg = error && error.message ? error.message : String(error);
                 return {
                     success: false,
-                    error: `HTTP ${res.status}`
+                    error: `Upload exception: ${errorMsg}`
                 };
             }
-        } catch (error) {
-            const errorMsg = error && error.message ? error.message : String(error);
-            return {
-                success: false,
-                error: `Upload exception: ${errorMsg}`
-            };
+        };
+
+        // 第一次尝试上传
+        let result = executeUpload();
+
+        // 如果第一次失败，等待2秒后重试一次
+        if (!result.success) {
+            logger.warn(`[${activityName}] 图片上传失败: ${result.error}，等待2秒后重试`);
+            sleep(2);
+
+            logger.info(`[${activityName}] 重试上传图片: ${fileName}`);
+            result = executeUpload();
+
+            if (!result.success) {
+                logger.error(`[${activityName}] 图片重试上传仍然失败: ${result.error}`);
+            } else {
+                logger.info(`[${activityName}] 图片重试上传成功`);
+            }
         }
+
+        return result;
     };
 }
 

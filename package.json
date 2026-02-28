@@ -16,7 +16,7 @@
         "security:fix": "npm audit fix",
         "clean": "rm -rf reports/* logs/*",
         "report": "node scripts/generate-report.js",
-        "docker:build": "docker build -t k6-test-framework -f docker/Dockerfile .",
+        "docker:build": "docker-compose build",
         "docker:run": "docker-compose -f docker/docker-compose.yml up k6",
         "precommit": "npm run lint && npm run format",
         "viz:install": "cd viz/backend && npm install",
@@ -28,7 +28,6 @@
         "docker:up": "docker-compose up -d",
         "docker:down": "docker-compose down",
         "docker:logs": "docker-compose logs -f",
-        "docker:build": "docker-compose build",
         "docker:clean": "docker-compose down -v"
     },
     "keywords": [
@@ -68,6 +67,7 @@
     },
     "homepage": "https://github.com/your-org/k6-test-framework#readme",
     "dependencies": {
+        "exceljs": "^4.4.0",
         "zod": "^4.3.6"
     }
 }

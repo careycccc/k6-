@@ -2,6 +2,7 @@ import { sleep } from 'k6';
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest } from '../../common/request.js';
 import { getErrorMessage } from '../../uploadFile/uploadFactory.js';
+import { handleMultipleConfigs, ConfigType } from '../common/activityConfigHandler.js';
 
 export const createInviteTurntableTag = 'createInviteTurntable';
 
@@ -26,6 +27,16 @@ export function createInviteTurntable(data) {
                 success: false,
                 tag: createInviteTurntableTag,
                 message: 'Token 不存在，跳过邀请转盘活动创建'
+            };
+        }
+
+        // 检查并配置邀请转盘设置
+        const settingResult = checkAndConfigureInviteTurntableSettings(data);
+        if (!settingResult.success) {
+            return {
+                success: false,
+                tag: createInviteTurntableTag,
+                message: `配置邀请转盘设置失败: ${settingResult.message}`
             };
         }
 
@@ -164,6 +175,10 @@ function createInviteTurntableConfig(data, config) {
         if (result && result.msgCode === 0) {
             logger.info(`[${createInviteTurntableTag}] ${config.name}配置成功 - ${payload.configName}`);
             return { success: true };
+        } else if (result && result.msgCode === 6040) {
+            // 错误码 6040：优先级重复，说明配置已存在
+            logger.info(`[${createInviteTurntableTag}] ${config.name}配置已存在，跳过 - ${payload.configName}`);
+            return { success: true };
         } else {
             return {
                 success: false,
@@ -177,6 +192,85 @@ function createInviteTurntableConfig(data, config) {
         return {
             success: false,
             message: `请求异常: ${errorMsg}`
+        };
+    }
+}
+
+/**
+ * 检查并配置邀请转盘设置
+ * @param {*} data
+ * @returns {Object} 配置结果 { success, message }
+ */
+function checkAndConfigureInviteTurntableSettings(data) {
+    const token = data.token;
+    const getSettingApi = '/api/InvitedWheel/GetConfig';
+    const updateSettingApi = '/api/InvitedWheel/UpdateConfig';
+
+    try {
+        // 1. 获取当前配置
+        logger.info(`[${createInviteTurntableTag}] 获取邀请转盘配置`);
+        const settingsResult = sendRequest({}, getSettingApi, createInviteTurntableTag, false, token);
+
+        // 检查响应是否有效
+        if (!settingsResult) {
+            logger.error(`[${createInviteTurntableTag}] 获取配置失败: 响应为空`);
+            return {
+                success: false,
+                message: '获取配置失败: 响应为空'
+            };
+        }
+
+        // 判断响应格式
+        let settings;
+        if (settingsResult.msgCode !== undefined) {
+            // 标准响应格式
+            if (settingsResult.msgCode !== 0) {
+                logger.error(`[${createInviteTurntableTag}] 获取配置失败: msgCode=${settingsResult.msgCode}, msg=${settingsResult.msg}`);
+                return {
+                    success: false,
+                    message: `获取配置失败: ${settingsResult.msg || '未知错误'}`
+                };
+            }
+            settings = settingsResult.data;
+        } else {
+            // 直接返回配置对象
+            settings = settingsResult;
+        }
+
+        if (!settings) {
+            logger.error(`[${createInviteTurntableTag}] 配置数据为空`);
+            return {
+                success: false,
+                message: '配置数据为空'
+            };
+        }
+
+        // 2. 使用统一配置处理器处理所有配置
+        const configRules = [
+            { settingKey: 'IsOpenInvitedWheel', configType: ConfigType.SWITCH },
+            { settingKey: 'IsInvitedWheelCashToMainWallet', configType: ConfigType.SWITCH },
+            { settingKey: 'InvitedWheelWithdrawCashCodeWash', configType: ConfigType.NUMBER },
+            { settingKey: 'InvitedWheelCycleTime', configType: ConfigType.NUMBER },
+            { settingKey: 'InviteAutoRotate', configType: ConfigType.SWITCH },
+            { settingKey: 'FirstInvitedSpinWinProbabilityRate', configType: ConfigType.NUMBER }
+        ];
+
+        const result = handleMultipleConfigs({
+            token,
+            settings,
+            configRules,
+            updateApi: updateSettingApi,
+            tag: createInviteTurntableTag
+        });
+
+        return result;
+
+    } catch (error) {
+        const errorMsg = getErrorMessage(error);
+        logger.error(`[${createInviteTurntableTag}] 配置邀请转盘设置时发生错误: ${errorMsg}`);
+        return {
+            success: false,
+            message: `配置失败: ${errorMsg}`
         };
     }
 }

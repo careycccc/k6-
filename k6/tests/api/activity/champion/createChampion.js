@@ -2,6 +2,7 @@ import { sleep } from 'k6';
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest } from '../../common/request.js';
 import { createImageUploader, handleImageUpload, getErrorMessage } from '../../uploadFile/uploadFactory.js';
+import { handleMultipleConfigs, ConfigType } from '../common/activityConfigHandler.js';
 
 export const createChampionTag = 'createChampion';
 
@@ -32,6 +33,16 @@ export function createChampion(data) {
                 success: false,
                 tag: createChampionTag,
                 message: 'Token 不存在，跳过锦标赛活动创建'
+            };
+        }
+
+        // 检查并配置锦标赛设置
+        const settingResult = checkAndConfigureChampionSettings(data);
+        if (!settingResult.success) {
+            return {
+                success: false,
+                tag: createChampionTag,
+                message: `配置锦标赛设置失败: ${settingResult.message}`
             };
         }
 
@@ -99,6 +110,85 @@ export function createChampion(data) {
             success: false,
             tag: createChampionTag,
             message: `创建锦标赛活动失败: ${errorMsg}`
+        };
+    }
+}
+
+/**
+ * 检查并配置锦标赛设置
+ * @param {*} data
+ * @returns {Object} 配置结果 { success, message }
+ */
+function checkAndConfigureChampionSettings(data) {
+    const token = data.token;
+    const getSettingApi = '/api/Champion/GetChampionSetting';
+    const updateSettingApi = '/api/Champion/UpdateChampionSetting';
+
+    try {
+        // 1. 获取当前配置
+        logger.info(`[${createChampionTag}] 获取锦标赛配置`);
+        const settingsResult = sendRequest({}, getSettingApi, createChampionTag, false, token);
+
+        logger.info(`[${createChampionTag}] 配置响应: ${JSON.stringify(settingsResult)}`);
+
+        // 检查响应是否有效
+        if (!settingsResult) {
+            logger.error(`[${createChampionTag}] 获取配置失败: 响应为空`);
+            return {
+                success: false,
+                message: '获取配置失败: 响应为空'
+            };
+        }
+
+        // 判断响应格式：如果有 msgCode 字段，说明是标准响应格式
+        let settings;
+        if (settingsResult.msgCode !== undefined) {
+            // 标准响应格式
+            if (settingsResult.msgCode !== 0) {
+                logger.error(`[${createChampionTag}] 获取配置失败: msgCode=${settingsResult.msgCode}, msg=${settingsResult.msg}`);
+                return {
+                    success: false,
+                    message: `获取配置失败: ${settingsResult.msg || '未知错误'}`
+                };
+            }
+            settings = settingsResult.data;
+        } else {
+            // 直接返回配置对象
+            settings = settingsResult;
+        }
+
+        if (!settings) {
+            logger.error(`[${createChampionTag}] 配置数据为空`);
+            return {
+                success: false,
+                message: '配置数据为空'
+            };
+        }
+
+        logger.info(`[${createChampionTag}] 配置数据: ${JSON.stringify(settings)}`);
+
+        // 2. 使用统一配置处理器处理所有配置
+        const configRules = [
+            { settingKey: 'IsOpenChampion', configType: ConfigType.SWITCH },
+            { settingKey: 'ChampionCodingMultiple', configType: ConfigType.NUMBER }
+        ];
+
+        const result = handleMultipleConfigs({
+            token,
+            settings,
+            configRules,
+            updateApi: updateSettingApi,
+            tag: createChampionTag
+        });
+
+        return result;
+
+    } catch (error) {
+        const errorMsg = getErrorMessage(error);
+        logger.error(`[${createChampionTag}] 配置锦标赛设置时发生错误: ${errorMsg}`);
+        return {
+            success: false,
+            message: `配置失败: ${errorMsg}`
         };
     }
 }
