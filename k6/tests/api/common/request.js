@@ -63,36 +63,45 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
         logger.error(`${api} 响应检查: response为空`);
         return;
       }
-      // 添加响应体检查
-      if (!response.body) {
-        ResponseSuccessRate.add(false);
-        logger.error(`${api} 响应体为空`, {
-          status: response.status,
-          statusText: response.status_text
-        });
-        return;
-      }
-
-      // 解析响应体
-      let parsedBody;
-      try {
-        if (typeof response.body === 'string') {
-          parsedBody = JSON.parse(response.body);
-        } else {
-          parsedBody = response.body;
+      // 添加响应体检查 - 某些API（如发送验证码）返回空响应体是正常的
+      let parsedBody = null;
+      if (response.body) {
+        // 解析响应体
+        try {
+          if (typeof response.body === 'string') {
+            parsedBody = JSON.parse(response.body);
+          } else {
+            parsedBody = response.body;
+          }
+        } catch (parseError) {
+          logger.error(`${api} 响应体解析失败`, parseError.message);
+          ResponseSuccessRate.add(false);
+          return;
         }
-      } catch (parseError) {
-        logger.error(`${api} 响应体解析失败`, parseError.message);
-        ResponseSuccessRate.add(false);
+      } else {
+        // 响应体为空，仅检查HTTP状态码
+        const httpStatusSuccess = response.status >= 200 && response.status < 300;
+        ResponseSuccessRate.add(httpStatusSuccess);
+        if (httpStatusSuccess) {
+          logger.info(`${api} 请求成功（空响应体）`, {
+            status: response.status,
+            statusText: response.status_text
+          });
+        } else {
+          logger.error(`${api} 请求失败（空响应体）`, {
+            status: response.status,
+            statusText: response.status_text
+          });
+        }
         return;
       }
 
       // 基于HTTP状态码、业务状态码和消息判断响应是否成功
       const httpStatusSuccess = response.status >= 200 && response.status < 300;
-      const businessStatusSuccess = parsedBody.msgCode === 0;
-      const businessMessageSuccess = parsedBody.msg === 'Succeed';
+      const businessStatusSuccess = parsedBody ? parsedBody.msgCode === 0 : true;
+      const businessMessageSuccess = parsedBody ? parsedBody.msg === 'Succeed' : true;
 
-      // 只有HTTP状态码在200-300之间，且业务状态码为0，且消息为"Succeed"才认为响应成功
+      // 只有HTTP状态码在200-300之间才认为响应成功（如果有响应体，还需要检查业务状态码）
       const checkPassed = httpStatusSuccess && businessStatusSuccess;
 
       // 记录成功率指标
@@ -107,10 +116,10 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
         // 6103: 活动启动条件冲突
         // 6056: 活动时间重叠
         // 6063: 同类型活动已开启
-        if (parsedBody.msgCode === 6026 || parsedBody.msgCode === 6040 ||
+        if (parsedBody && (parsedBody.msgCode === 6026 || parsedBody.msgCode === 6040 ||
           parsedBody.msgCode === 2021 || parsedBody.msgCode === 2103 ||
           parsedBody.msgCode === 6103 || parsedBody.msgCode === 6056 ||
-          parsedBody.msgCode === 6063) {
+          parsedBody.msgCode === 6063)) {
           logger.warn(`${api} 响应警告`, {
             status: response.status,
             httpStatusSuccess,
@@ -123,9 +132,9 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
           logger.error(`${api} 响应失败`, {
             status: response.status,
             httpStatusSuccess,
-            msgCode: parsedBody.msgCode,
+            msgCode: parsedBody ? parsedBody.msgCode : 'N/A',
             businessStatusSuccess,
-            msg: parsedBody.msg,
+            msg: parsedBody ? parsedBody.msg : 'N/A',
             businessMessageSuccess
           });
         }
