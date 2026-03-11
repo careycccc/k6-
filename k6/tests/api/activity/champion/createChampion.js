@@ -207,7 +207,7 @@ function createChampionActivity(data, vendorCode, imagePath) {
     // 获取当前时间和未来时间
     const now = new Date();
     const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    const dayAfterTomorrow = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+    const dayAfterTomorrow = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000); // 明天后4天（即今天+5天）
 
     // 格式化日期为 "YYYY-MM-DD HH:mm:ss"
     const formatDate = (date) => {

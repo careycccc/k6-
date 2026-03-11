@@ -1,7 +1,9 @@
 
 import { AdminLogin, adminTag } from '../login/adminlogin.test.js';
-import { createluckyDoubleBonus } from '../activity/luckyDoubleBonus/createluckyDoubleBonus.js';
-import { createTagfunc as createTagfuncfunc } from '../activity/tag/createTag.js'
+// import { createLoginPopup } from '../activity/loginPopup/createLoginPopup.js';
+// import { createCustomizePopup } from '../activity/customizePopup/createCustomizePopup.js';
+import { createBanner } from '../activity/banner/createBanner.js';
+import { createTagfunc as createTagfuncfunc } from '../activity/tag/createTag.js';
 
 import { logger } from '../../../libs/utils/logger.js';
 import { sleep } from 'k6';
@@ -50,14 +52,50 @@ export default function (data) {
     // // 等待2秒
     // sleep(2);
 
-    // 步骤2：创建充值礼包
-    logger.info('========== 步骤2：创建幸运礼包 ==========');
-    const giftPackResult = createluckyDoubleBonus(data);
-    if (!giftPackResult || !giftPackResult.success) {
-        logger.error(`幸运礼包创建失败: ${giftPackResult?.message || '未知错误'}`);
+    // 步骤2：创建幸运礼包
+    // logger.info('========== 步骤2：创建幸运礼包 ==========');
+    // const giftPackResult = createChampion(data);
+    // if (!giftPackResult || !giftPackResult.success) {
+    //     logger.error(`幸运礼包创建失败: ${giftPackResult?.message || '未知错误'}`);
+    //     return;
+    // }
+    // logger.info('幸运礼包创建成功');
+
+    // 等待2秒
+    // sleep(2);
+
+    // 步骤3：创建登录前弹窗
+    // logger.info('========== 步骤3：创建登录前弹窗 ==========');
+    // const loginPopupResult = createLoginPopup(data);
+    // if (!loginPopupResult || !loginPopupResult.success) {
+    //     logger.error(`登录前弹窗创建失败: ${loginPopupResult?.message || '未知错误'}`);
+    //     return;
+    // }
+    // logger.info('登录前弹窗创建成功');
+
+    // 等待2秒
+    //sleep(2);
+
+    // 步骤4：创建定制化弹窗
+    // logger.info('========== 步骤4：创建定制化弹窗 ==========');
+    // const customizePopupResult = createCustomizePopup(data);
+    // if (!customizePopupResult || !customizePopupResult.success) {
+    //     logger.error(`定制化弹窗创建失败: ${customizePopupResult?.message || '未知错误'}`);
+    //     return;
+    // }
+    // logger.info('定制化弹窗创建成功');
+
+    // // 等待2秒
+    // sleep(2);
+
+    // 步骤5：创建轮播图
+    logger.info('========== 步骤5：创建轮播图 ==========');
+    const bannerResult = createBanner(data);
+    if (!bannerResult || !bannerResult.success) {
+        logger.error(`轮播图创建失败: ${bannerResult?.message || '未知错误'}`);
         return;
     }
-    logger.info('幸运礼包创建成功');
+    logger.info('轮播图创建成功');
 
     logger.info('所有活动创建完成');
 }
