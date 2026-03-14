@@ -2,10 +2,9 @@ import http from 'k6/http';
 import { getApiUrl } from '../../config/environment.js';
 import { getLogger } from '../utils/logger.js';
 import { SignedHttpClient } from '../utils/signature.js';
-import { loadConfigFromFile } from '../../config/load.js';
+import { ENV_CONFIG } from '../../config/envconfig.js';
 
 const logger = getLogger();
-const loader = loadConfigFromFile();
 
 export class HttpClient extends SignedHttpClient {
   constructor(baseConfig = {}) {
@@ -42,7 +41,12 @@ export class HttpClient extends SignedHttpClient {
     if (!this.autoSign || config.sign === false) return data;
     const opts = { ...this.defaultSignOptions, ...config.signOptions };
     try {
-      return this.signData(data, opts);
+      const signedData = this.signData(data, opts);
+      // 调试：检查签名后的 random
+      if (signedData.random) {
+        console.log(`[HttpClient] Debug - 签名后 random: ${signedData.random}, 类型: ${typeof signedData.random}, 长度: ${String(signedData.random).length}`);
+      }
+      return signedData;
     } catch (err) {
       this.logger.error('签名失败', err);
       throw err;
@@ -54,14 +58,21 @@ export class HttpClient extends SignedHttpClient {
   request(method, endpoint, data = null, config = {}, isDesk = true) {
     const url = config.fullUrl || getApiUrl(endpoint, isDesk);
     //logger.info(`请求的url:  ${url}`);
-    // 为前后端请求的时候添加不同的heades
-    const deskUrl = loader.local.API_BASE_URL;
-    const adminUrl = loader.local.API_ADMIN_URL;
-    if (isDesk) {
-      config.headers = generateRequestBody(config, deskUrl);
+
+    // 为前后端请求的时候添加不同的headers
+    let domainUrl;
+    if (config.fullUrl) {
+      // ✅ 如果使用自定义URL，从URL中提取域名（协议+主机）
+      // 例如: https://arsitasdfghjklg.com/api/Login/Login -> https://arsitasdfghjklg.com
+      const match = config.fullUrl.match(/^(https?:\/\/[^\/]+)/);
+      domainUrl = match ? match[1] : (isDesk ? ENV_CONFIG.BASE_DESK_URL : ENV_CONFIG.BASE_ADMIN_URL);
     } else {
-      config.headers = generateRequestBody(config, adminUrl);
+      // 使用 ENV_CONFIG 动态获取
+      domainUrl = isDesk ? ENV_CONFIG.BASE_DESK_URL : ENV_CONFIG.BASE_ADMIN_URL;
     }
+
+    config.headers = generateRequestBody(config, domainUrl);
+
     // 添加默认 headers
     const headers = { ...this.defaultHeaders, ...config.headers };
 

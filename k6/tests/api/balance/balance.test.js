@@ -28,7 +28,7 @@ export function getAccountBalance(token) {
 
     try {
         const timeData = getTimeRandom();
-        console.log('[Balance] timeData:', JSON.stringify(timeData));
+        //console.log('[Balance] timeData:', JSON.stringify(timeData));
 
         const requestData = {
             language: timeData.language,
@@ -41,10 +41,10 @@ export function getAccountBalance(token) {
 
         // 生成签名
         const signClient = new SignedHttpClient();
-        console.log('[Balance] 开始生成签名...');
+        //console.log('[Balance] 开始生成签名...');
 
         const signedData = signClient.signData(requestData);
-        console.log('[Balance] 签名生成成功:', JSON.stringify(signedData));
+        //console.log('[Balance] 签名生成成功:', JSON.stringify(signedData));
 
         console.log('[Balance] 请求 URL:', fullUrl);
 
