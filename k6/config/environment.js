@@ -1,4 +1,5 @@
 import { loadConfigFromFile } from './load.js';
+import { ENV_CONFIG } from './envconfig.js';
 
 const config = loadConfigFromFile();
 
@@ -24,11 +25,11 @@ export function getEnvironment() {
 export function getApiUrl(endpoint, isDesk = true) {
   let baseUrl = '';
   if (isDesk) {
-    // 前台请求
-    baseUrl = config.local.API_BASE_URL;
+    // 前台请求 - 优先使用 ENV_CONFIG 的动态配置
+    baseUrl = ENV_CONFIG.BASE_DESK_URL || config.local.API_BASE_URL;
   } else {
-    // 后台请求
-    baseUrl = config.local.API_ADMIN_URL;
+    // 后台请求 - 优先使用 ENV_CONFIG 的动态配置
+    baseUrl = ENV_CONFIG.BASE_ADMIN_URL || config.local.API_ADMIN_URL;
   }
   // 确保 endpoint 是字符串并以斜杠开头
   const path = String(endpoint || '');

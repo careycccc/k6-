@@ -40,3 +40,9 @@ export function AdminLogin() {
   //console.log('setup: 后台登录获取 token', token);
   return token;
 }
+
+// 默认导出函数，用于k6执行
+export default function () {
+  const token = AdminLogin();
+  return token;
+}

@@ -26,11 +26,11 @@ export function getNowBetNumber(gameToken, gameCode, gameBaseUrl) {
         'Accept': 'application/json, text/plain, */*'
     };
 
-    console.log('[IssueNumber] 请求期号 URL:', gameBaseUrl + api);
+    //console.log('[IssueNumber] 请求期号 URL:', gameBaseUrl + api);
 
     const response = http.get(gameBaseUrl + api, { headers });
 
-    console.log('[IssueNumber] 期号响应状态:', response.status);
+    //console.log('[IssueNumber] 期号响应状态:', response.status);
 
     if (response.status === 200 && response.body) {
         try {

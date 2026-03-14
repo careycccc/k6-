@@ -62,7 +62,7 @@ export function getGameToken(loginToken, gameCode) {
             const result = JSON.parse(response.body);
             if (result.msgCode === 0 && result.data && result.data.url) {
                 const url = result.data.url;
-                console.log('[BetToken] 游戏URL:', url);
+                //console.log('[BetToken] 游戏URL:', url);
 
                 // 从URL中提取token
                 const tokenMatch = url.match(/Token=([^&]+)/);
