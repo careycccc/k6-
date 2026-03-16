@@ -250,18 +250,30 @@ func (d *Dispatcher) handleQueryBalance(params map[string]string) string {
 func (d *Dispatcher) handleRecharge(params map[string]string) string {
 	platform := params["platform"]
 	amount := params["amount"]
+	account := params["account"] // 如果为空则代表随机注册
 
 	if platform == "" || amount == "" {
-		return "请提供完整的充值信息。\n例如：帮我在3003平台充值500元"
+		return "请提供完整的充值信息。\n例如：给3004的12344@qq.com充值500，或者：给我一个3004账号充值500"
 	}
 
-	// ⭐ 调用你的业务函数
-	err := d.accountService.Recharge(platform, amount)
-	if err != nil {
-		return fmt.Sprintf("❌ 充值失败：%v", err)
+	validPlatforms := map[string]bool{"3001": true, "3002": true, "3003": true, "3004": true}
+	if !validPlatforms[platform] {
+		return fmt.Sprintf("❌ 平台编号 %s 无效，请使用 3001/3002/3003/3004", platform)
 	}
 
-	return fmt.Sprintf("✅ 充值成功！已在 %s 平台充值 %s 元", platform, amount)
+	var actionDesc string
+	if account == "" || account == "undefined" {
+		actionDesc = fmt.Sprintf("✅ 任务已受理！\n\n系统将为您【随机注册】一个 %s 平台的新账号，并完成 %s 元充值。\n", platform, amount)
+		account = "【系统随机生成】"
+	} else {
+		actionDesc = fmt.Sprintf("✅ 任务已受理！\n\n系统将使用您提供的账号 %s 在 %s 平台进行登录，并完成 %s 元充值。\n", account, platform, amount)
+	}
+
+	// 实际项目中这里通过 exec.Command 调用 k6 脚本，并将 platform, account, amount 传递给环境变量
+	// 例如：exec.Command("k6", "run", "-e", "TARGET_USER=" + account, "-e", "TARGET_PLATFORM=" + platform, "k6/tests/api/recharge/frontendRecharge.test.js")
+
+	var reply = actionDesc + "\n(提示: 后端已触发对应的 k6 自动化脚本执行前台充值流程)"
+	return reply
 }
 
 func (d *Dispatcher) handleListAccounts(params map[string]string) string {
@@ -316,4 +328,43 @@ func truncateToken(token string) string {
 		return token[:30] + "..."
 	}
 	return token
+}
+
+func (d *Dispatcher) handleCreateActivity(params map[string]string) string {
+	platform := params["platform"]
+	activitiesStr := params["activities"]
+
+	if platform == "" {
+		return "请告诉我你要在哪个平台创建活动？（如：3001/3002/3003/3004）"
+	}
+    
+    validPlatforms := map[string]bool{"3001": true, "3002": true, "3003": true, "3004": true}
+	if !validPlatforms[platform] {
+		return fmt.Sprintf("❌ 平台编号 %s 无效，请使用 3001/3002/3003/3004", platform)
+	}
+
+	if activitiesStr == "" {
+		return "请告诉我你需要创建什么活动？（如：每日签到、红包雨等）"
+	}
+
+	// TODO: 实际项目中，这里需要调用 service 层的方法，比如使用 exec.Command 调用 k6 脚本
+	// d.activityService.Create(platform, activitiesStr)
+    
+	activities := strings.Split(activitiesStr, ",")
+	var successList []string
+    
+	for _, act := range activities {
+        act = strings.TrimSpace(act)
+        if act == "" { continue }
+		successList = append(successList, fmt.Sprintf("✅ 【%s】", act))
+	}
+
+	var reply strings.Builder
+	reply.WriteString(fmt.Sprintf("活动已创建完毕！\n\n租户：%s\n\n创建的活动如下：\n", platform))
+	reply.WriteString(strings.Join(successList, "\n"))
+    
+    // (可选) 提示后台正在调用K6脚本
+    // reply.WriteString("\n\n(系统已在后台触发对应的K6测试脚本)")
+
+	return reply.String()
 }

@@ -44,7 +44,7 @@ export class HttpClient extends SignedHttpClient {
       const signedData = this.signData(data, opts);
       // 调试：检查签名后的 random
       if (signedData.random) {
-        console.log(`[HttpClient] Debug - 签名后 random: ${signedData.random}, 类型: ${typeof signedData.random}, 长度: ${String(signedData.random).length}`);
+        //console.log(`[HttpClient] Debug - 签名后 random: ${signedData.random}, 类型: ${typeof signedData.random}, 长度: ${String(signedData.random).length}`);
       }
       return signedData;
     } catch (err) {
