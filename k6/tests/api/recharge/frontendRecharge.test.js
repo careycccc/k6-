@@ -35,12 +35,12 @@ export function runFrontendRechargeFlow(session) {
     const adminToken = session.adminToken;
     const userName = session.userName;
     const userId = session.userId;
-    
+
     console.log(`[${tag}] 开始前台充值流程，获取充值通道列表...`);
 
     // 1. 获取充值列表
     const categories = getRechargeCategoryList(userToken);
-    
+
     if (!categories || !Array.isArray(categories) || categories.length === 0) {
         console.error(`[${tag}] 充值分类列表为空或获取失败`);
         fallbackToManualRecharge(adminToken, userName, userId, 100);
@@ -53,20 +53,25 @@ export function runFrontendRechargeFlow(session) {
     categories.sort((a, b) => {
         if (a.rechargeType === 'LocalEWallet' && b.rechargeType !== 'LocalEWallet') return 1;
         if (a.rechargeType !== 'LocalEWallet' && b.rechargeType === 'LocalEWallet') return -1;
-        return 0; 
+        return 0;
     });
 
     let isSuccess = false;
 
     // 3. 遍历通道并尝试充值
     for (let i = 0; i < categories.length; i++) {
+        sleep(3)
         const category = categories[i];
         const categoryId = category.id;
         const rechargeType = category.rechargeType;
         const name = category.name;
-        
-        const minAmt = category.minAmount || 100;
-        const maxAmt = Math.min(category.maxAmount || 100000, 5000); 
+
+        let minAmt = category.minAmount || 100;
+        let maxAmt = category.maxAmount || 100000;
+        if (rechargeType !== 'LocalEWallet') {
+            minAmt = Math.max(minAmt, 1000);
+        }
+        maxAmt = Math.max(minAmt, Math.min(maxAmt, 5000));
         const amount = getRandomAmount(minAmt, maxAmt);
 
         console.log(`[${tag}] 尝试通道 [${i + 1}/${categories.length}]: ${name}(${rechargeType}), ID: ${categoryId}, 金额: ${amount}`);
@@ -78,7 +83,7 @@ export function runFrontendRechargeFlow(session) {
 
         if (rechargeType === 'LocalEWallet') {
             payload.customerInfo = {
-                accountNo: "467687777878978", 
+                accountNo: "467687777878978",
                 holderName: "tester"
             };
         }
@@ -93,7 +98,7 @@ export function runFrontendRechargeFlow(session) {
         const code = response.code;
         const msgCode = response.msgCode;
         const msg = response.msg || "";
-        
+
         console.log(`[${tag}] 响应 => code: ${code}, msgCode: ${msgCode}, msg: "${msg}"`);
 
         // 充值成功的条件有两个：
@@ -103,7 +108,7 @@ export function runFrontendRechargeFlow(session) {
 
         if (isApiSuccess) {
             console.log(`[${tag}] ✅ 充值受理成功! 通道: ${name}(${rechargeType}), 金额: ${amount}`);
-            
+
             // 开始对后台审核逻辑做轮询
             let auditSuccess = false;
 
@@ -111,7 +116,7 @@ export function runFrontendRechargeFlow(session) {
                 if (retry > 0) {
                     console.log(`[${tag}] 第${retry}次未能在后台匹配到订单，等待后发起重试...`);
                 }
-                
+
                 // 等待一会儿以确保订单写入数据库
                 sleep(2);
 
@@ -120,10 +125,10 @@ export function runFrontendRechargeFlow(session) {
                     const now = Date.now();
                     const startTime = now - (60 * 60 * 1000); // 过去1小时
                     const endTime = now + (60 * 60 * 1000);
-                    
+
                     const orders = getLocalRechargeOrderPageList(adminToken, userId, startTime, endTime);
                     let targetOrder = null;
-                    
+
                     if (orders && orders.length > 0) {
                         for (let order of orders) {
                             if (order.amount === amount && order.rechargeState === 'Wait') {
@@ -132,7 +137,7 @@ export function runFrontendRechargeFlow(session) {
                             }
                         }
                     }
-                    
+
                     if (targetOrder) {
                         console.log(`[${tag}] ✅ 后台匹配到本地充值订单 ${targetOrder.orderNo}，准备人工审核`);
                         const auditRes = manualAuditLocalRechargeOrder(adminToken, targetOrder.orderNo, userId, targetOrder.createTime, amount);
@@ -151,17 +156,17 @@ export function runFrontendRechargeFlow(session) {
                     // 查询三方订单
                     const orders = getRechargeOrderPageList(adminToken, userId, "ThirdRecharge");
                     let targetOrder = null;
-                    
+
                     if (orders && orders.length > 0) {
                         for (let order of orders) {
                             // 金额匹配即可
-                            if (order.amount === amount) { 
+                            if (order.amount === amount) {
                                 targetOrder = order;
                                 break;
                             }
                         }
                     }
-                    
+
                     if (targetOrder) {
                         console.log(`[${tag}] ✅ 后台匹配到三方订单 ${targetOrder.orderNo}，准备人工审核`);
                         const auditRes = manualAuditRechargeOrder(adminToken, targetOrder.orderNo, userId, targetOrder.createTime, amount);
@@ -195,7 +200,7 @@ export function runFrontendRechargeFlow(session) {
     // 6. 如果所有通道都失败，触发备用机制
     if (!isSuccess) {
         console.error(`[${tag}] ❌ 所有前台充值通道尝试完毕，均未能成功充值审核。开始回退到后台人工充值...`);
-        fallbackToManualRecharge(adminToken, userName, userId, 500); 
+        fallbackToManualRecharge(adminToken, userName, userId, 500);
     }
 
     return isSuccess;
@@ -226,7 +231,7 @@ function fallbackToManualRecharge(adminToken, userName, userId, amount) {
 
 export default function () {
     // 可以从环境变量动态获取参数
-    const userName = __ENV.TARGET_USER || "kg1m4n4dg@yahoo.com";
+    const userName = __ENV.TARGET_USER || "917009147363";
     const isRegister = __ENV.IS_REGISTER === 'true';
 
     console.log(`\n=================== 前台充值测试开始 ===================`);

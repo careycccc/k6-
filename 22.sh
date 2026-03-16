@@ -1,25 +1,62 @@
 #!/bin/bash
 
-echo "正在更新前台充值的成功判定条件..."
+echo "正在修复后台查询订单的校验逻辑..."
 
-cat << 'EOF' > patch_is_success.js
+cat << 'EOF' > fix_backend_api.js
 const fs = require('fs');
-const frontendFile = './k6/tests/api/recharge/frontendRecharge.test.js';
-let source = fs.readFileSync(frontendFile, 'utf-8');
 
-// 将刚刚很长的判断条件，替换成精确的2个条件：code: 0 或者 msg 是特定的限流信息
-source = source.replace(
-`        // 根据用户的规则判定是否成功，包含特定报错 "Sorry, The system is busy, please try again later! code: 10003"
-        const isApiSuccess = (msgCode === 41 || msgCode === 0 || code === -2 || code === 0 || msg === "Sorry, The system is busy, please try again later! code: 10003");`,
-`        // 充值成功的条件有两个：
-        // 1. code === 0
-        // 2. msg === "Sorry, The system is busy, please try again later! code: 10003"
-        const isApiSuccess = (code === 0 || msg === "Sorry, The system is busy, please try again later! code: 10003");`
+let apiFile = './k6/tests/api/recharge/backendRechargeApi.js';
+let content = fs.readFileSync(apiFile, 'utf-8');
+
+// 修复本地充值的报错判断
+content = content.replace(
+`    if (!response || response.msgCode !== 0) {
+        console.error(\`[\${tag}] 查询订单列表失败, 响应内容: \${JSON.stringify(response)}\`);
+        return null;
+    }
+    
+    if (response.data && response.data.list) {
+        return response.data.list;
+    }
+    return response.list || [];`,
+`    // testCommonRequest 成功时会直接返回 parsedBody.data，此时没有 msgCode
+    if (!response) {
+        console.error(\`[\${tag}] 查询订单列表失败, 响应内容: \${JSON.stringify(response)}\`);
+        return null;
+    }
+    
+    if (response.data && response.data.list) {
+        return response.data.list;
+    }
+    return response.list || [];`
 );
 
-fs.writeFileSync(frontendFile, source);
+// 修复三方充值的报错判断
+content = content.replace(
+`    if (!response || response.msgCode !== 0) {
+        console.error(\`[\${tag}] 查询三方订单列表失败, 响应内容: \${JSON.stringify(response)}\`);
+        return null;
+    }
+    
+    if (response.data && response.data.list) {
+        return response.data.list;
+    }
+    return response.list || [];`,
+`    // testCommonRequest 成功时会直接返回 parsedBody.data，此时没有 msgCode
+    if (!response) {
+        console.error(\`[\${tag}] 查询三方订单列表失败, 响应内容: \${JSON.stringify(response)}\`);
+        return null;
+    }
+    
+    if (response.data && response.data.list) {
+        return response.data.list;
+    }
+    return response.list || [];`
+);
+
+fs.writeFileSync(apiFile, content);
 EOF
 
-node patch_is_success.js && rm patch_is_success.js
+node fix_backend_api.js && rm fix_backend_api.js
 
-echo "✨ 成功条件已修正为精确匹配！请再次执行 k6 run frontendRecharge.test.js 测试"
+echo "✨ 修复完成！现在可以正确匹配后台订单了！"

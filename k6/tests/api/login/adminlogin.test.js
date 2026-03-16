@@ -1,7 +1,7 @@
 import { hanlderThresholds } from '../../../config/thresholds.js';
 import { loadConfigFromFile } from '../../../config/load.js';
 import { sendRequest } from '../common/request.js';
-import { ENV_CONFIG } from '../../../config/envconfig.js';
+import { ENV_CONFIG, getEnvByTenantId } from '../../../config/envconfig.js';
 
 export const adminTag = 'adminlogin';
 const loader = loadConfigFromFile();
@@ -32,9 +32,11 @@ export const options = {
 // 后台登录
 export function AdminLogin() {
   const api = '/api/Login/Login';
+  const tenantIdStr = __ENV.TENANT_ID || ENV_CONFIG.TENANTID;
+  const currentEnv = getEnvByTenantId(tenantIdStr);
   const data = {
-    userName: ENV_CONFIG.ADMIN_USERNAME,
-    pwd: ENV_CONFIG.ADMIN_PASSWORD
+    userName: currentEnv.ADMIN_USERNAME,
+    pwd: currentEnv.ADMIN_PASSWORD
   };
   const token = sendRequest(data, api, adminTag, false);
   //console.log('setup: 后台登录获取 token', token);

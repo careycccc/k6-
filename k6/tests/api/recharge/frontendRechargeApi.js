@@ -5,6 +5,7 @@
 import { sendRequest, sendQueryRequest } from '../common/request.js';
 import { httpClient } from '../../../libs/http/client.js';
 import { getTimeRandom } from '../../utils/utils.js';
+import { ENV_CONFIG, getEnvByTenantId } from '../../../config/envconfig.js';
 
 const apiRechargeCategoryList = '/api/Recharge/GetRechargeCategoryList';
 const apiDepositRecharge = '/api/Recharge/DepositRecharge';
@@ -52,10 +53,15 @@ export function depositRecharge(token, payload) {
     const tag = 'DepositRecharge';
     const timeData = getTimeRandom();
     
+    // 动态获取当前运行的机场(租户)配置以生成前台 URL
+    const tenantIdStr = __ENV.TENANT_ID || ENV_CONFIG.TENANTID;
+    const currentEnv = getEnvByTenantId(tenantIdStr);
+    const frontBaseUrl = currentEnv.BASE_DESK_URL || "https://arplatsaassit4.club";
+
     // 组装完整的请求数据，补充必需字段
     const requestData = {
-        returnUrl: "https://arplatsaassit4.club/#/main",
-        urlInfo: "https://arplatsaassit4.club,status/rechargeStatus",
+        returnUrl: `${frontBaseUrl}/#/main`,
+        urlInfo: `${frontBaseUrl},status/rechargeStatus`,
         vendorId: 0,
         language: timeData.language,
         random: timeData.random,

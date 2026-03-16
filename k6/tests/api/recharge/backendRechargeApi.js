@@ -30,8 +30,9 @@ export function getLocalRechargeOrderPageList(adminToken, userId, startTime, end
     // 使用 sendRequest 发送后台请求，isDesk = false
     const response = sendRequest(payload, api, tag, false, adminToken);
     
-    if (!response || response.msgCode !== 0) {
-        console.error(`[${tag}] 查询订单列表失败`);
+    // testCommonRequest 成功时会直接返回 parsedBody.data，此时没有 msgCode
+    if (!response) {
+        console.error(`[${tag}] 查询订单列表失败, 响应内容: ${JSON.stringify(response)}`);
         return null;
     }
     
@@ -101,8 +102,9 @@ export function getRechargeOrderPageList(adminToken, userId, rechargeChannelType
     // 使用 sendRequest 发送后台请求，isDesk = false
     const response = sendRequest(payload, api, tag, false, adminToken);
     
-    if (!response || response.msgCode !== 0) {
-        console.error(`[${tag}] 查询三方订单列表失败`);
+    // testCommonRequest 成功时会直接返回 parsedBody.data，此时没有 msgCode
+    if (!response) {
+        console.error(`[${tag}] 查询三方订单列表失败, 响应内容: ${JSON.stringify(response)}`);
         return null;
     }
     
