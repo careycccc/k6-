@@ -28,8 +28,25 @@ export function loginExec() {
     AdminLogin(); // 这里执行登录，会计入 metrics
 }
 
+
+
+//k6 run -e TENANT_ID=3002 -e TARGET_UID=5945146 runSixearn.js
+
+// ============================================================
+// 配置：要查询明日返佣的总代 UID 和 租户
+// 支持通过环境变量动态传入，例如：
+// k6 run -e TENANT_ID=3004 -e TARGET_UID=135833 runSixearn.js
+// 如果不传环境变量，则使用下面的默认值
+// ============================================================
+const TARGET_UID = __ENV.TARGET_UID || 135833;
+
 export function querySubAccounts(data) {
-    return sixearnFunc(data);
+    if (__ENV.TENANT_ID) {
+        console.log(`\n======================================================`);
+        console.log(`[Multi-Tenant] 当前使用租户: ${__ENV.TENANT_ID}`);
+        console.log(`======================================================`);
+    }
+    return sixearnFunc(data, parseInt(TARGET_UID, 10));
 }
 
 export function verifyBetAmountStatistics(data) {

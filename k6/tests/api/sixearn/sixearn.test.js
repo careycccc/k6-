@@ -1,618 +1,735 @@
 import { sendQueryRequest } from '../common/request.js';
-import { ENV_CONFIG } from '../../../config/envconfig.js';
-import { dateStringToTimestamp, isNonEmptyArray } from '../../utils/utils.js';
+import { isNonEmptyArray } from '../../utils/utils.js';
 import { logger } from '../../../libs/utils/logger.js';
-import { RebateLevel, RebateLevelRate, getNowMasterHierarchy } from './RebateLevel.test.js';
+import { RebateLevel, RebateLevelRate } from './RebateLevel.test.js';
 import { sleep } from 'k6';
 
 export const sixearnTag = 'sixearn';
-// 返佣费率配置
-let rebateConfigs = [];
-// 6级代理
-//直属一级的账号：
-const firstLevelAccounts = [];
-// 团队的所有账号信息
-const allTeamAccounts = [];
 
-
-// 层级一到六级的返佣统计
-let levelOneRebate = 0,
-    levelTowRebate = 0,
-    levelThreeRebate = 0,
-    levelFourRebate = 0,
-    levelFiveRebate = 0,
-    levelSixRebate = 0;
-
-// 直属一级的汇总
-const firstLevelSummary = {
-    registerUsers: 0, // 直属一级的注册用户数
-    firstTotalNumber: 0, // 直属一级的总人数
-    depUsers: 0, // 直属一级的充值用户数
-    depAmount: 0, // 直属一级的总充值金额
-    firstDepUsers: 0, // 直属一级的首充用户数
-    betAmountSum: 0 // 直属一级的总投注金额
-};
-
-// 整个团队的汇总
-const teamSummary = {
-    registerUsers: 0, // 团队的注册用户数
-    teamTotalNumber: 0, // 团队的总人数
-    depUsers: 0, // 团队的充值用户数
-    depAmount: 0, // 团队的总充值金额
-    firstDepUsers: 0, // 团队的首充用户数
-    betAmountSum: 0, // 团队的总投注金额
-    earnLevel: 0 // 团队的返佣等级
-};
-
-// 查询该账号的下级账号
-export function querySubAccounts(data) {
-    // 必须接收 data 参数来拿 token
-    const token = data.token;
-    // 模拟查询下级账号的逻辑
-    const api = '/api/Agent/GetPageListAgentList';
-    // 这里输入要查询的团队的返佣，总代的id
-    const accountId = 5944782;
-    const payload = {
-        userId: accountId,
-        isAll: true,
-        isIncludeSelfAndParent: false,
-        pageSize: 500
-    };
-    let result = sendQueryRequest(payload, api, sixearnTag, false, token);
-    if (typeof result !== 'object') {
-        result = JSON.parse(result);
-    }
-
-    // 清空数组，避免多次调用时数据累积
-    firstLevelAccounts.length = 0;
-    allTeamAccounts.length = 0;
-
-    if (result && result.list && result.list.length > 0) {
-        // 处理获取到的账号列表
-        result.list.forEach((item) => {
-            allTeamAccounts.push(item);
-        });
-    }
-    const startTime = dateStringToTimestamp(ENV_CONFIG.START_TIME);
-    const endTime = dateStringToTimestamp(ENV_CONFIG.END_TIME);
-    // 找出当前总代的层级
-    const nowMasterHierarchy = getNowMasterHierarchy(data, accountId);
-    if (allTeamAccounts.length > 0) {
-        // 动态的创建下级信息
-        allTeamAccounts.forEach((account) => {
-            sleep(1);
-            // 自定义用户信息
-            let customUserInfo = {
-                userId: 0,
-                registerTime: 0, // 注册时间
-                isRegistered: false, // 是否在当前时间段注册的
-                rebateState: 1, // 是否领取返佣状态 1，表示领取 0表示不领取
-                electronicGame: [],    // 电子游戏（修正拼写）
-                liveCasino: [],        // 真人娱乐（修正拼写）
-                Sports: [],            // 体育（统一存数字）
-                Lottery: [],           // 彩票
-                ChessCard: [],         // 棋牌
-                isFirstCharge: false, // 是否首充
-                betAmountSum: 0, // 总投注金额
-                totalRechargeAmount: 0, // 总充值金额
-                hierarchy: -2, // 当前用户的绝对层级
-                isNormalCommission: false, // 是否正常返佣
-                lockearn: 0, // 锁定返佣
-                specialRebate: 0 // 特殊返佣
-            };
-            if (typeof account !== 'object') {
-                logger.error('账号信息格式错误,预期为Object类型,实际的类型:', typeof account);
-                return;
-            }
-            // 团队不包括总代的这个会员
-            if (account.userId != accountId) {
-                // 获取当前用户的信息,uid,注册时间，层级，是否有特殊返佣设置
-                customUserInfo.userId = account.userId;
-                customUserInfo.hierarchy = account.hierarchy;
-                customUserInfo.registerTime = account.registerTime;
-                // account.rebateMode == 0 表示正常返佣,1,锁定返佣，2，特殊返佣
-                if (account.rebateMode == 0) {
-                    //customUserInfo.isNormalCommission = -8; // 正常返佣
-                } else if (account.rebateMode == 1) {
-                    // 锁定返佣
-                    customUserInfo.lockearn = account.rebateLevel;
-                    // 特殊返佣
-                } else if (account.rebateMode == 2) {
-                    customUserInfo.specialRebate = account.rebateLevel;
-                }
-                // 查询会员的充值信息
-                // 查询会员的投注信息
-                const userResult = getUserCurrentInfo(data, startTime, endTime, customUserInfo);
-                // 记录首充状态
-                if (userResult.totalRechargeAmount > 0) {
-                    userResult.isFirstCharge = true;
-                }
-                // 记录注册人数
-                if (userResult.registerTime >= startTime && userResult.registerTime <= endTime) {
-                    userResult.isRegistered = true;
-                }
-
-                // 更新原数组中的账号信息，而不是添加新元素
-                const index = allTeamAccounts.findIndex(item => item.userId === account.userId);
-                if (index !== -1) {
-                    allTeamAccounts[index] = userResult;
-                }
-            }
-        });
-        if (allTeamAccounts.length == 0) {
-            logger.error('当前总代没有任何的下级账号信息');
-            return;
-        }
-        let firstToupAmount = 0; // 统计团队的首充人数
-        let registeredUsers = 0; // 统计注册人数
-        // 团队的充值人数，充值金额，投注金额等信息进行汇总
-        allTeamAccounts.forEach((item) => {
-            if (item.totalRechargeAmount > 0) {
-                teamSummary.depUsers++;
-            }
-            // 计算充值总金额
-            teamSummary.depAmount += Number(item.totalRechargeAmount || 0);
-            // 确保betAmountSum是数字类型后再累加
-            // 统计投注金额
-            const currentBetAmount = Number(item.betAmountSum || 0);
-            teamSummary.betAmountSum += currentBetAmount;
-            // 统计首充人数
-            if (item.isFirstCharge) {
-                firstToupAmount++;
-            }
-            //统计注册人数
-            if (item.isRegistered) {
-                registeredUsers++;
-            }
-            //统计直属下级的
-            if (item.hierarchy == nowMasterHierarchy + 1) {
-                firstLevelAccounts.push(item);
-            }
-        });
-        const level = GetTeamRechargeUserCount(teamSummary.depUsers, teamSummary.depAmount, teamSummary.betAmountSum, data);
-        teamSummary.earnLevel = level;
-        // 统计团队的首充人数
-        teamSummary.firstDepUsers = firstToupAmount; // 首充人数
-        // 统计团队的注册人数
-        teamSummary.registerUsers = registeredUsers; // 注册人数
-        // 统计团队的总人数
-        teamSummary.teamTotalNumber = allTeamAccounts.length; // 团队总人数
-        // 统计直属一级的汇总信息
-        firstLevelAccounts.forEach((item) => {
-            // 统计直属一级的充值人数
-            if (item.totalRechargeAmount > 0) {
-                firstLevelSummary.depUsers++; // 直属一级的充值人数
-            }
-            // 计算直属一级的汇总信息
-            firstLevelSummary.depAmount += Number(item.totalRechargeAmount || 0);
-            // 确保betAmountSum是数字类型后再累加
-            const currentBetAmount = Number(item.betAmountSum || 0);
-            firstLevelSummary.betAmountSum += currentBetAmount;
-
-
-        });
-        // 统计直属一级的总人数
-        firstLevelSummary.firstTotalNumber = firstLevelAccounts.length;
-        // 计算直属一级的首充人数   
-        firstLevelSummary.firstDepUsers = firstLevelAccounts.filter(item => item.isFirstCharge).length;
-        // 计算直属一级的注册人数
-        firstLevelSummary.registerUsers = firstLevelAccounts.filter(item => item.isRegistered).length;
-
-        allTeamAccounts.forEach((account) => {
-            sleep(1);
-            // 1. 如果有锁定返佣（lockearn != 0），直接使用锁定值
-            // 2. 否则取 specialRebate 和 teamSummary.earnLevel 的较大值（即 max）
-            //    - 这自然覆盖了“无特殊返佣（specialRebate == 0）时使用团队返佣”的情况
-            let earnlevel = account.lockearn != 0 ? account.lockearn : Math.max(account.specialRebate, teamSummary.earnLevel);
-            console.log(`用户ID: ${account.userId} 的返佣等级为:`, earnlevel);
-            const earnconfig = GetRebateLevelRate(earnlevel, data);
-            // 计算单人的返佣信息
-            const thisAmounteraninfo = GetRebateLevelRateByLevel(account, earnconfig);
-            // 进行返佣统计到1-6级
-            rebateStatistics(thisAmounteraninfo);
-        });
-
-
-        console.log('团队当前的返佣等级为:', teamSummary.earnLevel);
-        // 输出各层级的返佣统计
-        console.log('=================返佣统计结果====================');
-        console.log(`层级一返佣总金额: ${levelOneRebate}`);
-        console.log(`层级二返佣总金额: ${levelTowRebate}`);
-        console.log(`层级三返佣总金额: ${levelThreeRebate}`);
-        console.log(`层级四返佣总金额: ${levelFourRebate}`);
-        console.log(`层级五返佣总金额: ${levelFiveRebate}`);
-        console.log(`层级六返佣总金额: ${levelSixRebate}`);
-        console.log(`总返佣金额: ${levelOneRebate + levelTowRebate + levelThreeRebate + levelFourRebate + levelFiveRebate + levelSixRebate}`);
-        console.log('直属一级的汇总信息', firstLevelSummary);
-        console.log('团队的汇总信息', teamSummary);
-    } else {
-        logger.error('当前总代没有任何的下级账号信息');
-    }
-}
-
+// ============================================================
+// ============ 可配置参数 =====================================
+// ============================================================
 
 /**
- * 获取用户的当前信息
- * @param {number} startTime - 开始时间
- * @param {number} endTime - 结束时间
- * @param {Object} customUserInfo - 自定义用户信息对象，用于存储查询结果
- * @returns {Object}  - 用户的当前信息
+ * 最大返佣层级（相对层级）。
+ * 例如：总代层级=0，则最多计算到绝对层级 0+MAX_REBATE_HIERARCHY 的下级。
+ * 超过此相对层级的成员产生返佣给上级时，将发出 ⚠️ 警告。
+ * 可根据实际业务调整（如改为4表示最多4级返佣）。
  */
-export function getUserCurrentInfo(data, startTime, endTime, customUserInfo) {
-    // 1.查询账号的昨日的充值
-    const toUpInfo = GetRechargeOrderPageList(data, customUserInfo.userId, 'Payed', startTime, endTime);
-    let totalRechargeAmount = 0;
-    // 获取这个用户的当前的所有充值金额
-    if (isNonEmptyArray(toUpInfo)) {
-        // 使用更精确的大数相加方法
-        for (const item of toUpInfo) {
-            const amount = Number(item.actualAmount || 0);
-            if (!isNaN(amount)) {
-                totalRechargeAmount = (totalRechargeAmount * 100 + amount * 100) / 100;
-            }
-        }
-    }
-    customUserInfo.totalRechargeAmount = totalRechargeAmount;
+const MAX_REBATE_HIERARCHY = 6;
 
-    // 2.查询账号的投注
-    GetBetRecordPageList(data, customUserInfo, startTime, endTime, 'BetTime', 'BetTime');
-    // 3.查询账号的的首充信息
-    const userRptRechargeInfo = GetUserRptRechargePageList(
-        data,
-        customUserInfo.userId,
-        1,
-        ENV_CONFIG.START_TIME,
-        ENV_CONFIG.END_TIME
-    );
-    // 判断这个为一个列表
-    if (isNonEmptyArray(userRptRechargeInfo)) {
-        // 判断这个用户在当前时间内是否首充
-        const isFirstCharge = userRptRechargeInfo.every((item) => item.rechargeType === 'R1');
-        if (isFirstCharge) {
-            customUserInfo.isFirstCharge = true;
-        }
-    }
+/**
+ * 投注金额字段选择：
+ *   true  → 使用 validAmount（有效投注金额）
+ *   false → 使用 betAmount（投注金额）
+ */
+const USE_VALID_AMOUNT = false;
+
+// ============================================================
+// ============ 辅助：计算昨日时间范围 ========================
+// ============================================================
+
+/**
+ * 动态获取"昨日"的开始和结束时间戳（毫秒），相对于脚本运行当天。
+ * @returns {{ startTs: number, endTs: number, dateStr: string }}
+ */
+function getYesterdayRange() {
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+
+    const start = new Date(yesterday);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(yesterday);
+    end.setHours(23, 59, 59, 999);
+
+    const y = yesterday.getFullYear();
+    const m = String(yesterday.getMonth() + 1).padStart(2, '0');
+    const d = String(yesterday.getDate()).padStart(2, '0');
 
     return {
-        ...customUserInfo
+        startTs: start.getTime(),
+        endTs: end.getTime(),
+        startDateStr: `${y}-${m}-${d} 00:00:00`,
+        endDateStr: `${y}-${m}-${d} 23:59:59`,
+        dateStr: `${y}-${m}-${d}`
     };
 }
 
-/** 
-查询账号的昨日的充值
-@param {Object} data - 前置数据里面有token
-@param {number} userId - 用户ID
-@param {string} rechargeState - 充值状态
-@param {number} startTime - 开始时间
-@param {number} endTime - 结束时间
-@returns {Array}  - 充值订单列表，或者响应信息
-*/
-export function GetRechargeOrderPageList(data, userId, rechargeState, startTime, endTime) {
-    const api = '/api/RechargeOrder/GetRechargeOrderPageList';
-    const token = data.token;
-    const payload = {
-        rechargeState,
-        userId,
-        startTime,
-        endTime
-    };
-    let result = sendQueryRequest(payload, api, sixearnTag, false, token);
-    if (typeof result !== 'object') {
-        result = JSON.parse(result);
-    }
-    if (result && result.list && result.list.length > 0) {
-        // 处理获取到的充值订单列表
-        return result.list;
+// ============================================================
+// ============ 辅助：构建树形映射 ============================
+// ============================================================
+
+/**
+ * 将成员列表构建为 userId → [childUserId, ...] 的映射，方便快速查找直接子节点。
+ * @param {Array} memberList
+ * @returns {Object} childrenMap
+ */
+function buildChildrenMap(memberList) {
+    const map = {};
+    memberList.forEach((m) => {
+        if (!map[m.userId]) map[m.userId] = [];
+        if (m.parentId && m.parentId !== 0) {
+            if (!map[m.parentId]) map[m.parentId] = [];
+            map[m.parentId].push(m.userId);
+        }
+    });
+    return map;
+}
+
+/**
+ * 通过 DFS 获取 userId 的所有直接和间接下级 userId 列表（不含自身）。
+ * @param {number} userId
+ * @param {Object} childrenMap
+ * @returns {number[]}
+ */
+function getDescendants(userId, childrenMap) {
+    const result = [];
+    const stack = [...(childrenMap[userId] || [])];
+    while (stack.length > 0) {
+        const current = stack.pop();
+        result.push(current);
+        const children = childrenMap[current] || [];
+        children.forEach((c) => stack.push(c));
     }
     return result;
 }
 
-/**
- * 查询账号的昨日的投注,默认查询200条
- * @param {Object} data - 前置数据里面有token
- * @param {number} customUserInfo - 用户信息
- * @param {number} startTime - 开始时间
- * @param {number} endTime - 结束时间
- * @param {string} queryTimeType - 查询时间类型
- * @param {string} sortField - 排序字段
+// ============================================================
+// ============ 主入口函数 =====================================
+// ============================================================
 
- * @returns {object}  - 个人信息，或者响应信息
+/**
+ * 主函数：查询某个 uid 在明日（即今天视角下的昨日）的预计返佣。
+ *
+ * 逻辑流程：
+ *  Step 1  查询该 uid 下的所有下级（含自身）
+ *  Step 2  获取返佣等级配置表
+ *  Step 3  获取返佣利率配置表
+ *  Step 4  为每个成员查询昨日充值 + 投注数据
+ *  Step 5  为每个有下级的成员（代理）计算其收到的返佣金额
+ *  Step 6  打印详细结果 & 最终汇总
+ *
+ * @param {Object} data      - 含有 token 的前置登录数据
+ * @param {number} targetUid - 要查询的总代 uid（必填，不应使用硬编码）
  */
-export function GetBetRecordPageList(
-    data,
-    customUserInfo,
-    startTime,
-    endTime,
-    queryTimeType,
-    sortField
-) {
-    if (JSON.stringify(customUserInfo) === '{}') {
-        logger.error('用户信息不能为空');
+export function querySubAccounts(data, targetUid) {
+    if (!targetUid) {
+        logger.error('[入口] 请传入要查询的 uid，例如: querySubAccounts(data, 5945146)');
         return;
     }
+    const accountId = Number(targetUid);
+
+    // 昨日时间范围（动态）
+    const { startTs, endTs, startDateStr, endDateStr, dateStr } = getYesterdayRange();
+
+    console.log(`\n${'='.repeat(70)}`);
+    console.log(`📊 返佣预查询 - UID=${accountId}  昨日=${dateStr}`);
+    console.log(`   时间范围: ${new Date(startTs).toLocaleString()} ~ ${new Date(endTs).toLocaleString()}`);
+    console.log(`   最大返佣层级: ${MAX_REBATE_HIERARCHY}  |  投注字段: ${USE_VALID_AMOUNT ? 'validAmount(有效投注)' : 'betAmount(投注金额)'}`);
+    console.log(`${'='.repeat(70)}\n`);
+
+    // -------------------------------------------------------
+    // Step 1: 查询所有下级
+    // -------------------------------------------------------
+    console.log('【Step 1】查询团队成员列表...');
+    const agentListApi = '/api/Agent/GetPageListAgentList';
+    const agentPayload = {
+        userId: accountId,
+        isAll: true,
+        isIncludeSelfAndParent: true,
+        pageNo: 1,
+        pageSize: 500,
+    };
+
+    let agentResult = sendQueryRequest(agentPayload, agentListApi, sixearnTag, false, data.token);
+    // console.log('-----')
+    // console.log("___", agentResult)
+    // console.log('')
+    if (typeof agentResult === 'string') {
+        try {
+            agentResult = JSON.parse(agentResult);
+        } catch (e) {
+            logger.error(`[Step 1] 解析响应失败: ${e.message}，终止`);
+            return;
+        }
+    }
+
+    // 调试输出：打印原始返回值结构，方便排查
+    //console.log(`[Step 1] 原始响应类型: ${typeof agentResult}`);
+    //console.log(`[Step 1] 原始响应内容(前500字符): ${JSON.stringify(agentResult).substring(0, 500)}`);
+
+    // 兼容两种响应结构：
+    //   形式A: { list: [...], pageNo, totalCount }       ← sendQueryRequest 正常返回 parsedBody.data
+    //   形式B: { code:0, data:{ list:[...] }, msg }     ← sendQueryRequest 返回完整 parsedBody
+    let memberList = null;
+    if (agentResult && Array.isArray(agentResult.list)) {
+        memberList = agentResult.list;
+    } else if (agentResult && agentResult.data && Array.isArray(agentResult.data.list)) {
+        memberList = agentResult.data.list;
+        console.log('[Step 1] 使用兜底解析路径: agentResult.data.list');
+    }
+
+    if (!memberList || memberList.length === 0) {
+        logger.error(
+            `[Step 1] UID=${accountId} 没有任何下级成员（或接口报错），终止所有后续逻辑。` +
+            `响应: code=${agentResult && agentResult.code}, msg=${agentResult && agentResult.msg}`
+        );
+        return;
+    }
+
+    const allMembers = memberList;
+    console.log(`[Step 1] ✅ 共获取 ${allMembers.length} 个团队成员（含自身）\n`);
+
+    // 找到自身记录，确定 masterHierarchy
+    const masterRecord = allMembers.find((m) => m.userId === accountId);
+    const masterHierarchy = masterRecord ? masterRecord.hierarchy : 0;
+
+    // 标记 rebateState=0 的用户（返佣状态异常）
+    const noRebateUsers = allMembers.filter((m) => m.rebateState === 0);
+    if (noRebateUsers.length > 0) {
+        console.log(`⚠️  [rebateState警告] 以下 ${noRebateUsers.length} 个用户 rebateState=0（不领取返佣），今日返佣应为0，若有返佣为异常：`);
+        noRebateUsers.forEach((u) => {
+            console.log(
+                `   └─ UID=${u.userId}  绝对层级=${u.hierarchy}  rebateMode=${u.rebateMode}  rebateLevel=${u.rebateLevel}`
+            );
+        });
+        console.log('');
+    }
+
+    // -------------------------------------------------------
+    // Step 2: 获取返佣等级配置表（一次查询，全局复用）
+    // -------------------------------------------------------
+    console.log('【Step 2】获取返佣等级配置表...');
+    const rebateLevelList = RebateLevel(data);
+    if (!isNonEmptyArray(rebateLevelList)) {
+        logger.error('[Step 2] 返佣等级配置表查询失败或为空，终止');
+        return;
+    }
+    console.log(`[Step 2] ✅ 共 ${rebateLevelList.length} 个返佣档位\n`);
+
+    // -------------------------------------------------------
+    // Step 3: 获取返佣利率配置表（一次查询，全局复用）
+    // -------------------------------------------------------
+    console.log('【Step 3】获取返佣利率配置表...');
+    const rebateRateList = RebateLevelRate(data);
+    if (!isNonEmptyArray(rebateRateList)) {
+        logger.error('[Step 3] 返佣利率配置表查询失败或为空，终止');
+        return;
+    }
+    console.log(`[Step 3] ✅ 共 ${rebateRateList.length} 种利率配置\n`);
+
+    // -------------------------------------------------------
+    // Step 4: 构建树 + 为每个成员查询昨日充值/投注数据
+    // -------------------------------------------------------
+    console.log('【Step 4】构建团队树形结构...');
+    const childrenMap = buildChildrenMap(allMembers);
+
+    // 注意：总代自身（accountId）的充值/投注不计入任何人的团队统计，
+    // 因此跳过对总代自身数据的API查询，节省请求次数。
+    const nonMasterMembers = allMembers.filter((m) => m.userId !== accountId);
+    console.log(`【Step 4】开始查询 ${nonMasterMembers.length} 个成员的昨日充值/投注数据（总代自身不查询）...\n`);
+    const memberDataMap = {}; // userId → enriched member data
+
+    nonMasterMembers.forEach((member, idx) => {
+        sleep(0.5);
+        console.log(
+            `  [${String(idx + 1).padStart(3)}/${nonMasterMembers.length}] 查询 UID=${member.userId}  绝对层级=${member.hierarchy} ...`
+        );
+        const enriched = fetchMemberData(data, member, startTs, endTs, startDateStr, endDateStr);
+        memberDataMap[member.userId] = enriched;
+    });
+
+    // -------------------------------------------------------
+    // Step 5 & 6: 为每个有下级的成员（代理）计算返佣
+    // -------------------------------------------------------
+    // -------------------------------------------------------
+    // Step 5 & 6: 计算指定 UID (accountId) 的昨日预计返佣
+    // -------------------------------------------------------
+    console.log(`\n${'='.repeat(70)}`);
+    console.log(`【Step 5】计算指定 UID=${accountId} 的昨日预计返佣`);
+    console.log(`${'='.repeat(70)}\n`);
+
+    const agentRebateSummary = []; // 最终汇总列表
+
+    // 只计算指定的 accountId (masterRecord)
+    const agent = masterRecord;
+    if (agent) {
+        // 找出该 agent 的所有下级 userId
+        const descendantIds = getDescendants(agent.userId, childrenMap);
+        if (descendantIds.length === 0) {
+            // 没有任何下级，无需计算返佣
+            return;
+        }
+
+        // 显式排除总代自身（accountId）：总代的充值/投注不计入任何代理的团队统计
+        const descendants = descendantIds
+            .filter((id) => id !== accountId)
+            .map((id) => memberDataMap[id])
+            .filter(Boolean);
+
+        // ---- 确定该代理的 earnLevel ----
+        let earnLevel;
+        let earnLevelReason;
+
+        if (agent.rebateMode === 1) {
+            // 锁定返佣：直接使用设定的 rebateLevel，不看团队数据
+            earnLevel = agent.rebateLevel;
+            earnLevelReason = `锁定返佣 rebateLevel=${agent.rebateLevel}`;
+        } else {
+            // 先根据团队数据计算正常返佣等级
+            const rechargePeopleCount = descendants.filter((d) => d.totalRechargeAmount > 0).length;
+            const totalRechargeAmt = descendants.reduce((s, d) => s + (d.totalRechargeAmount || 0), 0);
+            const totalBetAmt = descendants.reduce((s, d) => s + (d.betAmountSum || 0), 0);
+            const normalLevel = computeNormalEarnLevel(
+                rechargePeopleCount,
+                totalRechargeAmt,
+                totalBetAmt,
+                rebateLevelList
+            );
+
+            if (agent.rebateMode === 2) {
+                // 特殊返佣：取 max(specialRebateLevel, normalLevel)
+                const specialLevel = agent.rebateLevel;
+                earnLevel = Math.max(specialLevel, normalLevel >= 0 ? normalLevel : 0);
+                earnLevelReason = `特殊返佣，特殊LV=${specialLevel}，团队正常LV=${normalLevel}，取较大值LV=${earnLevel}`;
+            } else {
+                // 正常返佣
+                earnLevel = normalLevel >= 0 ? normalLevel : 0;
+                earnLevelReason = `正常返佣，团队充值人数=${rechargePeopleCount}，充值金额=${totalRechargeAmt.toFixed(2)}，投注金额=${totalBetAmt.toFixed(2)}，等级LV=${earnLevel}`;
+            }
+        }
+
+        // ---- 获取对应利率配置（去掉 hierarchy=-1 的合计行）----
+        const rateConfig = getRateConfigForLevel(earnLevel, rebateRateList);
+
+        // ---- 统计特殊的一级下级数据 ----
+        const level1Stats = {
+            count: 0,
+            registerCount: 0,
+            firstChargeCount: 0,
+            rechargeAmount: 0
+        };
+
+        descendants.forEach(desc => {
+            if (desc.hierarchy - agent.hierarchy === 1) {
+                level1Stats.count++;
+                if (desc.registeredYesterday) level1Stats.registerCount++;
+                if (desc.isFirstCharge) level1Stats.firstChargeCount++;
+                level1Stats.rechargeAmount += (desc.totalRechargeAmount || 0);
+            }
+        });
+
+        // ---- 计算该代理从每个下级收到的返佣 ----
+        let agentTotalRebate = 0;
+        const perDescendantResults = [];
+
+        descendants.forEach((desc) => {
+            if (!desc) return;
+
+            // 相对层级 = 下级绝对层级 - 代理绝对层级
+            const relHier = desc.hierarchy - agent.hierarchy;
+
+            if (relHier <= 0) return; // 跳过同级或更高层级（理论上不会出现）
+
+            // ⚠️ 超出最大返佣层级警告
+            if (relHier > MAX_REBATE_HIERARCHY) {
+                console.log(
+                    `  ⚠️  [层级溢出警告] UID=${desc.userId} 相对层级=${relHier} 超过最大返佣层级 ${MAX_REBATE_HIERARCHY}，` +
+                    `此下级不应向 UID=${agent.userId} 产生返佣！请检查配置`
+                );
+                return;
+            }
+
+            // 找到对应相对层级的利率配置项
+            const rateItem = rateConfig ? rateConfig.find((r) => r.hierarchy === relHier) : null;
+
+            const contribution = calculateContribution(rateItem, desc, agent.userId, relHier);
+            agentTotalRebate += contribution.total;
+            perDescendantResults.push(contribution);
+        });
+
+        // ---- 打印该代理的详细返佣信息 ----
+        printAgentRebateDetail(
+            agent,
+            earnLevel,
+            earnLevelReason,
+            agentTotalRebate,
+            perDescendantResults,
+            noRebateUsers,
+            level1Stats
+        );
+
+        agentRebateSummary.push({
+            userId: agent.userId,
+            hierarchy: agent.hierarchy,
+            rebateMode: agent.rebateMode,
+            rebateState: agent.rebateState,
+            earnLevel,
+            totalRebate: agentTotalRebate,
+            descendantCount: descendants.length
+        });
+    }
+
+    // ---- 最终汇总 ----
+    printFinalSummary(agentRebateSummary, masterHierarchy, accountId, dateStr, noRebateUsers);
+}
+
+// ============================================================
+// ============ 数据获取：充值 + 投注 =========================
+// ============================================================
+
+/**
+ * 为单个成员查询昨日的充值和投注数据，返回 enriched 对象。
+ * @param {Object} data
+ * @param {Object} member   - allMembers 中的原始成员记录
+ * @param {number} startTs  - 昨日开始时间戳（毫秒）
+ * @param {number} endTs    - 昨日结束时间戳（毫秒）
+ * @param {string} startDateStr - 昨日开始时间字符串（如 "2026-03-16 00:00:00"）
+ * @param {string} endDateStr   - 昨日结束时间字符串（如 "2026-03-16 23:59:59"）
+ * @returns {Object}        - enriched member 含 totalRechargeAmount, betAmountSum, 各类型投注数组
+ */
+function fetchMemberData(data, member, startTs, endTs, startDateStr, endDateStr) {
+    const enriched = {
+        userId: member.userId,
+        parentId: member.parentId,
+        hierarchy: member.hierarchy,
+        rebateState: member.rebateState,
+        rebateMode: member.rebateMode,
+        rebateLevel: member.rebateLevel,
+        rebateSetTime: member.rebateSetTime,
+        registerTime: member.registerTime,
+        // 是否昨日加入团队（rebateSetTime 落在昨日范围内）
+        joinedYesterday: member.rebateSetTime >= startTs && member.rebateSetTime <= endTs,
+        // 是否昨日注册
+        registeredYesterday: member.registerTime >= startTs && member.registerTime <= endTs,
+        // 投注分类
+        electronicGame: [],
+        liveCasino: [],
+        sports: [],
+        lottery: [],
+        chessCard: [],
+        betAmountSum: 0,
+        // 充值
+        totalRechargeAmount: 0,
+        isFirstCharge: false
+    };
+
+    // 1. 查询昨日充值
+    const rechargeList = GetRechargeOrderPageList(data, member.userId, 'Payed', startTs, endTs);
+    if (isNonEmptyArray(rechargeList)) {
+        rechargeList.forEach((item) => {
+            const amt = Number(item.actualAmount || 0);
+            if (!isNaN(amt)) {
+                enriched.totalRechargeAmount = (enriched.totalRechargeAmount * 100 + amt * 100) / 100;
+            }
+        });
+    }
+
+    // 2. 查询昨日投注（5 个类别）
+    GetBetRecordPageList(data, enriched, startTs, endTs, 'BetTime', 'BetTime');
+
+    // 3. 查询是否首充
+    // 注意：/api/RptUserInfo/GetUserRptRechargePageList 接口要求的 startTime/endTime 是字符串格式的日期（如"2026-03-16 00:00:00"）而非时间戳
+    const firstChargeList = GetUserRptRechargePageList(data, member.userId, 1, startDateStr, endDateStr);
+    if (isNonEmptyArray(firstChargeList)) {
+        const allR1 = firstChargeList.every((item) => item.rechargeType === 'R1');
+        if (allR1) {
+            enriched.isFirstCharge = true;
+        }
+    }
+
+    return enriched;
+}
+
+// ============================================================
+// ============ API 封装 ======================================
+// ============================================================
+
+/**
+ * 查询账号的充值订单列表
+ */
+export function GetRechargeOrderPageList(data, userId, rechargeState, startTime, endTime) {
+    const api = '/api/RechargeOrder/GetRechargeOrderPageList';
+    const payload = { rechargeState, userId, startTime, endTime };
+    let result = sendQueryRequest(payload, api, sixearnTag, false, data.token);
+    if (typeof result !== 'object') {
+        try { result = JSON.parse(result); } catch (e) { return null; }
+    }
+    if (result && result.list && result.list.length > 0) return result.list;
+    return null;
+}
+
+/**
+ * 查询账号的投注记录（5 个 categoryType：0电子 1真人 2体育 3彩票 4棋牌）
+ * 直接在 enriched 对象上写入数据。
+ * USE_VALID_AMOUNT 控制使用 validAmount 还是 betAmount。
+ */
+export function GetBetRecordPageList(data, enriched, startTime, endTime, queryTimeType, sortField) {
     const api = '/api/ThirdGame/GetBetRecordPageList';
-    const token = data.token;
-    // categoryType 0表示电子游戏，1真人视讯，2体育，3，彩票，4棋牌
+    // categoryType 0电子 1真人 2体育 3彩票 4棋牌
     for (let j = 0; j < 5; j++) {
         const payload = {
             categoryType: j,
             queryTimeType,
-            userId: customUserInfo.userId,
+            userId: enriched.userId,
             beginTimeUnix: startTime,
             endTimeUnix: endTime,
             pageSize: 200,
             sortField
         };
-        let result = sendQueryRequest(payload, api, sixearnTag, false, token);
+        let result = sendQueryRequest(payload, api, sixearnTag, false, data.token);
         if (typeof result !== 'object') {
-            result = JSON.parse(result);
+            try { result = JSON.parse(result); } catch (e) { continue; }
         }
-        if (result && result.list.length > 0) {
-            // 统一push betAmount（数字），Sports也一样
-            // betAmount 投注金额  validAmount 有效金额
+        if (result && result.list && result.list.length > 0) {
             result.list.forEach((item) => {
-                const betAmount = parseFloat(item.betAmount) || 0; // 防止字符串或null
-                if (j === 0) {
-                    customUserInfo.electronicGame.push(betAmount);
-                } else if (j === 1) {
-                    customUserInfo.liveCasino.push(betAmount);
-                } else if (j === 2) {
-                    customUserInfo.Sports.push(betAmount);
-                } else if (j === 3) {
-                    customUserInfo.Lottery.push(betAmount);
-                } else if (j === 4) {
-                    customUserInfo.ChessCard.push(betAmount);
-                }
+                // 根据配置选择投注金额字段
+                const rawAmt = USE_VALID_AMOUNT ? item.validAmount : item.betAmount;
+                const amt = parseFloat(rawAmt) || 0;
+                if (j === 0) enriched.electronicGame.push(amt);
+                else if (j === 1) enriched.liveCasino.push(amt);
+                else if (j === 2) enriched.sports.push(amt);
+                else if (j === 3) enriched.lottery.push(amt);
+                else if (j === 4) enriched.chessCard.push(amt);
             });
-
-            // 所有类别查询完后再计算总和（关键！）
-            customUserInfo.betAmountSum =
-                customUserInfo.electronicGame.reduce((sum, val) => sum + val, 0) +
-                customUserInfo.liveCasino.reduce((sum, val) => sum + val, 0) +
-                customUserInfo.Sports.reduce((sum, val) => sum + val, 0) +
-                customUserInfo.Lottery.reduce((sum, val) => sum + val, 0) +
-                customUserInfo.ChessCard.reduce((sum, val) => sum + val, 0);
         }
     }
+    // 计算总投注金额
+    const sum = (arr) => arr.reduce((s, v) => s + v, 0);
+    enriched.betAmountSum =
+        sum(enriched.electronicGame) +
+        sum(enriched.liveCasino) +
+        sum(enriched.sports) +
+        sum(enriched.lottery) +
+        sum(enriched.chessCard);
 
-    return customUserInfo;
+    return enriched;
 }
 
 /**
- 在某个时间段内为首充,二充,三充
- * @param {Object} data - 前置数据里面有token
- * @param {number} userId - 用户ID
- * @param {number} memberIdType - 会员ID类型,默认 1
- * @param {number} startTime - 开始时间
- * @param {number} endTime - 结束时间
- * @returns {Array}  - 充值信息列表，或者响应信息
-*/
+ * 查询账号的首充/二充/三充记录
+ * 注意：startTime 和 endTime 需要是字符串格式（"YYYY-MM-DD HH:mm:ss"）
+ */
 export function GetUserRptRechargePageList(data, userId, memberIdType, startTime, endTime) {
     const api = '/api/RptUserInfo/GetUserRptRechargePageList';
-    const token = data.token;
-    const payload = {
-        memberIdType,
-        memberId: userId,
-        startTime,
-        endTime
-    };
-    let result = sendQueryRequest(payload, api, sixearnTag, false, token);
+    const payload = { memberIdType, memberId: userId, startTime, endTime };
+    let result = sendQueryRequest(payload, api, sixearnTag, false, data.token);
     if (typeof result !== 'object') {
-        result = JSON.parse(result);
+        try { result = JSON.parse(result); } catch (e) { return null; }
     }
-    if (result && result.list && result.list.length > 0) {
-        // 处理获取到的充值信息
-        return result.list;
-    }
-    return result;
+    if (result && result.list && result.list.length > 0) return result.list;
+    return null;
 }
 
+// ============================================================
+// ============ 返佣等级和利率计算 ============================
+// ============================================================
+
 /**
- 定位是返佣等级
- * @param {int} depAmount  充值人数
- * @param {float} toupMoney 充值金额
- * @param {float} betAmountSum 投注金额
- * @returns {int}  返佣等级
-*/
-export function GetTeamRechargeUserCount(depAmount, toupMoney, betAmountSum, data) {
-    if (depAmount == 0 && toupMoney == 0 && betAmountSum == 0) {
-        return -1;
+ * 根据团队数据确定正常返佣等级（从高档位往低档位匹配）。
+ * 只要同时满足【充值人数 > 档位阈值 AND 充值金额 > 档位阈值 AND 投注金额 > 档位阈值】即取该档位。
+ *
+ * @param {number} rechargePeopleCount - 昨日充值人数
+ * @param {number} totalRechargeAmt    - 昨日总充值金额
+ * @param {number} totalBetAmt         - 昨日总投注金额
+ * @param {Array}  rebateLevelList     - 服务端返回的返佣等级配置表
+ * @returns {number} 匹配到的返佣等级（rebateLevel），匹配不到返回 0（默认最低档）
+ */
+function computeNormalEarnLevel(rechargePeopleCount, totalRechargeAmt, totalBetAmt, rebateLevelList) {
+    if (rechargePeopleCount === 0 && totalRechargeAmt === 0 && totalBetAmt === 0) {
+        return 0; // 团队没有充值/投注，默认0级
     }
-    const result = RebateLevel(data);
-    if (result.length == 0) {
-        return -3;
-    }
-    for (let i = result.length - 1; i >= 0; i--) {
-        if (typeof result[i] != 'object') {
-            result[i] = JSON.parse(result[i]);
-        }
-        //判断人数是否在当前列
+    // 从最高档位往低档位扫描，找到第一个【三项全部超过阈值】的档位
+    const sorted = [...rebateLevelList].sort((a, b) => b.rebateLevel - a.rebateLevel);
+    for (const cfg of sorted) {
         if (
-            result[i].childrenRechargeCount < depAmount &&
-            result[i].childrenRechargeAmount < toupMoney &&
-            result[i].childrenLotteryAmount < betAmountSum
+            rechargePeopleCount >= cfg.childrenRechargeCount &&
+            totalRechargeAmt >= cfg.childrenRechargeAmount &&
+            totalBetAmt >= cfg.childrenLotteryAmount
         ) {
-            // 判断 是否满足下一层
-            return result[i].rebateLevel;
+            return cfg.rebateLevel;
         }
     }
+    return 0; // 未达到任何档位，使用默认等级0
 }
 
-
-// 根据返佣等级找出返佣比例
 /**
- * @param {*} rebateLevel 返佣等级
- * @returns  返回返佣配置
-*/
-export function GetRebateLevelRate(rebateLevel, data) {
-    rebateConfigs = RebateLevelRate(data);
-    // 搜集当前返佣等级的返佣比例
-    const rateLotterylist = [];
-    rebateConfigs.forEach((item) => {
-        if (item.rebateLevel == rebateLevel) {
+ * 在利率配置列表中找出指定 rebateLevel 的利率配置，去除 hierarchy=-1 的合计行。
+ * @param {number} rebateLevel
+ * @param {Array}  rebateRateList  - RebateLevelRate 的结果
+ * @returns {Array|null}           - 各层级利率项目组成的数组，或 null
+ */
+function getRateConfigForLevel(rebateLevel, rebateRateList) {
+    const entry = rebateRateList.find((r) => r.rebateLevel === rebateLevel);
+    if (!entry || !isNonEmptyArray(entry.list)) return null;
+    // 过滤掉 hierarchy=-1 的合计行
+    return entry.list.filter((item) => item.hierarchy > 0);
+}
 
-            if (typeof item.list != 'object') {
-                item.list = JSON.parse(item.list);
-            }
-            rateLotterylist.push(...item.list);
-        }
+/**
+ * 计算单个下级成员对上级代理的返佣贡献。
+ * 利率字段：rateElectronic, rateVideo, rateSports, rateLottery, rateChessCard（均为百分比，即 x/100 的比率）
+ *
+ * @param {Object|null} rateItem  - 对应相对层级的利率配置项
+ * @param {Object}      desc      - 下级成员 enriched 数据
+ * @param {number}      agentId   - 代理 userId（用于日志）
+ * @param {number}      relHier   - 相对层级
+ * @returns {Object}              - 各游戏类型返佣分项及总额
+ */
+function calculateContribution(rateItem, desc, agentId, relHier) {
+    const sum = (arr) => arr.reduce((s, v) => s + v, 0);
+
+    if (!rateItem) {
+        return {
+            userId: desc.userId,
+            relHier,
+            electronearn: 0,
+            liveCasinoearn: 0,
+            sportsearn: 0,
+            lotteryearn: 0,
+            chessCardearn: 0,
+            total: 0,
+            rebateState: desc.rebateState
+        };
+    }
+
+    // 利率字段除以 100 转换为实际比率
+    const electronearn = (sum(desc.electronicGame) * rateItem.rateElectronic) / 100;
+    const liveCasinoearn = (sum(desc.liveCasino) * rateItem.rateVideo) / 100;
+    const sportsearn = (sum(desc.sports) * rateItem.rateSports) / 100;
+    const lotteryearn = (sum(desc.lottery) * rateItem.rateLottery) / 100;
+    const chessCardearn = (sum(desc.chessCard) * rateItem.rateChessCard) / 100;
+
+    const total = electronearn + liveCasinoearn + sportsearn + lotteryearn + chessCardearn;
+
+    return {
+        userId: desc.userId,
+        relHier,
+        electronearn,
+        liveCasinoearn,
+        sportsearn,
+        lotteryearn,
+        chessCardearn,
+        total,
+        rebateState: desc.rebateState,
+        // 用于调试
+        betElectronic: sum(desc.electronicGame),
+        betLive: sum(desc.liveCasino),
+        betSports: sum(desc.sports),
+        betLottery: sum(desc.lottery),
+        betChess: sum(desc.chessCard),
+        rateElectronic: rateItem.rateElectronic,
+        rateVideo: rateItem.rateVideo,
+        rateSports: rateItem.rateSports,
+        rateLottery: rateItem.rateLottery,
+        rateChessCard: rateItem.rateChessCard
+    };
+}
+
+// ============================================================
+// ============ 打印函数 ======================================
+// ============================================================
+
+/**
+ * 打印单个代理的详细返佣信息。
+ */
+function printAgentRebateDetail(agent, earnLevel, earnLevelReason, agentTotalRebate, perDescendantResults, noRebateUsers, level1Stats) {
+    const noRebateIds = new Set(noRebateUsers.map((u) => u.userId));
+
+    const stateTag = noRebateIds.has(agent.userId) ? ' ⚠️ [rebateState=0]' : '';
+    console.log(`\n${'─'.repeat(65)}`);
+    console.log(
+        `📌 代理 UID=${agent.userId}${stateTag}  绝对层级=${agent.hierarchy}  返佣模式=${['正常', '锁定', '特殊'][agent.rebateMode] || agent.rebateMode}  返佣等级LV=${earnLevel}`
+    );
+    console.log(`   等级依据: ${earnLevelReason}`);
+    console.log(`   预计总返佣: ${agentTotalRebate.toFixed(6)}`);
+    
+    if (level1Stats) {
+        console.log(`\n   📊 直推(1级)概览: 总人数=${level1Stats.count} | 新注册=${level1Stats.registerCount} | 首充人数=${level1Stats.firstChargeCount} | 充值总额=${level1Stats.rechargeAmount.toFixed(2)}`);
+    }
+
+    if (perDescendantResults.length === 0) {
+        console.log('   (无有效下级投注数据)');
+        return;
+    }
+
+    // 按相对层级分组打印
+    const byRelHier = {};
+    perDescendantResults.forEach((r) => {
+        if (!byRelHier[r.relHier]) byRelHier[r.relHier] = [];
+        byRelHier[r.relHier].push(r);
     });
 
-    // 去掉总计的那一项
-    const newRateLotterylist = rateLotterylist.slice(0, -1);
-    logger.info('当前返佣等级的返佣比例', newRateLotterylist);
-    return newRateLotterylist;
+    Object.keys(byRelHier)
+        .sort((a, b) => Number(a) - Number(b))
+        .forEach((relHierStr) => {
+            const items = byRelHier[relHierStr];
+            const relHier = Number(relHierStr);
+            const levelTotal = items.reduce((s, r) => s + r.total, 0);
+            console.log(`\n   ┌─ 相对层级 ${relHier} 级  (共 ${items.length} 人  小计: ${levelTotal.toFixed(6)})`);
+            items.forEach((r) => {
+                const stateWarn = noRebateIds.has(r.userId) ? ' ⚠️ rebateState=0' : '';
+                console.log(
+                    `   │  UID=${r.userId}${stateWarn}  返佣金额=${r.total.toFixed(6)}`
+                );
+                if (r.betElectronic > 0 || r.electronearn > 0) {
+                    console.log(
+                        `   │    电子:  投注=${r.betElectronic.toFixed(2)}  利率=${r.rateElectronic}%  返佣=${r.electronearn.toFixed(6)}`
+                    );
+                }
+                if (r.betLive > 0 || r.liveCasinoearn > 0) {
+                    console.log(
+                        `   │    真人:  投注=${r.betLive.toFixed(2)}  利率=${r.rateVideo}%  返佣=${r.liveCasinoearn.toFixed(6)}`
+                    );
+                }
+                if (r.betSports > 0 || r.sportsearn > 0) {
+                    console.log(
+                        `   │    体育:  投注=${r.betSports.toFixed(2)}  利率=${r.rateSports}%  返佣=${r.sportsearn.toFixed(6)}`
+                    );
+                }
+                if (r.betLottery > 0 || r.lotteryearn > 0) {
+                    console.log(
+                        `   │    彩票:  投注=${r.betLottery.toFixed(2)}  利率=${r.rateLottery}%  返佣=${r.lotteryearn.toFixed(6)}`
+                    );
+                }
+                if (r.betChess > 0 || r.chessCardearn > 0) {
+                    console.log(
+                        `   │    棋牌:  投注=${r.betChess.toFixed(2)}  利率=${r.rateChessCard}%  返佣=${r.chessCardearn.toFixed(6)}`
+                    );
+                }
+            });
+            console.log(`   └${'─'.repeat(58)}`);
+        });
 }
 
 /**
-传入userinfo的相对层级进行计算返佣,进行层级的计算
- * @param {*} level 传入userinfo的相对层级
- * @param {*} rateLotterylist 返佣配置列表
- * @returns {object} id ,用户层级，返佣金额
-*/
-export function GetRebateLevelRateByLevel(userInfo, rateLotterylist) {
-    if (JSON.stringify(userInfo) === '{}' || rateLotterylist.length < 0) {
-        logger.error('层级不能小于0或者返佣比例的列表不能为空');
-        return;
+ * 打印最终汇总表格。
+ */
+function printFinalSummary(agentRebateSummary, masterHierarchy, accountId, dateStr, noRebateUsers) {
+    const noRebateIds = new Set(noRebateUsers.map((u) => u.userId));
+
+    console.log(`\n${'='.repeat(70)}`);
+    console.log(`📊 最终汇总 - UID=${accountId}  昨日(${dateStr})预计返佣`);
+    console.log(`${'='.repeat(70)}`);
+
+    let grandTotal = 0;
+
+    agentRebateSummary.forEach((s) => {
+        grandTotal += s.totalRebate;
+        const stateWarn = noRebateIds.has(s.userId) ? ' ⚠️ rebateState=0' : '';
+        const modeLabel = ['正常', '锁定', '特殊'][s.rebateMode] || s.rebateMode;
+        console.log(
+            `  ▶ UID=${s.userId}${stateWarn}  模式=${modeLabel}  等级LV=${s.earnLevel}  下级数=${s.descendantCount}  返佣合计=${s.totalRebate.toFixed(6)}`
+        );
+    });
+
+    if (noRebateUsers.length > 0) {
+        console.log(`\n  ⚠️  rebateState=0 异常用户（今日返佣应为0）:`);
+        noRebateUsers.forEach((u) => {
+            console.log(`      UID=${u.userId}  绝对层级=${u.hierarchy}`);
+        });
     }
-
-    if (userInfo.isNormalCommission == 0) {
-        // 正常的返佣
-        const matchedItem = rateLotterylist.find((item) => userInfo.hierarchy == item.hierarchy);
-        const rate = calculateTotalRebate(matchedItem, userInfo);
-        return {
-            id: userInfo.userId,
-            hierarchy: userInfo.hierarchy,
-            rate
-        }
-
-    } else {
-        // 特殊返佣根据当前会员信息的层级和特殊返佣的层级进行匹配返佣费率配置
-        const matchedItem = rateLotterylist.find((item) => userInfo.isNormalCommission == item.hierarchy);
-        const rate = calculateTotalRebate(matchedItem, userInfo);
-        return {
-            id: userInfo.userId,
-            hierarchy: userInfo.hierarchy,
-            rate
-        }
-    }
-}
-
-
-
-
-// 根据用户的返佣计算的结果进行对于的返佣层级统计
-export function rebateStatistics(rebetUserinfo) {
-    // 判断rebetUserinfo是否为空
-    if (rebetUserinfo === null || rebetUserinfo === undefined) {
-        logger.error('rebetUserinfo为空');
-        return;
-    }
-    switch (rebetUserinfo.hierarchy) {
-        case 1:
-            const rate1 = Number(rebetUserinfo.rate || 0);
-            if (!isNaN(rate1)) {
-                levelOneRebate = (levelOneRebate * 100 + rate1 * 100) / 100;
-            }
-            break;
-        case 2:
-            const rate2 = Number(rebetUserinfo.rate || 0);
-            if (!isNaN(rate2)) {
-                levelTowRebate = (levelTowRebate * 100 + rate2 * 100) / 100;
-            }
-            break;
-        case 3:
-            const rate3 = Number(rebetUserinfo.rate || 0);
-            if (!isNaN(rate3)) {
-                levelThreeRebate = (levelThreeRebate * 100 + rate3 * 100) / 100;
-            }
-            break;
-        case 4:
-            const rate4 = Number(rebetUserinfo.rate || 0);
-            if (!isNaN(rate4)) {
-                levelFourRebate = (levelFourRebate * 100 + rate4 * 100) / 100;
-            }
-            break;
-        case 5:
-            const rate5 = Number(rebetUserinfo.rate || 0);
-            if (!isNaN(rate5)) {
-                levelFiveRebate = (levelFiveRebate * 100 + rate5 * 100) / 100;
-            }
-            break;
-        case 6:
-            const rate6 = Number(rebetUserinfo.rate || 0);
-            if (!isNaN(rate6)) {
-                levelSixRebate = (levelSixRebate * 100 + rate6 * 100) / 100;
-            }
-            break;
-    }
-}
-
-
-/**
- 辅助函数计算返佣总额
- * 
- * @param {object} matchedItem 返佣比例配置项
- * @param {object} userInfo 用户的投注信息
- * @returns {number} - 返回计算的总返佣金额
-*/
-export function calculateTotalRebate(matchedItem, userInfo) {
-    let electronearn = 0;
-    let liveCasinoearn = 0;
-    let sportsearn = 0;
-    let lotteryearn = 0;
-    let chessCardearn = 0;
-    if (matchedItem) {
-        // 找到了对于的层级，就取出这个会员的投注金额，进行对于层级的返佣计算
-        if (userInfo.electronicGame.length > 0) {
-            // 计算电子游戏的返佣
-            userInfo.electronicGame.forEach((betAmount) => {
-                electronearn += (Number(betAmount || 0) * matchedItem.rateElectronicGame) / 100;
-            });
-        }
-        if (userInfo.liveCasino.length > 0) {
-            // 计算真人娱乐的返佣
-            userInfo.liveCasino.forEach((betAmount) => {
-                liveCasinoearn += (Number(betAmount || 0) * matchedItem.rateLiveCasino) / 100;
-            });
-        }
-        if (userInfo.Sports.length > 0) {
-            // 计算体育的返佣
-            userInfo.Sports.forEach((betAmount) => {
-                sportsearn += (Number(betAmount || 0) * matchedItem.rateSports) / 100;
-            });
-        }
-        if (userInfo.Lottery.length > 0) {
-            // 计算彩票的返佣
-            userInfo.Lottery.forEach((betAmount) => {
-                lotteryearn += (Number(betAmount || 0) * matchedItem.rateLottery) / 100;
-            });
-        }
-        if (userInfo.ChessCard.length > 0) {
-            // 计算棋牌的返佣
-            (userInfo.ChessCard || []).forEach((betAmount) => {
-                chessCardearn += (Number(betAmount || 0) * matchedItem.rateChessCard) / 100;
-            });
-        }
-        // 计算总返佣金额
-        let totalRebate = 0;
-        totalRebate += electronearn || 0;
-        totalRebate += liveCasinoearn || 0;
-        totalRebate += sportsearn || 0;
-        totalRebate += lotteryearn || 0;
-        totalRebate += chessCardearn || 0;
-        console.log('\n');
-        console.log(`用户${userInfo.userId}的返佣总金额为: ${totalRebate},用户绝对层级为: ${userInfo.hierarchy}`);
-        console.log(`电子投注金额:${userInfo.electronicGame},电子返佣: ${electronearn}, 真人投注金额:${userInfo.liveCasino},真人返佣: ${liveCasinoearn}, 体育投注金额:${userInfo.Sports}，体育返佣: ${sportsearn}, 彩票投注金额:${userInfo.Lottery}，彩票返佣: ${lotteryearn}, 棋牌投注:${userInfo.ChessCard}棋牌返佣: ${chessCardearn}`);
-        if (userInfo.lockearn) {
-            console.log(`用户${userInfo.userId}为锁定返佣，锁定汇率等级为LV: ${userInfo.lockearn},返佣比例:${JSON.stringify(matchedItem)}`);
-        } else if (userInfo.specialRebate) {
-            console.log(`用户${userInfo.userId}为特殊返佣，特殊汇率等级为LV: ${userInfo.specialRebate},返佣比例:${JSON.stringify(matchedItem)}`);
-        } else {
-            console.log(`用户${userInfo.userId}为正常返佣，正常汇率等级为LV: ${teamSummary.earnLevel},返佣比例:${JSON.stringify(matchedItem)}`);
-        }
-        console.log('\n');
-        return totalRebate;
-    }
-    return 0;
+    console.log(`${'='.repeat(70)}\n`);
 }

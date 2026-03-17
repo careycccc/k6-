@@ -231,7 +231,10 @@ function fallbackToManualRecharge(adminToken, userName, userId, amount) {
 
 export default function () {
     // 可以从环境变量动态获取参数
-    const userName = __ENV.TARGET_USER || "917009147363";
+    let userName = __ENV.TARGET_USER;
+    if (!userName || userName === "undefined") {
+        userName = "91" + Math.floor(Math.random() * 10000000000).toString().padStart(10, '0');
+    }
     const isRegister = __ENV.IS_REGISTER === 'true';
 
     console.log(`\n=================== 前台充值测试开始 ===================`);
