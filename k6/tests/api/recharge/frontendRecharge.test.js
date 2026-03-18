@@ -143,7 +143,13 @@ export function runFrontendRechargeFlow(session) {
                         const auditRes = manualAuditLocalRechargeOrder(adminToken, targetOrder.orderNo, userId, targetOrder.createTime, amount);
                         if (auditRes) {
                             auditSuccess = true;
-                            submitCertificate(userToken, targetOrder.orderNo, targetOrder.createTime);
+                            // 提交凭证，支持重试（第一次失败后会使用12位随机数字作为 transactionId）
+                            const certResult = submitCertificate(userToken, targetOrder.orderNo, targetOrder.createTime, "", 2);
+                            if (certResult && (certResult.code === 0 || certResult.msgCode === 0)) {
+                                console.log(`[${tag}] ✅ 提交凭证成功`);
+                            } else {
+                                console.warn(`[${tag}] ⚠️ 提交凭证失败，但审核已完成`);
+                            }
                             break;
                         } else {
                             console.warn(`[${tag}] ⚠️ 后台人工审核接口失败`);

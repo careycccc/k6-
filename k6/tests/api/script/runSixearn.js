@@ -33,9 +33,9 @@ export function loginExec() {
 //k6 run -e TENANT_ID=3004 -e TARGET_UID=135833 k6-/k6/tests/api/script/runSixearn.js
 
 // 返佣金额的绑定和验证逻辑
-//k6 run -e TENANT_ID=3002 -e UNBIND_UID=5945173 -e BIND_INVITE_CODE=DHUT9NN k6-/k6/tests/api/script/runSixearn.js
+//k6 run -e TENANT_ID=3002 -e UNBIND_UID=5945184 -e BIND_INVITE_CODE=QSQKH5N k6-/k6/tests/api/script/runSixearn.js
 
-// k6 run -e TENANT_ID=3002 -e UNBIND_UID=5945184 -e BIND_INVITE_CODE=S7V6K6N runSixearn.js
+// k6 run -e TENANT_ID=3002 -e UNBIND_UID=5945198 -e BIND_INVITE_CODE=NP672GN runSixearn.js
 
 // ============================================================
 // 配置：要查询明日返佣的总代 UID 和 租户

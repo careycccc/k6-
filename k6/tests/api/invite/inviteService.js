@@ -8,7 +8,7 @@ import { phoneRegisterByInvite, emailRegisterByInvite } from '../login/register.
 import { generateRandomPhones, generateRandomEmails } from '../../utils/accountGenerator.js';
 import { betRun } from '../runbet/betRun.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
-import { manualRecharge } from '../recharge/manualRecharge.js';
+import { hybridRecharge } from '../recharge/rechargeService.js';
 
 // ========== 数据结构定义 ==========
 
@@ -47,6 +47,7 @@ let currentTenantConfig = null;            // 当前租户配置
 
 /**
  * 处理新用户的后续操作（充值和投注）
+ * 使用混合充值策略：优先前台充值，失败则后台充值兜底
  * @param {object} adminData - 管理员登录数据
  * @returns {Promise<void>}
  */
@@ -76,23 +77,31 @@ export async function processNewUsers(adminData) {
             console.log(`[ProcessUsers] 用户ID: ${userId}, 邀请码: ${userDetail.inviteCode}`);
             sleep(2);
 
-            // 步骤2 - 充值
+            // 步骤2 - 充值（使用混合充值策略）
             console.log(`[ProcessUsers] 开始充值: ${userDetail.userAccount}`);
 
             const rechargeAmount = Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000;
-            const rechargeResult = manualRecharge(adminData.token, userId, rechargeAmount, 1);
 
-            if (!rechargeResult || !rechargeResult.success) {
-                console.error(`[ProcessUsers] ❌ 充值失败: ${userDetail.userAccount}`);
+            // 使用混合充值服务
+            const rechargeResult = hybridRecharge({
+                userToken: userDetail.token,
+                adminToken: adminData.token,
+                userId: userId,
+                amount: rechargeAmount,
+                frontendFirst: true,
+                remark: 'Invite Test Recharge'
+            });
+
+            if (rechargeResult.success) {
+                userDetail.recharged = true;
+                userDetail.rechargeAmount = rechargeResult.amount;
+                rechargeSuccessCount++;
+                console.log(`[ProcessUsers] ✅ 充值成功: ${userDetail.userAccount}, 金额: ${rechargeResult.amount}, 方式: ${rechargeResult.method}`);
+            } else {
                 userDetail.recharged = false;
+                console.error(`[ProcessUsers] ❌ 充值失败: ${userDetail.userAccount}, 原因: ${rechargeResult.message}`);
                 continue; // 充值失败，跳过投注
             }
-
-            // 充值成功，标记并记录金额
-            userDetail.recharged = true;
-            userDetail.rechargeAmount = rechargeAmount;
-            rechargeSuccessCount++;
-            console.log(`[ProcessUsers] ✅ 充值成功: ${userDetail.userAccount}, 金额: ${rechargeAmount}`);
 
             sleep(2);
 
@@ -335,14 +344,16 @@ export function bindOneLevel(parentInviteCodes, count, level, adminData) {
  * @param {number[]} subordinates - 每层的人数，例如 [2, 3, 5] 表示第1层2人，第2层3人，第3层5人
  * @param {object} adminData - 管理员登录数据
  * @param {object} tenantConfig - 租户配置（可选）
+ * @param {boolean} withRecharge - 是否进行充值投注，默认true
  * @returns {Promise<void>}
  */
-export async function runMultiLevelInvite(rootInviteCode, subordinates, adminData, tenantConfig = null) {
+export async function runMultiLevelInvite(rootInviteCode, subordinates, adminData, tenantConfig = null, withRecharge = true) {
     if (!subordinates || subordinates.length === 0) {
         throw new Error('层级人数列表不能为空');
     }
 
     console.log(`🎯 开始多层级邀请绑定到总代: ${rootInviteCode}, 层级: ${subordinates}`);
+    console.log(`💰 充值投注: ${withRecharge ? '是' : '否'}`);
 
     // 保存租户配置到全局变量
     currentTenantConfig = tenantConfig;
@@ -384,9 +395,13 @@ export async function runMultiLevelInvite(rootInviteCode, subordinates, adminDat
         console.log(`✅ 第${level + 1}层完成: ${newLayer.length}人 -> ${newLayer.slice(0, Math.min(2, newLayer.length))}`);
     }
 
-    // 处理所有新用户（充值和投注）
-    console.log('\n🚀 === 开始处理所有用户的充值和投注 ===');
-    await processNewUsers(adminData);
+    // 处理所有新用户（充值和投注）- 根据参数决定是否执行
+    if (withRecharge) {
+        console.log('\n🚀 === 开始处理所有用户的充值和投注 ===');
+        await processNewUsers(adminData);
+    } else {
+        console.log('\n⏭️  跳过充值和投注步骤');
+    }
 
     console.log('\n🎉 多层级邀请绑定完成！');
 }

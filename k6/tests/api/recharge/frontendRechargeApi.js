@@ -22,7 +22,7 @@ export function getRechargeCategoryList(token) {
 
     // 改用 sendRequest，避免 sendQueryRequest 附加的 pageNo, pageSize 导致签名错误
     const response = sendRequest(payload, apiRechargeCategoryList, tag, true, token);
-    
+
     // sendQueryRequest 返回的可能是解析后的 data 或完整响应对象
     if (!response) {
         console.error(`[${tag}] 获取充值通道列表失败: 响应为空`);
@@ -34,7 +34,7 @@ export function getRechargeCategoryList(token) {
     if (Array.isArray(response)) {
         return response;
     }
-    
+
     // 如果包含 data 数组
     if (response.data && Array.isArray(response.data)) {
         return response.data;
@@ -52,7 +52,7 @@ export function getRechargeCategoryList(token) {
 export function depositRecharge(token, payload) {
     const tag = 'DepositRecharge';
     const timeData = getTimeRandom();
-    
+
     // 动态获取当前运行的机场(租户)配置以生成前台 URL
     const tenantIdStr = __ENV.TENANT_ID || ENV_CONFIG.TENANTID;
     const currentEnv = getEnvByTenantId(tenantIdStr);
@@ -75,7 +75,7 @@ export function depositRecharge(token, payload) {
     if (token) {
         httpClient.setAuthToken(token);
     }
-    
+
     const response = httpClient.post(
         apiDepositRecharge,
         requestData,
@@ -104,55 +104,98 @@ export function depositRecharge(token, payload) {
 }
 
 /**
+ * 生成12位随机数字字符串
+ * @returns {string} 12位纯数字字符串
+ */
+function generate12DigitTransactionId() {
+    let result = '';
+    for (let i = 0; i < 12; i++) {
+        result += Math.floor(Math.random() * 10);
+    }
+    return result;
+}
+
+/**
  * 提交本地充值凭证 (SubmitCertificate)
  * 仅用于 LocalEWallet 通道
+ * 支持重试机制：第一次失败后，使用12位随机数字作为 transactionId 重试
  * @param {string} token - 前台用户 token
  * @param {string} orderNo - 订单号
  * @param {number} createTime - 订单创建时间 (毫秒时间戳)
  * @param {string} transactionId - 交易ID，通常为空字符串
+ * @param {number} maxRetries - 最大重试次数，默认2次
  * @returns {object|null}
  */
-export function submitCertificate(token, orderNo, createTime, transactionId = "") {
+export function submitCertificate(token, orderNo, createTime, transactionId = "", maxRetries = 2) {
     const tag = 'SubmitCertificate';
-    const timeData = getTimeRandom();
-    
-    const payload = {
-        orderNo: orderNo,
-        createTime: createTime,
-        transactionId: transactionId,
-        language: timeData.language,
-        random: timeData.random,
-        signature: '',
-        timestamp: timeData.timestamp
-    };
 
-    if (token) {
-        httpClient.setAuthToken(token);
-    }
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const timeData = getTimeRandom();
 
-    const response = httpClient.post(
-        apiSubmitCertificate,
-        payload,
-        {
-            params: {
-                tags: { type: tag, name: `${tag}_request` }
+        // 第一次使用传入的 transactionId（通常为空），后续重试使用12位随机数字
+        const currentTransactionId = attempt === 1 ? transactionId : generate12DigitTransactionId();
+
+        const payload = {
+            orderNo: orderNo,
+            createTime: createTime,
+            transactionId: currentTransactionId,
+            language: timeData.language,
+            random: timeData.random,
+            signature: '',
+            timestamp: timeData.timestamp
+        };
+
+        console.log(`[${tag}] 第${attempt}次提交凭证，transactionId: "${currentTransactionId}"`);
+
+        if (token) {
+            httpClient.setAuthToken(token);
+        }
+
+        const response = httpClient.post(
+            apiSubmitCertificate,
+            payload,
+            {
+                params: {
+                    tags: { type: tag, name: `${tag}_request_${attempt}` }
+                }
+            },
+            true // isDesk
+        );
+
+        if (!response || !response.body) {
+            console.error(`[${tag}] 第${attempt}次提交失败: 无响应体`);
+            if (attempt < maxRetries) {
+                console.log(`[${tag}] 准备重试...`);
+                continue;
             }
-        },
-        true // isDesk
-    );
+            return null;
+        }
 
-    if (!response || !response.body) {
-        console.error(`[${tag}] 提交充值凭证失败: 无响应体`);
-        return null;
+        let parsedBody = null;
+        try {
+            parsedBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+        } catch (e) {
+            console.error(`[${tag}] 第${attempt}次响应体解析失败: ${e.message}`);
+            if (attempt < maxRetries) {
+                console.log(`[${tag}] 准备重试...`);
+                continue;
+            }
+            return null;
+        }
+
+        // 检查响应是否成功
+        if (parsedBody && (parsedBody.code === 0 || parsedBody.msgCode === 0)) {
+            console.log(`[${tag}] ✅ 第${attempt}次提交成功`);
+            return parsedBody;
+        } else {
+            console.warn(`[${tag}] 第${attempt}次提交返回错误: code=${parsedBody.code}, msgCode=${parsedBody.msgCode}, msg=${parsedBody.msg}`);
+            if (attempt < maxRetries) {
+                console.log(`[${tag}] 准备使用随机 transactionId 重试...`);
+                continue;
+            }
+            return parsedBody; // 最后一次尝试，返回结果即使失败
+        }
     }
 
-    let parsedBody = null;
-    try {
-        parsedBody = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
-    } catch (e) {
-        console.error(`[${tag}] 响应体解析失败: ${e.message}`);
-        return null;
-    }
-
-    return parsedBody;
+    return null;
 }
