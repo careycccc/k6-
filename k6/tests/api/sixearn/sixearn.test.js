@@ -14,9 +14,9 @@ export const sixearnTag = 'sixearn';
  * 最大返佣层级（相对层级）。
  * 例如：总代层级=0，则最多计算到绝对层级 0+MAX_REBATE_HIERARCHY 的下级。
  * 超过此相对层级的成员产生返佣给上级时，将发出 ⚠️ 警告。
- * 可根据实际业务调整（如改为4表示最多4级返佣）。
+ * 这里会通过项目的返佣利率配置表动态获取。
  */
-const MAX_REBATE_HIERARCHY = 6;
+let MAX_REBATE_HIERARCHY = 6;
 
 /**
  * 投注金额字段选择：
@@ -127,7 +127,7 @@ export function querySubAccounts(data, targetUid) {
     console.log(`\n${'='.repeat(70)}`);
     console.log(`📊 返佣预查询 - UID=${accountId}  昨日=${dateStr}`);
     console.log(`   时间范围: ${new Date(startTs).toLocaleString()} ~ ${new Date(endTs).toLocaleString()}`);
-    console.log(`   最大返佣层级: ${MAX_REBATE_HIERARCHY}  |  投注字段: ${USE_VALID_AMOUNT ? 'validAmount(有效投注)' : 'betAmount(投注金额)'}`);
+    console.log(`   最大返佣层级: [将动态获取]  |  投注字段: ${USE_VALID_AMOUNT ? 'validAmount(有效投注)' : 'betAmount(投注金额)'}`);
     console.log(`${'='.repeat(70)}\n`);
 
     // -------------------------------------------------------
@@ -218,7 +218,19 @@ export function querySubAccounts(data, targetUid) {
         logger.error('[Step 3] 返佣利率配置表查询失败或为空，终止');
         return;
     }
-    console.log(`[Step 3] ✅ 共 ${rebateRateList.length} 种利率配置\n`);
+    
+    // 动态计算最大返佣层级
+    let maxRebateHier = 0;
+    rebateRateList.forEach(entry => {
+        if (entry.list && Array.isArray(entry.list)) {
+            const h = Math.max(...entry.list.filter(item => item.hierarchy > 0).map(r => r.hierarchy));
+            if (h > maxRebateHier) maxRebateHier = h;
+        }
+    });
+    if (maxRebateHier > 0) {
+        MAX_REBATE_HIERARCHY = maxRebateHier;
+    }
+    console.log(`[Step 3] ✅ 共 ${rebateRateList.length} 种利率配置 | 📌 当前项目最大返佣层级为: ${MAX_REBATE_HIERARCHY} 层\n`);
 
     // -------------------------------------------------------
     // Step 4: 构建树 + 为每个成员查询昨日充值/投注数据
@@ -278,10 +290,11 @@ export function querySubAccounts(data, targetUid) {
             earnLevel = agent.rebateLevel;
             earnLevelReason = `锁定返佣 rebateLevel=${agent.rebateLevel}`;
         } else {
-            // 先根据团队数据计算正常返佣等级
-            const rechargePeopleCount = descendants.filter((d) => d.totalRechargeAmount > 0).length;
-            const totalRechargeAmt = descendants.reduce((s, d) => s + (d.totalRechargeAmount || 0), 0);
-            const totalBetAmt = descendants.reduce((s, d) => s + (d.betAmountSum || 0), 0);
+            // 先根据团队数据计算正常返佣等级 - 仅统计最大返佣层级内的下级
+            const validDescendantsForLevel = descendants.filter(d => (d.hierarchy - agent.hierarchy) <= MAX_REBATE_HIERARCHY);
+            const rechargePeopleCount = validDescendantsForLevel.filter((d) => d.totalRechargeAmount > 0).length;
+            const totalRechargeAmt = validDescendantsForLevel.reduce((s, d) => s + (d.totalRechargeAmount || 0), 0);
+            const totalBetAmt = validDescendantsForLevel.reduce((s, d) => s + (d.betAmountSum || 0), 0);
             const normalLevel = computeNormalEarnLevel(
                 rechargePeopleCount,
                 totalRechargeAmt,
@@ -293,11 +306,11 @@ export function querySubAccounts(data, targetUid) {
                 // 特殊返佣：取 max(specialRebateLevel, normalLevel)
                 const specialLevel = agent.rebateLevel;
                 earnLevel = Math.max(specialLevel, normalLevel >= 0 ? normalLevel : 0);
-                earnLevelReason = `特殊返佣，特殊LV=${specialLevel}，团队正常LV=${normalLevel}，取较大值LV=${earnLevel}`;
+                earnLevelReason = `特殊返佣，特殊LV=${specialLevel}，前${MAX_REBATE_HIERARCHY}层团队正常LV=${normalLevel}，取较大值LV=${earnLevel}`;
             } else {
                 // 正常返佣
                 earnLevel = normalLevel >= 0 ? normalLevel : 0;
-                earnLevelReason = `正常返佣，团队充值人数=${rechargePeopleCount}，充值金额=${totalRechargeAmt.toFixed(2)}，投注金额=${totalBetAmt.toFixed(2)}，等级LV=${earnLevel}`;
+                earnLevelReason = `正常返佣，前${MAX_REBATE_HIERARCHY}层团队(人数=${rechargePeopleCount}，充值金=${totalRechargeAmt.toFixed(2)}，投注金=${totalBetAmt.toFixed(2)})，等级LV=${earnLevel}`;
             }
         }
 
