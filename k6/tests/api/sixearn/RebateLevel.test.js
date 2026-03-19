@@ -86,10 +86,9 @@ let UserBetAmount = {
 let totalUserBetAmount = [];
 
 // 投注金额统计的验证函数
-// 投注金额统计的验证函数（修正版）
 export function VerifyBetAmountStatistics(data) {
-  let start = '2026-01-15';
-  let end = '2026-01-15';
+  let start = '2026-03-16';
+  let end = '2026-03-16';
   const startTime = dateStringToTimestamp(ENV_CONFIG.START_TIME);
   const endTime = dateStringToTimestamp(ENV_CONFIG.END_TIME);
   //let listUser = [5944638, 5944637, 5944512, 5944511, 5944510, 5944509, 5944508, 5944507, 5944506, 5944505, 5944504, 5944503, 5944502, 5944501, 5944500, 5944499, 5944498];

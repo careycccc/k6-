@@ -30,7 +30,7 @@ let ResponseResult = null;
  * CustomMetrics 自定义指标名称
  */
 export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
-  // logger.info('本次请求测试数据:', data);
+  //logger.info('本次请求测试数据:', data);
   checkCounter = 0;
 
   group('请求流程', () => {
@@ -207,9 +207,8 @@ export function sendQueryRequest(payload, api, tag, isDesk, token) {
     timestamp: timeData.timestamp,
     ...payload
   };
-
   // 调试：检查 random 值
-  console.log(`[sendQueryRequest] Debug - random: ${data.random}, 类型: ${typeof data.random}, 长度: ${String(data.random).length}`);
+  // console.log(`[sendQueryRequest] Debug - random: ${data.random}, 类型: ${typeof data.random}, 长度: ${String(data.random).length}`);
 
   const Reponsetoken = testCommonRequest(data, api, tag, isDesk, token);
   return Reponsetoken;

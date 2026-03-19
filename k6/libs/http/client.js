@@ -2,7 +2,7 @@ import http from 'k6/http';
 import { getApiUrl } from '../../config/environment.js';
 import { getLogger } from '../utils/logger.js';
 import { SignedHttpClient } from '../utils/signature.js';
-import { ENV_CONFIG } from '../../config/envconfig.js';
+import { ENV_CONFIG, getEnvByTenantId } from '../../config/envconfig.js';
 
 const logger = getLogger();
 
@@ -44,7 +44,7 @@ export class HttpClient extends SignedHttpClient {
       const signedData = this.signData(data, opts);
       // 调试：检查签名后的 random
       if (signedData.random) {
-        console.log(`[HttpClient] Debug - 签名后 random: ${signedData.random}, 类型: ${typeof signedData.random}, 长度: ${String(signedData.random).length}`);
+        //console.log(`[HttpClient] Debug - 签名后 random: ${signedData.random}, 类型: ${typeof signedData.random}, 长度: ${String(signedData.random).length}`);
       }
       return signedData;
     } catch (err) {
@@ -61,14 +61,14 @@ export class HttpClient extends SignedHttpClient {
 
     // 为前后端请求的时候添加不同的headers
     let domainUrl;
+    const tenantIdStr = __ENV.TENANT_ID || ENV_CONFIG.TENANTID;
+    const currentEnv = getEnvByTenantId(tenantIdStr);
+    
     if (config.fullUrl) {
-      // ✅ 如果使用自定义URL，从URL中提取域名（协议+主机）
-      // 例如: https://arsitasdfghjklg.com/api/Login/Login -> https://arsitasdfghjklg.com
       const match = config.fullUrl.match(/^(https?:\/\/[^\/]+)/);
-      domainUrl = match ? match[1] : (isDesk ? ENV_CONFIG.BASE_DESK_URL : ENV_CONFIG.BASE_ADMIN_URL);
+      domainUrl = match ? match[1] : (isDesk ? currentEnv.BASE_DESK_URL : currentEnv.BASE_ADMIN_URL);
     } else {
-      // 使用 ENV_CONFIG 动态获取
-      domainUrl = isDesk ? ENV_CONFIG.BASE_DESK_URL : ENV_CONFIG.BASE_ADMIN_URL;
+      domainUrl = isDesk ? currentEnv.BASE_DESK_URL : currentEnv.BASE_ADMIN_URL;
     }
 
     config.headers = generateRequestBody(config, domainUrl);

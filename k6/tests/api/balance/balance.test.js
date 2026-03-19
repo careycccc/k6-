@@ -16,7 +16,7 @@ import { ENV_CONFIG } from '../../../config/envconfig.js';
  * @returns {Object} 余额信息 {balance, currency, tenantId, userId} 或 null
  */
 export function getAccountBalance(token) {
-    console.log('[Balance] 开始查询账号余额');
+    //console.log('[Balance] 开始查询账号余额');
 
     if (!token) {
         console.error('[Balance] token 为空，无法查询余额');

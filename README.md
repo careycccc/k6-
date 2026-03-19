@@ -792,6 +792,13 @@ A: 在请求时传入 `{ autoSign: false }` 或在 HttpClient 初始化时设置
 ### Q: 支持哪些签名算法？
 A: 支持 MD5、SHA256 等，在 `k6/libs/utils/signature.js` 中配置。
 
+
+### Q：如何启动把本地端口映射到公网：
+bore local 8080 --to bore.pub
+访问：bore.pub：xxx端口号
+
+### Q：如何启动本地的模型
+ollama serve
 ---
 
 ## 📄 许可证
