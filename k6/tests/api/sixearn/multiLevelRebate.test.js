@@ -8,6 +8,7 @@
  * 4. 等待5秒后，团队1的某个下级解绑并绑定到团队2
  * 5. 等待2秒后，团队2进行充值投注
  * 6. 等待3秒后，团队2的某个下级解绑并绑定到团队1
+ * 7. 注意只有团队2进行充值投注的时候才会有一定的几率把成员加入到特殊/固定的返佣中
  * 
  * 使用方法：
  * k6 run -e TENANT_ID=3002 -e TEAM1_TOTAL=5 -e TEAM1_LEVELS=2 -e TEAM2_TOTAL=4 -e TEAM2_LEVELS=3 multiLevelRebate.test.js
@@ -180,7 +181,7 @@ async function executeMultiLevelInvite(rootInviteCode, levels, adminData, withRe
 }
 
 /**
- * 从团队中随机选择一个下级用户（排除总代和第一层）
+ * 从团队中随机选择一个下级用户（排除总代，但如果只有总代则返回总代）
  * @param {string} adminToken - 管理员token
  * @param {number} rootUserId - 总代用户ID
  * @returns {number|null} 随机选中的用户ID
@@ -195,15 +196,23 @@ function selectRandomSubordinate(adminToken, rootUserId) {
         return null;
     }
 
-    // 过滤：排除层级0（总代）和层级1（第一层下级）
-    const eligibleMembers = agentList.filter(member => member.hierarchy >= 2);
+    // 过滤：排除层级0（总代），只选择层级>=1的用户
+    const eligibleMembers = agentList.filter(member => member.hierarchy >= 1);
 
+    // 如果没有下级，说明团队只有总代，则返回总代本身
     if (eligibleMembers.length === 0) {
-        console.error(`[选择下级] 没有符合条件的下级（需要层级>=2）`);
+        console.warn(`[选择下级] ⚠️  团队中只有总代，将选择总代本身`);
+        const rootAgent = agentList.find(member => member.hierarchy === 0);
+        if (rootAgent) {
+            console.log(`[选择下级] ✅ 选中总代`);
+            console.log(`[选择下级]   用户ID: ${rootAgent.userId}`);
+            console.log(`[选择下级]   层级: ${rootAgent.hierarchy}`);
+            return rootAgent.userId;
+        }
         return null;
     }
 
-    // 随机选择一个
+    // 随机选择一个下级
     const randomIndex = Math.floor(Math.random() * eligibleMembers.length);
     const selectedMember = eligibleMembers[randomIndex];
 
