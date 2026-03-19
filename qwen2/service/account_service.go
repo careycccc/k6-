@@ -41,7 +41,7 @@ func NewAccountService() *AccountService {
 //
 // ⭐ AI识别到 intent=get_account 时会调用这个函数
 //
-// 参数：
+// 参数:
 //   - platform: 平台编号，如 "3003"
 //   - accountType: 账号类型，"phone" 或 "email"
 //   - amount:   充值金额，如 "500"（暂未使用，预留）
@@ -55,6 +55,19 @@ func (s *AccountService) GetAccount(platform string, accountType string, amount 
 	// 调用 K6 注册服务创建新账号
 	account, err := s.registerAccountViaK6(platform, accountType, 1)
 	if err != nil {
+		// 如果是手机号注册失败，且错误信息包含"verification method is not enabled"
+		// 自动尝试邮箱注册
+		if accountType == "phone" && strings.Contains(err.Error(), "verification method is not enabled") {
+			log.Printf("[业务] 手机号注册不可用，自动切换到邮箱注册")
+			account, err = s.registerAccountViaK6(platform, "email", 1)
+			if err != nil {
+				log.Printf("[业务] 邮箱注册也失败: %v", err)
+				return nil, fmt.Errorf("手机号和邮箱注册均失败: %v", err)
+			}
+			log.Printf("[业务] 邮箱注册成功: username=%s", account.Username)
+			return account, nil
+		}
+		
 		log.Printf("[业务] GetAccount 失败: %v", err)
 		return nil, err
 	}
@@ -241,10 +254,20 @@ func (s *AccountService) registerAccountViaK6(platform string, accountType strin
 			if resp, ok := firstError["response"].(string); ok {
 				response = resp
 			}
+			errorMessage := ""
+			if msg, ok := firstError["errorMessage"].(string); ok {
+				errorMessage = msg
+			}
 			
 			// 检查是否是后台登录失败的错误
 			if strings.Contains(reason, "后台登录失败") || strings.Contains(reason, "Backend account not exists") {
 				return nil, fmt.Errorf("租户 %s 后台登录失败", platform)
+			}
+			
+			// 检查是否是验证方式未启用的错误
+			if strings.Contains(errorMessage, "verification method is not enabled") || 
+			   strings.Contains(response, "verification method is not enabled") {
+				return nil, fmt.Errorf("verification method is not enabled")
 			}
 			
 			if response != "" && response != "null" {
@@ -267,10 +290,20 @@ func (s *AccountService) registerAccountViaK6(platform string, accountType strin
 			if resp, ok := firstError["response"].(string); ok {
 				response = resp
 			}
+			errorMessage := ""
+			if msg, ok := firstError["errorMessage"].(string); ok {
+				errorMessage = msg
+			}
 			
 			// 检查是否是后台登录失败的错误
 			if strings.Contains(reason, "后台登录失败") || strings.Contains(reason, "Backend account not exists") {
 				return nil, fmt.Errorf("租户 %s 后台登录失败", platform)
+			}
+			
+			// 检查是否是验证方式未启用的错误
+			if strings.Contains(errorMessage, "verification method is not enabled") || 
+			   strings.Contains(response, "verification method is not enabled") {
+				return nil, fmt.Errorf("verification method is not enabled")
 			}
 			
 			if response != "" && response != "null" {

@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"smart-qa/ai"
 	"smart-qa/model"
 	"smart-qa/service"
@@ -365,11 +367,14 @@ func (d *Dispatcher) handleRecharge(params map[string]string) string {
 
 	err := cmd.Run()
 	output := stdout.String()
+	stderrOutput := stderr.String()
 
-	// 解析日志，提取生成的随机账号
+	// 解析日志，提取生成的随机账号和密码
 	var genAccount string
+	var genPassword string
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
+		// 提取账号
 		if strings.Contains(line, "会话建立成功! 账号:") {
 			parts := strings.Split(line, "账号: ")
 			if len(parts) > 1 {
@@ -377,12 +382,28 @@ func (d *Dispatcher) handleRecharge(params map[string]string) string {
 				genAccount = strings.TrimSpace(genAccount)
 			}
 		}
+		// 提取密码
+		if strings.Contains(line, "默认密码:") {
+			parts := strings.Split(line, "默认密码:")
+			if len(parts) > 1 {
+				genPassword = strings.TrimSpace(parts[1])
+			}
+		}
 	}
 
 	reply := actionDesc
 
+	// 如果是随机注册且成功，显示账号和密码
 	if isRegister && genAccount != "" {
-		reply += fmt.Sprintf("\n⭐ 生成账号: %s\n⭐ 默认密码: qwer1234", genAccount)
+		if genPassword != "" {
+			reply += fmt.Sprintf("\n⭐ 生成账号: %s\n⭐ 生成密码: %s", genAccount, genPassword)
+		} else {
+			reply += fmt.Sprintf("\n⭐ 生成账号: %s\n⭐ 默认密码: qwer1234", genAccount)
+		}
+	}
+	// 如果是指定账号，不显示密码（因为使用验证码登录）
+	if !isRegister && genAccount != "" {
+		reply += fmt.Sprintf("\n⭐ 使用账号: %s", genAccount)
 	}
 
 	frontUrls := map[string]string{
@@ -395,11 +416,18 @@ func (d *Dispatcher) handleRecharge(params map[string]string) string {
 		reply += fmt.Sprintf("\n🌐 前台地址: %s", url)
 	}
 
+	// 检查充值是否成功
+	rechargeSuccess := strings.Contains(output, "充值受理成功") ||
+		strings.Contains(output, "三方订单") ||
+		strings.Contains(output, "人工审核成功")
+
 	if err != nil || !strings.Contains(output, "充值测试结束") {
-		log.Printf("[充值执行] K6 执行错误或未正常结束: %v\n%s\n%s", err, output, stderr.String())
+		log.Printf("[充值执行] K6 执行错误或未正常结束: %v\n%s\n%s", err, output, stderrOutput)
 		reply += "\n\n⚠️ 充值自动化执行似乎遇到了一些问题，请检查后台控制台日志。"
+	} else if rechargeSuccess {
+		reply += "\n\n✅ 充值成功！"
 	} else {
-		reply += "\n\n(提示: 充值脚本已在后台执行完毕。如果是随机账号，建议立即登录前台查看余额。)"
+		reply += "\n\n⚠️ 充值执行完成，但未检测到成功标志，请检查日志。"
 	}
 
 	return reply
@@ -471,31 +499,72 @@ func (d *Dispatcher) handleCreateActivity(params map[string]string) string {
 		}
 		return fmt.Sprintf("请告诉我你要在哪个租户(3001、3002、3003、3004)创建【%s】活动？\n例如回答: 在3001平台", activitiesStr)
 	}
-	
+
 	validPlatforms := map[string]bool{"3001": true, "3002": true, "3003": true, "3004": true}
 	if !validPlatforms[platform] {
 		return fmt.Sprintf("❌ 平台编号 %s 无效，请使用 3001/3002/3003/3004", platform)
 	}
 
 	if activitiesStr == "" {
-		return "请告诉我你需要创建什么活动？(如: 每日签到、红包雨等)"
+		return ""
 	}
 
-	activities := strings.Split(activitiesStr, ",")
+	// 检查是否要创建所有活动
+	allActivities := []string{
+		"每日签到", "红包雨", "锦标赛", "幸运礼包", "系统活动",
+		"礼品码", "超级大奖", "引导活动", "banner", "洗码",
+		"优惠券", "定制化弹窗", "每日任务", "礼包", "站内信",
+		"邀请转盘", "登录前弹窗", "新版代理", "新版代理排行榜", "工单系统",
+		"会员排行榜", "充值礼包", "充值转盘", "救援金",
+		"标签", "周卡月卡", "提现超时",
+	}
+
+	var activities []string
+	if activitiesStr == "所有活动" || activitiesStr == "全部活动" {
+		activities = allActivities
+		log.Printf("[活动创建] 用户请求创建所有活动，共 %d 个", len(activities))
+	} else {
+		activities = strings.Split(activitiesStr, ",")
+	}
+
 	var successList []string
-	
+
 	for _, act := range activities {
 		act = strings.TrimSpace(act)
-		if act == "" { continue }
-		
-		scriptMap := map[string]string{
-			"每日签到": "../k6/tests/api/activity/signin/createSignin.js",
-			"红包雨":   "../k6/tests/api/activity/RedRainActivity/createRedRainActivity.js",
-			"锦标赛":   "../k6/tests/api/activity/champion/createChampion.js",
-			"幸运礼包": "../k6/tests/api/activity/luckyDoubleBonus/createluckyDoubleBonus.js",
-			"活动":     "../k6/tests/api/activity/systemActive/createSystemActive.js",
+		if act == "" {
+			continue
 		}
-		
+
+		scriptMap := map[string]string{
+			"每日签到":    "k6/tests/api/activity/signin/createSignin_dispatch.js",
+			"红包雨":     "k6/tests/api/activity/RedRainActivity/createRedRainActivity_dispatch.js",
+			"锦标赛":     "k6/tests/api/activity/champion/createChampion_dispatch.js",
+			"幸运礼包":    "k6/tests/api/activity/luckyDoubleBonus/createluckyDoubleBonus_dispatch.js",
+			"活动":      "k6/tests/api/activity/systemActive/createSystemActive_dispatch.js",
+			"礼品码":     "k6/tests/api/activity/GiftCodes/createGiftCodes_dispatch.js",
+			"超级大奖":    "k6/tests/api/activity/MegaJackpot/createMegaJackpot_dispatch.js",
+			"引导活动":    "k6/tests/api/activity/activityGuide/createActivityGuide_dispatch.js",
+			"banner":  "k6/tests/api/activity/banner/createBanner_dispatch.js",
+			"洗码":      "k6/tests/api/activity/codeWashing/createCodeWashing_dispatch.js",
+			"优惠券":     "k6/tests/api/activity/coupon/createCoupon_dispatch.js",
+			"定制化弹窗":   "k6/tests/api/activity/customizePopup/createCustomizePopup_dispatch.js",
+			"每日任务":    "k6/tests/api/activity/dailyTasks/createDailyTasks_dispatch.js",
+			"礼包":      "k6/tests/api/activity/giftPack/createGiftPack_dispatch.js",
+			"站内信":     "k6/tests/api/activity/inmail/createInmail_dispatch.js",
+			"邀请转盘":    "k6/tests/api/activity/inviteTurntable/createInviteTurntable_dispatch.js",
+			"登录前弹窗":   "k6/tests/api/activity/loginPopup/createLoginPopup_dispatch.js",
+			"新版代理":    "k6/tests/api/activity/newagent/createNewagent_dispatch.js",
+			"新版代理排行榜": "k6/tests/api/activity/newagent/createNewagentRank_dispatch.js",
+			"工单系统":    "k6/tests/api/activity/orderSystem/createOrder_dispatch.js",
+			"会员排行榜":   "k6/tests/api/activity/ranking/createRanking_dispatch.js",
+			"充值礼包":    "k6/tests/api/activity/rechargeGiftPack/createRechargeGiftPack_dispatch.js",
+			"充值转盘":    "k6/tests/api/activity/rechargeWheel/createRechargeWheel_dispatch.js",
+			"救援金":     "k6/tests/api/activity/rescue/createRescue_dispatch.js",
+			"标签":      "k6/tests/api/activity/tag/createTag_dispatch.js",
+			"周卡月卡":    "k6/tests/api/activity/weekCard/createWeekCard_dispatch.js",
+			"提现超时":    "k6/tests/api/activity/withdrawalTimeout/createWithdrawalTimeout_dispatch.js",
+		}
+
 		matchedScript := ""
 		for key, script := range scriptMap {
 			if strings.Contains(act, key) {
@@ -506,13 +575,49 @@ func (d *Dispatcher) handleCreateActivity(params map[string]string) string {
 
 		if matchedScript != "" {
 			log.Printf("[活动创建] 正在 %s 平台创建活动: %s (%s)", platform, act, matchedScript)
-			args := []string{"run", "-e", fmt.Sprintf("TENANT_ID=%s", platform), matchedScript}
+
+			// 获取当前工作目录
+			currentDir, err := os.Getwd()
+			if err != nil {
+				log.Printf("[活动创建] 获取当前目录失败: %v", err)
+				successList = append(successList, fmt.Sprintf("❌ 【%s】(获取目录失败)", act))
+				continue
+			}
+
+			// 计算项目根目录（假设 Go 服务在 qwen2/ 目录下）
+			projectRoot := filepath.Join(currentDir, "..")
+			scriptPath := filepath.Join(projectRoot, matchedScript)
+
+			log.Printf("[活动创建] 项目根目录: %s", projectRoot)
+			log.Printf("[活动创建] 脚本路径: %s", scriptPath)
+
+			// 检查脚本是否存在
+			if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+				log.Printf("[活动创建] 脚本不存在: %s", scriptPath)
+				successList = append(successList, fmt.Sprintf("❌ 【%s】(脚本不存在)", act))
+				continue
+			}
+
+			// 构建 K6 命令
+			args := []string{"run", "-e", fmt.Sprintf("TENANT_ID=%s", platform), scriptPath}
 			cmd := exec.Command("k6", args...)
-			err := cmd.Run()
+			// 设置工作目录为项目根目录
+			cmd.Dir = projectRoot
+
+			// 捕获输出
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+
+			// 执行命令
+			err = cmd.Run()
 			if err != nil {
 				log.Printf("[活动创建] k6 执行失败: %v", err)
-				successList = append(successList, fmt.Sprintf("⚠️ 【%s】(创建执行失败)", act))
+				log.Printf("[活动创建] stdout: %s", stdout.String())
+				log.Printf("[活动创建] stderr: %s", stderr.String())
+				successList = append(successList, fmt.Sprintf("⚠️ 【%s】(创建执行失败: %v)", act, err))
 			} else {
+				log.Printf("[活动创建] k6 执行成功")
 				successList = append(successList, fmt.Sprintf("✅ 【%s】(创建成功)", act))
 			}
 		} else {

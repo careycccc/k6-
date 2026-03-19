@@ -182,6 +182,7 @@ async function executeMultiLevelInvite(rootInviteCode, levels, adminData, withRe
 
 /**
  * 从团队中随机选择一个下级用户（排除总代，但如果只有总代则返回总代）
+ * 优先选择有下级的账号，层级随机性更强
  * @param {string} adminToken - 管理员token
  * @param {number} rootUserId - 总代用户ID
  * @returns {number|null} 随机选中的用户ID
@@ -212,13 +213,64 @@ function selectRandomSubordinate(adminToken, rootUserId) {
         return null;
     }
 
-    // 随机选择一个下级
-    const randomIndex = Math.floor(Math.random() * eligibleMembers.length);
-    const selectedMember = eligibleMembers[randomIndex];
+    // 统计每个用户的下级数量
+    const memberWithSubordinates = eligibleMembers.map(member => {
+        const subordinateCount = agentList.filter(m =>
+            m.hierarchy > member.hierarchy &&
+            m.userId !== member.userId
+        ).length;
+        return {
+            ...member,
+            subordinateCount
+        };
+    });
 
-    console.log(`[选择下级] ✅ 随机选中用户`);
+    // 按层级分组
+    const membersByLevel = {};
+    memberWithSubordinates.forEach(member => {
+        if (!membersByLevel[member.hierarchy]) {
+            membersByLevel[member.hierarchy] = [];
+        }
+        membersByLevel[member.hierarchy].push(member);
+    });
+
+    const levels = Object.keys(membersByLevel).map(Number).sort((a, b) => a - b);
+    console.log(`[选择下级] 可用层级: ${levels.join(', ')}`);
+
+    // 随机选择一个层级（增加随机性）
+    const randomLevel = levels[Math.floor(Math.random() * levels.length)];
+    const candidatesAtLevel = membersByLevel[randomLevel];
+
+    console.log(`[选择下级] 随机选中层级: ${randomLevel}, 该层级有 ${candidatesAtLevel.length} 个成员`);
+
+    // 在该层级中，优先选择有下级的账号
+    const withSubordinates = candidatesAtLevel.filter(m => m.subordinateCount > 0);
+    const withoutSubordinates = candidatesAtLevel.filter(m => m.subordinateCount === 0);
+
+    let selectedMember;
+
+    if (withSubordinates.length > 0) {
+        // 80% 概率选择有下级的账号
+        if (Math.random() < 0.8) {
+            selectedMember = withSubordinates[Math.floor(Math.random() * withSubordinates.length)];
+            console.log(`[选择下级] 优先选择有下级的账号 (该账号有 ${selectedMember.subordinateCount} 个下级)`);
+        } else if (withoutSubordinates.length > 0) {
+            selectedMember = withoutSubordinates[Math.floor(Math.random() * withoutSubordinates.length)];
+            console.log(`[选择下级] 随机选择无下级的账号`);
+        } else {
+            selectedMember = withSubordinates[Math.floor(Math.random() * withSubordinates.length)];
+            console.log(`[选择下级] 该层级只有有下级的账号 (该账号有 ${selectedMember.subordinateCount} 个下级)`);
+        }
+    } else {
+        // 该层级都没有下级，随机选一个
+        selectedMember = candidatesAtLevel[Math.floor(Math.random() * candidatesAtLevel.length)];
+        console.log(`[选择下级] 该层级都没有下级，随机选择`);
+    }
+
+    console.log(`[选择下级] ✅ 最终选中用户`);
     console.log(`[选择下级]   用户ID: ${selectedMember.userId}`);
     console.log(`[选择下级]   层级: ${selectedMember.hierarchy}`);
+    console.log(`[选择下级]   下级数量: ${selectedMember.subordinateCount}`);
 
     return selectedMember.userId;
 }
