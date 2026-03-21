@@ -9,6 +9,7 @@ import { generateRandomPhones, generateRandomEmails } from '../../utils/accountG
 import { betRun } from '../runbet/betRun.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
 import { hybridRecharge } from '../recharge/rechargeService.js';
+import { ENV_CONFIG } from '../../../config/envconfig.js';
 
 // ========== 数据结构定义 ==========
 
@@ -158,9 +159,12 @@ function tryRegister(account, accountType, parentInviteCode, adminData) {
             registerUrl: currentTenantConfig.registerApiUrl || null
         } : null;
 
+        // 获取当前环境的区号
+        const countryCode = ENV_CONFIG.COUNTRY_CODE || '91';
+
         if (accountType === 'phone') {
-            // 尝试手机号注册
-            response = phoneRegisterByInvite(account, parentInviteCode, adminData, 'qwer1234', '', customUrls);
+            // 尝试手机号注册（传递区号）
+            response = phoneRegisterByInvite(account, parentInviteCode, adminData, 'qwer1234', '', customUrls, countryCode);
         } else {
             // 尝试邮箱注册
             response = emailRegisterByInvite(account, parentInviteCode, adminData, 'qwer1234', '', customUrls);
@@ -266,8 +270,10 @@ export function bindOneLevel(parentInviteCodes, count, level, adminData) {
 
     console.log(`\n🔗 [层级${level + 1}] 父级${parentInviteCodes.length}人 -> 生成${count}个下级...`);
 
-    // 步骤1: 生成账号
-    const phoneNumbers = generateRandomPhones(count);
+    // 步骤1: 生成账号（使用当前环境的区号）
+    const countryCode = ENV_CONFIG.COUNTRY_CODE || '91';
+    console.log(`📱 使用区号: ${countryCode}`);
+    const phoneNumbers = generateRandomPhones(count, countryCode);
     const emails = generateRandomEmails(count);
 
     console.log(`📱 生成账号: ${phoneNumbers.slice(0, Math.min(2, phoneNumbers.length))}...`);

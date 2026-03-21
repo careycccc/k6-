@@ -99,11 +99,18 @@ func (s *AccountService) registerAccountViaK6(platform string, accountType strin
 	}
 
 	// 构建 K6 命令
+	// 根据平台ID设置语言：3003使用西班牙语(es)，其他平台使用英语(en)
+	language := "en"
+	if platform == "3003" {
+		language = "es"
+	}
+	
 	args := []string{
 		"run",
 		"-e", fmt.Sprintf("TENANT=%s", platform),
 		"-e", fmt.Sprintf("TYPE=%s", accountType),
 		"-e", fmt.Sprintf("COUNT=%d", count),
+		"-e", fmt.Sprintf("LANGUAGE=%s", language),
 		scriptPath,
 	}
 

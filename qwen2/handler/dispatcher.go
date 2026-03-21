@@ -222,9 +222,17 @@ func (d *Dispatcher) handleGetAccount(params map[string]string) string {
 		// 如果指定了充值金额，调用充值脚本
 		if amount != "" {
 			log.Printf("[调度] 正在为账号 %s 充值 %s 元", account.Username, amount)
+
+			// 根据平台ID设置语言：3003使用西班牙语(es)，其他平台使用英语(en)
+			language := "en"
+			if platform == "3003" {
+				language = "es"
+			}
+
 			args := []string{
 				"run",
 				"-e", fmt.Sprintf("TENANT_ID=%s", platform),
+				"-e", fmt.Sprintf("LANGUAGE=%s", language),
 				"-e", fmt.Sprintf("TARGET_USER=%s", account.Username),
 				"-e", "IS_REGISTER=false",
 				"../k6/tests/api/recharge/frontendRecharge.test.js",
@@ -347,10 +355,17 @@ func (d *Dispatcher) handleRecharge(params map[string]string) string {
 
 	log.Printf("[充值执行] 开始调用 k6: platform=%s, account=%s, amount=%s", platform, account, amount)
 
+	// 根据平台ID设置语言：3003使用西班牙语(es)，其他平台使用英语(en)
+	language := "en"
+	if platform == "3003" {
+		language = "es"
+	}
+
 	// 获取当前工作目录，拼接 k6 脚本路径
 	args = []string{
 		"run",
 		"-e", fmt.Sprintf("TENANT_ID=%s", platform),
+		"-e", fmt.Sprintf("LANGUAGE=%s", language),
 	}
 	if account != "" {
 		args = append(args, "-e", fmt.Sprintf("TARGET_USER=%s", account))
@@ -599,7 +614,17 @@ func (d *Dispatcher) handleCreateActivity(params map[string]string) string {
 			}
 
 			// 构建 K6 命令
-			args := []string{"run", "-e", fmt.Sprintf("TENANT_ID=%s", platform), scriptPath}
+			// 根据平台ID设置语言：3003使用西班牙语(es)，其他平台使用英语(en)
+			language := "en"
+			if platform == "3003" {
+				language = "es"
+			}
+			args := []string{
+				"run",
+				"-e", fmt.Sprintf("TENANT_ID=%s", platform),
+				"-e", fmt.Sprintf("LANGUAGE=%s", language),
+				scriptPath,
+			}
 			cmd := exec.Command("k6", args...)
 			// 设置工作目录为项目根目录
 			cmd.Dir = projectRoot

@@ -37,6 +37,10 @@ export class HttpClient extends SignedHttpClient {
     this.autoSign = !!enabled;
   }
 
+  setVerifyPwd(verifyPwd) {
+    this.defaultSignOptions.verifyPwd = verifyPwd;
+  }
+
   _signIfNeeded(data, config = {}) {
     if (!this.autoSign || config.sign === false) return data;
     const opts = { ...this.defaultSignOptions, ...config.signOptions };
@@ -63,7 +67,7 @@ export class HttpClient extends SignedHttpClient {
     let domainUrl;
     const tenantIdStr = __ENV.TENANT_ID || ENV_CONFIG.TENANTID;
     const currentEnv = getEnvByTenantId(tenantIdStr);
-    
+
     if (config.fullUrl) {
       const match = config.fullUrl.match(/^(https?:\/\/[^\/]+)/);
       domainUrl = match ? match[1] : (isDesk ? currentEnv.BASE_DESK_URL : currentEnv.BASE_ADMIN_URL);
@@ -134,13 +138,26 @@ export class HttpClient extends SignedHttpClient {
   }
   /**
    * @param url — 请求URL
-    @param data — 请求数据
-    @param options — 请求选项
-    @param isDesk — 是否是前台登录
-    @returns — 响应对象
+   @param data — 请求数据
+   @param options — 请求选项
+   @param isDesk — 是否是前台登录
+   @returns — 响应对象
    * **/
   post(endpoint, data = {}, config = {}, isDesk = true) {
-    return this.request('POST', endpoint, data, config, isDesk);
+    console.log(`[HttpClient.post] ========== POST请求 ==========`);
+    console.log(`[HttpClient.post] endpoint: ${endpoint}`);
+    console.log(`[HttpClient.post] isDesk: ${isDesk}`);
+    console.log(`[HttpClient.post] data: ${JSON.stringify(data, null, 2)}`);
+    console.log(`[HttpClient.post] config: ${JSON.stringify(config, null, 2)}`);
+
+    const response = this.request('POST', endpoint, data, config, isDesk);
+
+    console.log(`[HttpClient.post] ========== POST响应 ==========`);
+    console.log(`[HttpClient.post] 响应状态: ${response.status}`);
+    console.log(`[HttpClient.post] 响应体: ${response.body}`);
+    console.log(`[HttpClient.post] 响应Headers: ${JSON.stringify(response.headers, null, 2)}`);
+
+    return response;
   }
   /**
    * @param url — 请求URL

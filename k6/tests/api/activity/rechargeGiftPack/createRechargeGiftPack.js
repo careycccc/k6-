@@ -163,6 +163,10 @@ function createRechargeGiftPackActivity(data, imagePath) {
                     "notificationText": title
                 },
                 {
+                    "language": "es",
+                    "notificationText": title
+                },
+                {
                     "language": "zh",
                     "notificationText": title
                 }
@@ -432,6 +436,10 @@ function createActivityRecharge(data, imagePath, giftPackId) {
                 },
                 {
                     "language": "en",
+                    "imageUrl": imagePath
+                },
+                {
+                    "language": "es",
                     "imageUrl": imagePath
                 },
                 {

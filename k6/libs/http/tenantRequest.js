@@ -33,6 +33,13 @@ export function tenantRequest(api, payload = {}, options = {}) {
     const baseUrl = isDesk ? envConfig.BASE_DESK_URL : envConfig.BASE_ADMIN_URL;
     const url = baseUrl + api;
 
+    console.log(`[TenantRequest] ========== 请求详情 ==========`);
+    console.log(`[TenantRequest] 租户ID: ${tenant}`);
+    console.log(`[TenantRequest] 请求类型: ${isDesk ? '前台' : '后台'}`);
+    console.log(`[TenantRequest] 基础URL: ${baseUrl}`);
+    console.log(`[TenantRequest] 完整URL: ${url}`);
+    console.log(`[TenantRequest] 原始payload: ${JSON.stringify(payload, null, 2)}`);
+
     // 添加时间戳、随机数、签名
     const timeData = getTimeRandom();
     const requestData = {
@@ -42,9 +49,13 @@ export function tenantRequest(api, payload = {}, options = {}) {
         timestamp: timeData.timestamp
     };
 
+    console.log(`[TenantRequest] 添加时间参数后: ${JSON.stringify(requestData, null, 2)}`);
+
     // 生成签名
     const signClient = new SignedHttpClient();
     const signedData = signClient.signData(requestData);
+
+    console.log(`[TenantRequest] 签名后数据: ${JSON.stringify(signedData, null, 2)}`);
 
     // 构建请求头
     const headers = {
@@ -56,10 +67,17 @@ export function tenantRequest(api, payload = {}, options = {}) {
     // 添加认证token
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
+        console.log(`[TenantRequest] 添加认证token: ${token.substring(0, 20)}...`);
     }
+
+    console.log(`[TenantRequest] 请求Headers: ${JSON.stringify(headers, null, 2)}`);
 
     // 发送请求
     const response = http.post(url, JSON.stringify(signedData), { headers });
+
+    console.log(`[TenantRequest] ========== 响应详情 ==========`);
+    console.log(`[TenantRequest] 响应状态码: ${response.status}`);
+    console.log(`[TenantRequest] 响应体: ${response.body}`);
 
     // 解析响应
     let parsedBody = null;
@@ -70,6 +88,8 @@ export function tenantRequest(api, payload = {}, options = {}) {
             console.error(`[TenantRequest] 响应解析失败: ${e.message}`);
         }
     }
+
+    console.log(`[TenantRequest] 解析后响应: ${JSON.stringify(parsedBody, null, 2)}`);
 
     return {
         status: response.status,

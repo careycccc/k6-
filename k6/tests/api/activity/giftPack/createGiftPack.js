@@ -158,6 +158,11 @@ function createGiftPackActivity(data, giftPackName, timestamp, couponId, pack) {
                     "description": `Top-up Betting Bundle ${timestamp}`
                 },
                 {
+                    "language": "es",
+                    "name": `Paquete de apuestas de recarga ${timestamp}`,
+                    "description": `Paquete de apuestas de recarga ${timestamp}`
+                },
+                {
                     "language": "zh",
                     "name": giftPackName,
                     "description": giftPackName
@@ -236,6 +241,11 @@ function createGiftPackActivity(data, giftPackName, timestamp, couponId, pack) {
                 },
                 {
                     "language": "en",
+                    "name": giftPackName,
+                    "description": giftPackName
+                },
+                {
+                    "language": "es",
                     "name": giftPackName,
                     "description": giftPackName
                 },

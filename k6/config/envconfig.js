@@ -16,7 +16,9 @@ export const ENV_3001 = {
     LimitedPermissions: "carey3001_001",  // 小权限角色
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3001_001",  // 只有工单权限的角色
-    WorkOrderRolePasswrod: "qwer1234"
+    WorkOrderRolePasswrod: "qwer1234",
+    COUNTRY_CODE: "91",  // 默认区号
+    LANGUAGE: "en"  // 语言：英语
 };
 
 // 3002 环境配置
@@ -33,7 +35,9 @@ export const ENV_3002 = {
     LimitedPermissions: "carey3002_001",  // 小权限角色
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3002_001",  // 只有工单权限的角色
-    WorkOrderRolePasswrod: "qwer1234"
+    WorkOrderRolePasswrod: "qwer1234",
+    COUNTRY_CODE: "91",  // 默认区号
+    LANGUAGE: "en"  // 语言：英语
 };
 
 // 3003 环境配置
@@ -42,7 +46,7 @@ export const ENV_3003 = {
     BASE_DESK_URL: "https://arplatsaassit3.club",  // 前台地址
     PAGESIZE: 200,
     PAGENO: 1,
-    ADMIN_USERNAME: "carey3003",   // 系统管理员
+    ADMIN_USERNAME: "carey3003",   // 系统管理员（修正为3003）
     ADMIN_PASSWORD: "qwer1234",
     START_TIME: "2026-01-08 00:00:00",
     END_TIME: "2026-01-08 23:59:59",
@@ -50,7 +54,9 @@ export const ENV_3003 = {
     LimitedPermissions: "carey3003_001",  // 小权限角色
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3003_001",  // 只有工单权限的角色
-    WorkOrderRolePasswrod: "qwer1234"
+    WorkOrderRolePasswrod: "qwer1234",
+    COUNTRY_CODE: "52",  // 墨西哥区号
+    LANGUAGE: "es"  // 语言：西班牙语
 };
 
 // 3004 环境配置（当前默认）
@@ -67,7 +73,9 @@ export const ENV_3004 = {
     LimitedPermissions: "carey3004_001",  // 小权限角色
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3004_001",  // 只有工单权限的角色
-    WorkOrderRolePasswrod: "qwer1234"
+    WorkOrderRolePasswrod: "qwer1234",
+    COUNTRY_CODE: "91",  // 默认区号
+    LANGUAGE: "en"  // 语言：英语
 };
 
 // 默认使用 3004 环境

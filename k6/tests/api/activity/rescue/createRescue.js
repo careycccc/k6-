@@ -19,11 +19,13 @@ const uploadRescueImage2 = createImageUploader('../../uploadFile/img/rescue/2.pn
 // 预加载规则描述图片（多语言）- 第一个活动
 const uploadRescueRuleHi = createImageUploader('../../uploadFile/img/rescue/rule_hi.png', 'rescue_rule_hi');
 const uploadRescueRuleEn = createImageUploader('../../uploadFile/img/rescue/rule_en.png', 'rescue_rule_en');
+const uploadRescueRuleEs = createImageUploader('../../uploadFile/img/rescue/rule_es.png', 'rescue_rule_es');
 const uploadRescueRuleZh = createImageUploader('../../uploadFile/img/rescue/rule_zh.png', 'rescue_rule_zh');
 
 // 预加载规则描述图片（多语言）- 第二个活动
 const uploadRescue2RuleHi = createImageUploader('../../uploadFile/img/rescue/rule2_hi.png', 'rescue2_rule_hi');
 const uploadRescue2RuleEn = createImageUploader('../../uploadFile/img/rescue/rule2_en.png', 'rescue2_rule_en');
+const uploadRescue2RuleEs = createImageUploader('../../uploadFile/img/rescue/rule2_es.png', 'rescue2_rule_es');
 const uploadRescue2RuleZh = createImageUploader('../../uploadFile/img/rescue/rule2_zh.png', 'rescue2_rule_zh');
 
 /**
@@ -173,9 +175,10 @@ function createRescueActivity1(data) {
         // 上传规则描述图片（多语言）
         const ruleImageHi = handleImageUpload(data, 'rescueRuleImageHi', uploadRescueRuleHi, tag);
         const ruleImageEn = handleImageUpload(data, 'rescueRuleImageEn', uploadRescueRuleEn, tag);
+        const ruleImageEs = handleImageUpload(data, 'rescueRuleImageEs', uploadRescueRuleEs, tag);
         const ruleImageZh = handleImageUpload(data, 'rescueRuleImageZh', uploadRescueRuleZh, tag);
 
-        if (!ruleImageHi.success || !ruleImageEn.success || !ruleImageZh.success) {
+        if (!ruleImageHi.success || !ruleImageEn.success || !ruleImageEs.success || !ruleImageZh.success) {
             return {
                 success: false,
                 tag: tag,
@@ -187,6 +190,7 @@ function createRescueActivity1(data) {
         const baseUrl = 'https://sit.arsaassit-pub.club';
         const ruleImageHiUrl = `${baseUrl}/${ruleImageHi.imagePath}`;
         const ruleImageEnUrl = `${baseUrl}/${ruleImageEn.imagePath}`;
+        const ruleImageEsUrl = `${baseUrl}/${ruleImageEs.imagePath}`;
         const ruleImageZhUrl = `${baseUrl}/${ruleImageZh.imagePath}`;
 
         // 第二步：计算活动时间
@@ -280,9 +284,14 @@ function createRescueActivity1(data) {
                     "ruleDescription": `<p><img data-src="${ruleImageEnUrl}" src="${ruleImageEnUrl}" data-image-id="img1" style="vertical-align: baseline;"></p>`
                 },
                 {
+                    "language": "es",
+                    "name": "Fondo de Alivio de Pérdidas - Reembolso Proporcional",
+                    "ruleDescription": `<p><img data-src="${ruleImageEsUrl}" src="${ruleImageEsUrl}" data-image-id="img2" style="vertical-align: baseline;"></p>`
+                },
+                {
                     "language": "zh",
                     "name": "亏损救援金-按比例返还",
-                    "ruleDescription": `<p><img data-src="${ruleImageZhUrl}" src="${ruleImageZhUrl}" data-image-id="img2" style="vertical-align: baseline;"></p>`
+                    "ruleDescription": `<p><img data-src="${ruleImageZhUrl}" src="${ruleImageZhUrl}" data-image-id="img3" style="vertical-align: baseline;"></p>`
                 }
             ],
             "random": Math.floor(Math.random() * 1000000000000),
@@ -384,9 +393,10 @@ export function createRescue2(data) {
         // 上传规则描述图片（多语言）
         const ruleImageHi = handleImageUpload(data, 'rescue2RuleImageHi', uploadRescue2RuleHi, createRescue2Tag);
         const ruleImageEn = handleImageUpload(data, 'rescue2RuleImageEn', uploadRescue2RuleEn, createRescue2Tag);
+        const ruleImageEs = handleImageUpload(data, 'rescue2RuleImageEs', uploadRescue2RuleEs, createRescue2Tag);
         const ruleImageZh = handleImageUpload(data, 'rescue2RuleImageZh', uploadRescue2RuleZh, createRescue2Tag);
 
-        if (!ruleImageHi.success || !ruleImageEn.success || !ruleImageZh.success) {
+        if (!ruleImageHi.success || !ruleImageEn.success || !ruleImageEs.success || !ruleImageZh.success) {
             return {
                 success: false,
                 tag: createRescue2Tag,
@@ -398,6 +408,7 @@ export function createRescue2(data) {
         const baseUrl = 'https://sit.arsaassit-pub.club';
         const ruleImageHiUrl = `${baseUrl}/${ruleImageHi.imagePath}`;
         const ruleImageEnUrl = `${baseUrl}/${ruleImageEn.imagePath}`;
+        const ruleImageEsUrl = `${baseUrl}/${ruleImageEs.imagePath}`;
         const ruleImageZhUrl = `${baseUrl}/${ruleImageZh.imagePath}`;
 
         // 第二步：计算活动时间
@@ -473,17 +484,22 @@ export function createRescue2(data) {
                 {
                     "language": "hi",
                     "name": "हानि वसूली कोष - आनुपातिक आधार पर प्रतिपूर्ति",
-                    "ruleDescription": `<p><img data-src="${ruleImageHiUrl}" src="${ruleImageHiUrl}" data-image-id="img3" style="vertical-align: baseline;"></p>`
+                    "ruleDescription": `<p><img data-src="${ruleImageHiUrl}" src="${ruleImageHiUrl}" data-image-id="img4" style="vertical-align: baseline;"></p>`
                 },
                 {
                     "language": "en",
                     "name": "Loss Recovery Fund - Refunded on a Pro Rata Basis",
-                    "ruleDescription": `<p><img data-src="${ruleImageEnUrl}" src="${ruleImageEnUrl}" data-image-id="img4" style="vertical-align: baseline;"></p>`
+                    "ruleDescription": `<p><img data-src="${ruleImageEnUrl}" src="${ruleImageEnUrl}" data-image-id="img5" style="vertical-align: baseline;"></p>`
+                },
+                {
+                    "language": "es",
+                    "name": "Fondo de Recuperación de Pérdidas - Reembolso Prorrateado",
+                    "ruleDescription": `<p><img data-src="${ruleImageEsUrl}" src="${ruleImageEsUrl}" data-image-id="img6" style="vertical-align: baseline;"></p>`
                 },
                 {
                     "language": "zh",
                     "name": "亏损救援金-按金额返还",
-                    "ruleDescription": `<p><img data-src="${ruleImageZhUrl}" src="${ruleImageZhUrl}" data-image-id="img5" style="vertical-align: baseline;"></p>`
+                    "ruleDescription": `<p><img data-src="${ruleImageZhUrl}" src="${ruleImageZhUrl}" data-image-id="img7" style="vertical-align: baseline;"></p>`
                 }
             ],
             "random": Math.floor(Math.random() * 1000000000000),

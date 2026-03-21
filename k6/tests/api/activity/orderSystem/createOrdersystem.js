@@ -152,6 +152,10 @@ function createFaqModule1(data) {
                     "moduleName": "Account problem"
                 },
                 {
+                    "language": "es",
+                    "moduleName": "Problema de cuenta"
+                },
+                {
                     "language": "zh",
                     "moduleName": "账户问题"
                 }
@@ -209,6 +213,10 @@ function createFaqModule2(data) {
                 {
                     "language": "en",
                     "moduleName": "Game issues"
+                },
+                {
+                    "language": "es",
+                    "moduleName": "Problemas del juego"
                 },
                 {
                     "language": "zh",
@@ -392,33 +400,43 @@ function createFaqQuestions(data, moduleIds) {
                 {
                     "language": "hi",
                     "question": "गेम संबंधी समस्याएँ",  // 游戏问题的印地语
-                    "answer": `<p>गेम संबंधी समस्याएँ<img data-src="${imageUrl}" src="${imageUrl}" data-image-id="img${i * 3}" style="vertical-align: baseline;"></p>`
+                    "answer": `<p>गेम संबंधी समस्याएँ<img data-src="${imageUrl}" src="${imageUrl}" data-image-id="img${i * 4}" style="vertical-align: baseline;"></p>`
                 },
                 {
                     "language": "en",
                     "question": "Game issues",  // 游戏问题的英语
-                    "answer": `<p>Game issues<img data-src="${imageUrl}" src="${imageUrl}" data-image-id="img${i * 3 + 1}" style="vertical-align: baseline;"></p>`
+                    "answer": `<p>Game issues<img data-src="${imageUrl}" src="${imageUrl}" data-image-id="img${i * 4 + 1}" style="vertical-align: baseline;"></p>`
+                },
+                {
+                    "language": "es",
+                    "question": "Problemas del juego",  // 游戏问题的西班牙语
+                    "answer": `<p>Problemas del juego<img data-src="${imageUrl}" src="${imageUrl}" data-image-id="img${i * 4 + 2}" style="vertical-align: baseline;"></p>`
                 },
                 {
                     "language": "zh",
                     "question": "游戏问题",  // 游戏问题的中文
-                    "answer": `<p>游戏问题<img data-src="${imageUrl}" src="${imageUrl}" data-image-id="img${i * 3 + 2}" style="vertical-align: baseline;"></p>`
+                    "answer": `<p>游戏问题<img data-src="${imageUrl}" src="${imageUrl}" data-image-id="img${i * 4 + 3}" style="vertical-align: baseline;"></p>`
                 }
             ] : [
                 {
                     "language": "hi",
                     "question": "खाते की समस्या",  // 账号问题的印地语
-                    "answer": `<p>खाते की समस्या<img data-src="${imageUrl}" src="${imageUrl}" data-image-id="img${i * 3}" style="vertical-align: baseline;"></p>`
+                    "answer": `<p>खाते की समस्या<img data-src="${imageUrl}" src="${imageUrl}" data-image-id="img${i * 4}" style="vertical-align: baseline;"></p>`
                 },
                 {
                     "language": "en",
                     "question": "Account problem",  // 账号问题的英语
-                    "answer": `<p>Account problem<img data-src="${imageUrl}" src="${imageUrl}" data-image-id="img${i * 3 + 1}" style="vertical-align: baseline;"></p>`
+                    "answer": `<p>Account problem<img data-src="${imageUrl}" src="${imageUrl}" data-image-id="img${i * 4 + 1}" style="vertical-align: baseline;"></p>`
+                },
+                {
+                    "language": "es",
+                    "question": "Problema de cuenta",  // 账号问题的西班牙语
+                    "answer": `<p>Problema de cuenta<img data-src="${imageUrl}" src="${imageUrl}" data-image-id="img${i * 4 + 2}" style="vertical-align: baseline;"></p>`
                 },
                 {
                     "language": "zh",
                     "question": "账号问题",  // 账号问题的中文
-                    "answer": `<p>账号问题<img data-src="${imageUrl}" src="${imageUrl}" data-image-id="img${i * 3 + 2}" style="vertical-align: baseline;"></p>`
+                    "answer": `<p>账号问题<img data-src="${imageUrl}" src="${imageUrl}" data-image-id="img${i * 4 + 3}" style="vertical-align: baseline;"></p>`
                 }
             ];
 
@@ -475,108 +493,133 @@ function createFaqQuestions(data, moduleIds) {
 }
 
 /**
- * 中文到英语和印地语的翻译映射
+ * 中文到英语、印地语和西班牙语的翻译映射
  */
 const TRANSLATIONS = {
     '外部链接-已登陆': {
         en: 'External Link - Logged In',
-        hi: 'बाहरी लिंक - लॉग इन किया हुआ'
+        hi: 'बाहरी लिंक - लॉग इन किया हुआ',
+        es: 'Enlace externo - Conectado'
     },
     '外部链接-未登陆': {
         en: 'External Link - Not Logged In',
-        hi: 'बाहरी लिंक - लॉग इन नहीं'
+        hi: 'बाहरी लिंक - लॉग इन नहीं',
+        es: 'Enlace externo - No conectado'
     },
     '一对一客服-已登陆': {
         en: 'One-on-One Customer Service - Logged In',
-        hi: 'एक-से-एक ग्राहक सेवा - लॉग इन किया हुआ'
+        hi: 'एक-से-एक ग्राहक सेवा - लॉग इन किया हुआ',
+        es: 'Servicio al cliente uno a uno - Conectado'
     },
     '一对一客服-未登陆': {
         en: 'One-on-One Customer Service - Not Logged In',
-        hi: 'एक-से-एक ग्राहक सेवा - लॉग इन नहीं'
+        hi: 'एक-से-एक ग्राहक सेवा - लॉग इन नहीं',
+        es: 'Servicio al cliente uno a uno - No conectado'
     },
     '存款未到账自动化': {
         en: 'Deposit Not Received - Automated',
-        hi: 'जमा प्राप्त नहीं हुआ - स्वचालित'
+        hi: 'जमा प्राप्त नहीं हुआ - स्वचालित',
+        es: 'Depósito no recibido - Automatizado'
     },
     '取款未到账': {
         en: 'Withdrawal Not Received',
-        hi: 'निकासी प्राप्त नहीं हुई'
+        hi: 'निकासी प्राप्त नहीं हुई',
+        es: 'Retiro no recibido'
     },
     '修改真实姓名半自动': {
         en: 'Modify Real Name - Semi-Automated',
-        hi: 'वास्तविक नाम संशोधित करें - अर्ध-स्वचालित'
+        hi: 'वास्तविक नाम संशोधित करें - अर्ध-स्वचालित',
+        es: 'Modificar nombre real - Semiautomático'
     },
     '修改登录密码半自动-已登陆': {
         en: 'Change Login Password - Semi-Automated - Logged In',
-        hi: 'लॉगिन पासवर्ड बदलें - अर्ध-स्वचालित - लॉग इन किया हुआ'
+        hi: 'लॉगिन पासवर्ड बदलें - अर्ध-स्वचालित - लॉग इन किया हुआ',
+        es: 'Cambiar contraseña de inicio de sesión - Semiautomático - Conectado'
     },
     '修改登录密码半自动-未登陆': {
         en: 'Change Login Password - Semi-Automated - Not Logged In',
-        hi: 'लॉगिन पासवर्ड बदलें - अर्ध-स्वचालित - लॉग इन नहीं'
+        hi: 'लॉगिन पासवर्ड बदलें - अर्ध-स्वचालित - लॉग इन नहीं',
+        es: 'Cambiar contraseña de inicio de sesión - Semiautomático - No conectado'
     },
     '忘记会员账号': {
         en: 'Forgot Member Account',
-        hi: 'सदस्य खाता भूल गए'
+        hi: 'सदस्य खाता भूल गए',
+        es: 'Olvidé mi cuenta de miembro'
     },
     '忘记登录密码': {
         en: 'Forgot Login Password',
-        hi: 'लॉगिन पासवर्ड भूल गए'
+        hi: 'लॉगिन पासवर्ड भूल गए',
+        es: 'Olvidé mi contraseña de inicio de sesión'
     },
     '会员账号解冻半自动': {
         en: 'Unfreeze Member Account - Semi-Automated',
-        hi: 'सदस्य खाता अनफ्रीज करें - अर्ध-स्वचालित'
+        hi: 'सदस्य खाता अनफ्रीज करें - अर्ध-स्वचालित',
+        es: 'Descongelar cuenta de miembro - Semiautomático'
     },
     '修改IFSC自动化': {
         en: 'Modify IFSC - Automated',
-        hi: 'IFSC संशोधित करें - स्वचालित'
+        hi: 'IFSC संशोधित करें - स्वचालित',
+        es: 'Modificar IFSC - Automatizado'
     },
     '修改银行名称自动化': {
         en: 'Modify Bank Name - Automated',
-        hi: 'बैंक का नाम संशोधित करें - स्वचालित'
+        hi: 'बैंक का नाम संशोधित करें - स्वचालित',
+        es: 'Modificar nombre del banco - Automatizado'
     },
     '删除USDT半自动': {
         en: 'Delete USDT - Semi-Automated',
-        hi: 'USDT हटाएं - अर्ध-स्वचालित'
+        hi: 'USDT हटाएं - अर्ध-स्वचालित',
+        es: 'Eliminar USDT - Semiautomático'
     },
     '删除银行卡半自动': {
         en: 'Delete Bank Card - Semi-Automated',
-        hi: 'बैंक कार्ड हटाएं - अर्ध-स्वचालित'
+        hi: 'बैंक कार्ड हटाएं - अर्ध-स्वचालित',
+        es: 'Eliminar tarjeta bancaria - Semiautomático'
     },
     '删除PIX自动化': {
         en: 'Delete PIX - Automated',
-        hi: 'PIX हटाएं - स्वचालित'
+        hi: 'PIX हटाएं - स्वचालित',
+        es: 'Eliminar PIX - Automatizado'
     },
     '删除电子钱包半自动': {
         en: 'Delete E-Wallet - Semi-Automated',
-        hi: 'ई-वॉलेट हटाएं - अर्ध-स्वचालित'
+        hi: 'ई-वॉलेट हटाएं - अर्ध-स्वचालित',
+        es: 'Eliminar billetera electrónica - Semiautomático'
     },
     '新增USDT半自动': {
         en: 'Add USDT - Semi-Automated',
-        hi: 'USDT जोड़ें - अर्ध-स्वचालित'
+        hi: 'USDT जोड़ें - अर्ध-स्वचालित',
+        es: 'Agregar USDT - Semiautomático'
     },
     '删除银行卡自动化': {
         en: 'Delete Bank Card - Automated',
-        hi: 'बैंक कार्ड हटाएं - स्वचालित'
+        hi: 'बैंक कार्ड हटाएं - स्वचालित',
+        es: 'Eliminar tarjeta bancaria - Automatizado'
     },
     '删除USDT自动化': {
         en: 'Delete USDT - Automated',
-        hi: 'USDT हटाएं - स्वचालित'
+        hi: 'USDT हटाएं - स्वचालित',
+        es: 'Eliminar USDT - Automatizado'
     },
     '删除电子钱包自动化': {
         en: 'Delete E-Wallet - Automated',
-        hi: 'ई-वॉलेट हटाएं - स्वचालित'
+        hi: 'ई-वॉलेट हटाएं - स्वचालित',
+        es: 'Eliminar billetera electrónica - Automatizado'
     },
     '修改提现密码自动化': {
         en: 'Change Withdrawal Password - Automated',
-        hi: 'निकासी पासवर्ड बदलें - स्वचालित'
+        hi: 'निकासी पासवर्ड बदलें - स्वचालित',
+        es: 'Cambiar contraseña de retiro - Automatizado'
     },
     '修改提现密码半自动化': {
         en: 'Change Withdrawal Password - Semi-Automated',
-        hi: 'निकासी पासवर्ड बदलें - अर्ध-स्वचालित'
+        hi: 'निकासी पासवर्ड बदलें - अर्ध-स्वचालित',
+        es: 'Cambiar contraseña de retiro - Semiautomático'
     },
     '其他问题': {
         en: 'Other Issues',
-        hi: 'अन्य समस्याएं'
+        hi: 'अन्य समस्याएं',
+        es: 'Otros problemas'
     }
 };
 
@@ -678,7 +721,7 @@ function createOrderForms(data) {
                     "id": 0,
                     "name": {
                         "id": 0,
-                        "text": lang === 'en' ? field.nameEn : ""
+                        "text": lang === 'en' ? field.nameEn : (lang === 'es' ? (field.nameEs || field.nameEn) : "")
                     },
                     "type": field.type,
                     "isRequired": 1,
@@ -688,7 +731,7 @@ function createOrderForms(data) {
 
             // 构建outLinks数组（只有type=1才有）
             const buildOutLinks = (lang) => {
-                if (orderType === 1 && lang === 'en') {
+                if (orderType === 1 && (lang === 'en' || lang === 'es')) {
                     return [
                         { "name": "google", "link": "https://www.google.com", "id": 0 },
                         { "name": "git", "link": "https://github.com/", "id": 0 }
@@ -723,6 +766,15 @@ function createOrderForms(data) {
                         },
                         "fields": buildFields('en'),
                         "outLinks": buildOutLinks('en')
+                    },
+                    {
+                        "language": "es",
+                        "formTitles": {
+                            "id": 0,
+                            "text": translation.es
+                        },
+                        "fields": buildFields('es'),
+                        "outLinks": buildOutLinks('es')
                     },
                     {
                         "language": "zh",

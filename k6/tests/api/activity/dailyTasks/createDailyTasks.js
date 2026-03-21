@@ -492,6 +492,10 @@ function createDailyTasksActivity(data, taskConfig) {
                 "name": taskConfig.name
             },
             {
+                "language": "es",
+                "name": ""
+            },
+            {
                 "language": "zh",
                 "name": ""
             }

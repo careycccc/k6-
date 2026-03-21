@@ -5,12 +5,13 @@ import { tenantRequest, tenantQueryRequest } from '../../../libs/http/tenantRequ
  * 发送验证码
  * @param {number} verifyCodeType 
  * @param {string} userName 手机号码或邮箱
- * @param {number} codeType 验证码类型 18是登录验证 1是注册验证
+ * @param {number} codeType 验证码类型 18是登录验证 19是注册验证
  * @param {string} customFrontUrl - 自定义前台域名（可选，用于多租户）
  * @returns {object} 响应结果
  */
 export function sendVerificationCode(verifyCodeType, userName, codeType, customFrontUrl = null) {
   console.log(`[SendVerificationCode] 发送验证码请求: ${userName}, verifyCodeType: ${verifyCodeType}, codeType: ${codeType}`);
+  console.log(`[SendVerificationCode] customFrontUrl: ${customFrontUrl || '使用默认前台域名'}`);
 
   const response = tenantRequest('/api/Home/SendVerifiyCode', {
     verifyCodeType: verifyCodeType,
@@ -19,6 +20,11 @@ export function sendVerificationCode(verifyCodeType, userName, codeType, customF
   }, {
     isDesk: true
   });
+
+  console.log(`[SendVerificationCode] 响应状态: ${response.status}`);
+  console.log(`[SendVerificationCode] 响应msgCode: ${response.msgCode}`);
+  console.log(`[SendVerificationCode] 响应msg: ${response.msg}`);
+  console.log(`[SendVerificationCode] 完整响应体: ${JSON.stringify(response.raw)}`);
 
   if (response.msgCode === 0) {
     console.log(`[SendVerificationCode] ✅ 验证码发送成功: ${userName}`);

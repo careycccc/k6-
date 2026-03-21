@@ -29,9 +29,11 @@ export const options = {
 
 export function setup() {
     console.log(`========================================`);
+    console.log(`[K6注册] ========== SETUP开始 ==========`);
     console.log(`[K6注册] 租户: ${TENANT}, 类型: ${TYPE}, 数量: ${COUNT}`);
     console.log(`[K6注册] 环境变量 __ENV.TENANT: ${__ENV.TENANT}`);
     console.log(`[K6注册] 环境变量 __ENV.TENANT_ID: ${__ENV.TENANT_ID}`);
+    console.log(`[K6注册] 环境变量 __ENV.LANGUAGE: ${__ENV.LANGUAGE || '(未设置，将使用默认值)'}`);
 
     // 获取租户配置
     const envConfig = getEnvByTenantId(TENANT);
@@ -39,10 +41,15 @@ export function setup() {
         throw new Error(`租户 ${TENANT} 的配置不存在`);
     }
 
+    console.log(`[K6注册] ========== 租户配置 ==========`);
     console.log(`[K6注册] 后台地址: ${envConfig.BASE_ADMIN_URL}`);
     console.log(`[K6注册] 前台地址: ${envConfig.BASE_DESK_URL}`);
+    console.log(`[K6注册] 管理员账号: ${envConfig.ADMIN_USERNAME}`);
+    console.log(`[K6注册] 国家代码: ${envConfig.COUNTRY_CODE}`);
+    console.log(`[K6注册] 完整配置: ${JSON.stringify(envConfig, null, 2)}`);
 
     // 后台登录
+    console.log(`[K6注册] ========== 后台登录 ==========`);
     console.log(`[K6注册] 正在登录后台...`);
     const adminToken = AdminLogin();
 
@@ -51,6 +58,9 @@ export function setup() {
     }
 
     console.log(`[K6注册] 后台登录成功`);
+    console.log(`[K6注册] AdminToken: ${adminToken.substring(0, 20)}...`);
+
+    console.log(`[K6注册] ========== SETUP完成 ==========`);
 
     return { token: adminToken, envConfig: envConfig };
 }
@@ -64,7 +74,10 @@ export default function (data) {
 
         let userName;
         if (TYPE === 'phone') {
-            userName = generateRandomPhone();
+            // 使用租户配置中的国家代码
+            const countryCode = data.envConfig.COUNTRY_CODE || '91';
+            console.log(`[K6注册] 使用国家代码: ${countryCode}`);
+            userName = generateRandomPhone(countryCode);
         } else {
             userName = generateRandomEmail();
         }
@@ -80,7 +93,6 @@ export default function (data) {
                 // 使用 emailRegister - 前台总代注册方式
                 response = emailRegister(userName, data);
             }
-
             // 从响应中提取 token
             let token = null;
             if (response) {

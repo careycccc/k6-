@@ -168,8 +168,14 @@ function createInmailMessages(data) {
                     "thumbnail": imgSrc
                 },
                 {
+                    "language": "es",
+                    "content": `<p><img data-src="${dataSrc}" src="${dataSrc}" data-image-id="img2" style="vertical-align: baseline;">${inmailName}</p>`,
+                    "title": inmailName,
+                    "thumbnail": imgSrc
+                },
+                {
                     "language": "zh",
-                    "content": `<p><img data-src="${dataSrc}" src="${dataSrc}" data-image-id="img0" style="vertical-align: baseline;">${inmailName}</p>`,
+                    "content": `<p><img data-src="${dataSrc}" src="${dataSrc}" data-image-id="img3" style="vertical-align: baseline;">${inmailName}</p>`,
                     "title": inmailName,
                     "thumbnail": imgSrc
                 }

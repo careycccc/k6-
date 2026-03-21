@@ -50,12 +50,12 @@ export const TENANT_CONFIGS = {
     '3003': {
         tenantId: '3003',
         name: '租户3003',
-        rootInviteCode: '',  // ⚠️ 需要提供3003的总代邀请码
+        rootInviteCode: 'QRVJ5RN',
         defaultLevels: [2, 2],
         description: '租户3003的邀请测试配置',
         enabled: true,
         frontUrl: 'https://arplatsaassit3.club',
-        registerApiUrl: 'https://arplatsaassit3.club',
+        registerApiUrl: 'https://zc-arplatsaassit.com',
         adminUrl: 'https://arsitasdfghj.com',
         adminUsername: 'carey3003',
         adminPassword: 'qwer1234'
