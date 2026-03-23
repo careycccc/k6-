@@ -8,6 +8,7 @@ import { getRechargeCategoryList, depositRecharge, submitCertificate } from './f
 import { getLocalRechargeOrderPageList, manualAuditLocalRechargeOrder, getRechargeOrderPageList, manualAuditRechargeOrder } from './backendRechargeApi.js';
 import { manualRecharge } from './manualRecharge.js'; // 备用后台充值
 import { AdminLogin } from '../login/adminlogin.test.js'; // 后台管理员登录
+import { getEnvByTenantId } from '../../config/envconfig.js';
 
 const tag = 'FrontendRechargeTest';
 
@@ -239,7 +240,13 @@ export default function () {
     // 可以从环境变量动态获取参数
     let userName = __ENV.TARGET_USER;
     if (!userName || userName === "undefined") {
-        userName = "91" + Math.floor(Math.random() * 10000000000).toString().padStart(10, '0');
+        // 根据租户配置生成正确区号的手机号
+        const tenantId = __ENV.TENANT || __ENV.TENANT_ID || '3004';
+        const envConfig = getEnvByTenantId(tenantId);
+        const countryCode = envConfig.COUNTRY_CODE || '91';
+
+        userName = countryCode + Math.floor(Math.random() * 10000000000).toString().padStart(10, '0');
+        console.log(`[${tag}] 未提供账号，根据租户 ${tenantId} 生成随机账号: ${userName} (区号: ${countryCode})`);
     }
     const isRegister = __ENV.IS_REGISTER === 'true';
 
@@ -258,3 +265,20 @@ export default function () {
 
     console.log(`=================== 前台充值测试结束 ===================\n`);
 }
+
+const isRegister = __ENV.IS_REGISTER === 'true';
+
+console.log(`\n=================== 前台充值测试开始 ===================`);
+
+// 1. 获取测试会话
+const session = getTestSession(userName, isRegister);
+
+if (!session) {
+    console.error(`会话初始化失败，终止充值测试`);
+    return;
+}
+
+// 2. 运行充值流程，直接传入整个 session
+runFrontendRechargeFlow(session);
+
+console.log(`=================== 前台充值测试结束 ===================\n`);
