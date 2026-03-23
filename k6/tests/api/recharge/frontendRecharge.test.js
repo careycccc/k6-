@@ -8,7 +8,7 @@ import { getRechargeCategoryList, depositRecharge, submitCertificate } from './f
 import { getLocalRechargeOrderPageList, manualAuditLocalRechargeOrder, getRechargeOrderPageList, manualAuditRechargeOrder } from './backendRechargeApi.js';
 import { manualRecharge } from './manualRecharge.js'; // 备用后台充值
 import { AdminLogin } from '../login/adminlogin.test.js'; // 后台管理员登录
-import { getEnvByTenantId } from '../../config/envconfig.js';
+import { getEnvByTenantId } from '../../../config/envconfig.js';
 
 const tag = 'FrontendRechargeTest';
 
@@ -26,12 +26,11 @@ function getRandomAmount(min, max) {
 
 /**
  * 执行前台充值流程
- * @param {string} userToken - 前台用户Token
- * @param {string} userName - 用户名（用于报错时回退人工充值）
- * @param {number} userId - 用户ID（同上）
+ * @param {object} session - 会话对象
+ * @param {number} targetAmount - 目标充值金额（可选，用于兜底充值）
  * @returns {boolean} 是否充值成功
  */
-export function runFrontendRechargeFlow(session) {
+export function runFrontendRechargeFlow(session, targetAmount) {
     const userToken = session.userToken;
     const adminToken = session.adminToken;
     const userName = session.userName;
@@ -44,7 +43,9 @@ export function runFrontendRechargeFlow(session) {
 
     if (!categories || !Array.isArray(categories) || categories.length === 0) {
         console.error(`[${tag}] 充值分类列表为空或获取失败`);
-        fallbackToManualRecharge(adminToken, userName, userId, 100);
+        // 如果没有指定金额，使用默认值 100
+        const fallbackAmount = targetAmount || 100;
+        fallbackToManualRecharge(adminToken, userName, userId, fallbackAmount);
         return false;
     }
 
@@ -69,11 +70,23 @@ export function runFrontendRechargeFlow(session) {
 
         let minAmt = category.minAmount || 100;
         let maxAmt = category.maxAmount || 100000;
-        if (rechargeType !== 'LocalEWallet') {
-            minAmt = Math.max(minAmt, 1000);
+
+        // 确定充值金额：优先使用用户指定的金额
+        let amount;
+        if (targetAmount && targetAmount > 0) {
+            // 使用用户指定的金额，但需要在通道限制范围内
+            amount = Math.max(minAmt, Math.min(targetAmount, maxAmt));
+            if (amount !== targetAmount) {
+                console.log(`[${tag}] 用户指定金额 ${targetAmount} 超出通道限制 [${minAmt}, ${maxAmt}]，调整为: ${amount}`);
+            }
+        } else {
+            // 没有指定金额，使用随机金额
+            if (rechargeType !== 'LocalEWallet') {
+                minAmt = Math.max(minAmt, 1000);
+            }
+            maxAmt = Math.max(minAmt, Math.min(maxAmt, 5000));
+            amount = getRandomAmount(minAmt, maxAmt);
         }
-        maxAmt = Math.max(minAmt, Math.min(maxAmt, 5000));
-        const amount = getRandomAmount(minAmt, maxAmt);
 
         console.log(`[${tag}] 尝试通道 [${i + 1}/${categories.length}]: ${name}(${rechargeType}), ID: ${categoryId}, 金额: ${amount}`);
 
@@ -207,7 +220,9 @@ export function runFrontendRechargeFlow(session) {
     // 6. 如果所有通道都失败，触发备用机制
     if (!isSuccess) {
         console.error(`[${tag}] ❌ 所有前台充值通道尝试完毕，均未能成功充值审核。开始回退到后台人工充值...`);
-        fallbackToManualRecharge(adminToken, userName, userId, 500);
+        // 如果没有指定金额，使用默认值 500
+        const fallbackAmount = targetAmount || 500;
+        fallbackToManualRecharge(adminToken, userName, userId, fallbackAmount);
     }
 
     return isSuccess;
@@ -250,6 +265,12 @@ export default function () {
     }
     const isRegister = __ENV.IS_REGISTER === 'true';
 
+    // 获取充值金额（如果指定）
+    const targetAmount = __ENV.RECHARGE_AMOUNT ? parseInt(__ENV.RECHARGE_AMOUNT) : null;
+    if (targetAmount) {
+        console.log(`[${tag}] 目标充值金额: ${targetAmount}`);
+    }
+
     console.log(`\n=================== 前台充值测试开始 ===================`);
 
     // 1. 获取测试会话
@@ -257,28 +278,34 @@ export default function () {
 
     if (!session) {
         console.error(`会话初始化失败，终止充值测试`);
+        const errorResult = {
+            account: userName || '',
+            password: 'qwer1234',
+            userId: 0,
+            status: '注册失败'
+        };
+        console.log(`__RECHARGE_RESULT_JSON__${JSON.stringify(errorResult)}__END__`);
         return;
     }
 
-    // 2. 运行充值流程，直接传入整个 session
-    runFrontendRechargeFlow(session);
+    // 2. 运行充值流程，传入目标金额
+    const rechargeSuccess = runFrontendRechargeFlow(session, targetAmount);
 
     console.log(`=================== 前台充值测试结束 ===================\n`);
+
+    // ⭐ K6集成模式：输出JSON结果给Go程序
+    // 1. 无论充值成功失败，只要注册成功就必须返回账号密码
+    // 2. 使用标记包裹JSON: __RECHARGE_RESULT_JSON__{...}__END__
+    // 3. status字段说明: '完成'=全部成功, '充值失败'=注册成功但充值失败, '注册失败'=注册失败
+    // 详见: docs/k6-go-integration-pattern.md
+    const password = session.password || 'qwer1234';
+    const result = {
+        account: session.userName,
+        password: password,
+        userId: session.userId,
+        status: rechargeSuccess ? '完成' : '充值失败'
+    };
+
+    // 输出特殊标记 + JSON，Go 程序可以直接解析
+    console.log(`__RECHARGE_RESULT_JSON__${JSON.stringify(result)}__END__`);
 }
-
-const isRegister = __ENV.IS_REGISTER === 'true';
-
-console.log(`\n=================== 前台充值测试开始 ===================`);
-
-// 1. 获取测试会话
-const session = getTestSession(userName, isRegister);
-
-if (!session) {
-    console.error(`会话初始化失败，终止充值测试`);
-    return;
-}
-
-// 2. 运行充值流程，直接传入整个 session
-runFrontendRechargeFlow(session);
-
-console.log(`=================== 前台充值测试结束 ===================\n`);

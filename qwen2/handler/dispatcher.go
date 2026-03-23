@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -366,6 +367,7 @@ func (d *Dispatcher) handleRecharge(params map[string]string) string {
 		"run",
 		"-e", fmt.Sprintf("TENANT_ID=%s", platform),
 		"-e", fmt.Sprintf("LANGUAGE=%s", language),
+		"-e", fmt.Sprintf("RECHARGE_AMOUNT=%s", amount), // 传递充值金额
 	}
 	if account != "" {
 		args = append(args, "-e", fmt.Sprintf("TARGET_USER=%s", account))
@@ -381,10 +383,48 @@ func (d *Dispatcher) handleRecharge(params map[string]string) string {
 	cmd.Stderr = &stderr
 
 	err := cmd.Run()
-	output := stdout.String()
-	stderrOutput := stderr.String()
+	stdoutStr := stdout.String()
+	stderrStr := stderr.String()
+	
+	// ⭐ K6集成模式关键点：
+	// 1. K6的console.log输出在stderr（带时间戳的日志格式），不在stdout
+	// 2. 必须合并stdout和stderr才能找到JSON标记
+	// 3. K6脚本在最后输出: __RECHARGE_RESULT_JSON__{...}__END__
+	// 详见: docs/k6-go-integration-pattern.md
+	output := stdoutStr + "\n" + stderrStr
 
-	// 解析日志，提取生成的随机账号和密码
+	// 解析充值结果摘要
+	summary := parseRechargeSummary(output)
+
+	// 如果成功解析到摘要，使用摘要信息生成回复
+	if len(summary) > 0 && summary["account"] != "" {
+		frontUrls := map[string]string{
+			"3001": "https://arplatsaassit1.club",
+			"3002": "https://arplatsaassit2.club",
+			"3003": "https://arplatsaassit3.club",
+			"3004": "https://arplatsaassit4.club",
+		}
+		frontUrl := frontUrls[platform]
+
+		// 确保密码字段有值
+		password := summary["password"]
+		if password == "" {
+			password = "qwer1234" // 默认密码
+		}
+
+		log.Printf("[充值执行] ✅ 成功解析充值摘要: 账号=%s, 密码=%s, 用户ID=%s", summary["account"], password, summary["userId"])
+		return fmt.Sprintf("✅ 充值任务完成！\n\n📱 账号: %s\n🔑 密码: %s\n👤 用户ID: %s\n💰 充值金额: %s 元\n💰 充值状态: %s\n\n🌐 前台地址: %s",
+			summary["account"],
+			password,
+			summary["userId"],
+			amount,
+			summary["status"],
+			frontUrl)
+	}
+
+	log.Printf("[充值执行] ⚠️ 未能解析充值摘要，使用旧逻辑")
+
+	// 如果没有解析到摘要，使用旧的逻辑（兼容旧版本）
 	var genAccount string
 	var genPassword string
 	lines := strings.Split(output, "\n")
@@ -434,10 +474,11 @@ func (d *Dispatcher) handleRecharge(params map[string]string) string {
 	// 检查充值是否成功
 	rechargeSuccess := strings.Contains(output, "充值受理成功") ||
 		strings.Contains(output, "三方订单") ||
-		strings.Contains(output, "人工审核成功")
+		strings.Contains(output, "人工审核成功") ||
+		strings.Contains(output, "兜底成功")
 
-	if err != nil || !strings.Contains(output, "充值测试结束") {
-		log.Printf("[充值执行] K6 执行错误或未正常结束: %v\n%s\n%s", err, output, stderrOutput)
+	if err != nil || !strings.Contains(output, "前台充值测试结束") {
+		log.Printf("[充值执行] K6 执行错误或未正常结束: %v", err)
 		reply += "\n\n⚠️ 充值自动化执行似乎遇到了一些问题，请检查后台控制台日志。"
 	} else if rechargeSuccess {
 		reply += "\n\n✅ 充值成功！"
@@ -492,6 +533,74 @@ func truncate(s string, maxLen int) string {
 		return string(runes[:maxLen]) + "..."
 	}
 	return s
+}
+
+// parseRechargeSummary 解析 k6 输出中的充值结果
+// ⭐ K6集成模式：解析JSON标记
+// 输入: K6的完整输出（stdout + stderr）
+// 输出: map包含 account, password, userId, status
+// 详见: docs/k6-go-integration-pattern.md
+func parseRechargeSummary(k6Output string) map[string]string {
+	result := make(map[string]string)
+
+	// 查找 JSON 标记
+	startMarker := "__RECHARGE_RESULT_JSON__"
+	endMarker := "__END__"
+	
+	startIdx := strings.Index(k6Output, startMarker)
+	if startIdx == -1 {
+		log.Printf("[充值解析] 未找到结果标记")
+		return result
+	}
+	
+	startIdx += len(startMarker)
+	endIdx := strings.Index(k6Output[startIdx:], endMarker)
+	if endIdx == -1 {
+		log.Printf("[充值解析] 未找到结束标记")
+		return result
+	}
+	
+	jsonStr := k6Output[startIdx : startIdx+endIdx]
+	log.Printf("[充值解析] 提取的原始字符串: %s", jsonStr)
+	
+	// 清理 k6 日志格式：可能有 " source=console 这样的后缀
+	// 从后往前找第一个 } 字符，这是 JSON 的真正结束位置
+	lastBrace := strings.LastIndex(jsonStr, "}")
+	if lastBrace != -1 {
+		jsonStr = jsonStr[:lastBrace+1]
+	}
+	
+	log.Printf("[充值解析] 清理后的JSON: %s", jsonStr)
+	
+	// 解析 JSON
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+		log.Printf("[充值解析] JSON 解析失败: %v", err)
+		return result
+	}
+	
+	// 转换为 string map
+	if account, ok := data["account"].(string); ok {
+		result["account"] = account
+	}
+	if password, ok := data["password"].(string); ok {
+		result["password"] = password
+	}
+	if userId, ok := data["userId"].(float64); ok {
+		result["userId"] = fmt.Sprintf("%.0f", userId)
+	}
+	if status, ok := data["status"].(string); ok {
+		result["status"] = status
+	}
+
+	if len(result) > 0 {
+		log.Printf("[充值解析] ✅ 成功解析: 账号=%s, 密码=%s, 用户ID=%s, 状态=%s", 
+			result["account"], result["password"], result["userId"], result["status"])
+	} else {
+		log.Printf("[充值解析] ⚠️ 未能解析到任何字段")
+	}
+
+	return result
 }
 
 // truncateToken 截断 token 显示

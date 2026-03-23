@@ -81,23 +81,53 @@ export function getTestSession(userName, isRegister = false, accountType = 'phon
     // 自动识别是否为邮箱账号
     const isEmail = userName.includes('@');
 
+    // 默认密码
+    const password = 'qwer1234';
+
     if (isRegister) {
-        console.log(`[${tag}] 执行${isEmail ? '邮箱' : '手机号'}注册流程: ${userName}`);
-        // password 默认为 'qwer1234'
-        const registerRes = isEmail ? emailRegister(userName, adminData) : phoneRegister(userName, adminData);
+        console.log(`[${tag}] 执行注册流程: ${userName}, 密码: ${password}`);
+
+        // 执行注册
+        let registerRes = isEmail ? emailRegister(userName, adminData, password) : phoneRegister(userName, adminData, password);
 
         // 解析注册结果返回的 token
         if (registerRes && registerRes.headers && registerRes.headers.Authorization) {
             const authHeader = registerRes.headers.Authorization;
             userToken = authHeader.replace('Bearer ', '').trim();
-            console.log(`[${tag}] 注册成功，提取到 userToken (from headers)`);
+            console.log(`[${tag}] ${isEmail ? '邮箱' : '手机号'}注册成功，提取到 userToken (from headers)`);
         } else if (registerRes && registerRes.data && registerRes.data.token) {
             userToken = registerRes.data.token;
-            console.log(`[${tag}] 注册成功，提取到 userToken (from data.token)`);
+            console.log(`[${tag}] ${isEmail ? '邮箱' : '手机号'}注册成功，提取到 userToken (from data.token)`);
         } else {
-            // 如果注册报 "账号已存在" (msgCode 1002等)，可以尝试降级为自动登录
-            console.warn(`[${tag}] 注册失败(可能账号已存在)，尝试降级为自动登录...`);
-            userToken = isEmail ? emailAutoLoginFlow(userName, adminData) : mobileAutoLoginFlow(userName, adminData);
+            // 如果是手机号注册失败，尝试邮箱注册
+            if (!isEmail) {
+                console.warn(`[${tag}] 手机号注册失败，尝试使用邮箱注册...`);
+
+                // 生成随机邮箱账号
+                const emailAccount = generateRandomAccount('email');
+                console.log(`[${tag}] 生成邮箱账号: ${emailAccount}`);
+
+                registerRes = emailRegister(emailAccount, adminData, password);
+
+                if (registerRes && registerRes.headers && registerRes.headers.Authorization) {
+                    const authHeader = registerRes.headers.Authorization;
+                    userToken = authHeader.replace('Bearer ', '').trim();
+                    userName = emailAccount; // 更新为邮箱账号
+                    console.log(`[${tag}] 邮箱注册成功，提取到 userToken (from headers)`);
+                } else if (registerRes && registerRes.data && registerRes.data.token) {
+                    userToken = registerRes.data.token;
+                    userName = emailAccount; // 更新为邮箱账号
+                    console.log(`[${tag}] 邮箱注册成功，提取到 userToken (from data.token)`);
+                } else {
+                    // 手机号和邮箱注册都失败
+                    console.error(`[${tag}] ❌ 注册失败：手机号和邮箱注册都失败了`);
+                    return null;
+                }
+            } else {
+                // 邮箱注册失败，直接报错
+                console.error(`[${tag}] ❌ 邮箱注册失败`);
+                return null;
+            }
         }
     } else {
         console.log(`[${tag}] 执行${isEmail ? '邮箱' : '手机号'}自动登录流程: ${userName}`);
@@ -118,13 +148,14 @@ export function getTestSession(userName, isRegister = false, accountType = 'phon
         return null;
     }
 
-    console.log(`[${tag}] ✅ 会话建立成功! 账号: ${userName}, UserId: ${userInfo.userId}`);
+    console.log(`[${tag}] ✅ 会话建立成功! 账号: ${userName}, 密码: qwer1234, UserId: ${userInfo.userId}`);
 
     return {
         userToken: userToken,
         adminToken: adminToken,
         userId: userInfo.userId,
         userName: userName,
+        password: 'qwer1234',  // 添加密码字段
         inviteCode: userInfo.inviteCode
     };
 }
