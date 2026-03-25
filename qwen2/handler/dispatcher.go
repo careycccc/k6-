@@ -332,8 +332,8 @@ func (d *Dispatcher) handleRecharge(params map[string]string) string {
 	amount := params["amount"]
 	account := params["account"] // 如果为空则代表随机注册
 
-	if platform == "" || amount == "" {
-		return "请提供完整的充值信息。\n例如：给3004的1234@qq.com充值500，或者：给我一个3004账号充值500"
+	if platform == "" {
+		return "请提供平台编号。\n例如：给3004的1234@qq.com充值500，或者：3003账号充值"
 	}
 
 	validPlatforms := map[string]bool{"3001": true, "3002": true, "3003": true, "3004": true}
@@ -341,20 +341,35 @@ func (d *Dispatcher) handleRecharge(params map[string]string) string {
 		return fmt.Sprintf("❌ 平台编号 %s 无效，请使用 3001/3002/3003/3004", platform)
 	}
 
+	// 如果金额是"未知"或为空，使用随机金额
+	useRandomAmount := false
+	if amount == "" || amount == "未知" {
+		useRandomAmount = true
+		amount = "随机" // 用于显示
+	}
+
 	var actionDesc string
 	var args []string
 	var isRegister bool
 
 	if account == "" || account == "undefined" {
-		actionDesc = fmt.Sprintf("✅ 任务已受理！\n\n系统已为您【随机注册】一个 %s 平台的新账号，并尝试完成 %s 元充值。\n", platform, amount)
+		if useRandomAmount {
+			actionDesc = fmt.Sprintf("✅ 任务已受理！\n\n系统已为您【随机注册】一个 %s 平台的新账号，并尝试完成随机金额充值。\n", platform)
+		} else {
+			actionDesc = fmt.Sprintf("✅ 任务已受理！\n\n系统已为您【随机注册】一个 %s 平台的新账号，并尝试完成 %s 元充值。\n", platform, amount)
+		}
 		account = "" // 留空，让 K6 随机生成
 		isRegister = true
 	} else {
-		actionDesc = fmt.Sprintf("✅ 任务已受理！\n\n系统已使用您提供的账号 %s 在 %s 平台进行登录，并尝试完成 %s 元充值。\n", account, platform, amount)
+		if useRandomAmount {
+			actionDesc = fmt.Sprintf("✅ 任务已受理！\n\n系统已使用您提供的账号 %s 在 %s 平台进行登录，并尝试完成随机金额充值。\n", account, platform)
+		} else {
+			actionDesc = fmt.Sprintf("✅ 任务已受理！\n\n系统已使用您提供的账号 %s 在 %s 平台进行登录，并尝试完成 %s 元充值。\n", account, platform, amount)
+		}
 		isRegister = false
 	}
 
-	log.Printf("[充值执行] 开始调用 k6: platform=%s, account=%s, amount=%s", platform, account, amount)
+	log.Printf("[充值执行] 开始调用 k6: platform=%s, account=%s, amount=%s, useRandomAmount=%v", platform, account, amount, useRandomAmount)
 
 	// 根据平台ID设置语言：3003使用西班牙语(es)，其他平台使用英语(en)
 	language := "en"
@@ -367,7 +382,11 @@ func (d *Dispatcher) handleRecharge(params map[string]string) string {
 		"run",
 		"-e", fmt.Sprintf("TENANT_ID=%s", platform),
 		"-e", fmt.Sprintf("LANGUAGE=%s", language),
-		"-e", fmt.Sprintf("RECHARGE_AMOUNT=%s", amount), // 传递充值金额
+	}
+	
+	// 只有在指定了具体金额时才传递RECHARGE_AMOUNT
+	if !useRandomAmount {
+		args = append(args, "-e", fmt.Sprintf("RECHARGE_AMOUNT=%s", amount))
 	}
 	if account != "" {
 		args = append(args, "-e", fmt.Sprintf("TARGET_USER=%s", account))
@@ -413,13 +432,26 @@ func (d *Dispatcher) handleRecharge(params map[string]string) string {
 		}
 
 		log.Printf("[充值执行] ✅ 成功解析充值摘要: 账号=%s, 密码=%s, 用户ID=%s", summary["account"], password, summary["userId"])
-		return fmt.Sprintf("✅ 充值任务完成！\n\n📱 账号: %s\n🔑 密码: %s\n👤 用户ID: %s\n💰 充值金额: %s 元\n💰 充值状态: %s\n\n🌐 前台地址: %s",
-			summary["account"],
-			password,
-			summary["userId"],
-			amount,
-			summary["status"],
-			frontUrl)
+		
+		// 构建返回消息
+		var replyMsg string
+		if useRandomAmount {
+			replyMsg = fmt.Sprintf("✅ 充值任务完成！\n\n📱 账号: %s\n🔑 密码: %s\n👤 用户ID: %s\n💰 充值状态: %s\n\n🌐 前台地址: %s",
+				summary["account"],
+				password,
+				summary["userId"],
+				summary["status"],
+				frontUrl)
+		} else {
+			replyMsg = fmt.Sprintf("✅ 充值任务完成！\n\n📱 账号: %s\n🔑 密码: %s\n👤 用户ID: %s\n💰 充值金额: %s 元\n💰 充值状态: %s\n\n🌐 前台地址: %s",
+				summary["account"],
+				password,
+				summary["userId"],
+				amount,
+				summary["status"],
+				frontUrl)
+		}
+		return replyMsg
 	}
 
 	log.Printf("[充值执行] ⚠️ 未能解析充值摘要，使用旧逻辑")
@@ -569,6 +601,10 @@ func parseRechargeSummary(k6Output string) map[string]string {
 	if lastBrace != -1 {
 		jsonStr = jsonStr[:lastBrace+1]
 	}
+	
+	// 处理转义字符：k6日志可能会转义JSON中的引号
+	// 例如: {\"account\":\"xxx\"} 需要变成 {"account":"xxx"}
+	jsonStr = strings.ReplaceAll(jsonStr, `\"`, `"`)
 	
 	log.Printf("[充值解析] 清理后的JSON: %s", jsonStr)
 	

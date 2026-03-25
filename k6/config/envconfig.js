@@ -1,11 +1,19 @@
 // ============================================
 // 环境配置文件 - 多租户配置
 // ============================================
+//
+// 地址说明:
+//   BASE_DESK_URL        前台地址（普通注册/总代注册/登录等）
+//   BASE_ADMIN_URL       管理后台地址
+//   INVITE_REGISTER_URL  邀请注册专용地址（发验证码 + 注册，与前台不同域）
+//                        ⚠️ 3001-3003 待补充，先留空
+// ============================================
 
 // 3001 环境配置
 export const ENV_3001 = {
-    BASE_ADMIN_URL: "https://ar666999.club",  // 管理后台地址
-    BASE_DESK_URL: "https://arplatsaassit1.club",  // 前台地址
+    BASE_ADMIN_URL: "https://ar666999.club",          // 管理后台地址
+    BASE_DESK_URL: "https://arplatsaassit1.club",     // 前台地址（普通注册/总代注册）
+    INVITE_REGISTER_URL: "",                          // ⚠️ 邀请注册地址（待补充）
     PAGESIZE: 200,
     PAGENO: 1,
     ADMIN_USERNAME: "carey3001",   // 系统管理员
@@ -23,8 +31,9 @@ export const ENV_3001 = {
 
 // 3002 环境配置
 export const ENV_3002 = {
-    BASE_ADMIN_URL: "https://arsitasdfghjklg.com",  // 管理后台地址
-    BASE_DESK_URL: "https://arplatsaassit2.club",  // 前台地址
+    BASE_ADMIN_URL: "https://arsitasdfghjklg.com",    // 管理后台地址
+    BASE_DESK_URL: "https://arplatsaassit2.club",     // 前台地址（普通注册/总代注册）
+    INVITE_REGISTER_URL: "",                          // ⚠️ 邀请注册地址（待补充）
     PAGESIZE: 200,
     PAGENO: 1,
     ADMIN_USERNAME: "carey3002",   // 系统管理员
@@ -42,11 +51,12 @@ export const ENV_3002 = {
 
 // 3003 环境配置
 export const ENV_3003 = {
-    BASE_ADMIN_URL: "https://arsitasdfghj.com",  // 管理后台地址
-    BASE_DESK_URL: "https://arplatsaassit3.club",  // 前台地址
+    BASE_ADMIN_URL: "https://arsitasdfghj.com",       // 管理后台地址
+    BASE_DESK_URL: "https://arplatsaassit3.club",     // 前台地址（普通注册/总代注册）
+    INVITE_REGISTER_URL: "https://zc-arplatsaassit.com",                          // ⚠️ 邀请注册地址（待补充）
     PAGESIZE: 200,
     PAGENO: 1,
-    ADMIN_USERNAME: "carey3003",   // 系统管理员（修正为3003）
+    ADMIN_USERNAME: "carey3003",   // 系统管理员
     ADMIN_PASSWORD: "qwer1234",
     START_TIME: "2026-01-08 00:00:00",
     END_TIME: "2026-01-08 23:59:59",
@@ -62,7 +72,8 @@ export const ENV_3003 = {
 // 3004 环境配置（当前默认）
 export const ENV_3004 = {
     BASE_ADMIN_URL: "https://arsitasdfghjklusa.com",  // 管理后台地址
-    BASE_DESK_URL: "https://arplatsaassit4.club",  // 前台地址
+    BASE_DESK_URL: "https://arplatsaassit4.club",     // 前台地址（普通注册/总代注册）
+    INVITE_REGISTER_URL: "https://register.arplatsaassit4.club",  // 邀请注册地址
     PAGESIZE: 200,
     PAGENO: 1,
     ADMIN_USERNAME: "carey3004",   // 系统管理员

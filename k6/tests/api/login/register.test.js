@@ -2,6 +2,7 @@ import { sendRequest } from '../common/request.js';
 import { sendToGetVerCode } from './SendVerifiyCode.test.js';
 import { httpClient } from '../../../libs/http/client.js';
 import { getTimeRandom, generateCryptoRandomString } from '../../utils/utils.js';
+import { ENV_CONFIG } from '../../../config/envconfig.js';
 
 /**
  * 手机号注册 - 前台总代注册方式
@@ -37,18 +38,22 @@ export function phoneRegister(userName, data, password = 'qwer1234', inviteCode 
 
     // 2. 组装注册请求负载
     const api = "/api/Home/Register";
+    const browserId = generateCryptoRandomString(32);
     const timeData = getTimeRandom();
 
     const payload = {
-        userName: userName,
-        inviteCode: inviteCode,
         loginType: "Mobile",
-        turnstileToken: "",
+        userName: userName,
         password: password,
+        inviteCode: inviteCode,
         code: codeStr,
         captchaId: captchaId,
+        deviceId: "",
+        browserId: browserId,
+        packageName: "",
         language: timeData.language,
         random: timeData.random,
+        signature: "",
         timestamp: timeData.timestamp
     };
 
@@ -144,19 +149,15 @@ export function phoneRegisterByInvite(userName, inviteCode, data, password = 'qw
 
     // 2. 组装payload
     const api = "/api/Home/Register";
-    const browserId = generateCryptoRandomString(32);
     const timeData = getTimeRandom();
 
     const payload = {
-        loginType: "Mobile",
         userName: userName,
-        password: password,
         inviteCode: inviteCode,
+        loginType: "Mobile",
+        turnstileToken: turnstileToken,
+        password: password,
         code: codeStr,
-        captchaId: null,
-        deviceId: "",
-        browserId: browserId,
-        packageName: "",
         language: timeData.language,
         random: timeData.random,
         signature: '',
@@ -167,6 +168,9 @@ export function phoneRegisterByInvite(userName, inviteCode, data, password = 'qw
 
     // 3. 发送请求
     let httpResponse;
+    console.log(`[PhoneRegisterByInvite] ===============================================`);
+    console.log(`[PhoneRegisterByInvite] ⚠️  当前 ENV_CONFIG.BASE_DESK_URL = ${ENV_CONFIG.BASE_DESK_URL}`);
+    console.log(`[PhoneRegisterByInvite] ===============================================`);
     if (customRegisterUrl) {
         // 使用自定义注册URL（多租户）
         const fullUrl = customRegisterUrl + api;
@@ -177,7 +181,7 @@ export function phoneRegisterByInvite(userName, inviteCode, data, password = 'qw
     } else {
         // 使用默认URL
         console.log(`[PhoneRegisterByInvite] 使用默认注册API: ${api}`);
-        console.log(`[PhoneRegisterByInvite] 完整请求URL: ${api}`);
+        console.log(`[PhoneRegisterByInvite] 完整请求URL: ${ENV_CONFIG.BASE_DESK_URL}${api}`);
         console.log(`[PhoneRegisterByInvite] 完整请求Payload: ${JSON.stringify(payload)}`);
         httpResponse = httpClient.post(api, payload, {}, true);
     }
@@ -256,18 +260,22 @@ export function emailRegister(email, data, password = 'qwer1234', inviteCode = '
 
     // 2. 组装注册请求负载
     const api = "/api/Home/Register";
+    const browserId = generateCryptoRandomString(32);
     const timeData = getTimeRandom();
 
     const payload = {
-        userName: email,
-        inviteCode: inviteCode,
         loginType: "Email",
-        turnstileToken: "",
+        userName: email,
         password: password,
+        inviteCode: inviteCode,
         code: codeStr,
         captchaId: null,
+        deviceId: "",
+        browserId: browserId,
+        packageName: "",
         language: timeData.language,
         random: timeData.random,
+        signature: "",
         timestamp: timeData.timestamp
     };
 
@@ -345,8 +353,8 @@ export function emailRegisterByInvite(email, inviteCode, data, password = 'qwer1
     const customAdminUrl = customUrls && customUrls.adminUrl ? customUrls.adminUrl : null;
     const customRegisterUrl = customUrls && customUrls.registerUrl ? customUrls.registerUrl : null;
 
-    console.log(`[EmailRegisterByInvite] 准备发送验证码: verifyCodeType=2, codeType=19`);
-    const verifyCode = sendToGetVerCode(2, 19, email, data.token, customFrontUrl, customAdminUrl);
+    console.log(`[EmailRegisterByInvite] 准备发送验证码: verifyCodeType=2, codeType=20`);
+    const verifyCode = sendToGetVerCode(2, 20, email, data.token, customFrontUrl, customAdminUrl);
 
     if (!verifyCode) {
         console.error('[EmailRegisterByInvite] 邮箱邀请注册失败：未能获取到验证码');
@@ -361,19 +369,15 @@ export function emailRegisterByInvite(email, inviteCode, data, password = 'qwer1
 
     // 2. 组装注册请求负载（匹配成功的payload结构）
     const api = "/api/Home/Register";
-    const browserId = generateCryptoRandomString(32);
     const timeData = getTimeRandom();
 
     const payload = {
-        loginType: "Email",
         userName: email,
-        password: password,
         inviteCode: inviteCode,
+        loginType: "Email",
+        turnstileToken: turnstileToken,
+        password: password,
         code: codeStr,
-        captchaId: null,
-        deviceId: "",
-        browserId: browserId,
-        packageName: "",
         language: timeData.language,
         random: timeData.random,
         signature: '',
@@ -384,6 +388,9 @@ export function emailRegisterByInvite(email, inviteCode, data, password = 'qwer1
 
     // 3. 发送请求
     let httpResponse;
+    console.log(`[EmailRegisterByInvite] ===============================================`);
+    console.log(`[EmailRegisterByInvite] ⚠️  当前 ENV_CONFIG.BASE_DESK_URL = ${ENV_CONFIG.BASE_DESK_URL}`);
+    console.log(`[EmailRegisterByInvite] ===============================================`);
     if (customRegisterUrl) {
         // 使用自定义注册URL（多租户）
         const fullUrl = customRegisterUrl + api;
@@ -394,7 +401,7 @@ export function emailRegisterByInvite(email, inviteCode, data, password = 'qwer1
     } else {
         // 使用默认URL
         console.log(`[EmailRegisterByInvite] 使用默认注册API: ${api}`);
-        console.log(`[EmailRegisterByInvite] 完整请求URL: ${api}`);
+        console.log(`[EmailRegisterByInvite] 完整请求URL: ${ENV_CONFIG.BASE_DESK_URL}${api}`);
         console.log(`[EmailRegisterByInvite] 完整请求Payload: ${JSON.stringify(payload)}`);
         httpResponse = httpClient.post(api, payload, {}, true);
     }

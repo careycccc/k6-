@@ -1,19 +1,77 @@
 import { sleep } from 'k6';
+import http from 'k6/http';
 import { tenantRequest, tenantQueryRequest } from '../../../libs/http/tenantRequest.js';
+import { SignedHttpClient } from '../../../libs/utils/signature.js';
+import { getTimeRandom } from '../../utils/utils.js';
 
 /**
  * 发送验证码
- * @param {number} verifyCodeType 
+ * @param {number} verifyCodeType
  * @param {string} userName 手机号码或邮箱
- * @param {number} codeType 验证码类型 18是登录验证 19是注册验证
- * @param {string} customFrontUrl - 自定义前台域名（可选，用于多租户）
+ * @param {number} codeType 验证码类型 19=邀请注册手机 20=邀请注册邮箱
+ * @param {string} customFrontUrl - 自定义前台域名（邀请注册时传入专用域名）
  * @returns {object} 响应结果
  */
 export function sendVerificationCode(verifyCodeType, userName, codeType, customFrontUrl = null) {
   console.log(`[SendVerificationCode] 发送验证码请求: ${userName}, verifyCodeType: ${verifyCodeType}, codeType: ${codeType}`);
   console.log(`[SendVerificationCode] customFrontUrl: ${customFrontUrl || '使用默认前台域名'}`);
 
-  const response = tenantRequest('/api/Home/SendVerifiyCode', {
+  let response;
+
+  if (customFrontUrl) {
+    // 使用自定义域名（邀请注册专用域名）直接发送
+    const url = `${customFrontUrl}/api/Home/SendVerifiyCode`;
+    console.log(`[SendVerificationCode] 使用自定义域名发送: ${url}`);
+
+    const timeData = getTimeRandom();
+    const payload = {
+      verifyCodeType: verifyCodeType,
+      phoneOrEmail: userName,
+      codeType: codeType,
+      random: timeData.random,
+      language: timeData.language,
+      timestamp: timeData.timestamp
+    };
+
+    const signClient = new SignedHttpClient();
+    const signedPayload = signClient.signData(payload);
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Domainurl': customFrontUrl,
+      'Referrer': customFrontUrl
+    };
+
+    console.log(`[SendVerificationCode] 签名后payload: ${JSON.stringify(signedPayload, null, 2)}`);
+
+    const rawResp = http.post(url, JSON.stringify(signedPayload), { headers });
+    console.log(`[SendVerificationCode] 响应状态: ${rawResp.status}`);
+    console.log(`[SendVerificationCode] 完整响应体: ${rawResp.body}`);
+
+    let parsedBody = null;
+    try {
+      parsedBody = rawResp.body ? JSON.parse(rawResp.body) : null;
+    } catch (e) {
+      console.error(`[SendVerificationCode] 响应解析失败: ${e.message}`);
+    }
+
+    const msgCode = parsedBody ? (parsedBody.msgCode !== undefined ? parsedBody.msgCode : parsedBody.code) : null;
+    const msg = parsedBody ? parsedBody.msg : null;
+
+    console.log(`[SendVerificationCode] 响应msgCode: ${msgCode}`);
+    console.log(`[SendVerificationCode] 响应msg: ${msg}`);
+
+    if (msgCode === 0) {
+      console.log(`[SendVerificationCode] ✅ 验证码发送成功: ${userName}`);
+    } else {
+      console.error(`[SendVerificationCode] ❌ 验证码发送失败: ${userName}, code=${msgCode}, msg=${msg}`);
+    }
+
+    return parsedBody;
+  }
+
+  // 无自定义域名：走原来的 tenantRequest 逻辑
+  response = tenantRequest('/api/Home/SendVerifiyCode', {
     verifyCodeType: verifyCodeType,
     phoneOrEmail: userName,
     codeType: codeType

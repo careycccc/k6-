@@ -220,9 +220,12 @@ export function runFrontendRechargeFlow(session, targetAmount) {
     // 6. 如果所有通道都失败，触发备用机制
     if (!isSuccess) {
         console.error(`[${tag}] ❌ 所有前台充值通道尝试完毕，均未能成功充值审核。开始回退到后台人工充值...`);
-        // 如果没有指定金额，使用默认值 500
-        const fallbackAmount = targetAmount || 500;
-        fallbackToManualRecharge(adminToken, userName, userId, fallbackAmount);
+        // 如果没有指定金额，使用随机金额（2000-5000）
+        const fallbackAmount = targetAmount || getRandomAmount(2000, 5000);
+        const fallbackSuccess = fallbackToManualRecharge(adminToken, userName, userId, fallbackAmount);
+        if (fallbackSuccess) {
+            isSuccess = true;
+        }
     }
 
     return isSuccess;
@@ -234,11 +237,12 @@ export function runFrontendRechargeFlow(session, targetAmount) {
  * @param {string} userName 
  * @param {number} userId 
  * @param {number} amount 
+ * @returns {boolean} 是否充值成功
  */
 function fallbackToManualRecharge(adminToken, userName, userId, amount) {
     if (!userId || !adminToken) {
         console.error(`[${tag}-Fallback] 无法回退人工充值：未提供 userId 或 adminToken`);
-        return;
+        return false;
     }
 
     console.log(`[${tag}-Fallback] 开始给用户 ${userId} (${userName}) 人工充值 ${amount}...`);
@@ -246,8 +250,10 @@ function fallbackToManualRecharge(adminToken, userName, userId, amount) {
 
     if (result && result.success) {
         console.log(`[${tag}-Fallback] ✅ 兜底成功: 人工充值 ${amount} 完毕`);
+        return true;
     } else {
         console.error(`[${tag}-Fallback] ❌ 兜底失败: 人工充值出错`);
+        return false;
     }
 }
 

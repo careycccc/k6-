@@ -11,7 +11,7 @@
  * 7. 注意只有团队2进行充值投注的时候才会有一定的几率把成员加入到特殊/固定的返佣中
  * 
  * 使用方法：
- * k6 run -e TENANT_ID=3002 -e TEAM1_TOTAL=5 -e TEAM1_LEVELS=2 -e TEAM2_TOTAL=4 -e TEAM2_LEVELS=3 multiLevelRebate.test.js
+ * k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=22 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=13 -e TEAM2_LEVELS=4 multiLevelRebate.test.js
  */
 
 import { sleep } from 'k6';
@@ -23,6 +23,7 @@ import { getAgentHierarchyList } from '../invite/agentApi.js';
 import { runMultiLevelInvite } from '../invite/inviteService.js';
 import { runTeamRechargeAndBet } from '../invite/teamRechargeAndBet.js';
 import { bundEarn } from './bundearn.test.js';
+import { getEnvByTenantId } from '../../../config/envconfig.js';
 
 /**
  * 将总人数按层级递减地随机分配
@@ -314,7 +315,14 @@ export function setup() {
 
     console.log('[Setup] ✅ 管理员登录成功');
 
-    return { token: adminToken };
+    // 获取环境配置
+    const tenantId = __ENV.TENANT_ID || __ENV.TENANT || '3004';
+    const envConfig = getEnvByTenantId(tenantId);
+
+    return {
+        token: adminToken,
+        envConfig: envConfig
+    };
 }
 
 /**
