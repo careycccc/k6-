@@ -328,7 +328,7 @@ export default function () {
 
 // # 为 3002 租户使用指定账号
 // k6 run -e TENANT=3003 -e TARGET_USER=523021199746 k6/tests/api/withdraw/withdraw.test.js
-// k6 run -e TENANT=3003 -e TARGET_USER=523021199746 withdraw.test.js
+// k6 run -e TENANT=3004 -e TARGET_USER=913258544276 withdraw.test.js
 
 // # 使用便捷脚本
 // ./k6/tests/api/withdraw/run-withdraw-by-tenant.sh 3003

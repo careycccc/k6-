@@ -1,6 +1,8 @@
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest, sendQueryRequest } from '../../common/request.js';
 import { sleep } from 'k6';
+import { getActiveLangs } from '../../../../config/languageConfig.js';
+
 
 export const createCouponTag = 'createCoupon';
 
@@ -92,11 +94,11 @@ function createCoupons(data) {
     couponList.forEach(([couponName, couponType, rechargeCount, useConditionType]) => {
         const payload = {
             backstageDisplayName: couponName,
-            translations: [
-                { language: 'hi', name: couponName, description: couponName },
-                { language: 'en', name: couponName, description: couponName },
-                { language: 'zh', name: couponName, description: couponName }
-            ],
+            translations: getActiveLangs().map(lang => ({
+                language: lang,
+                name: couponName,
+                description: couponName
+            })),
             couponType,
             rewardConfig: {
                 isFixedAmount: true,

@@ -1,6 +1,8 @@
 import { sleep } from 'k6';
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest, sendQueryRequest } from '../../common/request.js';
+import { queryCouponIds } from '../coupon/createCoupon.js';
+import { getActiveLangs } from '../../../../config/languageConfig.js';
 import { createImageUploader, handleImageUpload, getErrorMessage } from '../../uploadFile/uploadFactory.js';
 
 export const createSigninTag = 'createSignin';

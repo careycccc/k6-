@@ -4,7 +4,7 @@
 # 用法: ./run-withdraw-by-tenant.sh [租户ID] [账号(可选)] [是否启用后台审核(可选)]
 # 示例: 
 #   ./run-withdraw-by-tenant.sh 3003
-#   ./run-withdraw-by-tenant.sh 3002 913012345678
+#   ./run-withdraw-by-tenant.sh 3004 917022905803
 #   ./run-withdraw-by-tenant.sh 3003 "" true  # 启用后台审核
 
 TENANT_ID=${1:-3004}
