@@ -19,7 +19,7 @@ export const orderSystemConfig = [
         img: '3.png',
         type: 2,
         fields: [
-            { type: 'LongText', nameEn: 'Long Text' }
+            { type: 'LongText', nameEn: 'Long Text', nameEs: 'Texto largo' }
         ]
     },
     {
@@ -28,8 +28,8 @@ export const orderSystemConfig = [
         img: '4.png',
         type: 2,
         fields: [
-            { type: 'UserName', nameEn: 'User Name' },
-            { type: 'LongText', nameEn: 'Long Text' }
+            { type: 'UserName', nameEn: 'User Name', nameEs: 'Nombre de usuario' },
+            { type: 'LongText', nameEn: 'Long Text', nameEs: 'Texto largo' }
         ]
     },
     {
@@ -38,8 +38,8 @@ export const orderSystemConfig = [
         img: '5.png',
         type: 4,
         fields: [
-            { type: 'DepositOrderNo', nameEn: 'Deposit Order No' },
-            { type: 'OrderAmount', nameEn: 'Order Amount' }
+            { type: 'DepositOrderNo', nameEn: 'Deposit Order No', nameEs: 'Número de orden de depósito' },
+            { type: 'OrderAmount', nameEn: 'Order Amount', nameEs: 'Monto de la orden' }
         ]
     },
     {
@@ -48,8 +48,8 @@ export const orderSystemConfig = [
         img: '6.png',
         type: 5,
         fields: [
-            { type: 'WithdrawOrderNo', nameEn: 'Withdraw Order No' },
-            { type: 'WithdrawAmount', nameEn: 'Withdraw Amount' }
+            { type: 'WithdrawOrderNo', nameEn: 'Withdraw Order No', nameEs: 'Número de orden de retiro' },
+            { type: 'WithdrawAmount', nameEn: 'Withdraw Amount', nameEs: 'Monto de retiro' }
         ]
     },
     {
@@ -58,7 +58,7 @@ export const orderSystemConfig = [
         img: '7.png',
         type: 7,
         fields: [
-            { type: 'RealName', nameEn: 'Real Name' }
+            { type: 'RealName', nameEn: 'Real Name', nameEs: 'Nombre real' }
         ]
     },
     {
@@ -67,7 +67,7 @@ export const orderSystemConfig = [
         img: '8.png',
         type: 8,
         fields: [
-            { type: 'NewPassword', nameEn: 'New Password' }
+            { type: 'NewPassword', nameEn: 'New Password', nameEs: 'Nueva contraseña' }
         ]
     },
     {
@@ -76,8 +76,8 @@ export const orderSystemConfig = [
         img: '9.png',
         type: 8,
         fields: [
-            { type: 'UserName', nameEn: 'User Name' },
-            { type: 'NewPassword', nameEn: 'New Password' }
+            { type: 'UserName', nameEn: 'User Name', nameEs: 'Nombre de usuario' },
+            { type: 'NewPassword', nameEn: 'New Password', nameEs: 'Nueva contraseña' }
         ]
     },
     {
@@ -86,7 +86,7 @@ export const orderSystemConfig = [
         img: '10.png',
         type: 9,
         fields: [
-            { type: 'UserName', nameEn: 'User Name' }
+            { type: 'UserName', nameEn: 'User Name', nameEs: 'Nombre de usuario' }
         ]
     },
     {
@@ -95,7 +95,7 @@ export const orderSystemConfig = [
         img: '11.png',
         type: 10,
         fields: [
-            { type: 'UserName', nameEn: 'User Name' }
+            { type: 'UserName', nameEn: 'User Name', nameEs: 'Nombre de usuario' }
         ]
     },
     {
@@ -104,7 +104,7 @@ export const orderSystemConfig = [
         img: '12.png',
         type: 10,
         fields: [
-            { type: 'UserName', nameEn: 'User Name' }
+            { type: 'UserName', nameEn: 'User Name', nameEs: 'Nombre de usuario' }
         ]
     },
     {
@@ -113,9 +113,9 @@ export const orderSystemConfig = [
         img: '13.png',
         type: 11,
         fields: [
-            { type: 'BankAccountNumber', nameEn: 'Bank Account Number' },
-            { type: 'IFSC', nameEn: 'IFSC' },
-            { type: 'PhoneEmailCaptcha', nameEn: 'Phone/Email Captcha' }
+            { type: 'BankAccountNumber', nameEn: 'Bank Account Number', nameEs: 'Número de cuenta bancaria' },
+            { type: 'IFSC', nameEn: 'IFSC', nameEs: 'IFSC' },
+            { type: 'PhoneEmailCaptcha', nameEn: 'Phone/Email Captcha', nameEs: 'Captcha de teléfono/correo' }
         ]
     },
     {
@@ -124,9 +124,9 @@ export const orderSystemConfig = [
         img: '14.png',
         type: 12,
         fields: [
-            { type: 'BankName', nameEn: 'Bank Name' },
-            { type: 'BankAccountNumber', nameEn: 'Bank Account Number' },
-            { type: 'PhoneEmailCaptcha', nameEn: 'Phone/Email Captcha' }
+            { type: 'BankName', nameEn: 'Bank Name', nameEs: 'Nombre del banco' },
+            { type: 'BankAccountNumber', nameEn: 'Bank Account Number', nameEs: 'Número de cuenta bancaria' },
+            { type: 'PhoneEmailCaptcha', nameEn: 'Phone/Email Captcha', nameEs: 'Captcha de teléfono/correo' }
         ]
     },
     {
@@ -135,7 +135,7 @@ export const orderSystemConfig = [
         img: '15.png',
         type: 13,
         fields: [
-            { type: 'UsdtAddress', nameEn: 'USDT Address' }
+            { type: 'UsdtAddress', nameEn: 'USDT Address', nameEs: 'Dirección USDT' }
         ]
     },
     {
@@ -144,7 +144,7 @@ export const orderSystemConfig = [
         img: '16.png',
         type: 14,
         fields: [
-            { type: 'BankAccountNumber', nameEn: 'Bank Account Number' }
+            { type: 'BankAccountNumber', nameEn: 'Bank Account Number', nameEs: 'Número de cuenta bancaria' }
         ]
     },
     {
@@ -153,9 +153,9 @@ export const orderSystemConfig = [
         img: '17.png',
         type: 15,
         fields: [
-            { type: 'PixAccount', nameEn: 'Pix Account' },
-            { type: 'PixType', nameEn: 'Pix Type' },
-            { type: 'PhoneEmailCaptcha', nameEn: 'Phone/Email Captcha' }
+            { type: 'PixAccount', nameEn: 'Pix Account', nameEs: 'Cuenta Pix' },
+            { type: 'PixType', nameEn: 'Pix Type', nameEs: 'Tipo de Pix' },
+            { type: 'PhoneEmailCaptcha', nameEn: 'Phone/Email Captcha', nameEs: 'Captcha de teléfono/correo' }
         ]
     },
     {
@@ -164,7 +164,7 @@ export const orderSystemConfig = [
         img: '18.png',
         type: 16,
         fields: [
-            { type: 'EWallet', nameEn: 'E-Wallet' }
+            { type: 'EWallet', nameEn: 'E-Wallet', nameEs: 'Billetera electrónica' }
         ]
     },
     {
@@ -173,7 +173,7 @@ export const orderSystemConfig = [
         img: '19.png',
         type: 17,
         fields: [
-            { type: 'UsdtAddress', nameEn: 'USDT Address' }
+            { type: 'UsdtAddress', nameEn: 'USDT Address', nameEs: 'Dirección USDT' }
         ]
     },
     {
@@ -182,8 +182,8 @@ export const orderSystemConfig = [
         img: '20.png',
         type: 18,
         fields: [
-            { type: 'BankAccountNumber', nameEn: 'Bank Account Number' },
-            { type: 'PhoneEmailCaptcha', nameEn: 'Phone/Email Captcha' }
+            { type: 'BankAccountNumber', nameEn: 'Bank Account Number', nameEs: 'Número de cuenta bancaria' },
+            { type: 'PhoneEmailCaptcha', nameEn: 'Phone/Email Captcha', nameEs: 'Captcha de teléfono/correo' }
         ]
     },
     {
@@ -192,8 +192,8 @@ export const orderSystemConfig = [
         img: '21.png',
         type: 19,
         fields: [
-            { type: 'UsdtAddress', nameEn: 'USDT Address' },
-            { type: 'PhoneEmailCaptcha', nameEn: 'Phone/Email Captcha' }
+            { type: 'UsdtAddress', nameEn: 'USDT Address', nameEs: 'Dirección USDT' },
+            { type: 'PhoneEmailCaptcha', nameEn: 'Phone/Email Captcha', nameEs: 'Captcha de teléfono/correo' }
         ]
     },
     {
@@ -202,7 +202,7 @@ export const orderSystemConfig = [
         img: '22.png',
         type: 16,
         fields: [
-            { type: 'EWallet', nameEn: 'E-Wallet' }
+            { type: 'EWallet', nameEn: 'E-Wallet', nameEs: 'Billetera electrónica' }
         ]
     },
     {
@@ -211,8 +211,8 @@ export const orderSystemConfig = [
         img: '23.png',
         type: 21,
         fields: [
-            { type: 'NewWithdrawPassword', nameEn: 'New Withdraw Password' },
-            { type: 'PhoneEmailCaptcha', nameEn: 'Phone/Email Captcha' }
+            { type: 'NewWithdrawPassword', nameEn: 'New Withdraw Password', nameEs: 'Nueva contraseña de retiro' },
+            { type: 'PhoneEmailCaptcha', nameEn: 'Phone/Email Captcha', nameEs: 'Captcha de teléfono/correo' }
         ]
     },
     {
@@ -221,7 +221,7 @@ export const orderSystemConfig = [
         img: '24.png',
         type: 22,
         fields: [
-            { type: 'NewWithdrawPassword', nameEn: 'New Withdraw Password' }
+            { type: 'NewWithdrawPassword', nameEn: 'New Withdraw Password', nameEs: 'Nueva contraseña de retiro' }
         ]
     },
     {
@@ -230,7 +230,7 @@ export const orderSystemConfig = [
         img: '25.png',
         type: 3,
         fields: [
-            { type: 'LongText', nameEn: 'Long Text' }
+            { type: 'LongText', nameEn: 'Long Text', nameEs: 'Texto largo' }
         ]
     }
 ]

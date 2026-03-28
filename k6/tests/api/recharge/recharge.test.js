@@ -29,7 +29,7 @@ export function getRechargeCategoryList(token) {
     try {
         const timeData = getTimeRandom();
         console.log('[Recharge] timeData:', JSON.stringify(timeData));
-        
+
         const requestData = {
             language: timeData.language,
             random: timeData.random,
@@ -42,7 +42,7 @@ export function getRechargeCategoryList(token) {
         // 生成签名
         const signClient = new SignedHttpClient();
         console.log('[Recharge] 开始生成签名...');
-        
+
         const signedData = signClient.signData(requestData);
         console.log('[Recharge] 签名生成成功:', JSON.stringify(signedData));
 
@@ -58,7 +58,7 @@ export function getRechargeCategoryList(token) {
         });
 
         console.log('[Recharge] 响应状态:', response.status);
-        console.log('[Recharge] 响应体:', response.body);
+        //console.log('[Recharge] 响应体:', response.body);
 
         if (response.status === 200 && response.body) {
             const result = JSON.parse(response.body);
@@ -104,14 +104,14 @@ export function getRechargeCategoryList(token) {
  */
 export function getRechargeCategoryByType(token, rechargeType) {
     const allCategories = getRechargeCategoryList(token);
-    
+
     if (!allCategories) {
         return null;
     }
 
     const filtered = allCategories.filter(item => item.rechargeType === rechargeType);
     console.log(`[Recharge] 筛选 ${rechargeType} 类型，找到 ${filtered.length} 个分类`);
-    
+
     return filtered;
 }
 
@@ -122,7 +122,7 @@ export function getRechargeCategoryByType(token, rechargeType) {
  */
 export function getRandomRechargeCategory(token) {
     const allCategories = getRechargeCategoryList(token);
-    
+
     if (!allCategories || allCategories.length === 0) {
         console.error('[Recharge] 没有可用的充值分类');
         return null;
@@ -130,7 +130,7 @@ export function getRandomRechargeCategory(token) {
 
     const randomIndex = Math.floor(Math.random() * allCategories.length);
     const selected = allCategories[randomIndex];
-    
+
     console.log('[Recharge] 随机选择充值分类:', JSON.stringify(selected));
     return selected;
 }

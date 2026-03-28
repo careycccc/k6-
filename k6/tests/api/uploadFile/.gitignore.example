@@ -1,0 +1,12 @@
+# Figma 同步工具 - 建议添加到项目 .gitignore
+
+# Figma 配置文件（包含 token）
+figma-sync-config.json
+
+# 环境变量文件
+.env
+.env.local
+
+# 临时文件
+*.tmp
+*.log

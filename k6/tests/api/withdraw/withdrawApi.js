@@ -1,9 +1,8 @@
 /**
- * 提现相关接口封装
+ * 提现相关接口封装 - 多租户版本
  */
 
-import { sendRequest, sendQueryRequest } from '../common/request.js';
-import { getTimeRandom } from '../../utils/utils.js';
+import { tenantRequest, tenantQueryRequest } from '../../../libs/http/tenantRequest.js';
 
 /**
  * 获取提现基础信息
@@ -14,24 +13,23 @@ export function getWithdrawBasicInfo(token) {
     const api = '/api/Withdraw/GetWithdrawBasicInfo';
     const tag = 'GetWithdrawBasicInfo';
 
-    // 改用 sendRequest，避免 sendQueryRequest 附加的 pageNo, pageSize 导致签名错误
     const payload = {};
 
-    const response = sendRequest(payload, api, tag, true, token);
+    const response = tenantRequest(api, payload, { token, isDesk: true });
 
-    if (!response) {
-        console.error(`[${tag}] 获取提现基础信息失败: 响应为空`);
+    if (!response || response.msgCode !== 0) {
+        console.error(`[${tag}] 获取提现基础信息失败:`, response);
         return null;
     }
 
-    return response;
+    return response.data;
 }
 
 /**
  * 获取用户提现钱包
  * @param {string} token 
  * @param {string} withdrawType 
- * @returns {object|null} 返回钱包信息，包含 walletId
+ * @returns {string|null} 返回 walletId
  */
 export function getUserWithdrawWallet(token, withdrawType) {
     const api = '/api/Withdraw/GetUserWithdrawWallet';
@@ -40,21 +38,27 @@ export function getUserWithdrawWallet(token, withdrawType) {
         withdrawType: withdrawType
     };
 
-    const response = sendQueryRequest(payload, api, tag, true, token);
+    const response = tenantRequest(api, payload, { token, isDesk: true });
 
-    if (!response) {
-        console.error(`[${tag}] 获取用户提现钱包失败: 响应为空`);
+    if (!response || response.msgCode !== 0) {
+        console.error(`[${tag}] 获取用户提现钱包失败:`, response);
         return null;
     }
 
-    return response;
+    // 返回 walletId（从 data 数组的第一个元素中提取）
+    if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        return response.data[0].walletId;
+    }
+
+    console.error(`[${tag}] 钱包数据为空`);
+    return null;
 }
 
 /**
  * 设置提现密码
  * @param {string} token 
  * @param {string} password
- * @returns {boolean}
+ * @returns {object}
  */
 export function setWithdrawPassword(token, password = '123456') {
     // 根据系统惯例，提现密码通常在 User 模块下
@@ -64,7 +68,7 @@ export function setWithdrawPassword(token, password = '123456') {
         withdrawPassword: password
     };
 
-    const response = sendRequest(payload, api, tag, true, token);
+    const response = tenantRequest(api, payload, { token, isDesk: true });
 
     // 返回真实的响应体，用于在业务层进行判断是否成功或跳过
     return response;
@@ -80,7 +84,7 @@ export function setWithdrawPassword(token, password = '123456') {
  * @param {string} withdrawPassword 提现密码
  * @returns {object|null}
  */
-export function withdrawApply(token, amount, walletId, withdrawCategoryId, withdrawType, withdrawPassword = 'password123') {
+export function withdrawApply(token, amount, walletId, withdrawCategoryId, withdrawType, withdrawPassword = '123456') {
     const api = '/api/Withdraw/WithdrawApply';
     const tag = 'WithdrawApply';
     const payload = {
@@ -91,13 +95,21 @@ export function withdrawApply(token, amount, walletId, withdrawCategoryId, withd
         withdrawPassword: withdrawPassword
     };
 
-    const response = sendRequest(payload, api, tag, true, token);
+    console.log(`[${tag}] 提现申请参数:`, JSON.stringify(payload, null, 2));
 
-    if (!response) {
-        console.error(`[${tag}] 提现申请失败`);
+    const response = tenantRequest(api, payload, { token, isDesk: true });
+
+    console.log(`[${tag}] 提现申请响应:`, JSON.stringify(response, null, 2));
+
+    if (!response || response.msgCode !== 0) {
+        console.error(`[${tag}] 提现申请失败:`, response);
         return null;
     }
-    return response;
+
+    console.log(`[${tag}] ✅ 提现申请成功`);
+
+    // 如果没有 data 字段，返回整个响应对象（表示成功）
+    return response.data || response.raw || { success: true };
 }
 
 /**
@@ -116,12 +128,10 @@ export function getWithdrawHistory(token, startTime, endTime, pageNo = 1, pageSi
         withdrawType: "",
         withdrawState: "",
         startTime: startTime,
-        endTime: endTime,
-        pageNo: pageNo,
-        pageSize: pageSize
+        endTime: endTime
     };
 
-    const response = sendQueryRequest(payload, api, tag, true, token);
+    const response = tenantQueryRequest(api, payload, { token, isDesk: true, pageNo, pageSize });
 
     if (!response || !response.list) {
         console.error(`[${tag}] 获取提现历史失败`);

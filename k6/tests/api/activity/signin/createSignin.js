@@ -1,6 +1,8 @@
 import { sleep } from 'k6';
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest, sendQueryRequest } from '../../common/request.js';
+import { queryCouponIds } from '../coupon/createCoupon.js';
+import { getActiveLangs } from '../../../../config/languageConfig.js';
 import { createImageUploader, handleImageUpload, getErrorMessage } from '../../uploadFile/uploadFactory.js';
 
 export const createSigninTag = 'createSignin';
@@ -180,6 +182,7 @@ function createSigninActivity1(data) {
             "translations": [
                 { "language": "hi", "name": "印地语", "description": `<p>${activityName}</p>` },
                 { "language": "en", "name": "英语", "description": `<p>${activityName}</p>` },
+                { "language": "es", "name": "Español", "description": `<p>${activityName}</p>` },
                 { "language": "zh", "name": "中文", "description": `<p>${activityName}</p>` }
             ]
         };
@@ -347,6 +350,7 @@ function createSigninActivity2(data) {
             "translations": [
                 { "language": "hi", "name": "印地语", "description": `<p>${activityName}</p>` },
                 { "language": "en", "name": "英语", "description": `<p>${activityName}</p>` },
+                { "language": "es", "name": "Español", "description": `<p>${activityName}</p>` },
                 { "language": "zh", "name": "中文", "description": `<p>${activityName}</p>` }
             ]
         };

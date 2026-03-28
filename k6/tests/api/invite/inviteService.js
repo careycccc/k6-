@@ -9,6 +9,7 @@ import { generateRandomPhones, generateRandomEmails } from '../../utils/accountG
 import { betRun } from '../runbet/betRun.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
 import { hybridRecharge } from '../recharge/rechargeService.js';
+import { ENV_CONFIG, getEnvByTenantId } from '../../../config/envconfig.js';
 
 // ========== 数据结构定义 ==========
 
@@ -151,16 +152,33 @@ function tryRegister(account, accountType, parentInviteCode, adminData) {
     try {
         let response;
 
+        // 从 envconfig 读取邀请注册专用地址（优先级最高）
+        const tenantId = currentTenantConfig ? String(currentTenantConfig.tenantId) : null;
+        const tenantEnv = tenantId ? getEnvByTenantId(tenantId) : null;
+        const inviteRegisterUrl = tenantEnv && tenantEnv.INVITE_REGISTER_URL
+            ? tenantEnv.INVITE_REGISTER_URL
+            : null;
+
+        console.log(`[Register] 邀请注册域名: ${inviteRegisterUrl || '未配置，将使用前台默认域名'}`);
+
         // 构建自定义URL配置对象
-        const customUrls = currentTenantConfig ? {
-            frontUrl: currentTenantConfig.frontUrl || null,
-            adminUrl: currentTenantConfig.adminUrl || null,
-            registerUrl: currentTenantConfig.registerApiUrl || null
-        } : null;
+        // frontUrl: 发验证码的域名
+        // registerUrl: 提交注册的域名
+        // 邀请注册时两者都走 INVITE_REGISTER_URL
+        const customUrls = {
+            frontUrl: inviteRegisterUrl || (currentTenantConfig ? currentTenantConfig.frontUrl : null) || null,
+            adminUrl: currentTenantConfig ? currentTenantConfig.adminUrl : null,
+            registerUrl: inviteRegisterUrl || (currentTenantConfig ? currentTenantConfig.frontUrl : null) || null
+        };
+
+        console.log(`[Register] customUrls: frontUrl=${customUrls.frontUrl}, adminUrl=${customUrls.adminUrl}, registerUrl=${customUrls.registerUrl}`);
+
+        // 获取当前环境的区号
+        const countryCode = ENV_CONFIG.COUNTRY_CODE || '91';
 
         if (accountType === 'phone') {
-            // 尝试手机号注册
-            response = phoneRegisterByInvite(account, parentInviteCode, adminData, 'qwer1234', '', customUrls);
+            // 尝试手机号注册（传递区号）
+            response = phoneRegisterByInvite(account, parentInviteCode, adminData, 'qwer1234', '', customUrls, countryCode);
         } else {
             // 尝试邮箱注册
             response = emailRegisterByInvite(account, parentInviteCode, adminData, 'qwer1234', '', customUrls);
@@ -266,8 +284,10 @@ export function bindOneLevel(parentInviteCodes, count, level, adminData) {
 
     console.log(`\n🔗 [层级${level + 1}] 父级${parentInviteCodes.length}人 -> 生成${count}个下级...`);
 
-    // 步骤1: 生成账号
-    const phoneNumbers = generateRandomPhones(count);
+    // 步骤1: 生成账号（使用当前环境的区号）
+    const countryCode = ENV_CONFIG.COUNTRY_CODE || '91';
+    console.log(`📱 使用区号: ${countryCode}`);
+    const phoneNumbers = generateRandomPhones(count, countryCode);
     const emails = generateRandomEmails(count);
 
     console.log(`📱 生成账号: ${phoneNumbers.slice(0, Math.min(2, phoneNumbers.length))}...`);

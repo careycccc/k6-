@@ -1,17 +1,20 @@
 import { createSignin } from './createSignin.js';
 import { logger } from '../../../../libs/utils/logger.js';
+import { AdminLogin } from '../../login/adminlogin.test.js';
 
 export default function () {
     // K6 requires a default function. We wrap the existing createSignin logic.
-    // Assuming the API requires an auth token, in a real scenario this might be fetched
-    // before calling createSignin, or passed via environment variables.
+    // Get admin token using AdminLogin function
+    const token = AdminLogin();
 
-    // If there is any required data, we can mock or construct it here.
-    const token = __ENV.K6_TOKEN || 'test-token-for-dispatch';
-    
-    logger.info(`[createSignin_dispatch] Executing createSignin flow for platform: ${__ENV.TARGET_PLATFORM || 'default'}`);
+    if (!token) {
+        logger.error(`[createSignin_dispatch] 后台登录失败，无法创建活动`);
+        return;
+    }
+
+    logger.info(`[createSignin_dispatch] Executing createSignin flow for platform: ${__ENV.TENANT_ID || 'default'}`);
 
     const result = createSignin({ token: token });
-    
+
     logger.info(`[createSignin_dispatch] Result: ${JSON.stringify(result)}`);
 }

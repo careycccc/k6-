@@ -15,9 +15,10 @@ import { httpClient } from '../libs/http/client.js';
  * @param {string} registerType - 注册类型 ("phone" 或 "email")
  * @param {number} count - 注册数量，默认1个
  * @param {string} password - 密码，默认 "qwer1234"
+ * @param {string} countryCode - 国家区号，默认使用环境配置中的区号
  * @returns {object[]} 账号信息列表
  */
-export function registerAccountsForTenant(tenantId, registerType = 'phone', count = 1, password = 'qwer1234') {
+export function registerAccountsForTenant(tenantId, registerType = 'phone', count = 1, password = 'qwer1234', countryCode = null) {
     console.log(`========================================`);
     console.log(`[注册服务] 开始为租户 ${tenantId} 注册 ${count} 个${registerType === 'phone' ? '手机号' : '邮箱'}账号`);
 
@@ -26,6 +27,10 @@ export function registerAccountsForTenant(tenantId, registerType = 'phone', coun
     if (!envConfig) {
         throw new Error(`租户 ${tenantId} 的配置不存在`);
     }
+
+    // 如果没有指定区号，使用环境配置中的区号
+    const finalCountryCode = countryCode || envConfig.COUNTRY_CODE || '91';
+    console.log(`[注册服务] 使用区号: ${finalCountryCode}`);
 
     console.log(`[注册服务] 使用环境配置:`, {
         adminUrl: envConfig.BASE_ADMIN_URL,
@@ -66,7 +71,7 @@ export function registerAccountsForTenant(tenantId, registerType = 'phone', coun
             let userName, accountType;
 
             if (registerType === 'phone') {
-                userName = generateRandomPhone();
+                userName = generateRandomPhone(finalCountryCode);
                 accountType = '手机号';
             } else {
                 userName = generateRandomEmail();
@@ -78,7 +83,7 @@ export function registerAccountsForTenant(tenantId, registerType = 'phone', coun
             // 执行注册
             let response;
             if (registerType === 'phone') {
-                response = phoneRegister(userName, data, password);
+                response = phoneRegister(userName, data, password, '', null, finalCountryCode);
             } else {
                 response = emailRegister(userName, data, password);
             }
@@ -90,6 +95,7 @@ export function registerAccountsForTenant(tenantId, registerType = 'phone', coun
                     platform: tenantId,
                     token: response.token,
                     type: registerType,
+                    countryCode: registerType === 'phone' ? finalCountryCode : null,
                     createdAt: new Date().toISOString()
                 };
 
@@ -117,10 +123,11 @@ export function registerAccountsForTenant(tenantId, registerType = 'phone', coun
  * 注册单个手机号账号
  * @param {string} tenantId - 租户ID
  * @param {string} password - 密码
+ * @param {string} countryCode - 国家区号，默认使用环境配置中的区号
  * @returns {object} 账号信息
  */
-export function registerPhoneAccount(tenantId, password = 'qwer1234') {
-    const accounts = registerAccountsForTenant(tenantId, 'phone', 1, password);
+export function registerPhoneAccount(tenantId, password = 'qwer1234', countryCode = null) {
+    const accounts = registerAccountsForTenant(tenantId, 'phone', 1, password, countryCode);
     return accounts.length > 0 ? accounts[0] : null;
 }
 

@@ -38,12 +38,13 @@ function generateRandomString(length) {
 
 /**
  * 生成随机手机号
- * 格式：91 + 月日 + 随机数
+ * 格式：区号 + 月日 + 随机数
  * 例如：91 + 0311 + 123456 = 910311123456 (12位)
  * 或：91 + 311 + 1234567 = 913111234567 (12位)
+ * @param {string} countryCode - 国家区号，默认为 '91'
  * @returns {string} 随机手机号
  */
-export function generateRandomPhone() {
+export function generateRandomPhone(countryCode = '91') {
     // 获取当前日期
     const now = new Date();
     const month = now.getMonth() + 1; // JavaScript 月份从 0 开始
@@ -73,8 +74,8 @@ export function generateRandomPhone() {
         randomNum += randInt(0, 9);
     }
 
-    // 合并：91 + 前缀 + 随机数
-    return '91' + prefix + randomNum;
+    // 合并：区号 + 前缀 + 随机数
+    return countryCode + prefix + randomNum;
 }
 
 /**
@@ -95,15 +96,16 @@ export function generateRandomEmail() {
 /**
  * 批量生成随机手机号（去重）
  * @param {number} count - 生成数量
+ * @param {string} countryCode - 国家区号，默认为 '91'
  * @returns {string[]} 手机号列表
  */
-export function generateRandomPhones(count) {
+export function generateRandomPhones(count, countryCode = '91') {
     const phones = new Set();
     const generated = new Map(); // 用于检测重复
     let collisionCount = 0;
 
     while (phones.size < count) {
-        const phone = generateRandomPhone();
+        const phone = generateRandomPhone(countryCode);
 
         // 检查重复
         if (generated.has(phone)) {

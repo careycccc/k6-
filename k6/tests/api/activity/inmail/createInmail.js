@@ -4,6 +4,7 @@ import { jumpType } from '../../common/type.js';
 import { queryCouponIds } from '../coupon/createCoupon.js';
 import { getUploadFileName } from '../../uploadFile/uploadInmail.js';
 import { sleep } from 'k6';
+import { getActiveLangs } from '../../../../config/languageConfig.js';
 
 export const createInmailTag = 'createInmail';
 
@@ -154,26 +155,12 @@ function createInmailMessages(data) {
             "jumpPage": id,
             "jumpButtonText": name,
             "targetType": 1,
-            "translations": [
-                {
-                    "language": "hi",
-                    "content": `<p><img data-src="${dataSrc}" src="${dataSrc}" data-image-id="img0" style="vertical-align: baseline;">${inmailName}</p>`,
-                    "title": inmailName,
-                    "thumbnail": imgSrc
-                },
-                {
-                    "language": "en",
-                    "content": `<p><img data-src="${dataSrc}" src="${dataSrc}" data-image-id="img1" style="vertical-align: baseline;">${inmailName}</p>`,
-                    "title": inmailName,
-                    "thumbnail": imgSrc
-                },
-                {
-                    "language": "zh",
-                    "content": `<p><img data-src="${dataSrc}" src="${dataSrc}" data-image-id="img0" style="vertical-align: baseline;">${inmailName}</p>`,
-                    "title": inmailName,
-                    "thumbnail": imgSrc
-                }
-            ],
+            "translations": getActiveLangs().map((lang, idx) => ({
+                "language": lang,
+                "content": `<p><img data-src="${dataSrc}" src="${dataSrc}" data-image-id="img${idx}" style="vertical-align: baseline;">${inmailName}</p>`,
+                "title": inmailName,
+                "thumbnail": imgSrc
+            })),
             "sendType": 1,
             "isHasReward": true,
             "rewardConfig": {

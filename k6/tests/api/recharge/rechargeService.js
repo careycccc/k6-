@@ -64,7 +64,12 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
         // 使用目标金额或在范围内随机
         const amount = Math.min(targetAmount, maxAmt);
 
-        console.log(`[FrontRecharge] 尝试通道 [${i + 1}/${categories.length}]: ${name}(${rechargeType}), 金额: ${amount}`);
+        console.log(`[FrontRecharge] ========================================`);
+        console.log(`[FrontRecharge] 尝试通道 [${i + 1}/${categories.length}]`);
+        console.log(`[FrontRecharge]   - 名称: ${name}`);
+        console.log(`[FrontRecharge]   - 类型: ${rechargeType}`);
+        console.log(`[FrontRecharge]   - 金额: ${amount}`);
+        console.log(`[FrontRecharge] ========================================`);
 
         const payload = {
             rechargeCategoryId: categoryId,
@@ -89,40 +94,86 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
         const msgCode = response.msgCode;
         const msg = response.msg || "";
 
-        console.log(`[FrontRecharge] 响应 => code: ${code}, msgCode: ${msgCode}`);
+        console.log(`[FrontRecharge] 充值响应详情:`);
+        console.log(`[FrontRecharge]   - code: ${code}`);
+        console.log(`[FrontRecharge]   - msgCode: ${msgCode}`);
+        console.log(`[FrontRecharge]   - msg: ${msg}`);
+        console.log(`[FrontRecharge]   - 完整响应: ${JSON.stringify(response)}`);
 
         // 充值成功的条件
         const isApiSuccess = (code === 0 || msg === "Sorry, The system is busy, please try again later! code: 10003");
 
+        console.log(`[FrontRecharge]   - 是否判定为成功: ${isApiSuccess}`);
+
         if (isApiSuccess) {
             console.log(`[FrontRecharge] ✅ 充值受理成功! 通道: ${name}, 金额: ${amount}`);
 
-            // 后台审核轮询
+            // 记录充值请求的时间戳作为基准
+            const rechargeRequestTime = Date.now();
+            console.log(`[FrontRecharge] 充值请求时间: ${new Date(rechargeRequestTime).toISOString()}`);
+
+            // 从响应中提取订单信息
+            const orderNo = response.data?.orderNo;
+            const orderCreateTime = response.data?.createTime;
+
+            console.log(`[FrontRecharge] 订单号: ${orderNo}, 订单创建时间: ${orderCreateTime}`);
+
+            // LocalEWallet 需要先提交凭证
+            if (rechargeType === 'LocalEWallet' && orderNo && orderCreateTime) {
+                console.log(`[FrontRecharge] LocalEWallet 充值，先提交凭证...`);
+                sleep(1); // 等待1秒确保订单已保存
+
+                const certResult = submitCertificate(userToken, orderNo, orderCreateTime, "", 2);
+                if (certResult && (certResult.code === 0 || certResult.msgCode === 0)) {
+                    console.log(`[FrontRecharge] ✅ 凭证提交成功`);
+                } else {
+                    console.warn(`[FrontRecharge] ⚠️ 凭证提交失败: ${JSON.stringify(certResult)}`);
+                    // 凭证提交失败，尝试下一个通道
+                    continue;
+                }
+            }
+
+            // 后台审核轮询（增加重试次数和等待时间）
             let auditSuccess = false;
 
-            for (let retry = 0; retry < 2; retry++) {
+            for (let retry = 0; retry < 5; retry++) {
                 if (retry > 0) {
                     console.log(`[FrontRecharge] 第${retry}次重试后台审核...`);
                 }
 
-                sleep(2);
+                sleep(3);
 
                 if (rechargeType === 'LocalEWallet') {
-                    // 查询本地订单
-                    const now = Date.now();
-                    const startTime = now - (60 * 60 * 1000);
-                    const endTime = now + (60 * 60 * 1000);
+                    // 查询本地订单（使用固定的时间基准）
+                    const queryTime = Date.now();
+                    const startTime = rechargeRequestTime - (1 * 60 * 1000);  // 充值请求前1分钟
+                    const endTime = queryTime + (1 * 60 * 1000);              // 当前查询时间后1分钟
+
+                    console.log(`[FrontRecharge] 查询订单时间范围: ${new Date(startTime).toISOString()} ~ ${new Date(endTime).toISOString()}`);
 
                     const orders = getLocalRechargeOrderPageList(adminToken, userId, startTime, endTime);
                     let targetOrder = null;
 
                     if (orders && orders.length > 0) {
+                        console.log(`[FrontRecharge] 查询到 ${orders.length} 个本地订单`);
+
+                        // 按创建时间倒序排序，优先匹配最新订单
+                        orders.sort((a, b) => b.createTime - a.createTime);
+
                         for (let order of orders) {
-                            if (order.amount === amount && order.rechargeState === 'Wait') {
+                            console.log(`[FrontRecharge]   订单: ${order.orderNo}, 金额: ${order.amount}, 状态: ${order.rechargeState}, 创建时间: ${new Date(order.createTime).toISOString()}`);
+
+                            // 匹配条件：金额相同 + 订单创建时间在充值请求之后 + 状态为 Wait
+                            if (order.amount === amount &&
+                                order.createTime >= rechargeRequestTime &&
+                                order.rechargeState === 'Wait') {
                                 targetOrder = order;
+                                console.log(`[FrontRecharge] ✅ 匹配到目标订单: ${order.orderNo}`);
                                 break;
                             }
                         }
+                    } else {
+                        console.warn(`[FrontRecharge] 第${retry + 1}次查询未找到任何本地订单`);
                     }
 
                     if (targetOrder) {
@@ -130,29 +181,37 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
                         const auditRes = manualAuditLocalRechargeOrder(adminToken, targetOrder.orderNo, userId, targetOrder.createTime, amount);
                         if (auditRes) {
                             auditSuccess = true;
-                            // 提交凭证，支持重试（第一次失败后会使用12位随机数字作为 transactionId）
-                            const certResult = submitCertificate(userToken, targetOrder.orderNo, targetOrder.createTime, "", 2);
-                            if (certResult && (certResult.code === 0 || certResult.msgCode === 0)) {
-                                console.log(`[FrontRecharge] ✅ 提交凭证成功`);
-                            } else {
-                                console.warn(`[FrontRecharge] ⚠️ 提交凭证失败，但审核已完成`);
-                            }
+                            console.log(`[FrontRecharge] ✅ 本地订单审核成功`);
                             break;
                         }
+                    } else {
+                        console.warn(`[FrontRecharge] 第${retry + 1}次查询未匹配到本地订单，订单数: ${orders ? orders.length : 0}`);
                     }
 
                 } else {
-                    // 查询三方订单
+                    // 查询三方订单（使用固定的时间基准）
                     const orders = getRechargeOrderPageList(adminToken, userId, "ThirdRecharge");
                     let targetOrder = null;
 
                     if (orders && orders.length > 0) {
+                        console.log(`[FrontRecharge] 查询到 ${orders.length} 个三方订单`);
+
+                        // 按创建时间倒序排序，优先匹配最新订单
+                        orders.sort((a, b) => b.createTime - a.createTime);
+
                         for (let order of orders) {
-                            if (order.amount === amount) {
+                            console.log(`[FrontRecharge]   订单: ${order.orderNo}, 金额: ${order.amount}, 创建时间: ${new Date(order.createTime).toISOString()}`);
+
+                            // 匹配条件：金额相同 + 订单创建时间在充值请求之后
+                            if (order.amount === amount &&
+                                order.createTime >= rechargeRequestTime) {
                                 targetOrder = order;
+                                console.log(`[FrontRecharge] ✅ 匹配到目标三方订单: ${order.orderNo}`);
                                 break;
                             }
                         }
+                    } else {
+                        console.warn(`[FrontRecharge] 第${retry + 1}次查询未找到任何三方订单`);
                     }
 
                     if (targetOrder) {
@@ -162,22 +221,24 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
                             auditSuccess = true;
                             break;
                         }
+                    } else {
+                        console.warn(`[FrontRecharge] 第${retry + 1}次查询未匹配到三方订单`);
                     }
                 }
             }
 
             if (auditSuccess) {
-                console.log(`[FrontRecharge] ✅ 前台充值完整流程成功，金额: ${amount}`);
+                console.log(`[FrontRecharge] ✅ 前台充值完整流程成功，金额: ${amount}, 通道: ${name}`);
                 return { success: true, amount: amount, method: 'frontend', message: `通道: ${name}` };
             } else {
-                console.warn(`[FrontRecharge] 后台审核失败，尝试下一个通道`);
+                console.warn(`[FrontRecharge] 后台审核失败（可能订单未生成或匹配失败），尝试下一个通道`);
                 continue;
             }
 
         } else if (msgCode === 10001) {
-            console.warn(`[FrontRecharge] 充值通道不存在，尝试下一个`);
+            console.warn(`[FrontRecharge] 充值通道不存在 (msgCode: 10001)，尝试下一个`);
         } else {
-            console.warn(`[FrontRecharge] 充值返回错误，尝试下一个`);
+            console.warn(`[FrontRecharge] 充值返回错误 (code: ${code}, msgCode: ${msgCode}, msg: ${msg})，尝试下一个`);
         }
     }
 

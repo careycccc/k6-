@@ -1,7 +1,8 @@
 import { sleep } from 'k6';
 import { logger } from '../../../../libs/utils/logger.js';
-import { sendRequest } from '../../common/request.js';
-import { getErrorMessage } from '../../uploadFile/uploadFactory.js';
+import { sendRequest, sendQueryRequest } from '../../common/request.js';
+import { createImageUploader, getErrorMessage } from '../../uploadFile/uploadFactory.js';
+import { getActiveLangs } from '../../../../config/languageConfig.js';
 import { queryCouponIds } from '../coupon/createCoupon.js';
 
 export const createGiftPackTag = 'createGiftPack';
@@ -158,6 +159,11 @@ function createGiftPackActivity(data, giftPackName, timestamp, couponId, pack) {
                     "description": `Top-up Betting Bundle ${timestamp}`
                 },
                 {
+                    "language": "es",
+                    "name": `Paquete de apuestas de recarga ${timestamp}`,
+                    "description": `Paquete de apuestas de recarga ${timestamp}`
+                },
+                {
                     "language": "zh",
                     "name": giftPackName,
                     "description": giftPackName
@@ -228,23 +234,11 @@ function createGiftPackActivity(data, giftPackName, timestamp, couponId, pack) {
         const basePayload = {
             "giftPackType": 1,
             "giftPackName": giftPackName,
-            "translations": [
-                {
-                    "language": "hi",
-                    "name": giftPackName,
-                    "description": giftPackName
-                },
-                {
-                    "language": "en",
-                    "name": giftPackName,
-                    "description": giftPackName
-                },
-                {
-                    "language": "zh",
-                    "name": giftPackName,
-                    "description": giftPackName
-                }
-            ],
+            "translations": getActiveLangs().map(lang => ({
+                "language": lang,
+                "name": giftPackName,
+                "description": giftPackName
+            })),
             "state": 1,
             "validType": 0,
             "deliveryMethod": 0,

@@ -209,7 +209,8 @@ export function bundEarn(data) {
     } else {
         console.log(`\n🔄 正在执行解绑...`);
         unbindSubAccounts(data);
-        sleep(2);
+        console.log(`\n⏳ 等待5秒，确保解绑操作完成...`);
+        sleep(5);
     }
 
     // 4. 执行绑定

@@ -2,6 +2,7 @@ import { sleep } from 'k6';
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest, sendQueryRequest } from '../../common/request.js';
 import { createImageUploader, handleImageUpload, getErrorMessage } from '../../uploadFile/uploadFactory.js';
+import { getActiveLangs } from '../../../../config/languageConfig.js';
 
 export const createCustomizePopupTag = 'createCustomizePopup';
 

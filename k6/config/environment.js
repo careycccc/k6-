@@ -24,9 +24,11 @@ export function getEnvironment() {
  */
 export function getApiUrl(endpoint, isDesk = true) {
   let baseUrl = '';
-  const tenantIdStr = __ENV.TENANT_ID || ENV_CONFIG.TENANTID;
+
+  // 优先使用 TENANT 环境变量，其次使用 TENANT_ID，最后使用默认配置
+  const tenantIdStr = __ENV.TENANT || __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID);
   const currentEnv = getEnvByTenantId(tenantIdStr);
-  
+
   if (isDesk) {
     baseUrl = currentEnv.BASE_DESK_URL || config.local.API_BASE_URL;
   } else {

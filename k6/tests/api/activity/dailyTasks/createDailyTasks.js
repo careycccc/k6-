@@ -1,6 +1,7 @@
 import { sleep } from 'k6';
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest, sendQueryRequest } from '../../common/request.js';
+import { getActiveLangs } from '../../../../config/languageConfig.js';
 import { createImageUploader, handleImageUpload, getErrorMessage } from '../../uploadFile/uploadFactory.js';
 import { handleMultipleConfigs, ConfigType } from '../common/activityConfigHandler.js';
 
@@ -490,6 +491,10 @@ function createDailyTasksActivity(data, taskConfig) {
             {
                 "language": "en",
                 "name": taskConfig.name
+            },
+            {
+                "language": "es",
+                "name": ""
             },
             {
                 "language": "zh",

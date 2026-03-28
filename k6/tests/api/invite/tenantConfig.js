@@ -1,8 +1,14 @@
 /**
  * 多租户邀请测试配置
- * 
- * 此文件定义了不同租户的邀请测试配置
- * AI可以通过读取此文件识别可用的租户和配置
+ *
+ * 此文件定义了不同租户的邀请测试配置。
+ *
+ * ⚠️  地址说明（重要，请勿混淆）：
+ *   - frontUrl / adminUrl  → 前台/后台地址（普通注册、总代注册、登录等）
+ *   - 邀请注册专用地址      → 统一在 envconfig.js 的 INVITE_REGISTER_URL 字段管理
+ *                            （发验证码和提交注册都走该地址，与前台不同域）
+ *
+ * AI可以通过读取此文件识别可用的租户和配置。
  */
 
 /**
@@ -14,7 +20,9 @@
  * @property {number[]} defaultLevels - 默认层级配置 [第1层人数, 第2层人数, ...]
  * @property {string} description - 租户描述
  * @property {boolean} enabled - 是否启用
- * @property {string} registerApiUrl - 注册API的完整URL（可选，如果不同于默认前台域名）
+ * @property {string} [frontUrl] - 前台地址（普通注册/总代注册）
+ * @property {string} [adminUrl] - 管理后台地址
+ * NOTE: 邀请注册地址不在此处配置，请见 envconfig.js 的 INVITE_REGISTER_URL
  */
 
 /**
@@ -28,11 +36,11 @@ export const TENANT_CONFIGS = {
         defaultLevels: [2, 2],
         description: '租户3001的邀请测试配置',
         enabled: true,
-        frontUrl: 'https://arplatsaassit1.club',
-        registerApiUrl: 'https://arplatsaassit1.club',
-        adminUrl: 'https://ar666999.club',
+        frontUrl: 'https://arplatsaassit1.club',   // 前台地址（普通注册）
+        adminUrl: 'https://ar666999.club',          // 管理后台地址
         adminUsername: 'carey3001',
         adminPassword: 'qwer1234'
+        // 邀请注册地址见 envconfig.js ENV_3001.INVITE_REGISTER_URL
     },
     '3002': {
         tenantId: '3002',
@@ -41,24 +49,24 @@ export const TENANT_CONFIGS = {
         defaultLevels: [2, 2],
         description: '租户3002的邀请测试配置',
         enabled: true,
-        frontUrl: 'https://arplatsaassit2.club',
-        registerApiUrl: 'https://arplatsaassit2.club',
-        adminUrl: 'https://arsitasdfghjklg.com',
+        frontUrl: 'https://arplatsaassit2.club',   // 前台地址（普通注册）
+        adminUrl: 'https://arsitasdfghjklg.com',    // 管理后台地址
         adminUsername: 'carey3002',
         adminPassword: 'qwer1234'
+        // 邀请注册地址见 envconfig.js ENV_3002.INVITE_REGISTER_URL
     },
     '3003': {
         tenantId: '3003',
         name: '租户3003',
-        rootInviteCode: '',  // ⚠️ 需要提供3003的总代邀请码
+        rootInviteCode: 'QRVJ5RN',
         defaultLevels: [2, 2],
         description: '租户3003的邀请测试配置',
         enabled: true,
-        frontUrl: 'https://arplatsaassit3.club',
-        registerApiUrl: 'https://arplatsaassit3.club',
-        adminUrl: 'https://arsitasdfghj.com',
+        frontUrl: 'https://arplatsaassit3.club',   // 前台地址（普通注册）
+        adminUrl: 'https://arsitasdfghj.com',       // 管理后台地址
         adminUsername: 'carey3003',
         adminPassword: 'qwer1234'
+        // 邀请注册地址见 envconfig.js ENV_3003.INVITE_REGISTER_URL
     },
     '3004': {
         tenantId: '3004',
@@ -67,7 +75,9 @@ export const TENANT_CONFIGS = {
         defaultLevels: [2, 2],
         description: '租户3004的邀请测试配置（默认）',
         enabled: true,
-        registerApiUrl: null  // 使用默认前台域名
+        frontUrl: 'https://arplatsaassit4.club',   // 前台地址（普通注册）
+        adminUrl: 'https://arsitasdfghjklusa.com'   // 管理后台地址
+        // 邀请注册地址见 envconfig.js ENV_3004.INVITE_REGISTER_URL = https://register.arplatsaassit4.club
     },
     // 可以继续添加更多租户
 };

@@ -4,7 +4,7 @@
 export const signatureConfig = {
   // 默认签名配置
   default: {
-    verifyPwd: process.env.SIGNATURE_SECRET || 'default_secret',
+    verifyPwd: __ENV.SIGNATURE_SECRET || 'default_secret',
     includeTimestamp: true,
     timestampField: 'timestamp',
     signatureField: 'signature',
@@ -15,31 +15,31 @@ export const signatureConfig = {
   // 不同环境的签名配置
   environments: {
     local: {
-      verifyPwd: process.env.LOCAL_SIGNATURE_SECRET || 'local_secret'
+      verifyPwd: __ENV.LOCAL_SIGNATURE_SECRET || 'local_secret'
     },
     dev: {
-      verifyPwd: process.env.DEV_SIGNATURE_SECRET || 'dev_secret'
+      verifyPwd: __ENV.DEV_SIGNATURE_SECRET || 'dev_secret'
     },
     staging: {
-      verifyPwd: process.env.STAGING_SIGNATURE_SECRET || 'staging_secret'
+      verifyPwd: __ENV.STAGING_SIGNATURE_SECRET || 'staging_secret'
     },
     production: {
-      verifyPwd: process.env.PRODUCTION_SIGNATURE_SECRET || 'production_secret'
+      verifyPwd: __ENV.PRODUCTION_SIGNATURE_SECRET || 'production_secret'
     }
   },
 
   // API 特定的签名配置
   apis: {
     user: {
-      verifyPwd: process.env.USER_API_SECRET || 'user_secret',
+      verifyPwd: __ENV.USER_API_SECRET || 'user_secret',
       timestampField: 'requestTime'
     },
     payment: {
-      verifyPwd: process.env.PAYMENT_API_SECRET || 'payment_secret',
+      verifyPwd: __ENV.PAYMENT_API_SECRET || 'payment_secret',
       includeTimestamp: false
     },
     order: {
-      verifyPwd: process.env.ORDER_API_SECRET || 'order_secret'
+      verifyPwd: __ENV.ORDER_API_SECRET || 'order_secret'
     }
   }
 };

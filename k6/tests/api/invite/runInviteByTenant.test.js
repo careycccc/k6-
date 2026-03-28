@@ -4,10 +4,10 @@
  * 
  * 使用方法：
  * 1. 通过环境变量指定租户：
- *    k6 run -e TENANT_ID=3002 -e ROOT_INVITE_CODE=GC5ZDQN -e LEVELS=4,5,3,5,4 k6/tests/api/invite/runInviteByTenant.test.js
+ *    k6 run -e TENANT_ID=3003 -e ROOT_INVITE_CODE=TQNA5XN -e LEVELS=4,5,3,5,4 k6/tests/api/invite/runInviteByTenant.test.js
  * 
  * 2. 或者在 tenantConfig.js 中配置租户信息后直接运行：
- *    k6 run -e TENANT_ID=3002 k6/tests/api/invite/runInviteByTenant.test.js
+ *    k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=BJLZFXN -e LEVELS=2,3,2 runInviteByTenant.test.js
  * 
  * 3. 不指定租户ID时使用默认租户3004：
  *    k6 run k6/tests/api/invite/runInviteByTenant.test.js
