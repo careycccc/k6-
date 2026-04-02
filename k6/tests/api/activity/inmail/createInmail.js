@@ -127,6 +127,9 @@ function createInmailMessages(data) {
         }
     };
 
+    logger.info(`[${createInmailTag}] 当前激活的语言: ${getActiveLangs().join(', ')}`);
+    logger.info(`[${createInmailTag}] 将为每种语言创建站内信翻译`);
+
     // 根据 jumpType 生成站内信列表
     jumpType.forEach(({ id, name }) => {
         inmailList.push([

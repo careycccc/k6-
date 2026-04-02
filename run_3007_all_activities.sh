@@ -22,7 +22,7 @@
 cd "$(dirname "$0")/k6" || exit 1
 
 # 默认创建所有活动
-DEFAULT_ACTIVITIES="coupon,signin,redRain,champion,luckyDoubleBonus,giftCodes,megaJackpot,activityGuide,banner,codeWashing,customizePopup,dailyTasks,giftPack,inmail,inviteTurntable,loginPopup,newagent,newagentRank,order,ranking,rechargeGiftPack,rechargeWheel,rescue,tag,weekCard,withdrawalTimeout,systemActive"
+DEFAULT_ACTIVITIES="dailyTasks"
 
 # 如果提供了参数，使用参数作为活动列表
 ACTIVITIES="${1:-$DEFAULT_ACTIVITIES}"

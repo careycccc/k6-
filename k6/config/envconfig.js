@@ -19,7 +19,7 @@
 export const ENV_3001 = {
     BASE_ADMIN_URL: "https://ar666999.club",          // 管理后台地址
     BASE_DESK_URL: "https://arplatsaassit1.club",     // 前台地址（普通注册/总代注册）
-    INVITE_REGISTER_URL: "",                          // ⚠️ 邀请注册地址（待补充）
+    INVITE_REGISTER_URL: "https://register.arplatsaassit1.club",                          // ⚠️ 邀请注册地址（待补充）
     PAGESIZE: 200,
     PAGENO: 1,
     ADMIN_USERNAME: "carey3001",
