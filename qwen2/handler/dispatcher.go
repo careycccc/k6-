@@ -8,9 +8,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"smart-qa/ai"
 	"smart-qa/model"
 	"smart-qa/service"
+	"smart-qa/tenant_ai"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +31,7 @@ var globalSession *SessionState
 // Dispatcher 意图调度器
 type Dispatcher struct {
 	engine                   *ai.Engine
+	tenantEngine             *tenant_ai.Engine
 	accountService           *service.AccountService
 	activityValidationService *service.ActivityValidationService
 }
@@ -37,6 +40,7 @@ type Dispatcher struct {
 func NewDispatcher() *Dispatcher {
 	return &Dispatcher{
 		engine:                    ai.NewEngine(),
+		tenantEngine:              tenant_ai.NewEngine(),
 		accountService:            service.NewAccountService(),
 		activityValidationService: service.NewActivityValidationService(),
 	}
@@ -57,7 +61,14 @@ func (d *Dispatcher) HandleMessage(userMessage string) *model.ChatResponse {
 	// ====== 检查是否处于会话上下文中 ======
 	if globalSession != nil && globalSession.PendingIntent == "create_activity" {
 		platform := strings.TrimSpace(userMessage)
-		validPlatforms := map[string]bool{"3001": true, "3002": true, "3003": true, "3004": true}
+		validPlatforms := map[string]bool{
+			"3001": true, 
+			"3002": true, 
+			"3003": true, 
+			"3004": true,
+			"3006": true,
+			"3007": true,
+		}
 		matchedPlatform := ""
 		for p := range validPlatforms {
 			if strings.Contains(platform, p) {
@@ -81,19 +92,32 @@ func (d *Dispatcher) HandleMessage(userMessage string) *model.ChatResponse {
 			if globalSession.RetryCount >= 3 {
 				globalSession = nil
 				return &model.ChatResponse{
-					Reply:        "您已连续 3 次未提供有效的租户编号(3001/3002/3003/3004)，本次会话结束。如果需要创建活动，请重新告诉我。",
+					Reply:        "您已连续 3 次未提供有效的租户编号(3001/3002/3003/3004/3006/3007)，本次会话结束。如果需要创建活动，请重新告诉我。",
 					ResponseTime: time.Since(start).Milliseconds(),
 				}
 			}
 			return &model.ChatResponse{
-				Reply:        fmt.Sprintf("❌ 平台编号无效，请使用 3001/3002/3003/3004。\n(剩余重试次数: %d)", 3-globalSession.RetryCount),
+				Reply:        fmt.Sprintf("❌ 平台编号无效，请使用 3001/3002/3003/3004/3006/3007。\n(剩余重试次数: %d)", 3-globalSession.RetryCount),
 				ResponseTime: time.Since(start).Milliseconds(),
 			}
 		}
 	}
 
 	// ===== 第1步：AI 意图识别 =====
-	parseResult, err := d.engine.Parse(userMessage)
+	// 检查消息中是否包含3006或3007平台编号
+	isTenantPlatform := containsTenantPlatform(userMessage)
+	
+	var parseResult *model.ParseResult
+	var err error
+	
+	if isTenantPlatform {
+		log.Printf("[调度] 检测到租户平台(3006/3007)，使用租户AI引擎")
+		parseResult, err = d.tenantEngine.Parse(userMessage)
+	} else {
+		log.Printf("[调度] 使用标准AI引擎")
+		parseResult, err = d.engine.Parse(userMessage)
+	}
+	
 	if err != nil {
 		log.Printf("[调度] AI解析失败: %v", err)
 		return &model.ChatResponse{
@@ -168,9 +192,16 @@ func (d *Dispatcher) handleGetAccount(params map[string]string) string {
 	}
 
 	// 验证平台编号是否有效
-	validPlatforms := map[string]bool{"3001": true, "3002": true, "3003": true, "3004": true}
+	validPlatforms := map[string]bool{
+		"3001": true, 
+		"3002": true, 
+		"3003": true, 
+		"3004": true,
+		"3006": true,
+		"3007": true,
+	}
 	if !validPlatforms[platform] {
-		return fmt.Sprintf("❌ 平台编号 %s 无效，请使用 3001/3002/3003/3004", platform)
+		return fmt.Sprintf("❌ 平台编号 %s 无效，请使用 3001/3002/3003/3004/3006/3007", platform)
 	}
 
 	// 解析数量
@@ -313,6 +344,8 @@ func (d *Dispatcher) handleAskPlatform() string {
   • 3002 平台  
   • 3003 平台
   • 3004 平台
+  • 3006 平台
+  • 3007 平台
 
 例如：给我一个3002的账号`
 }
@@ -341,9 +374,16 @@ func (d *Dispatcher) handleRecharge(params map[string]string) string {
 		return "请提供平台编号。\n例如：给3004的1234@qq.com充值500，或者：3003账号充值"
 	}
 
-	validPlatforms := map[string]bool{"3001": true, "3002": true, "3003": true, "3004": true}
+	validPlatforms := map[string]bool{
+		"3001": true, 
+		"3002": true, 
+		"3003": true, 
+		"3004": true,
+		"3006": true,
+		"3007": true,
+	}
 	if !validPlatforms[platform] {
-		return fmt.Sprintf("❌ 平台编号 %s 无效，请使用 3001/3002/3003/3004", platform)
+		return fmt.Sprintf("❌ 平台编号 %s 无效，请使用 3001/3002/3003/3004/3006/3007", platform)
 	}
 
 	// 如果金额是"未知"或为空，使用随机金额
@@ -427,6 +467,8 @@ func (d *Dispatcher) handleRecharge(params map[string]string) string {
 			"3002": "https://arplatsaassit2.club",
 			"3003": "https://arplatsaassit3.club",
 			"3004": "https://arplatsaassit4.club",
+			"3006": "https://3006.arplatsaassit4.club",
+			"3007": "https://3007.arplatsaassit4.club",
 		}
 		frontUrl := frontUrls[platform]
 
@@ -503,6 +545,8 @@ func (d *Dispatcher) handleRecharge(params map[string]string) string {
 		"3002": "https://arplatsaassit2.club",
 		"3003": "https://arplatsaassit3.club",
 		"3004": "https://arplatsaassit4.club",
+		"3006": "https://3006.arplatsaassit4.club",
+		"3007": "https://3007.arplatsaassit4.club",
 	}
 	if url, ok := frontUrls[platform]; ok {
 		reply += fmt.Sprintf("\n🌐 前台地址: %s", url)
@@ -535,9 +579,16 @@ func (d *Dispatcher) handleValidateActivity(params map[string]string) string {
 		return "请告诉我你要验证哪个平台的活动？\n例如：3004充值转盘验证"
 	}
 
-	validPlatforms := map[string]bool{"3001": true, "3002": true, "3003": true, "3004": true}
+	validPlatforms := map[string]bool{
+		"3001": true, 
+		"3002": true, 
+		"3003": true, 
+		"3004": true,
+		"3006": true,
+		"3007": true,
+	}
 	if !validPlatforms[platform] {
-		return fmt.Sprintf("❌ 平台编号 %s 无效，请使用 3001/3002/3003/3004", platform)
+		return fmt.Sprintf("❌ 平台编号 %s 无效，请使用 3001/3002/3003/3004/3006/3007", platform)
 	}
 
 	// 验证活动名称
@@ -601,6 +652,13 @@ func truncate(s string, maxLen int) string {
 		return string(runes[:maxLen]) + "..."
 	}
 	return s
+}
+
+// containsTenantPlatform 检查消息中是否包含租户平台编号(3006/3007)
+func containsTenantPlatform(message string) bool {
+	// 使用正则表达式匹配3006或3007
+	re := regexp.MustCompile(`\b300[67]\b`)
+	return re.MatchString(message)
 }
 
 // parseRechargeSummary 解析 k6 输出中的充值结果
@@ -693,12 +751,19 @@ func (d *Dispatcher) handleCreateActivity(params map[string]string) string {
 			PendingParams: params,
 			RetryCount:    0,
 		}
-		return fmt.Sprintf("请告诉我你要在哪个租户(3001、3002、3003、3004)创建【%s】活动？\n例如回答: 在3001平台", activitiesStr)
+		return fmt.Sprintf("请告诉我你要在哪个租户(3001、3002、3003、3004、3006、3007)创建【%s】活动？\n例如回答: 在3001平台", activitiesStr)
 	}
 
-	validPlatforms := map[string]bool{"3001": true, "3002": true, "3003": true, "3004": true}
+	validPlatforms := map[string]bool{
+		"3001": true, 
+		"3002": true, 
+		"3003": true, 
+		"3004": true,
+		"3006": true,
+		"3007": true,
+	}
 	if !validPlatforms[platform] {
-		return fmt.Sprintf("❌ 平台编号 %s 无效，请使用 3001/3002/3003/3004", platform)
+		return fmt.Sprintf("❌ 平台编号 %s 无效，请使用 3001/3002/3003/3004/3006/3007", platform)
 	}
 
 	if activitiesStr == "" {

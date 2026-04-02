@@ -17,18 +17,6 @@ export const createRescue2Tag = 'createRescue2';
 const uploadRescueImage = createImageUploader('../../uploadFile/img/rescue/1.png', 'rescue');
 const uploadRescueImage2 = createImageUploader('../../uploadFile/img/rescue/2.png', 'rescue2');
 
-// 预加载规则描述图片（多语言）- 第一个活动
-const uploadRescueRuleHi = createImageUploader('../../uploadFile/img/rescue/rule_hi.png', 'rescue_rule_hi');
-const uploadRescueRuleEn = createImageUploader('../../uploadFile/img/rescue/rule_en.png', 'rescue_rule_en');
-const uploadRescueRuleEs = createImageUploader('../../uploadFile/img/rescue/rule_es.png', 'rescue_rule_es');
-const uploadRescueRuleZh = createImageUploader('../../uploadFile/img/rescue/rule_zh.png', 'rescue_rule_zh');
-
-// 预加载规则描述图片（多语言）- 第二个活动
-const uploadRescue2RuleHi = createImageUploader('../../uploadFile/img/rescue/rule2_hi.png', 'rescue2_rule_hi');
-const uploadRescue2RuleEn = createImageUploader('../../uploadFile/img/rescue/rule2_en.png', 'rescue2_rule_en');
-const uploadRescue2RuleEs = createImageUploader('../../uploadFile/img/rescue/rule2_es.png', 'rescue2_rule_es');
-const uploadRescue2RuleZh = createImageUploader('../../uploadFile/img/rescue/rule2_zh.png', 'rescue2_rule_zh');
-
 /**
  * 创建亏损救援金活动（自动创建两个活动）
  * @param {*} data 
@@ -173,27 +161,6 @@ function createRescueActivity1(data) {
         const imageUrl = imageUploadResult.imagePath;
         logger.info(`[${tag}] 活动封面图片路径: ${imageUrl}`);
 
-        // 上传规则描述图片（多语言）
-        const ruleImageHi = handleImageUpload(data, 'rescueRuleImageHi', uploadRescueRuleHi, tag);
-        const ruleImageEn = handleImageUpload(data, 'rescueRuleImageEn', uploadRescueRuleEn, tag);
-        const ruleImageEs = handleImageUpload(data, 'rescueRuleImageEs', uploadRescueRuleEs, tag);
-        const ruleImageZh = handleImageUpload(data, 'rescueRuleImageZh', uploadRescueRuleZh, tag);
-
-        if (!ruleImageHi.success || !ruleImageEn.success || !ruleImageEs.success || !ruleImageZh.success) {
-            return {
-                success: false,
-                tag: tag,
-                message: '规则描述图片上传失败'
-            };
-        }
-
-        // 获取完整的图片URL（用于规则描述）
-        const baseUrl = 'https://sit.arsaassit-pub.club';
-        const ruleImageHiUrl = `${baseUrl}/${ruleImageHi.imagePath}`;
-        const ruleImageEnUrl = `${baseUrl}/${ruleImageEn.imagePath}`;
-        const ruleImageEsUrl = `${baseUrl}/${ruleImageEs.imagePath}`;
-        const ruleImageZhUrl = `${baseUrl}/${ruleImageZh.imagePath}`;
-
         // 第二步：计算活动时间
         const startTime = calculateStartTime();
         const endTime = calculateEndTime(startTime);
@@ -273,29 +240,41 @@ function createRescueActivity1(data) {
                     ]
                 }
             ],
-            "translations": [
-                {
-                    "language": "hi",
-                    "name": "हानि राहत कोष - आनुपातिक वापसी",
-                    "ruleDescription": `<p><img data-src="${ruleImageHiUrl}" src="${ruleImageHiUrl}" data-image-id="img0" style="vertical-align: baseline;"></p>`
-                },
-                {
-                    "language": "en",
-                    "name": "Loss Relief Fund - Proportional Refund",
-                    "ruleDescription": `<p><img data-src="${ruleImageEnUrl}" src="${ruleImageEnUrl}" data-image-id="img1" style="vertical-align: baseline;"></p>`
-                },
-                {
-                    "language": "es",
-                    "name": "Fondo de Alivio de Pérdidas - Reembolso Proporcional",
-                    "ruleDescription": `<p><img data-src="${ruleImageEsUrl}" src="${ruleImageEsUrl}" data-image-id="img2" style="vertical-align: baseline;"></p>`
-                },
-                {
-                    "language": "zh",
-                    "name": "亏损救援金-按比例返还",
-                    "ruleDescription": `<p><img data-src="${ruleImageZhUrl}" src="${ruleImageZhUrl}" data-image-id="img3" style="vertical-align: baseline;"></p>`
-                }
-            ],
-            "random": Math.floor(Math.random() * 1000000000000),
+            "translations": getActiveLangs().map(lang => {
+                // 语言映射
+                const langMap = {
+                    'hi': {
+                        name: "हानि राहत कोष - आनुपातिक वापसी",
+                        ruleDescription: "गतिविधि नियम विवरण"
+                    },
+                    'en': {
+                        name: "Loss Relief Fund - Proportional Refund",
+                        ruleDescription: "Activity rule description"
+                    },
+                    'zh': {
+                        name: "亏损救援金-按比例返还",
+                        ruleDescription: "活动规则说明"
+                    },
+                    'bn': {
+                        name: "ক্ষতি ত্রাণ তহবিল - আনুপাতিক ফেরত",
+                        ruleDescription: "কার্যকলাপ নিয়ম বিবরণ"
+                    },
+                    'ur': {
+                        name: "نقصان کی امدادی فنڈ - متناسب واپسی",
+                        ruleDescription: "سرگرمی کے قوانین کی تفصیل"
+                    }
+                };
+
+                // 如果语言不支持，使用英语
+                const langData = langMap[lang] || langMap['en'];
+
+                return {
+                    "language": lang,
+                    "name": langData.name,
+                    "ruleDescription": langData.ruleDescription
+                };
+            }),
+            "random": Math.floor(Math.random() * 900000000000) + 100000000000,
             "language": "zh"
         };
 
@@ -391,27 +370,6 @@ export function createRescue2(data) {
         const imageUrl = imageUploadResult.imagePath;
         logger.info(`[${createRescue2Tag}] 活动封面图片路径: ${imageUrl}`);
 
-        // 上传规则描述图片（多语言）
-        const ruleImageHi = handleImageUpload(data, 'rescue2RuleImageHi', uploadRescue2RuleHi, createRescue2Tag);
-        const ruleImageEn = handleImageUpload(data, 'rescue2RuleImageEn', uploadRescue2RuleEn, createRescue2Tag);
-        const ruleImageEs = handleImageUpload(data, 'rescue2RuleImageEs', uploadRescue2RuleEs, createRescue2Tag);
-        const ruleImageZh = handleImageUpload(data, 'rescue2RuleImageZh', uploadRescue2RuleZh, createRescue2Tag);
-
-        if (!ruleImageHi.success || !ruleImageEn.success || !ruleImageEs.success || !ruleImageZh.success) {
-            return {
-                success: false,
-                tag: createRescue2Tag,
-                message: '规则描述图片上传失败'
-            };
-        }
-
-        // 获取完整的图片URL（用于规则描述）
-        const baseUrl = 'https://sit.arsaassit-pub.club';
-        const ruleImageHiUrl = `${baseUrl}/${ruleImageHi.imagePath}`;
-        const ruleImageEnUrl = `${baseUrl}/${ruleImageEn.imagePath}`;
-        const ruleImageEsUrl = `${baseUrl}/${ruleImageEs.imagePath}`;
-        const ruleImageZhUrl = `${baseUrl}/${ruleImageZh.imagePath}`;
-
         // 第二步：计算活动时间
         const startTime = calculateStartTime();
         const endTime = new Date(startTime);
@@ -481,29 +439,41 @@ export function createRescue2(data) {
                     ]
                 }
             ],
-            "translations": [
-                {
-                    "language": "hi",
-                    "name": "हानि वसूली कोष - आनुपातिक आधार पर प्रतिपूर्ति",
-                    "ruleDescription": `<p><img data-src="${ruleImageHiUrl}" src="${ruleImageHiUrl}" data-image-id="img4" style="vertical-align: baseline;"></p>`
-                },
-                {
-                    "language": "en",
-                    "name": "Loss Recovery Fund - Refunded on a Pro Rata Basis",
-                    "ruleDescription": `<p><img data-src="${ruleImageEnUrl}" src="${ruleImageEnUrl}" data-image-id="img5" style="vertical-align: baseline;"></p>`
-                },
-                {
-                    "language": "es",
-                    "name": "Fondo de Recuperación de Pérdidas - Reembolso Prorrateado",
-                    "ruleDescription": `<p><img data-src="${ruleImageEsUrl}" src="${ruleImageEsUrl}" data-image-id="img6" style="vertical-align: baseline;"></p>`
-                },
-                {
-                    "language": "zh",
-                    "name": "亏损救援金-按金额返还",
-                    "ruleDescription": `<p><img data-src="${ruleImageZhUrl}" src="${ruleImageZhUrl}" data-image-id="img7" style="vertical-align: baseline;"></p>`
-                }
-            ],
-            "random": Math.floor(Math.random() * 1000000000000),
+            "translations": getActiveLangs().map(lang => {
+                // 语言映射
+                const langMap = {
+                    'hi': {
+                        name: "हानि वसूली कोष - आनुपातिक आधार पर प्रतिपूर्ति",
+                        ruleDescription: "गतिविधि नियम विवरण"
+                    },
+                    'en': {
+                        name: "Loss Recovery Fund - Refunded on a Pro Rata Basis",
+                        ruleDescription: "Activity rule description"
+                    },
+                    'zh': {
+                        name: "亏损救援金-按金额返还",
+                        ruleDescription: "活动规则说明"
+                    },
+                    'bn': {
+                        name: "ক্ষতি পুনরুদ্ধার তহবিল - আনুপাতিক ভিত্তিতে ফেরত",
+                        ruleDescription: "কার্যকলাপ নিয়ম বিবরণ"
+                    },
+                    'ur': {
+                        name: "نقصان کی بحالی فنڈ - تناسب کی بنیاد پر واپسی",
+                        ruleDescription: "سرگرمی کے قوانین کی تفصیل"
+                    }
+                };
+
+                // 如果语言不支持，使用英语
+                const langData = langMap[lang] || langMap['en'];
+
+                return {
+                    "language": lang,
+                    "name": langData.name,
+                    "ruleDescription": langData.ruleDescription
+                };
+            }),
+            "random": Math.floor(Math.random() * 900000000000) + 100000000000,
             "language": "zh"
         };
 

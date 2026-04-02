@@ -221,8 +221,22 @@ function checkAndConfigureDailyTasksSettings(data) {
             settings = {
                 isOpenDailyWeeklyTask: settingsResult
             };
+        } else if (settingsResult.settingKey === null && settingsResult.value1 === null) {
+            // 配置未初始化（所有字段为null），创建默认配置
+            logger.warn(`[${createDailyTasksTag}] ⚠️ 配置未初始化，将创建默认配置`);
+            logger.info(`[${createDailyTasksTag}] 这是正常情况，说明3007租户是首次创建每日任务`);
+            settings = {
+                isOpenDailyWeeklyTask: {
+                    settingKey: "IsOpenDailyWeeklyTask",
+                    settingName: "每日每周任务开关",
+                    value1: "0",  // 默认关闭
+                    value2: ""
+                }
+            };
+            logger.info(`[${createDailyTasksTag}] 已创建默认配置: ${JSON.stringify(settings)}`);
         } else {
             logger.error(`[${createDailyTasksTag}] 无法识别的响应格式`);
+            logger.error(`[${createDailyTasksTag}] settingKey: ${settingsResult.settingKey}, value1: ${settingsResult.value1}`);
             return {
                 success: false,
                 message: '无法识别的响应格式'
@@ -483,24 +497,89 @@ function createDailyTasksActivity(data, taskConfig) {
         "codingMultiple": taskConfig.codingMultiple,
         "experienceScore": taskConfig.experienceScore,
         "state": 1,
-        "translations": [
-            {
-                "language": "hi",
-                "name": ""
-            },
-            {
-                "language": "en",
-                "name": taskConfig.name
-            },
-            {
-                "language": "es",
-                "name": ""
-            },
-            {
-                "language": "zh",
-                "name": ""
+        "translations": getActiveLangs().map(lang => {
+            // 为每种语言提供任务名称
+            let taskName = "";
+
+            if (lang === 'zh') {
+                // 中文名称
+                if (taskConfig.name.includes('每日+充值投注任务')) {
+                    taskName = taskConfig.name; // 保持原中文名
+                } else if (taskConfig.name.includes('每周+邀请任务')) {
+                    taskName = taskConfig.name; // 保持原中文名
+                } else {
+                    taskName = taskConfig.name; // 其他情况保持原名
+                }
+            } else if (lang === 'en') {
+                // 英语名称
+                if (taskConfig.name.includes('每日+充值投注任务')) {
+                    taskName = `Daily+Recharge Bet Task_${taskConfig.name.split('_')[1] || ''}`;
+                } else if (taskConfig.name.includes('每周+邀请任务')) {
+                    taskName = `Weekly+Invite Task_${taskConfig.name.split('_')[1] || ''}`;
+                } else {
+                    taskName = taskConfig.name;
+                }
+            } else if (lang === 'bn') {
+                // 孟加拉语名称
+                if (taskConfig.name.includes('每日+充值投注任务')) {
+                    taskName = `দৈনিক+রিচার্জ বাজি কাজ_${taskConfig.name.split('_')[1] || ''}`;
+                } else if (taskConfig.name.includes('每周+邀请任务')) {
+                    taskName = `সাপ্তাহিক+আমন্ত্রণ কাজ_${taskConfig.name.split('_')[1] || ''}`;
+                } else {
+                    taskName = taskConfig.name;
+                }
+            } else if (lang === 'ur') {
+                // 乌尔都语名称
+                if (taskConfig.name.includes('每日+充值投注任务')) {
+                    taskName = `روزانہ+ری چارج شرط کام_${taskConfig.name.split('_')[1] || ''}`;
+                } else if (taskConfig.name.includes('每周+邀请任务')) {
+                    taskName = `ہفتہ وار+دعوت کام_${taskConfig.name.split('_')[1] || ''}`;
+                } else {
+                    taskName = taskConfig.name;
+                }
+            } else if (lang === 'hi') {
+                // 印地语名称
+                if (taskConfig.name.includes('每日+充值投注任务')) {
+                    taskName = `दैनिक+रिचार्ज दांव कार्य_${taskConfig.name.split('_')[1] || ''}`;
+                } else if (taskConfig.name.includes('每周+邀请任务')) {
+                    taskName = `साप्ताहिक+आमंत्रण कार्य_${taskConfig.name.split('_')[1] || ''}`;
+                } else {
+                    taskName = taskConfig.name;
+                }
+            } else if (lang === 'pt') {
+                // 葡萄牙语名称
+                if (taskConfig.name.includes('每日+充值投注任务')) {
+                    taskName = `Diário+Recarga Aposta Tarefa_${taskConfig.name.split('_')[1] || ''}`;
+                } else if (taskConfig.name.includes('每周+邀请任务')) {
+                    taskName = `Semanal+Convite Tarefa_${taskConfig.name.split('_')[1] || ''}`;
+                } else {
+                    taskName = taskConfig.name;
+                }
+            } else if (lang === 'es') {
+                // 西班牙语名称
+                if (taskConfig.name.includes('每日+充值投注任务')) {
+                    taskName = `Diario+Recarga Apuesta Tarea_${taskConfig.name.split('_')[1] || ''}`;
+                } else if (taskConfig.name.includes('每周+邀请任务')) {
+                    taskName = `Semanal+Invitación Tarea_${taskConfig.name.split('_')[1] || ''}`;
+                } else {
+                    taskName = taskConfig.name;
+                }
+            } else {
+                // 其他语言使用英语作为后备
+                if (taskConfig.name.includes('每日+充值投注任务')) {
+                    taskName = `Daily+Recharge Bet Task_${taskConfig.name.split('_')[1] || ''}`;
+                } else if (taskConfig.name.includes('每周+邀请任务')) {
+                    taskName = `Weekly+Invite Task_${taskConfig.name.split('_')[1] || ''}`;
+                } else {
+                    taskName = taskConfig.name;
+                }
             }
-        ],
+
+            return {
+                "language": lang,
+                "name": taskName
+            };
+        }),
         "startDate": startDate,
         "endDate": endDate,
         "taskLogoType": 1  // 使用自定义图片

@@ -2,6 +2,7 @@ import { sleep } from 'k6';
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest, sendQueryRequest } from '../../common/request.js';
 import { createImageUploader, handleImageUpload, getErrorMessage } from '../../uploadFile/uploadFactory.js';
+import { getActiveLangs } from '../../../../config/languageConfig.js';
 
 export const createBannerTag = 'createBanner';
 
@@ -99,12 +100,14 @@ export function createBanner(data) {
 
 /**
  * 创建所有轮播图
+ * 为每种激活语言创建独立的轮播图
  * @param {*} data 
  * @returns {Object} { success, count, message }
  */
 function createBanners(data) {
     const api = '/api/Message/Add';
     const token = data.token;
+    const activeLangs = getActiveLangs();
 
     // 定义要创建的轮播图列表
     const bannerConfigs = [
@@ -142,55 +145,60 @@ function createBanners(data) {
 
     let successCount = 0;
 
-    for (const config of bannerConfigs) {
-        // 处理图片上传
-        const imageResult = handleImageUpload(data, config.cacheKey, config.uploader, createBannerTag);
+    // 为每种语言创建轮播图
+    for (const lang of activeLangs) {
+        logger.info(`[${createBannerTag}] 开始为语言 ${lang} 创建轮播图...`);
 
-        if (!imageResult.success) {
-            logger.error(`[${createBannerTag}] 图片上传失败: ${imageResult.error}，跳过此轮播图`);
-            continue; // 跳过失败的，继续创建下一个
-        }
+        for (const config of bannerConfigs) {
+            // 处理图片上传（每个图片只上传一次，所有语言共用）
+            const imageResult = handleImageUpload(data, config.cacheKey, config.uploader, createBannerTag);
 
-        const imagePath = imageResult.imagePath;
+            if (!imageResult.success) {
+                logger.error(`[${createBannerTag}] 图片上传失败: ${imageResult.error}，跳过此轮播图`);
+                continue; // 跳过失败的，继续创建下一个
+            }
 
-        // 构建payload
-        const payload = {
-            type: 4,
-            sort: config.sort,
-            messageJumpType: config.messageJumpType,
-            imageUrl: imagePath,
-            sysLanguage: 'en',
-            targetType: config.targetType
-        };
+            const imagePath = imageResult.imagePath;
 
-        // 根据messageJumpType添加对应的字段
-        if (config.jumpUrl) {
-            payload.jumpUrl = config.jumpUrl;
-        }
-        if (config.pageType !== null) {
-            payload.pageType = config.pageType;
-        }
-        if (config.customPopupId !== null) {
-            payload.customPopupId = config.customPopupId;
-        }
+            // 构建payload，使用当前语言
+            const payload = {
+                type: 4,
+                sort: config.sort,
+                messageJumpType: config.messageJumpType,
+                imageUrl: imagePath,
+                sysLanguage: lang,
+                targetType: config.targetType
+            };
 
-        try {
-            const result = sendRequest(payload, api, createBannerTag, false, token);
+            // 根据messageJumpType添加对应的字段
+            if (config.jumpUrl) {
+                payload.jumpUrl = config.jumpUrl;
+            }
+            if (config.pageType !== null) {
+                payload.pageType = config.pageType;
+            }
+            if (config.customPopupId !== null) {
+                payload.customPopupId = config.customPopupId;
+            }
 
-            if (result && result.msgCode === 0) {
-                logger.info(`[${createBannerTag}] 创建轮播图成功: sort=${config.sort}`);
-                successCount++;
-                // 缓存图片路径
-                data[config.cacheKey] = imagePath;
-                sleep(0.5);
-            } else {
-                logger.error(`[${createBannerTag}] 创建轮播图失败: sort=${config.sort}, msgCode: ${result?.msgCode}, msg: ${result?.msg}，跳过此轮播图`);
+            try {
+                const result = sendRequest(payload, api, createBannerTag, false, token);
+
+                if (result && result.msgCode === 0) {
+                    logger.info(`[${createBannerTag}] 创建轮播图成功: sort=${config.sort} (${lang})`);
+                    successCount++;
+                    // 缓存图片路径
+                    data[config.cacheKey] = imagePath;
+                    sleep(0.5);
+                } else {
+                    logger.error(`[${createBannerTag}] 创建轮播图失败: sort=${config.sort} (${lang}), msgCode: ${result?.msgCode}, msg: ${result?.msg}，跳过此轮播图`);
+                    // 继续创建下一个
+                }
+            } catch (error) {
+                const errorMsg = getErrorMessage(error);
+                logger.error(`[${createBannerTag}] 创建轮播图异常: sort=${config.sort} (${lang}), 错误: ${errorMsg}，跳过此轮播图`);
                 // 继续创建下一个
             }
-        } catch (error) {
-            const errorMsg = getErrorMessage(error);
-            logger.error(`[${createBannerTag}] 创建轮播图异常: sort=${config.sort}, 错误: ${errorMsg}，跳过此轮播图`);
-            // 继续创建下一个
         }
     }
 
@@ -203,7 +211,7 @@ function createBanners(data) {
 }
 
 /**
- * 查询轮播图ID列表
+ * 查询轮播图ID列表（查询所有语言的轮播图）
  * @param {*} data 
  * @param {number} expectedCount 期望查询的数量（即成功创建的数量）
  * @returns {Object} { success, ids }
@@ -211,48 +219,49 @@ function createBanners(data) {
 function queryBannerIds(data, expectedCount) {
     const api = '/api/Message/GetPageList';
     const token = data.token;
+    const activeLangs = getActiveLangs();
 
-    const payload = {
-        type: 4,
-        sortField: 'sort',
-        orderBy: 'Desc',
-        sysLanguage: 'en'
-    };
+    const allIds = [];
 
-    try {
-        let result = sendQueryRequest(payload, api, createBannerTag, false, token);
+    // 为每种语言查询轮播图
+    for (const lang of activeLangs) {
+        const payload = {
+            type: 4,
+            sortField: 'sort',
+            orderBy: 'Desc',
+            sysLanguage: lang
+        };
 
-        if (typeof result !== 'object') {
-            result = JSON.parse(result);
-        }
+        try {
+            let result = sendQueryRequest(payload, api, createBannerTag, false, token);
 
-        const idList = [];
-
-        if (result && result.list && result.list.length > 0) {
-            // 只取成功创建的数量，最多3个
-            const itemsToTake = Math.min(expectedCount, result.list.length, 3);
-            for (let i = 0; i < itemsToTake; i++) {
-                idList.push(result.list[i].id);
+            if (typeof result !== 'object') {
+                result = JSON.parse(result);
             }
 
-            logger.info(`[${createBannerTag}] 查询到 ${result.list.length} 个轮播图，取前 ${itemsToTake} 个id: ${idList.join(', ')}`);
-        } else {
-            logger.warn(`[${createBannerTag}] 未查询到轮播图列表`);
+            if (result && result.list && result.list.length > 0) {
+                // 只取前3个id
+                const itemsToTake = Math.min(3, result.list.length);
+                for (let i = 0; i < itemsToTake; i++) {
+                    allIds.push(result.list[i].id);
+                }
+
+                logger.info(`[${createBannerTag}] 语言 ${lang} 查询到 ${result.list.length} 个轮播图，取前 ${itemsToTake} 个`);
+            } else {
+                logger.warn(`[${createBannerTag}] 语言 ${lang} 未查询到轮播图列表`);
+            }
+        } catch (error) {
+            const errorMsg = getErrorMessage(error);
+            logger.error(`[${createBannerTag}] 查询语言 ${lang} 轮播图时发生错误: ${errorMsg}`);
         }
-
-        return {
-            success: idList.length > 0,
-            ids: idList
-        };
-
-    } catch (error) {
-        const errorMsg = getErrorMessage(error);
-        logger.error(`[${createBannerTag}] 查询轮播图时发生错误: ${errorMsg}`);
-        return {
-            success: false,
-            ids: []
-        };
     }
+
+    logger.info(`[${createBannerTag}] 总共查询到 ${allIds.length} 个轮播图ID: ${allIds.join(', ')}`);
+
+    return {
+        success: allIds.length > 0,
+        ids: allIds
+    };
 }
 
 /**

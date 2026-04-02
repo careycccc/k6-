@@ -2,6 +2,7 @@ import { sleep } from 'k6';
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest, sendQueryRequest } from '../../common/request.js';
 import { createImageUploader, handleImageUpload, getErrorMessage } from '../../uploadFile/uploadFactory.js';
+import { getActiveLangs } from '../../../../config/languageConfig.js';
 
 export const createLoginPopupTag = 'createLoginPopup';
 
@@ -88,12 +89,14 @@ export function createLoginPopup(data) {
 
 /**
  * 创建弹窗（上传图片并创建）
+ * 为每种激活语言创建独立的弹窗
  * @param {*} data 
  * @returns {Object} { success, count, message }
  */
 function createPopups(data) {
     const api = '/api/Message/Add';
     const token = data.token;
+    const activeLangs = getActiveLangs();
 
     // 定义要创建的弹窗列表
     const popupConfigs = [
@@ -115,56 +118,61 @@ function createPopups(data) {
 
     let successCount = 0;
 
-    for (const config of popupConfigs) {
-        // 处理图片上传
-        const imageResult = handleImageUpload(data, config.cacheKey, config.uploader, createLoginPopupTag);
+    // 为每种语言创建弹窗
+    for (const lang of activeLangs) {
+        logger.info(`[${createLoginPopupTag}] 开始为语言 ${lang} 创建弹窗...`);
 
-        if (!imageResult.success) {
-            logger.error(`[${createLoginPopupTag}] 图片上传失败: ${imageResult.error}`);
-            return {
-                success: false,
-                count: successCount,
-                message: `图片上传失败: ${imageResult.error}`
-            };
-        }
+        for (const config of popupConfigs) {
+            // 处理图片上传（每个图片只上传一次，所有语言共用）
+            const imageResult = handleImageUpload(data, config.cacheKey, config.uploader, createLoginPopupTag);
 
-        const imagePath = imageResult.imagePath;
-
-        // 构建payload
-        const payload = {
-            type: 2,
-            title: config.title,
-            content: config.content,
-            sort: config.sort,
-            imageUrl: imagePath,
-            sysLanguage: 'en'
-        };
-
-        try {
-            const result = sendRequest(payload, api, createLoginPopupTag, false, token);
-
-            if (result && result.msgCode === 0) {
-                logger.info(`[${createLoginPopupTag}] 创建弹窗成功: ${config.title}`);
-                successCount++;
-                // 缓存图片路径
-                data[config.cacheKey] = imagePath;
-                sleep(0.5);
-            } else {
-                logger.error(`[${createLoginPopupTag}] 创建弹窗失败: ${config.title}, msgCode: ${result?.msgCode}, msg: ${result?.msg}`);
+            if (!imageResult.success) {
+                logger.error(`[${createLoginPopupTag}] 图片上传失败: ${imageResult.error}`);
                 return {
                     success: false,
                     count: successCount,
-                    message: `创建弹窗失败: ${result?.msg || '未知错误'}`
+                    message: `图片上传失败: ${imageResult.error}`
                 };
             }
-        } catch (error) {
-            const errorMsg = getErrorMessage(error);
-            logger.error(`[${createLoginPopupTag}] 创建弹窗异常: ${config.title}, 错误: ${errorMsg}`);
-            return {
-                success: false,
-                count: successCount,
-                message: `创建弹窗异常: ${errorMsg}`
+
+            const imagePath = imageResult.imagePath;
+
+            // 构建payload，使用当前语言
+            const payload = {
+                type: 2,
+                title: `${config.title} (${lang})`,
+                content: config.content,
+                sort: config.sort,
+                imageUrl: imagePath,
+                sysLanguage: lang
             };
+
+            try {
+                const result = sendRequest(payload, api, createLoginPopupTag, false, token);
+
+                if (result && result.msgCode === 0) {
+                    logger.info(`[${createLoginPopupTag}] 创建弹窗成功: ${config.title} (${lang})`);
+                    successCount++;
+                    // 缓存图片路径
+                    data[config.cacheKey] = imagePath;
+                    sleep(0.5);
+                } else {
+                    logger.error(`[${createLoginPopupTag}] 创建弹窗失败: ${config.title} (${lang}), msgCode: ${result?.msgCode}, msg: ${result?.msg}`);
+                    return {
+                        success: false,
+                        count: successCount,
+                        message: `创建弹窗失败: ${result?.msg || '未知错误'}`
+                    };
+                }
+            } catch (error) {
+                const errorMsg = getErrorMessage(error);
+                logger.error(`[${createLoginPopupTag}] 创建弹窗异常: ${config.title} (${lang}), 错误: ${errorMsg}`);
+                return {
+                    success: false,
+                    count: successCount,
+                    message: `创建弹窗异常: ${errorMsg}`
+                };
+            }
         }
     }
 
@@ -175,55 +183,56 @@ function createPopups(data) {
 }
 
 /**
- * 查询弹窗ID列表
+ * 查询弹窗ID列表（查询所有语言的弹窗）
  * @param {*} data 
  * @returns {Object} { success, ids }
  */
 function queryPopupIds(data) {
     const api = '/api/Message/GetPageList';
     const token = data.token;
+    const activeLangs = getActiveLangs();
 
-    const payload = {
-        type: 2,
-        sortField: 'sort',
-        orderBy: 'Desc',
-        sysLanguage: 'en'
-    };
+    const allIds = [];
 
-    try {
-        let result = sendQueryRequest(payload, api, createLoginPopupTag, false, token);
+    // 为每种语言查询弹窗
+    for (const lang of activeLangs) {
+        const payload = {
+            type: 2,
+            sortField: 'sort',
+            orderBy: 'Desc',
+            sysLanguage: lang
+        };
 
-        if (typeof result !== 'object') {
-            result = JSON.parse(result);
-        }
+        try {
+            let result = sendQueryRequest(payload, api, createLoginPopupTag, false, token);
 
-        const idList = [];
-
-        if (result && result.list && result.list.length > 0) {
-            // 只取前2个id
-            const itemsToTake = Math.min(2, result.list.length);
-            for (let i = 0; i < itemsToTake; i++) {
-                idList.push(result.list[i].id);
+            if (typeof result !== 'object') {
+                result = JSON.parse(result);
             }
 
-            logger.info(`[${createLoginPopupTag}] 查询到 ${result.list.length} 个弹窗，取前 ${itemsToTake} 个id: ${idList.join(', ')}`);
-        } else {
-            logger.warn(`[${createLoginPopupTag}] 未查询到弹窗列表`);
+            if (result && result.list && result.list.length > 0) {
+                // 只取前2个id
+                const itemsToTake = Math.min(2, result.list.length);
+                for (let i = 0; i < itemsToTake; i++) {
+                    allIds.push(result.list[i].id);
+                }
+
+                logger.info(`[${createLoginPopupTag}] 语言 ${lang} 查询到 ${result.list.length} 个弹窗，取前 ${itemsToTake} 个`);
+            } else {
+                logger.warn(`[${createLoginPopupTag}] 语言 ${lang} 未查询到弹窗列表`);
+            }
+        } catch (error) {
+            const errorMsg = getErrorMessage(error);
+            logger.error(`[${createLoginPopupTag}] 查询语言 ${lang} 弹窗时发生错误: ${errorMsg}`);
         }
-
-        return {
-            success: idList.length > 0,
-            ids: idList
-        };
-
-    } catch (error) {
-        const errorMsg = getErrorMessage(error);
-        logger.error(`[${createLoginPopupTag}] 查询弹窗时发生错误: ${errorMsg}`);
-        return {
-            success: false,
-            ids: []
-        };
     }
+
+    logger.info(`[${createLoginPopupTag}] 总共查询到 ${allIds.length} 个弹窗ID: ${allIds.join(', ')}`);
+
+    return {
+        success: allIds.length > 0,
+        ids: allIds
+    };
 }
 
 /**

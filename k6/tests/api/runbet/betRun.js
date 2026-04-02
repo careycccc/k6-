@@ -17,11 +17,21 @@ import { getAccountBalance } from '../balance/balance.test.js';
 
 /**
  * 随机获取投注参数
- * @returns {object} 投注参数
+ * @param {Array} excludeGameCodes - 要排除的游戏代码列表
+ * @returns {object} 投注参数，如果没有可用游戏则返回 null
  */
-function getBetResult() {
-    const gameCodeList = ['WinGo_5M', 'TrxWinGo_10M'];
-    const gameCode = gameCodeList[Math.floor(Math.random() * gameCodeList.length)];
+function getBetResult(excludeGameCodes = []) {
+    const allGameCodes = ['WinGo_5M', 'WinGo_30S', 'TrxWinGo_10M'];
+
+    // 过滤掉已经失败的游戏类型
+    const availableGameCodes = allGameCodes.filter(code => !excludeGameCodes.includes(code));
+
+    if (availableGameCodes.length === 0) {
+        console.error('[BetRun] 没有可用的游戏类型');
+        return null;
+    }
+
+    const gameCode = availableGameCodes[Math.floor(Math.random() * availableGameCodes.length)];
 
     const betContentList = ['Color_Green', 'Color_Violet', 'Color_Red', 'BigSmall_Big', 'BigSmall_Small'];
     const betContent = betContentList[Math.floor(Math.random() * betContentList.length)];
@@ -72,55 +82,71 @@ export function betRun(loginToken, userName = '') {
 }
 
 /**
- * 执行投注函数
+ * 执行投注函数（带重试机制）
  * @param {string} loginToken - 登录token
  * @param {string} userName - 用户名
  * @returns {boolean} 投注是否成功
  */
 function runBetFunc(loginToken, userName) {
-    console.log('[BetRun] 开始执行投注');
+    console.log('[BetRun] 开始执行投注（最多尝试3次）');
 
-    // 获取随机投注参数
-    const { gameCode, betContent, amount, betMultiple } = getBetResult();
-    console.log('[BetRun] 投注参数:', { gameCode, betContent, amount, betMultiple });
+    const maxAttempts = 3;
+    const failedGameCodes = []; // 记录失败的游戏类型
 
-    // 步骤1-3: 获取投注token (完整的token转换链)
-    const tokenInfo = getBetToken(loginToken, gameCode);
-    if (!tokenInfo || !tokenInfo.token) {
-        console.error('[BetRun] 获取投注token失败');
-        return false;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        console.log(`[BetRun] ========== 第 ${attempt} 次投注尝试 ==========`);
+
+        // 获取随机投注参数（排除已失败的游戏类型）
+        const betParams = getBetResult(failedGameCodes);
+
+        if (!betParams) {
+            console.error('[BetRun] 所有游戏类型都已尝试失败');
+            break;
+        }
+
+        const { gameCode, betContent, amount, betMultiple } = betParams;
+        console.log('[BetRun] 投注参数:', { gameCode, betContent, amount, betMultiple });
+
+        // 步骤1-3: 获取投注token (完整的token转换链)
+        const tokenInfo = getBetToken(loginToken, gameCode);
+        if (!tokenInfo || !tokenInfo.token) {
+            console.error('[BetRun] 获取投注token失败，尝试下一个游戏类型');
+            failedGameCodes.push(gameCode);
+            continue;
+        }
+
+        console.log('[BetRun] 游戏余额:', tokenInfo.balance);
+        console.log('[BetRun] 游戏域名:', tokenInfo.gameBaseUrl);
+
+        // 步骤4: 获取期号 (使用游戏token)
+        const betInfo = isBet(tokenInfo.gameToken, gameCode, tokenInfo.gameBaseUrl);
+        if (!betInfo.canBet) {
+            console.error('[BetRun] 当期期号不可以投注，尝试下一个游戏类型');
+            failedGameCodes.push(gameCode);
+            continue;
+        }
+
+        console.log('[BetRun] 期号:', betInfo.issueNumber);
+
+        // 步骤5: 执行投注 (使用最终刷新的token)
+        const betResult = betWingo(gameCode, amount, betMultiple, betContent,
+            betInfo.issueNumber, tokenInfo.token, tokenInfo.gameBaseUrl);
+
+        if (betResult && betResult.code === 0 && betResult.msgCode === 0 && betResult.msg === 'Succeed') {
+            console.log(`[BetRun] ✅ 投注成功（第 ${attempt} 次尝试）`);
+            console.log('[BetRun] ========== 投注流程完成 ==========');
+            return true;
+        } else {
+            console.error(`[BetRun] ❌ 投注失败（第 ${attempt} 次尝试）`);
+            failedGameCodes.push(gameCode);
+
+            if (attempt < maxAttempts) {
+                console.log('[BetRun] 将尝试其他游戏类型...');
+            }
+        }
     }
 
-    console.log('[BetRun] 游戏余额:', tokenInfo.balance);
-    console.log('[BetRun] 游戏域名:', tokenInfo.gameBaseUrl);
-
-    // 注意：获取期号需要使用游戏token (从GetGameUrl获取的原始token)
-    // 但是我们已经经过了token刷新链，需要重新获取游戏token
-    // 为了简化，我们直接使用最终的token，但Referer中需要包含token
-
-    // 步骤4: 获取期号 (使用游戏token)
-    // 这里有个问题：我们需要保存游戏token用于获取期号
-    // 让我们修改getBetToken返回游戏token
-
-    const betInfo = isBet(tokenInfo.gameToken, gameCode, tokenInfo.gameBaseUrl);
-    if (!betInfo.canBet) {
-        console.error('[BetRun] 当期期号不可以投注');
-        return false;
-    }
-
-    console.log('[BetRun] 期号:', betInfo.issueNumber);
-
-    // 步骤5: 执行投注 (使用最终刷新的token)
-    const betResult = betWingo(gameCode, amount, betMultiple, betContent,
-        betInfo.issueNumber, tokenInfo.token, tokenInfo.gameBaseUrl);
-
-    if (betResult && betResult.code === 0 && betResult.msgCode === 0 && betResult.msg === 'Succeed') {
-        console.log('[BetRun] ✅ 投注成功');
-        console.log('[BetRun] ========== 投注流程完成 ==========');
-        return true;
-    } else {
-        console.error('[BetRun] ❌ 投注失败');
-        console.log('[BetRun] ========== 投注流程完成 ==========');
-        return false;
-    }
+    console.error('[BetRun] ❌ 所有投注尝试均失败');
+    console.log('[BetRun] ========== 投注流程完成 ==========');
+    return false;
 }

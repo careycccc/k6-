@@ -143,6 +143,8 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
 
                 sleep(3);
 
+                console.log(`[FrontRecharge] DEBUG: rechargeType = "${rechargeType}", 类型: ${typeof rechargeType}`);
+
                 if (rechargeType === 'LocalEWallet') {
                     // 查询本地订单（使用固定的时间基准）
                     const queryTime = Date.now();

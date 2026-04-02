@@ -40,7 +40,7 @@ function generateRandomString(length) {
  * 生成随机手机号
  * 格式：区号 + 月日 + 随机数
  * 例如：91 + 0311 + 123456 = 910311123456 (12位)
- * 或：91 + 311 + 1234567 = 913111234567 (12位)
+ * 或：880 + 0311 + 123456 = 8800311123456 (13位，孟加拉)
  * @param {string} countryCode - 国家区号，默认为 '91'
  * @returns {string} 随机手机号
  */
@@ -60,13 +60,22 @@ export function generateRandomPhone(countryCode = '91') {
         prefix = `${month.toString().padStart(2, '0')}${day.toString().padStart(2, '0')}`;
     }
 
-    // 根据前缀长度决定随机数位数
-    let randomLength;
-    if (prefix.length === 3) {
-        randomLength = 7;
+    // 根据国家区号和前缀长度决定随机数位数
+    // 不同国家的手机号总长度不同：
+    // - 印度(91): 12位 (2位区号 + 10位号码)
+    // - 孟加拉(880): 13位 (3位区号 + 10位号码)
+    // - 墨西哥(52): 12位 (2位区号 + 10位号码)
+    let targetLength;
+    if (countryCode === '880') {
+        // 孟加拉：13位总长度
+        targetLength = 13;
     } else {
-        randomLength = 6;
+        // 其他国家：12位总长度
+        targetLength = 12;
     }
+
+    // 计算随机数位数 = 总长度 - 区号长度 - 前缀长度
+    const randomLength = targetLength - countryCode.length - prefix.length;
 
     // 生成随机数
     let randomNum = '';

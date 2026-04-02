@@ -3,6 +3,7 @@ import { sendRequest, sendQueryRequest } from '../../common/request.js';
 import { systemJumpType } from '../../common/type.js';
 import { uploadFile } from '../../uploadFile/uploadSystemActive.js';
 import { AdminLogin } from '../../login/adminlogin.test.js';
+import { getActiveLangs } from '../../../../config/languageConfig.js';
 import { sleep } from 'k6';
 
 export const createSystemActiveTag = 'createSystemActive';
@@ -51,87 +52,117 @@ export function createSystemActive(data) {
             }
         }
 
-        // 第一步：查询系统活动列表，获取活动ID
-        const activityList = querySystemActivities(data);
-        if (!activityList || activityList.length === 0) {
-            logger.error(`[${createSystemActiveTag}] 查询系统活动列表失败`);
-            return {
-                success: false,
-                tag: createSystemActiveTag,
-                message: '查询系统活动列表失败，跳过活动创建'
-            };
-        }
+        // 获取所有激活的语言
+        const languages = getActiveLangs();
+        logger.info(`[${createSystemActiveTag}] 将为以下语言创建系统活动: ${languages.join(', ')}`);
 
-        logger.info(`[${createSystemActiveTag}] 查询到 ${activityList.length} 个系统活动`);
+        let totalSuccess = 0;
+        let totalSkip = 0;
 
-        // 第二步：逐个上传图片并更新活动
-        let successCount = 0;
-        let skipCount = 0;
+        // 为每种语言创建系统活动
+        for (let langIndex = 0; langIndex < languages.length; langIndex++) {
+            const language = languages[langIndex];
+            logger.info(`\n[${createSystemActiveTag}] ========== 创建${language}语言的系统活动 (${langIndex + 1}/${languages.length}) ==========`);
 
-        for (let i = 0; i < systemJumpType.length; i++) {
-            const jumpTypeItem = systemJumpType[i];
-            const filePath = `../uploadFile/img/systemActive/${jumpTypeItem.pageType}.png`;
+            // 创建临时data对象，包含当前语言
+            const langData = { ...data, language: language };
 
-            // 找到对应的活动
-            const activity = activityList.find(a => a.pageType === jumpTypeItem.pageType);
-            if (!activity) {
-                logger.warn(`[${createSystemActiveTag}] 未找到 pageType=${jumpTypeItem.pageType} 的活动，跳过`);
-                skipCount++;
+            // 第一步：查询系统活动列表，获取活动ID
+            const activityList = querySystemActivities(langData);
+            if (!activityList || activityList.length === 0) {
+                logger.error(`[${createSystemActiveTag}] 查询${language}语言的系统活动列表失败`);
+                totalSkip++;
                 continue;
             }
 
-            logger.info(`[${createSystemActiveTag}] [${i + 1}/${systemJumpType.length}] 处理活动: ${jumpTypeItem.title}`);
+            logger.info(`[${createSystemActiveTag}] 查询到 ${activityList.length} 个${language}语言的系统活动`);
 
-            // 上传图片
-            let imgUrl = null;
-            try {
-                const uploadRes = uploadFile(filePath, token);
-                if (uploadRes && uploadRes.status === 200) {
-                    const uploadData = JSON.parse(uploadRes.body);
-                    if (uploadData.code === 0 && uploadData.data && uploadData.data.length > 0) {
-                        imgUrl = uploadData.data[0].src;
-                        logger.info(`[${createSystemActiveTag}] 图片上传成功: ${jumpTypeItem.pageType}.png`);
-                    }
+            // 第二步：逐个上传图片并更新活动
+            let successCount = 0;
+            let skipCount = 0;
+
+            for (let i = 0; i < systemJumpType.length; i++) {
+                const jumpTypeItem = systemJumpType[i];
+                const filePath = `../uploadFile/img/systemActive/${jumpTypeItem.pageType}.png`;
+
+                // 找到对应的活动
+                const activity = activityList.find(a => a.pageType === jumpTypeItem.pageType);
+                if (!activity) {
+                    logger.warn(`[${createSystemActiveTag}] 未找到 pageType=${jumpTypeItem.pageType} 的活动，跳过`);
+                    skipCount++;
+                    continue;
                 }
-            } catch (uploadError) {
-                const errorMsg = getErrorMessage(uploadError);
-                logger.error(`[${createSystemActiveTag}] 图片上传失败: ${jumpTypeItem.title}, 错误: ${errorMsg}`);
-                skipCount++;
-                continue; // 跳过这个活动
+
+                logger.info(`[${createSystemActiveTag}] [${i + 1}/${systemJumpType.length}] 处理活动: ${jumpTypeItem.title}`);
+
+                // 上传图片（只在第一次上传，后续语言复用）
+                let imgUrl = null;
+                if (langIndex === 0) {
+                    try {
+                        const uploadRes = uploadFile(filePath, token);
+                        if (uploadRes && uploadRes.status === 200) {
+                            const uploadData = JSON.parse(uploadRes.body);
+                            if (uploadData.code === 0 && uploadData.data && uploadData.data.length > 0) {
+                                imgUrl = uploadData.data[0].src;
+                                logger.info(`[${createSystemActiveTag}] 图片上传成功: ${jumpTypeItem.pageType}.png`);
+                                // 缓存图片URL供其他语言使用
+                                jumpTypeItem.cachedImgUrl = imgUrl;
+                            }
+                        }
+                    } catch (uploadError) {
+                        const errorMsg = getErrorMessage(uploadError);
+                        logger.error(`[${createSystemActiveTag}] 图片上传失败: ${jumpTypeItem.title}, 错误: ${errorMsg}`);
+                        skipCount++;
+                        continue;
+                    }
+                } else {
+                    // 使用缓存的图片URL
+                    imgUrl = jumpTypeItem.cachedImgUrl;
+                }
+
+                if (!imgUrl) {
+                    logger.error(`[${createSystemActiveTag}] 图片URL不存在: ${jumpTypeItem.title}，跳过该活动`);
+                    skipCount++;
+                    continue;
+                }
+
+                // 更新活动
+                const updateResult = updateSystemActivity(langData, activity.id, imgUrl, jumpTypeItem, i);
+                if (updateResult) {
+                    successCount++;
+                    logger.info(`[${createSystemActiveTag}] 活动更新成功: ${jumpTypeItem.title}`);
+                } else {
+                    logger.error(`[${createSystemActiveTag}] 活动更新失败: ${jumpTypeItem.title}`);
+                    skipCount++;
+                }
+
+                // 每次操作后睡眠0.5秒，避免触发频率限制
+                sleep(0.5);
             }
 
-            if (!imgUrl) {
-                logger.error(`[${createSystemActiveTag}] 图片上传失败: ${jumpTypeItem.title}，跳过该活动`);
-                skipCount++;
-                continue;
-            }
+            logger.info(`[${createSystemActiveTag}] ${language}语言活动更新完成，成功: ${successCount}, 跳过: ${skipCount}`);
 
-            // 更新活动
-            const updateResult = updateSystemActivity(data, activity.id, imgUrl, jumpTypeItem, i);
-            if (updateResult) {
-                successCount++;
-                logger.info(`[${createSystemActiveTag}] 活动更新成功: ${jumpTypeItem.title}`);
-            } else {
-                logger.error(`[${createSystemActiveTag}] 活动更新失败: ${jumpTypeItem.title}`);
-                skipCount++;
-            }
+            // 第三步：等待3秒后启用所有活动
+            sleep(3);
+            const enableResult = enableSystemActivities(langData, activityList);
 
-            // 每次操作后睡眠0.5秒，避免触发频率限制
-            sleep(0.5);
+            totalSuccess += successCount;
+            totalSkip += skipCount;
+
+            // 语言之间间隔2秒
+            if (langIndex < languages.length - 1) {
+                logger.info(`[${createSystemActiveTag}] 等待2秒后处理下一个语言...`);
+                sleep(2);
+            }
         }
 
-        logger.info(`[${createSystemActiveTag}] 活动更新完成，成功: ${successCount}, 跳过: ${skipCount}`);
-
-        // 第三步：等待3秒后启用所有活动
-        sleep(3);
-        const enableResult = enableSystemActivities(data, activityList);
-
-        logger.info(`[${createSystemActiveTag}] 系统活动创建完成，共处理 ${successCount} 个活动`);
+        logger.info(`\n[${createSystemActiveTag}] ========== 所有语言的系统活动创建完成 ==========`);
+        logger.info(`[${createSystemActiveTag}] 总成功: ${totalSuccess}, 总跳过: ${totalSkip}`);
 
         return {
-            success: successCount > 0,
+            success: totalSuccess > 0,
             tag: createSystemActiveTag,
-            message: `系统活动创建完成，成功: ${successCount}, 跳过: ${skipCount}`,
+            message: `系统活动创建完成，成功: ${totalSuccess}, 跳过: ${totalSkip}`,
             systemActiveIds: [...systemActiveIds]
         };
 
@@ -153,37 +184,71 @@ export function createSystemActive(data) {
  */
 function querySystemActivities(data) {
     const token = data.token;
+    const language = data.language || "en"; // 从data中读取语言，默认英语
     const api = '/api/ActivityInformation/GetPageList';
     const payload = {
-        activityType: 0,
+        pageNo: 1,
         pageSize: 50,
-        sysLanguage: "en",
+        sysLanguage: language,
+        orderBy: "Desc"
+        // 注意：不要添加 activityType 参数，会导致查询结果为空
     };
 
     try {
-        logger.info(`[${createSystemActiveTag}] 开始查询系统活动列表...`);
+        logger.info(`[${createSystemActiveTag}] 开始查询系统活动列表，语言: ${language}...`);
+        logger.info(`[${createSystemActiveTag}] 查询参数: ${JSON.stringify(payload)}`);
 
         let result = sendQueryRequest(payload, api, createSystemActiveTag, false, token);
 
+        // 打印原始响应用于调试
+        logger.info(`[${createSystemActiveTag}] 查询响应类型: ${typeof result}`);
+        if (result) {
+            const resultStr = JSON.stringify(result);
+            logger.info(`[${createSystemActiveTag}] 查询响应长度: ${resultStr.length}`);
+            logger.info(`[${createSystemActiveTag}] 查询响应前500字符: ${resultStr.substring(0, 500)}`);
+        } else {
+            logger.error(`[${createSystemActiveTag}] 查询响应为空或null`);
+            return [];
+        }
+
         if (typeof result !== 'object') {
-            result = JSON.parse(result);
+            try {
+                result = JSON.parse(result);
+            } catch (parseError) {
+                logger.error(`[${createSystemActiveTag}] JSON解析失败: ${parseError.message}`);
+                return [];
+            }
         }
 
         const activityList = [];
 
-        if (result && result.list && result.list.length > 0) {
-            logger.info(`[${createSystemActiveTag}] 查询到 ${result.list.length} 条系统活动记录`);
+        // 检查多种可能的响应格式
+        let dataList = null;
+        if (result && result.list && Array.isArray(result.list)) {
+            dataList = result.list;
+        } else if (result && result.data && Array.isArray(result.data)) {
+            dataList = result.data;
+        } else if (result && result.data && result.data.list && Array.isArray(result.data.list)) {
+            dataList = result.data.list;
+        } else if (Array.isArray(result)) {
+            dataList = result;
+        }
 
-            result.list.forEach(item => {
+        if (dataList && dataList.length > 0) {
+            logger.info(`[${createSystemActiveTag}] 查询到 ${dataList.length} 条系统活动记录`);
+
+            dataList.forEach(item => {
                 activityList.push({
                     id: item.id,
                     pageType: item.pageType,
-                    title: item.titile
+                    title: item.titile || item.title
                 });
                 systemActiveIds.push(item.id);
             });
         } else {
-            logger.warn(`[${createSystemActiveTag}] 查询结果为空或没有list字段`);
+            logger.warn(`[${createSystemActiveTag}] 查询结果为空或没有list字段，语言: ${language}`);
+            logger.warn(`[${createSystemActiveTag}] 响应结构: ${JSON.stringify(Object.keys(result || {}))}`);
+            logger.warn(`[${createSystemActiveTag}] 完整响应: ${JSON.stringify(result)}`);
         }
 
         return activityList;
@@ -206,6 +271,7 @@ function querySystemActivities(data) {
  */
 function updateSystemActivity(data, activityId, imgUrl, jumpTypeItem, sortIndex) {
     const token = data.token;
+    const language = data.language || "en"; // 从data中读取语言，默认英语
     const api = '/api/ActivityInformation/Update';
 
     const payload = {
@@ -216,7 +282,7 @@ function updateSystemActivity(data, activityId, imgUrl, jumpTypeItem, sortIndex)
         "displayTarget": 1,
         "pageType": jumpTypeItem.pageType,
         "pageId": 0,
-        "sysLanguage": "en",
+        "sysLanguage": language,
         "id": activityId,
         "content": "",
     };
@@ -239,13 +305,14 @@ function updateSystemActivity(data, activityId, imgUrl, jumpTypeItem, sortIndex)
  */
 function enableSystemActivities(data, activityList) {
     const token = data.token;
+    const language = data.language || "en"; // 从data中读取语言，默认英语
 
     let allSuccess = true;
     let successCount = 0;
 
     activityList.forEach(activity => {
         try {
-            const result = enableSystemActive(data, activity.id, 1, 'en');
+            const result = enableSystemActive(data, activity.id, 1, language);
             if (result) {
                 successCount++;
                 logger.info(`[${createSystemActiveTag}] 启用系统活动成功 ID: ${activity.id}`);

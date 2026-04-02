@@ -14,7 +14,7 @@ import { SignedHttpClient } from '../../../libs/utils/signature.js';
 
 /**
  * 执行 WinGo 投注
- * @param {string} gameCode - 游戏代码 (WinGo_5M, TrxWinGo_10M)
+ * @param {string} gameCode - 游戏代码 (WinGo_5M, WinGo_30S, TrxWinGo_10M)
  * @param {number} amount - 投注金额
  * @param {number} betMultiple - 投注倍率
  * @param {string} betContent - 投注内容 (Color_Green, Color_Violet, Color_Red, BigSmall_Big, BigSmall_Small)
@@ -31,6 +31,7 @@ export function betWingo(gameCode, amount, betMultiple, betContent, issueNumber,
             apiArg = 'TrxWinGoBet';
             break;
         case 'WinGo_5M':
+        case 'WinGo_30S':
             apiArg = 'WinGoBet';
             break;
         default:

@@ -43,7 +43,7 @@
 ./run-batch-with-bet.sh 3004 20 --bet-rounds=10
 
 # 自定义充值金额和投注轮数
-./run-batch-with-bet.sh 3004 10 --min-recharge=2000 --max-recharge=10000 --bet-rounds=8
+./run-batch-with-bet.sh 3006 10 --min-recharge=2000 --max-recharge=10000 --bet-rounds=1
 
 # 完整配置
 ./run-batch-with-bet.sh 3004 2 --min-recharge=2000 --max-recharge=8000 --bet-rounds=1 --withdraw-ratio=0.3 --enable-approval

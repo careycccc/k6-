@@ -24,12 +24,20 @@ export function sendVerificationCode(verifyCodeType, userName, codeType, customF
     console.log(`[SendVerificationCode] 使用自定义域名发送: ${url}`);
 
     const timeData = getTimeRandom();
+
+    // 如果是邀请注册验证码（codeType 19或20），强制使用英语避免模板缺失
+    let language = timeData.language;
+    if (codeType === 19 || codeType === 20) {
+      language = 'en';
+      console.log(`[SendVerificationCode] 邀请注册场景，强制使用英语语言: ${language}`);
+    }
+
     const payload = {
       verifyCodeType: verifyCodeType,
       phoneOrEmail: userName,
       codeType: codeType,
       random: timeData.random,
-      language: timeData.language,
+      language: language,
       timestamp: timeData.timestamp
     };
 

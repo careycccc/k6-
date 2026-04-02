@@ -147,28 +147,11 @@ function createGiftPackActivity(data, giftPackName, timestamp, couponId, pack) {
         payload = {
             "giftPackType": 0,
             "giftPackName": giftPackName,
-            "translations": [
-                {
-                    "language": "hi",
-                    "name": `टॉप-अप बेटिंग बंडल ${timestamp}`,
-                    "description": `टॉप-अप बेटिंग बंडल ${timestamp}`
-                },
-                {
-                    "language": "en",
-                    "name": `Top-up Betting Bundle ${timestamp}`,
-                    "description": `Top-up Betting Bundle ${timestamp}`
-                },
-                {
-                    "language": "es",
-                    "name": `Paquete de apuestas de recarga ${timestamp}`,
-                    "description": `Paquete de apuestas de recarga ${timestamp}`
-                },
-                {
-                    "language": "zh",
-                    "name": giftPackName,
-                    "description": giftPackName
-                }
-            ],
+            "translations": getActiveLangs().map(lang => ({
+                "language": lang,
+                "name": lang === 'zh' ? giftPackName : `Top-up Betting Bundle ${timestamp}`,
+                "description": lang === 'zh' ? giftPackName : `Top-up Betting Bundle ${timestamp}`
+            })),
             "state": 1,
             "validType": 1,
             "deliveryMethod": 1,

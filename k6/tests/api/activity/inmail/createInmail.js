@@ -114,6 +114,19 @@ function createInmailMessages(data) {
     const token = data.token;
     const inmailList = [];
 
+    // 站内信翻译映射
+    const inmailTranslations = {
+        '站内信': {
+            zh: '站内信',
+            en: 'In-Mail',
+            hi: 'इन-मेल',
+            ur: 'ان میل',
+            pt: 'Correio Interno',
+            es: 'Correo Interno',
+            bn: 'ইন-মেইল'
+        }
+    };
+
     // 根据 jumpType 生成站内信列表
     jumpType.forEach(({ id, name }) => {
         inmailList.push([
@@ -155,12 +168,18 @@ function createInmailMessages(data) {
             "jumpPage": id,
             "jumpButtonText": name,
             "targetType": 1,
-            "translations": getActiveLangs().map((lang, idx) => ({
-                "language": lang,
-                "content": `<p><img data-src="${dataSrc}" src="${dataSrc}" data-image-id="img${idx}" style="vertical-align: baseline;">${inmailName}</p>`,
-                "title": inmailName,
-                "thumbnail": imgSrc
-            })),
+            "translations": getActiveLangs().map((lang, idx) => {
+                // 获取翻译文本
+                const inmailSuffix = inmailTranslations['站内信'][lang] || inmailTranslations['站内信'].en || '站内信';
+                const translatedName = `${name} ${inmailSuffix}`;
+
+                return {
+                    "language": lang,
+                    "content": `<p><img data-src="${dataSrc}" src="${dataSrc}" data-image-id="img${idx}" style="vertical-align: baseline;">${translatedName}</p>`,
+                    "title": translatedName,
+                    "thumbnail": imgSrc
+                };
+            }),
             "sendType": 1,
             "isHasReward": true,
             "rewardConfig": {

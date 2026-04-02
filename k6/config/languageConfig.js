@@ -3,14 +3,17 @@
 // ============================================
 //
 // 使用方法（通过环境变量指定语言）：
-//   不指定 LANGUAGES → 默认使用 zh,en,hi（中文、英语、印地语）
+//   不指定 LANGUAGES → 根据租户ID使用对应的默认语言
 //   k6 run -e LANGUAGES=pt              → 只用葡萄牙语
 //   k6 run -e LANGUAGES=en,vi,ms        → 英语 + 越南语 + 马来语
 //   k6 run -e LANGUAGES=zh,en,hi,es,pt  → 5种语言
 //
+// 租户默认语言配置在 tenantLanguageConfig.js 中定义
 // 新增语言只需在 SUPPORTED_LANGUAGES 中添加一条记录，
 // 所有活动创建文件自动生效（无需逐一修改）。
 // ============================================
+
+import { getTenantDefaultLanguages } from './tenantLanguageConfig.js';
 
 /**
  * 所有支持的语言定义
@@ -19,58 +22,62 @@
  * default - 是否是默认激活语言
  */
 export const SUPPORTED_LANGUAGES = {
-    zh: { code: 'zh', name: '中文',         default: true  },
-    en: { code: 'en', name: '英语',         default: true  },
-    hi: { code: 'hi', name: '印地语',       default: true  },
-    es: { code: 'es', name: '西班牙语',     default: false },
-    pt: { code: 'pt', name: '葡萄牙语',     default: false },
-    vi: { code: 'vi', name: '越南语',       default: false },
-    ur: { code: 'ur', name: '乌尔都语',     default: false },
-    ms: { code: 'ms', name: '马来语',       default: false },
-    bn: { code: 'bn', name: '孟加拉语',     default: false },
+    zh: { code: 'zh', name: '中文', default: true },
+    en: { code: 'en', name: '英语', default: true },
+    hi: { code: 'hi', name: '印地语', default: true },
+    es: { code: 'es', name: '西班牙语', default: false },
+    pt: { code: 'pt', name: '葡萄牙语', default: false },
+    vi: { code: 'vi', name: '越南语', default: false },
+    ur: { code: 'ur', name: '乌尔都语', default: false },
+    ms: { code: 'ms', name: '马来语', default: false },
+    bn: { code: 'bn', name: '孟加拉语', default: false },
 };
-
-/** 默认语言列表（不指定时使用） */
-const DEFAULT_LANGS = Object.values(SUPPORTED_LANGUAGES)
-    .filter(l => l.default)
-    .map(l => l.code);
 
 /**
  * 获取当前激活的语言代码列表
- * 优先读取环境变量 LANGUAGES（逗号分隔），否则返回默认语言列表
+ * 优先级：环境变量 LANGUAGES > 租户默认语言 > 全局默认语言
  *
  * @returns {string[]} 语言代码数组，如 ['zh', 'en', 'hi']
  */
 export function getActiveLangs() {
     const envLangs = typeof __ENV !== 'undefined' ? __ENV.LANGUAGES : null;
 
-    if (!envLangs || envLangs.trim() === '') {
-        return DEFAULT_LANGS.slice(); // 返回副本
-    }
+    // 优先使用环境变量指定的语言
+    if (envLangs && envLangs.trim() !== '') {
+        const requested = envLangs.split(',').map(s => s.trim()).filter(Boolean);
+        const valid = [];
+        const invalid = [];
 
-    const requested = envLangs.split(',').map(s => s.trim()).filter(Boolean);
-    const valid = [];
-    const invalid = [];
+        for (const code of requested) {
+            if (SUPPORTED_LANGUAGES[code]) {
+                valid.push(code);
+            } else {
+                invalid.push(code);
+            }
+        }
 
-    for (const code of requested) {
-        if (SUPPORTED_LANGUAGES[code]) {
-            valid.push(code);
-        } else {
-            invalid.push(code);
+        if (invalid.length > 0) {
+            console.warn(`[LanguageConfig] ⚠️  不支持的语言代码: ${invalid.join(', ')}，已忽略。支持的语言: ${Object.keys(SUPPORTED_LANGUAGES).join(', ')}`);
+        }
+
+        if (valid.length > 0) {
+            console.log(`[LanguageConfig] 使用环境变量指定的语言: ${valid.join(', ')}`);
+            return valid;
         }
     }
 
-    if (invalid.length > 0) {
-        console.warn(`[LanguageConfig] ⚠️  不支持的语言代码: ${invalid.join(', ')}，已忽略。支持的语言: ${Object.keys(SUPPORTED_LANGUAGES).join(', ')}`);
+    // 尝试从租户ID获取默认语言
+    const tenantId = typeof __ENV !== 'undefined' ? __ENV.TENANT_ID : null;
+    if (tenantId) {
+        const tenantLangs = getTenantDefaultLanguages(tenantId);
+        console.log(`[LanguageConfig] 使用租户 ${tenantId} 的默认语言: ${tenantLangs.join(', ')}`);
+        return tenantLangs.slice();
     }
 
-    if (valid.length === 0) {
-        console.warn(`[LanguageConfig] ⚠️  LANGUAGES 中无有效语言，回退到默认语言: ${DEFAULT_LANGS.join(',')}`);
-        return DEFAULT_LANGS.slice();
-    }
-
-    console.log(`[LanguageConfig] 激活语言: ${valid.join(', ')}`);
-    return valid;
+    // 使用全局默认语言
+    const globalDefault = getTenantDefaultLanguages('default');
+    console.log(`[LanguageConfig] 使用全局默认语言: ${globalDefault.join(', ')}`);
+    return globalDefault.slice();
 }
 
 /**

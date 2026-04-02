@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# ============================================
+# 3007租户一键创建所有活动脚本
+# ============================================
+# 
+# 功能：
+# 1. 为3007租户创建所有活动
+# 2. 自动使用租户默认语言（中文、英语、乌尔都语）
+# 3. 生成失败报告，显示哪些活动创建失败
+# 4. 工单系统FAQ支持多语言
+#
+# 使用方法：
+#   ./run_3007_all_activities.sh
+#
+# 自定义活动列表：
+#   ./run_3007_all_activities.sh coupon,signin,order
+#
+# ============================================
+
+# 进入k6目录
+cd "$(dirname "$0")/k6" || exit 1
+
+# 默认创建所有活动
+DEFAULT_ACTIVITIES="coupon,signin,redRain,champion,luckyDoubleBonus,giftCodes,megaJackpot,activityGuide,banner,codeWashing,customizePopup,dailyTasks,giftPack,inmail,inviteTurntable,loginPopup,newagent,newagentRank,order,ranking,rechargeGiftPack,rechargeWheel,rescue,tag,weekCard,withdrawalTimeout,systemActive"
+
+# 如果提供了参数，使用参数作为活动列表
+ACTIVITIES="${1:-$DEFAULT_ACTIVITIES}"
+
+echo "=========================================="
+echo "3007租户一键创建活动脚本"
+echo "=========================================="
+echo "租户ID: 3007"
+echo "默认语言: 中文(zh), 英语(en), 乌尔都语(ur)"
+echo "要创建的活动: $ACTIVITIES"
+echo "=========================================="
+echo ""
+
+# 执行k6脚本
+k6 run \
+  -e TENANT_ID=3007 \
+  -e LANGUAGES=zh,en,ur \
+  -e ACTIVITIES="$ACTIVITIES" \
+  tests/api/script/testActive_3007_multilang.js
+
+echo ""
+echo "=========================================="
+echo "脚本执行完成"
+echo "=========================================="
+echo "请查看上方日志中的失败报告（如有）"
+echo ""

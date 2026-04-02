@@ -157,6 +157,19 @@ function createSigninActivity1(data) {
         const timestamp = Date.now();
         const activityName = `vip0不连续签到_${timestamp}`;
 
+        // 签到活动翻译
+        const signinTranslations = {
+            'vip0不连续签到': {
+                zh: 'vip0不连续签到',
+                en: 'VIP0 Non-Consecutive Sign-in',
+                hi: 'VIP0 गैर-लगातार साइन-इन',
+                ur: 'VIP0 غیر مسلسل سائن ان',
+                pt: 'VIP0 Entrada Não Consecutiva',
+                es: 'VIP0 Entrada No Consecutiva',
+                bn: 'VIP0 অ-ধারাবাহিক সাইন-ইন'
+            }
+        };
+
         logger.info(`[${createSigninTag}] 创建活动类型1: ${activityName}`);
         logger.info(`[${createSigninTag}] 活动开始时间: ${formatDate(tomorrow)}`);
         logger.info(`[${createSigninTag}] 活动结束时间: ${formatEndDate(endDate)}`);
@@ -179,12 +192,14 @@ function createSigninActivity1(data) {
                 { "dayIndex": 2, "rechargeAmount": 300, "rewardType": 1, "rewardAmount": 100 },
                 { "dayIndex": 3, "rechargeAmount": 1000, "rewardType": 1, "rewardAmount": 500 }
             ],
-            "translations": [
-                { "language": "hi", "name": "印地语", "description": `<p>${activityName}</p>` },
-                { "language": "en", "name": "英语", "description": `<p>${activityName}</p>` },
-                { "language": "es", "name": "Español", "description": `<p>${activityName}</p>` },
-                { "language": "zh", "name": "中文", "description": `<p>${activityName}</p>` }
-            ]
+            "translations": getActiveLangs().map(lang => {
+                const translatedName = `${signinTranslations['vip0不连续签到'][lang] || signinTranslations['vip0不连续签到'].en}_${timestamp}`;
+                return {
+                    "language": lang,
+                    "name": translatedName,
+                    "description": `<p>${translatedName}</p>`
+                };
+            })
         };
 
         //logger.info(`[${createSigninTag}] 活动类型1 payload: ${JSON.stringify(payload)}`);
@@ -297,6 +312,19 @@ function createSigninActivity2(data) {
         const timestamp = Date.now();
         const activityName = `vip每日签到（常驻）_${timestamp}`;
 
+        // 签到活动翻译
+        const signinTranslations = {
+            'vip每日签到（常驻）': {
+                zh: 'vip每日签到（常驻）',
+                en: 'VIP Daily Sign-in (Permanent)',
+                hi: 'VIP दैनिक साइन-इन (स्थायी)',
+                ur: 'VIP روزانہ سائن ان (مستقل)',
+                pt: 'VIP Entrada Diária (Permanente)',
+                es: 'VIP Entrada Diaria (Permanente)',
+                bn: 'VIP দৈনিক সাইন-ইন (স্থায়ী)'
+            }
+        };
+
         logger.info(`[${createSigninTag}] 创建活动类型2: ${activityName}`);
         logger.info(`[${createSigninTag}] 活动开始时间: ${activityStartTime}`);
         logger.info(`[${createSigninTag}] 活动结束时间: ${activityEndTime}`);
@@ -347,12 +375,14 @@ function createSigninActivity2(data) {
                 { "dayIndex": 30, "rechargeAmount": 100, "rewardType": 0, "rewardAmount": 36 },
                 { "dayIndex": 31, "rechargeAmount": 2000, "rewardType": 1, "rewardAmount": 5000 }
             ],
-            "translations": [
-                { "language": "hi", "name": "印地语", "description": `<p>${activityName}</p>` },
-                { "language": "en", "name": "英语", "description": `<p>${activityName}</p>` },
-                { "language": "es", "name": "Español", "description": `<p>${activityName}</p>` },
-                { "language": "zh", "name": "中文", "description": `<p>${activityName}</p>` }
-            ]
+            "translations": getActiveLangs().map(lang => {
+                const translatedName = `${signinTranslations['vip每日签到（常驻）'][lang] || signinTranslations['vip每日签到（常驻）'].en}_${timestamp}`;
+                return {
+                    "language": lang,
+                    "name": translatedName,
+                    "description": `<p>${translatedName}</p>`
+                };
+            })
         };
 
         //logger.info(`[${createSigninTag}] 活动类型2 payload: ${JSON.stringify(payload)}`);

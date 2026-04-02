@@ -41,9 +41,18 @@ export function getTimeRandom() {
 
   if (!LANGUAGE) {
     // 根据租户ID获取语言配置
-    // 3003使用西班牙语(es)，其他平台使用英语(en)
+    // 3003使用西班牙语(es)
+    // 3006使用孟加拉语(bn)
+    // 3007使用孟加拉语(bn)
+    // 其他平台使用英语(en)
     const tenantId = __ENV.TENANT || __ENV.TENANT_ID || '3004';
-    LANGUAGE = (tenantId === '3003') ? 'es' : 'en';
+    if (tenantId === '3003') {
+      LANGUAGE = 'es';
+    } else if (tenantId === '3006' || tenantId === '3007') {
+      LANGUAGE = 'bn';
+    } else {
+      LANGUAGE = 'en';
+    }
   }
 
   const timestamp = Math.floor(Date.now() / 1000); // 当前时间戳（秒级），与 Go 的 time.Now().Unix() 等价

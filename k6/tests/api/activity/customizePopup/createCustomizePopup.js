@@ -171,12 +171,11 @@ function createPopups(data) {
 
         const imagePath = imageResult.imagePath;
 
-        // 构建translations，三种语言都使用同一张图片
-        const translations = [
-            { language: 'hi', cover: imagePath },
-            { language: 'en', cover: imagePath },
-            { language: 'zh', cover: imagePath }
-        ];
+        // 构建translations，所有激活语言都使用同一张图片
+        const translations = getActiveLangs().map(lang => ({
+            language: lang,
+            cover: imagePath
+        }));
 
         // 构建payload
         const payload = {

@@ -84,6 +84,28 @@ function createCoupons(data) {
     const api = '/api/Coupon/Add';
     const token = data.token;
 
+    // 优惠券翻译映射
+    const couponTranslations = {
+        '充值奖励优惠券011': {
+            zh: '充值奖励优惠券011',
+            en: 'Recharge Reward Coupon 011',
+            hi: 'रिचार्ज रिवॉर्ड कूपन 011',
+            ur: 'ری چارج انعام کوپن 011',
+            pt: 'Cupom de Recompensa de Recarga 011',
+            es: 'Cupón de Recompensa de Recarga 011',
+            bn: 'রিচার্জ পুরস্কার কুপন 011'
+        },
+        '奖励优惠券011': {
+            zh: '奖励优惠券011',
+            en: 'Reward Coupon 011',
+            hi: 'रिवॉर्ड कूपन 011',
+            ur: 'انعام کوپن 011',
+            pt: 'Cupom de Recompensa 011',
+            es: 'Cupón de Recompensa 011',
+            bn: 'পুরস্কার কুপন 011'
+        }
+    };
+
     const couponList = [
         ['充值奖励优惠券011', 1, 0, '1'],
         ['奖励优惠券011', 2, 1, '1,2']
@@ -92,12 +114,14 @@ function createCoupons(data) {
     let allSuccess = true;
 
     couponList.forEach(([couponName, couponType, rechargeCount, useConditionType]) => {
+        const translations = couponTranslations[couponName];
+
         const payload = {
             backstageDisplayName: couponName,
             translations: getActiveLangs().map(lang => ({
                 language: lang,
-                name: couponName,
-                description: couponName
+                name: translations[lang] || translations.en || couponName,
+                description: translations[lang] || translations.en || couponName
             })),
             couponType,
             rewardConfig: {

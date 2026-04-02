@@ -1,6 +1,6 @@
 
 import { AdminLogin, adminTag } from '../login/adminlogin.test.js';
-import { createDailyTasks } from '../activity/dailyTasks/createDailyTasks.js';
+import { createSystemActive } from '../activity/systemActive/createSystemActive.js';
 import { createOrdersystem } from '../activity/orderSystem/createOrdersystem.js';
 import { createSignin } from '../activity/signin/createSignin.js';
 import { createTagfunc as createTagfuncfunc } from '../activity/tag/createTag.js';
@@ -13,7 +13,7 @@ import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
 export function setup() {
     try {
         // 获取目标租户ID（从环境变量读取，优先使用 TENANT，其次 TENANT_ID，默认3003）
-        const tenantId = __ENV.TENANT || __ENV.TENANT_ID || '3003';
+        const tenantId = __ENV.TENANT || __ENV.TENANT_ID || '3006';
         logger.info(`[Setup] 目标租户: ${tenantId}`);
 
         // 如果是非默认租户，需要切换到该租户的环境配置
@@ -76,13 +76,13 @@ export default function (data) {
 
     logger.info(`[VU] 开始为租户 ${tenantId} 按顺序执行活动创建`);
 
-    // 步骤1：创建每日每周任务
-    logger.info('========== 步骤1：创建每日每周任务 ==========');
-    const dailyTasksResult = createDailyTasks(data);
+    // 步骤1：创建锦标赛任务
+    logger.info('========== 步骤1：创建锦标赛任务 ==========');
+    const dailyTasksResult = createSystemActive(data);
     if (!dailyTasksResult || !dailyTasksResult.success) {
-        logger.error(`每日每周任务创建失败: ${dailyTasksResult?.message || '未知错误'}`);
+        logger.error(`锦标赛任务创建失败: ${dailyTasksResult?.message || '未知错误'}`);
     } else {
-        logger.info('✅ 每日每周任务创建成功');
+        logger.info('✅ 锦标赛任务创建成功');
     }
     sleep(2);
 

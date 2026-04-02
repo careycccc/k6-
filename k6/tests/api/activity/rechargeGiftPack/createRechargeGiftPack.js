@@ -2,6 +2,7 @@ import { sleep } from 'k6';
 import { logger } from '../../../../libs/utils/logger.js';
 import { sendRequest, sendQueryRequest } from '../../common/request.js';
 import { createImageUploader, handleImageUpload, getErrorMessage } from '../../uploadFile/uploadFactory.js';
+import { getActiveLangs } from '../../../../config/languageConfig.js';
 
 export const createRechargeGiftPackTag = 'createRechargeGiftPack';
 
@@ -153,24 +154,10 @@ function createRechargeGiftPackActivity(data, imagePath) {
             "rechargeMultiplier": 2,
             "bonusAmount": 222,
             "bonusMultiplier": 3,
-            "translateList": [
-                {
-                    "language": "hi",
-                    "notificationText": title
-                },
-                {
-                    "language": "en",
-                    "notificationText": title
-                },
-                {
-                    "language": "es",
-                    "notificationText": title
-                },
-                {
-                    "language": "zh",
-                    "notificationText": title
-                }
-            ]
+            "translateList": getActiveLangs().map(lang => ({
+                "language": lang,
+                "notificationText": title
+            }))
         };
 
         //logger.info(`[${createRechargeGiftPackTag}] 创建充值礼包payload: ${JSON.stringify(payload)}`);
@@ -429,24 +416,10 @@ function createActivityRecharge(data, imagePath, giftPackId) {
                 }
             ],
             "targetDetail": String(targetTagId),
-            "translateList": [
-                {
-                    "language": "hi",
-                    "imageUrl": imagePath
-                },
-                {
-                    "language": "en",
-                    "imageUrl": imagePath
-                },
-                {
-                    "language": "es",
-                    "imageUrl": imagePath
-                },
-                {
-                    "language": "zh",
-                    "imageUrl": imagePath
-                }
-            ]
+            "translateList": getActiveLangs().map(lang => ({
+                "language": lang,
+                "imageUrl": imagePath
+            }))
         };
 
         //logger.info(`[${createRechargeGiftPackTag}] 惊喜礼包活动payload: ${JSON.stringify(payload)}`);
