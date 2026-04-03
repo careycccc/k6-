@@ -19,7 +19,7 @@
 export const ENV_3001 = {
     BASE_ADMIN_URL: "https://ar666999.club",          // 管理后台地址
     BASE_DESK_URL: "https://arplatsaassit1.club",     // 前台地址（普通注册/总代注册）
-    INVITE_REGISTER_URL: "https://register.arplatsaassit1.club",                          // ⚠️ 邀请注册地址（待补充）
+    INVITE_REGISTER_URL: "https://3001.zc-arplatsaassit.com",                          // ⚠️ 邀请注册地址（待补充）
     PAGESIZE: 200,
     PAGENO: 1,
     ADMIN_USERNAME: "carey3001",
@@ -38,7 +38,7 @@ export const ENV_3001 = {
 export const ENV_3002 = {
     BASE_ADMIN_URL: "https://arsitasdfghjklg.com",    // 管理后台地址
     BASE_DESK_URL: "https://arplatsaassit2.club",     // 前台地址（普通注册/总代注册）
-    INVITE_REGISTER_URL: "https://register.arplatsaassit2.club",                          // ⚠️ 邀请注册地址（待补充）
+    INVITE_REGISTER_URL: "https://3002.zc-arplatsaassit.com",
     PAGESIZE: 200,
     PAGENO: 1,
     ADMIN_USERNAME: "carey3002",
@@ -56,8 +56,8 @@ export const ENV_3002 = {
 // 3003 环境配置
 export const ENV_3003 = {
     BASE_ADMIN_URL: "https://arsitasdfghj.com",       // 管理后台地址
-    BASE_DESK_URL: "https://arplatsaassit3.club",     // 前台地址（普通注册/总代注册）
-    INVITE_REGISTER_URL: "https://zc-arplatsaassit.com",  // 邀请注册地址
+    BASE_DESK_URL: "https://3003.arplatsaassit3.club",     // 前台地址（普通注册/总代注册）
+    INVITE_REGISTER_URL: "https://3003.zc-arplatsaassit.com",  // 邀请注册地址
     PAGESIZE: 200,
     PAGENO: 1,
     ADMIN_USERNAME: "carey3003",
@@ -76,7 +76,7 @@ export const ENV_3003 = {
 export const ENV_3004 = {
     BASE_ADMIN_URL: "https://arsitasdfghjklusa.com",  // 管理后台地址
     BASE_DESK_URL: "https://arplatsaassit4.club",     // 前台地址（普通注册/总代注册）
-    INVITE_REGISTER_URL: "https://register.arplatsaassit4.club",  // 邀请注册地址
+    INVITE_REGISTER_URL: "https://3004.zc-arplatsaassit.com",  // 邀请注册地址
     PAGESIZE: 200,
     PAGENO: 1,
     ADMIN_USERNAME: "carey3004",
@@ -91,11 +91,30 @@ export const ENV_3004 = {
     COUNTRY_CODE: "91"
 };
 
+// 3005 环境配置
+export const ENV_3005 = {
+    BASE_ADMIN_URL: "https://3005-tenantadmin.ar666999.club",  // 管理后台地址
+    BASE_DESK_URL: "https://arplatsaassit3.club",              // 前台地址
+    INVITE_REGISTER_URL: "https://3005.zc-arplatsaassit.com", // 邀请注册地址
+    PAGESIZE: 200,
+    PAGENO: 1,
+    ADMIN_USERNAME: "carey3005",
+    ADMIN_PASSWORD: "qwer1234",
+    START_TIME: "2026-01-08 00:00:00",
+    END_TIME: "2026-01-08 23:59:59",
+    TENANTID: 3005,
+    LimitedPermissions: "carey3005_001",
+    LimitedPermissionsPassWord: "qwer1234",
+    WorkOrderRole: "carey3005_001",
+    WorkOrderRolePasswrod: "qwer1234",
+    COUNTRY_CODE: "91"
+};
+
 // 3006 环境配置
 export const ENV_3006 = {
     BASE_ADMIN_URL: "https://3006-tenantadmin.ar666999.club",  // 管理后台地址
     BASE_DESK_URL: "https://3006.arplatsaassit4.club",         // 前台地址
-    INVITE_REGISTER_URL: "https://3006-reg.arplatsaassit4.club",   // 邀请注册地址
+    INVITE_REGISTER_URL: "https://3006.zc-arplatsaassit.com",   // 邀请注册地址
     PAGESIZE: 200,
     PAGENO: 1,
     ADMIN_USERNAME: "carey3006",
@@ -114,7 +133,7 @@ export const ENV_3006 = {
 export const ENV_3007 = {
     BASE_ADMIN_URL: "https://3007-tenantadmin.ar666999.club",  // 管理后台地址
     BASE_DESK_URL: "https://3007.arplatsaassit4.club",         // 前台地址
-    INVITE_REGISTER_URL: "https://3007-reg.arplatsaassit4.club",   // 邀请注册地址
+    INVITE_REGISTER_URL: "https://3007.zc-arplatsaassit.com",   // 邀请注册地址
     PAGESIZE: 200,
     PAGENO: 1,
     ADMIN_USERNAME: "carey3007",
@@ -138,6 +157,7 @@ export const ENV_MAP = {
     '3002': ENV_3002,
     '3003': ENV_3003,
     '3004': ENV_3004,
+    '3005': ENV_3005,
     '3006': ENV_3006,
     '3007': ENV_3007
 };
@@ -150,3 +170,41 @@ export const ENV_MAP = {
 export function getEnvByTenantId(tenantId) {
     return ENV_MAP[tenantId] || ENV_CONFIG;
 }
+
+
+
+
+// 3001 darkPurple
+// 前台：arplatsaassit1.club
+// 后台：ar666999.club
+// 注册：3001.zc-arplatsaassit.com
+
+// 3002 darkRed
+// 前台：arplatsaassit2.club
+// 后台：arsitasdfghjklg.com
+// 注册：3002.zc-arplatsaassit.com
+
+// 3003 lightBlue
+// 前台：3003.arplatsaassit3.club
+// 后台：arsitasdfghj.com
+// 注册：3003.zc-arplatsaassit.com
+
+// 3004 777blue
+// 前台：arplatsaassit4.club
+// 后台：arsitasdfghjklusa.com
+// 注册：3004.zc-arplatsaassit.com
+
+// 3005 darkBlue07
+// 前台：arplatsaassit3.club
+// 后台：3005-tenantadmin.ar666999.club
+// 注册：3005.zc-arplatsaassit.com
+
+// 3006 deepYellow
+// 前台：3006.arplatsaassit4.club
+// 后台：3006-tenantadmin.ar666999.club
+// 注册：3006.zc-arplatsaassit.com
+
+// 3007 deepOrange
+// 前台：3007.arplatsaassit4.club
+// 后台：3007-tenantadmin.ar666999.club
+// 注册：3007.zc-arplatsaassit.com
