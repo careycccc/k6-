@@ -145,7 +145,7 @@ export function runFrontendRechargeFlow(session, targetAmount) {
 
                     if (orders && orders.length > 0) {
                         for (let order of orders) {
-                            if (order.amount === amount && order.rechargeState === 'Wait') {
+                            if (order.amount === amount && (order.rechargeState === 'Wait' || order.rechargeState === 'PendingReview')) {
                                 targetOrder = order;
                                 break;
                             }

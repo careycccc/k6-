@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"smart-qa/config"
 	"smart-qa/model"
+	"strings"
 	"time"
 )
 
@@ -26,7 +27,7 @@ func NewEngine() *Engine {
 		ollamaURL: config.OllamaURL,
 		modelName: config.ModelName,
 		client: &http.Client{
-			Timeout: 120 * time.Second, // M2 8GB 给足时间
+			Timeout: 180 * time.Second, // deepseek-r1:8b 推理较慢，给足时间
 		},
 	}
 }
@@ -45,6 +46,12 @@ func (e *Engine) CheckConnection() bool {
 func (e *Engine) Parse(userInput string) (*model.ParseResult, error) {
 	start := time.Now()
 
+	// ⚡ 先走规则匹配（快速准确，防止 DeepSeek R1 幻觉）
+	if result := tryRuleBased(userInput); result != nil {
+		log.Printf("[租户AI引擎] ✅ 规则命中: intent=%s, params=%v", result.Intent, result.Params)
+		return result, nil
+	}
+
 	// 构建请求，使用租户扩展系统提示词
 	reqBody := model.OllamaRequest{
 		Model:  e.modelName,
@@ -53,7 +60,7 @@ func (e *Engine) Parse(userInput string) (*model.ParseResult, error) {
 		Stream: false,
 		Options: model.OllamaOptions{
 			Temperature: 0.1, // 低温度 = 输出稳定
-			NumPredict:  150, // 限制输出长度
+			NumPredict:  512, // deepseek-r1 需要更多 token（含 <think> 推理块）
 		},
 	}
 
@@ -90,6 +97,13 @@ func (e *Engine) Parse(userInput string) (*model.ParseResult, error) {
 	log.Printf("[租户AI引擎] 原始输出: %s", rawText)
 	log.Printf("[租户AI引擎] 耗时: %v", elapsed)
 
+	// 剥离 DeepSeek R1 的 <think>...</think> 推理块
+	rawText = stripThinkTags(rawText)
+	// 剥离 markdown 代码块（```json...``` 或 ```...```）
+	rawText = stripMarkdownCodeBlock(rawText)
+
+	log.Printf("[租户AI引擎] 处理后输出: %s", rawText)
+
 	// 从模型输出中提取 JSON
 	result, err := extractJSON(rawText)
 	if err != nil {
@@ -101,6 +115,74 @@ func (e *Engine) Parse(userInput string) (*model.ParseResult, error) {
 	}
 
 	return result, nil
+}
+
+// stripThinkTags 剥离 DeepSeek R1 输出中的 <think>...</think> 推理内容
+func stripThinkTags(text string) string {
+	re := regexp.MustCompile(`(?s)<think>.*?</think>`)
+	result := re.ReplaceAllString(text, "")
+	return strings.TrimSpace(result)
+}
+
+// stripMarkdownCodeBlock 剥离 markdown 代码块包裹（```json...``` 或 ```...```）
+func stripMarkdownCodeBlock(text string) string {
+	re := regexp.MustCompile("(?s)^```(?:json)?\\s*\\n?(.*?)\\n?```$")
+	if match := re.FindStringSubmatch(strings.TrimSpace(text)); len(match) > 1 {
+		return strings.TrimSpace(match[1])
+	}
+	return text
+}
+
+// tryRuleBased 规则优先匹配：简单明确的输入直接返回，无需调用 AI
+// 防止 DeepSeek R1 大模型对短文本产生幻觉
+func tryRuleBased(input string) *model.ParseResult {
+	s := strings.TrimSpace(input)
+
+	validPlatforms := []string{"3001", "3002", "3003", "3004", "3006", "3007"}
+
+	for _, platform := range validPlatforms {
+		// 规则1: "3004账号" / "3004 账号" / "3004账号2"（可带数量）
+		re1 := regexp.MustCompile(`^` + platform + `\s*账号\s*(\d+)?$`)
+		if m := re1.FindStringSubmatch(s); m != nil {
+			count := "1"
+			if m[1] != "" {
+				count = m[1]
+			}
+			return &model.ParseResult{
+				Intent: "get_account",
+				Params: map[string]string{"platform": platform, "count": count, "type": "phone"},
+			}
+		}
+
+		// 规则2: "来2个3004账号" / "给我3个3004的账号"
+		re2 := regexp.MustCompile(`(?:来|给我?)(\d+)[个]?\s*` + platform + `\s*(?:的)?账号`)
+		if m := re2.FindStringSubmatch(s); m != nil {
+			return &model.ParseResult{
+				Intent: "get_account",
+				Params: map[string]string{"platform": platform, "count": m[1], "type": "phone"},
+			}
+		}
+
+		// 规则3: "3004邮箱账号" / "3004邮箱"
+		re3 := regexp.MustCompile(`^` + platform + `\s*(?:邮箱|email)(?:账号)?$`)
+		if re3.MatchString(s) {
+			return &model.ParseResult{
+				Intent: "get_account",
+				Params: map[string]string{"platform": platform, "count": "1", "type": "email"},
+			}
+		}
+	}
+
+	// 规则4: 纯"账号"或"给我账号" → 需要询问平台
+	re4 := regexp.MustCompile(`^(?:给我?)?(?:一个)?\s*账号\s*$`)
+	if re4.MatchString(s) {
+		return &model.ParseResult{
+			Intent: "ask_platform",
+			Params: map[string]string{},
+		}
+	}
+
+	return nil // 无规则命中，走 AI
 }
 
 // extractJSON 从模型输出文本中提取 JSON
@@ -130,12 +212,10 @@ func extractJSON(text string) (*model.ParseResult, error) {
 	re2 := regexp.MustCompile(`(?s)\{.*\}`)
 	match2 := re2.FindString(text)
 	if match2 != "" {
-		// 处理嵌套JSON的情况
 		var rawMap map[string]interface{}
 		if err := json.Unmarshal([]byte(match2), &rawMap); err == nil {
 			result.Intent, _ = rawMap["intent"].(string)
 			result.Params = map[string]string{}
-
 			if params, ok := rawMap["params"].(map[string]interface{}); ok {
 				for k, v := range params {
 					result.Params[k] = fmt.Sprintf("%v", v)

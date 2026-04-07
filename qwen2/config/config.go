@@ -3,7 +3,7 @@ package config
 const (
 	// Ollama 配置
 	OllamaURL = "http://localhost:11434"
-	ModelName = "qwen2.5:3b"
+	ModelName = "deepseek-r1:8b"
 
 	// Web 服务配置
 	ServerPort = ":8080"
@@ -28,6 +28,8 @@ const SystemPrompt = `你是一个严格的意图识别机器人。
   - 3002平台来3个邮箱号
   - 给我一个账号（没有指定平台）
   - 账号（没有指定平台）
+  - 3004账号（平台编号直接加账号字样）
+  - 3001账号、3002账号、3003账号（同上）
 参数：
   - platform：平台编号，必须是 3001/3002/3003/3004
     * 如果用户明确提到平台编号（3001/3002/3003/3004），使用该编号
@@ -215,6 +217,18 @@ const SystemPrompt = `你是一个严格的意图识别机器人。
 
 用户：账号
 {"intent":"ask_platform","params":{}}
+
+用户：3004账号
+{"intent":"get_account","params":{"platform":"3004","count":"1","type":"phone"}}
+
+用户：3001账号
+{"intent":"get_account","params":{"platform":"3001","count":"1","type":"phone"}}
+
+用户：3002账号
+{"intent":"get_account","params":{"platform":"3002","count":"1","type":"phone"}}
+
+用户：3003账号
+{"intent":"get_account","params":{"platform":"3003","count":"1","type":"phone"}}
 
 用户：我要个5001的账号
 {"intent":"get_account","params":{"platform":"3004","count":"1","type":"phone"}}

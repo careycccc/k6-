@@ -135,7 +135,7 @@ function runBetFunc(loginToken, userName) {
         if (betResult && betResult.code === 0 && betResult.msgCode === 0 && betResult.msg === 'Succeed') {
             console.log(`[BetRun] ✅ 投注成功（第 ${attempt} 次尝试）`);
             console.log('[BetRun] ========== 投注流程完成 ==========');
-            return true;
+            return { amount: amount * betMultiple };
         } else {
             console.error(`[BetRun] ❌ 投注失败（第 ${attempt} 次尝试）`);
             failedGameCodes.push(gameCode);

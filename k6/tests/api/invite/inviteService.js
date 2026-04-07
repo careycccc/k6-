@@ -27,14 +27,18 @@ class User {
  * 用户详细信息
  */
 class UserDetail {
-    constructor(userAccount, token, accountType, userId = null, inviteCode = null) {
+    constructor(userAccount, token, accountType, userId = null, inviteCode = null, parentInviteCode = null) {
         this.userAccount = userAccount;    // 用户账号（手机号或邮箱）
         this.token = token;                // 用户登录token
         this.accountType = accountType;    // 账号类型：'phone' 或 'email'
         this.userId = userId;              // 用户ID（从前台接口获取）
         this.inviteCode = inviteCode;      // 用户邀请码（从前台接口获取）
+        this.parentInviteCode = parentInviteCode; // 上级邀请码
         this.recharged = false;            // 是否已充值成功
         this.rechargeAmount = 0;           // 充值金额
+        this.betSuccess = false;           // 是否投注成功
+        this.betAmount = 0;                // 投注金额
+        this.failedReason = "";            // 失败原因（如果有）
     }
 }
 
@@ -100,6 +104,7 @@ export async function processNewUsers(adminData) {
                 console.log(`[ProcessUsers] ✅ 充值成功: ${userDetail.userAccount}, 金额: ${rechargeResult.amount}, 方式: ${rechargeResult.method}`);
             } else {
                 userDetail.recharged = false;
+                userDetail.failedReason = "充值失败";
                 console.error(`[ProcessUsers] ❌ 充值失败: ${userDetail.userAccount}, 原因: ${rechargeResult.message}`);
                 continue; // 充值失败，跳过投注
             }
@@ -117,8 +122,12 @@ export async function processNewUsers(adminData) {
 
             if (betResult) {
                 betSuccessCount++;
+                userDetail.betSuccess = true;
+                userDetail.betAmount = betResult.amount || 0;
                 console.log(`[ProcessUsers] ✅ 投注成功: ${userDetail.userAccount}`);
             } else {
+                userDetail.betSuccess = false;
+                userDetail.failedReason = "投注失败";
                 console.error(`[ProcessUsers] ❌ 投注失败: ${userDetail.userAccount}`);
             }
 
@@ -321,7 +330,8 @@ export function bindOneLevel(parentInviteCodes, count, level, adminData) {
             registerResult.token,
             registerResult.accountType,
             registerResult.userId,
-            registerResult.inviteCode
+            registerResult.inviteCode,
+            parentInviteCode
         );
         userDetails.push(userDetail);
 
@@ -424,6 +434,103 @@ export async function runMultiLevelInvite(rootInviteCode, subordinates, adminDat
     }
 
     console.log('\n🎉 多层级邀请绑定完成！');
+
+    // ========== 生成最终测试报表 ==========
+    console.log('\n========== 最终测试报表 ==========');
+    
+    // 构建映射: inviteCode -> userAccount
+    const codeToAccountMap = new Map();
+    codeToAccountMap.set(rootInviteCode, "总代(Root)");
+    for (const ud of userDetails) {
+        codeToAccountMap.set(ud.inviteCode, ud.userAccount);
+    }
+
+    // 计算每个用户的下级数量
+    const childrenCountMap = new Map();
+    for (const ud of userDetails) {
+        if (ud.parentInviteCode) {
+            const current = childrenCountMap.get(ud.parentInviteCode) || 0;
+            childrenCountMap.set(ud.parentInviteCode, current + 1);
+        }
+    }
+
+    // 辅助函数：计算字符串打印宽度 (中文字符算2个宽度)
+    const getDisplayWidth = (str) => {
+        let width = 0;
+        const stringVal = String(str);
+        for (let i = 0; i < stringVal.length; i++) {
+            width += stringVal.charCodeAt(i) > 255 ? 2 : 1;
+        }
+        return width;
+    };
+
+    // 辅助函数：按显示宽度填充空格对齐
+    const padString = (str, targetWidth) => {
+        const stringVal = String(str);
+        const width = getDisplayWidth(stringVal);
+        return width >= targetWidth ? stringVal : stringVal + ' '.repeat(targetWidth - width);
+    };
+
+    // 定义表头
+    const headers = ['上级账号', '下级账号', '是否邀请成功', '充值金额', '投注金额', '失败原因备注', '当前会员下级数'];
+    
+    // 收集所有行数据
+    const rows = [];
+    for (const ud of userDetails) {
+        const parentAccount = codeToAccountMap.get(ud.parentInviteCode) || ud.parentInviteCode;
+        const childAccount = ud.userAccount;
+        const inviteSuccess = (ud.recharged && ud.betSuccess) ? "是" : "否";
+        const rechargeAmt = ud.rechargeAmount || "-";
+        const betAmt = ud.betAmount || "-";
+        const failedReason = ud.failedReason || "-";
+        const childCount = childrenCountMap.get(ud.inviteCode) || 0;
+
+        rows.push([parentAccount, childAccount, inviteSuccess, rechargeAmt, betAmt, failedReason, childCount]);
+    }
+
+    // 计算各列最大宽度
+    const colWidths = headers.map(h => getDisplayWidth(h));
+    for (const row of rows) {
+        for (let i = 0; i < row.length; i++) {
+            const w = getDisplayWidth(row[i]);
+            if (w > colWidths[i]) colWidths[i] = w;
+        }
+    }
+
+    // 为了美观，列宽最小追加2个空格宽裕度
+    for (let i = 0; i < colWidths.length; i++) {
+        colWidths[i] += 2;
+    }
+
+    // 拼装表格
+    let reportTable = "";
+    
+    // 渲染表头
+    let headerStr = "|";
+    for (let i = 0; i < headers.length; i++) {
+        headerStr += ` ${padString(headers[i], colWidths[i])}|`;
+    }
+    reportTable += headerStr + "\n";
+
+    // 渲染分隔线
+    let separatorStr = "|";
+    for (let i = 0; i < headers.length; i++) {
+        separatorStr += `${'-'.repeat(colWidths[i] + 2)}|`;
+    }
+    reportTable += separatorStr + "\n";
+
+    // 渲染数据行
+    for (const row of rows) {
+        let rowStr = "|";
+        for (let i = 0; i < row.length; i++) {
+            rowStr += ` ${padString(row[i], colWidths[i])}|`;
+        }
+        reportTable += rowStr + "\n";
+    }
+
+    // 将报表输出为单条日志以避免格式错乱
+    console.log(reportTable);
+    console.log('===================================\n');
 }
 
 /**

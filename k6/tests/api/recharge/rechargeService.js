@@ -47,6 +47,12 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
 
     // 3. 遍历通道并尝试充值
     for (let i = 0; i < categories.length; i++) {
+        // 从第二个通道开始等待 2 秒，避免短时间内多次请求触发服务端频率限制
+        // (code:11 / msgCode:13 → Too frequent access)
+        if (i > 0) {
+            sleep(2);
+        }
+
         const category = categories[i];
         const categoryId = category.id;
         const rechargeType = category.rechargeType;
@@ -165,10 +171,11 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
                         for (let order of orders) {
                             console.log(`[FrontRecharge]   订单: ${order.orderNo}, 金额: ${order.amount}, 状态: ${order.rechargeState}, 创建时间: ${new Date(order.createTime).toISOString()}`);
 
-                            // 匹配条件：金额相同 + 订单创建时间在充值请求之后 + 状态为 Wait
+                            // 匹配条件：金额相同 + 订单创建时间在充值请求前最多120秒内 + 状态为 Wait 或 PendingReview
+                            // 注意：服务器生成订单的时间通常早于本地收到响应后的时间，且可能有服务器时间误差，因此要留有时间余量
                             if (order.amount === amount &&
-                                order.createTime >= rechargeRequestTime &&
-                                order.rechargeState === 'Wait') {
+                                order.createTime >= (rechargeRequestTime - 120000) &&
+                                (order.rechargeState === 'Wait' || order.rechargeState === 'PendingReview')) {
                                 targetOrder = order;
                                 console.log(`[FrontRecharge] ✅ 匹配到目标订单: ${order.orderNo}`);
                                 break;
@@ -204,9 +211,9 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
                         for (let order of orders) {
                             console.log(`[FrontRecharge]   订单: ${order.orderNo}, 金额: ${order.amount}, 创建时间: ${new Date(order.createTime).toISOString()}`);
 
-                            // 匹配条件：金额相同 + 订单创建时间在充值请求之后
+                            // 匹配条件：金额相同 + 订单创建时间在充值请求前最多120秒内
                             if (order.amount === amount &&
-                                order.createTime >= rechargeRequestTime) {
+                                order.createTime >= (rechargeRequestTime - 120000)) {
                                 targetOrder = order;
                                 console.log(`[FrontRecharge] ✅ 匹配到目标三方订单: ${order.orderNo}`);
                                 break;
