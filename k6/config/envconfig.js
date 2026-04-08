@@ -55,7 +55,7 @@ export const ENV_3002 = {
 
 // 3003 环境配置
 export const ENV_3003 = {
-    BASE_ADMIN_URL: "https://arsitasdfghj.com",       // 管理后台地址
+    BASE_ADMIN_URL: "https://3003-tenantadmin.ar666999.club",       // 管理后台地址
     BASE_DESK_URL: "https://3003.arplatsaassit3.club",     // 前台地址（普通注册/总代注册）
     INVITE_REGISTER_URL: "https://3003.zc-arplatsaassit.com",  // 邀请注册地址
     PAGESIZE: 200,
@@ -69,7 +69,7 @@ export const ENV_3003 = {
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3003_001",
     WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "52"
+    COUNTRY_CODE: "91"
 };
 
 // 3004 环境配置（当前默认）
@@ -93,7 +93,7 @@ export const ENV_3004 = {
 
 // 3005 环境配置
 export const ENV_3005 = {
-    BASE_ADMIN_URL: "https://3005-tenantadmin.ar666999.club",  // 管理后台地址
+    BASE_ADMIN_URL: "https://arsitasdfghj.com",  // 管理后台地址
     BASE_DESK_URL: "https://arplatsaassit3.club",              // 前台地址
     INVITE_REGISTER_URL: "https://3005.zc-arplatsaassit.com", // 邀请注册地址
     PAGESIZE: 200,
@@ -107,7 +107,7 @@ export const ENV_3005 = {
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3005_001",
     WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "91"
+    COUNTRY_CODE: "52"
 };
 
 // 3006 环境配置
@@ -186,7 +186,7 @@ export function getEnvByTenantId(tenantId) {
 
 // 3003 lightBlue
 // 前台：3003.arplatsaassit3.club
-// 后台：arsitasdfghj.com
+// 后台：3003-tenantadmin.ar666999.club
 // 注册：3003.zc-arplatsaassit.com
 
 // 3004 777blue
@@ -196,7 +196,7 @@ export function getEnvByTenantId(tenantId) {
 
 // 3005 darkBlue07
 // 前台：arplatsaassit3.club
-// 后台：3005-tenantadmin.ar666999.club
+// 后台：arsitasdfghj.com
 // 注册：3005.zc-arplatsaassit.com
 
 // 3006 deepYellow

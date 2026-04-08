@@ -11,7 +11,7 @@
  */
 
 // # 基本使用
-// k6 run -e TENANT_ID=3002 -e TARGET_UID=5945146 runTeamRechargeAndBet.test.js
+// k6 run -e TENANT_ID=3004 -e RECHARGE_CHANCE=0.8 -e TARGET_UID=136736 runTeamRechargeAndBet.test.js
 
 // # 自定义充值几率（70%）
 // k6 run -e TENANT_ID=3002 -e TARGET_UID=5945146 -e RECHARGE_CHANCE=0.7 k6/tests/api/invite/runTeamRechargeAndBet.test.js

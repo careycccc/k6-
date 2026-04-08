@@ -190,12 +190,15 @@ export function sendToGetVerCode(verifyCodeType, codeType, userName, adminToken,
   }
 
   // 检查发送响应
-  if (sendResponse) {
-    const sendCode = sendResponse.code !== undefined ? sendResponse.code : sendResponse.msgCode;
-    if (sendCode !== 0) {
-      console.error(`[SendVerifyCode] 验证码发送失败，无法继续: code=${sendCode}, msg=${sendResponse.msg}`);
-      return null;
-    }
+  if (!sendResponse) {
+    console.error(`[SendVerifyCode] 验证码发送失败，接口无响应或返回非JSON格式(可能是502/503报错)`);
+    return null;
+  }
+  
+  const sendCode = sendResponse.code !== undefined ? sendResponse.code : sendResponse.msgCode;
+  if (sendCode !== 0) {
+    console.error(`[SendVerifyCode] 验证码发送失败，无法继续: code=${sendCode}, msg=${sendResponse.msg}`);
+    return null;
   }
 
   // 等待验证码生成（2秒）

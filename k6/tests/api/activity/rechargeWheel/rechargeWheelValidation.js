@@ -374,8 +374,9 @@ export function spinRechargeWheel(userToken, rechargeWheelType = 1) {
 export function randomRegisterUser(data) {
     logger.info(`[${rechargeWheelValidationTag}] 开始随机注册用户`);
 
-    // 先尝试手机号注册
-    const phone = generateRandomPhone();
+    // 先尝试手机注册
+    const countryCode = ENV_CONFIG.COUNTRY_CODE || '91';
+    const phone = generateRandomPhone(countryCode);
     logger.info(`[${rechargeWheelValidationTag}] 尝试手机号注册: ${phone}`);
 
     let registerResult = phoneRegister(phone, data);

@@ -294,7 +294,16 @@ export function bindOneLevel(parentInviteCodes, count, level, adminData) {
     console.log(`\n🔗 [层级${level + 1}] 父级${parentInviteCodes.length}人 -> 生成${count}个下级...`);
 
     // 步骤1: 生成账号（使用当前环境的区号）
-    const countryCode = ENV_CONFIG.COUNTRY_CODE || '91';
+    // 注意：k6的VU环境是独立的，直接读 ENV_CONFIG 可能读到默认值，优先从 adminData 提取动态配置
+    let countryCode = '91';
+    if (adminData && adminData.envConfig && adminData.envConfig.COUNTRY_CODE) {
+        countryCode = adminData.envConfig.COUNTRY_CODE;
+    } else if (typeof __ENV !== 'undefined' && __ENV.TENANT_ID) {
+        countryCode = getEnvByTenantId(__ENV.TENANT_ID).COUNTRY_CODE || '91';
+    } else if (ENV_CONFIG && ENV_CONFIG.COUNTRY_CODE) {
+        countryCode = ENV_CONFIG.COUNTRY_CODE;
+    }
+    
     console.log(`📱 使用区号: ${countryCode}`);
     const phoneNumbers = generateRandomPhones(count, countryCode);
     const emails = generateRandomEmails(count);

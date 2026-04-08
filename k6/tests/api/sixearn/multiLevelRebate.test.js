@@ -11,12 +11,12 @@
  * 7. 注意只有团队2进行充值投注的时候才会有一定的几率把成员加入到特殊/固定的返佣中
  * 
  * 使用方法：
- * k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=22 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=13 -e TEAM2_LEVELS=4 multiLevelRebate.test.js
+ * k6 run -e TENANT_ID=3007 -e TEAM1_TOTAL=22 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=13 -e TEAM2_LEVELS=4 multiLevelRebate.test.js
  */
 
 import { sleep } from 'k6';
 import { AdminLogin } from '../login/adminlogin.test.js';
-import { phoneRegister } from '../login/register.test.js';
+import { phoneRegister, phoneRegisterByInvite } from '../login/register.test.js';
 import { generateRandomPhone } from '../../utils/accountGenerator.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
 import { getAgentHierarchyList } from '../invite/agentApi.js';
@@ -96,10 +96,19 @@ function distributePeople(totalPeople, levels) {
 function registerRootAgent(adminData, teamName) {
     console.log(`\n[${teamName}] 开始注册总代...`);
 
-    const phone = generateRandomPhone();
-    console.log(`[${teamName}] 生成手机号: ${phone}`);
+    const countryCode = adminData.envConfig.COUNTRY_CODE || '91';
+    const phone = generateRandomPhone(countryCode);
+    console.log(`[${teamName}] 生成手机号: ${phone} (区号: ${countryCode})`);
 
-    const registerResult = phoneRegister(phone, adminData);
+    // 使用邀请注册的接口来注册总代，只是邀请码传空字符串
+    // 很多租户关闭了常规注册(codeType=1)，只开放邀请注册(codeType=19)
+    const customUrls = {
+        frontUrl: adminData.envConfig.INVITE_REGISTER_URL || adminData.envConfig.BASE_DESK_URL,
+        adminUrl: adminData.envConfig.BASE_ADMIN_URL,
+        registerUrl: adminData.envConfig.INVITE_REGISTER_URL || adminData.envConfig.BASE_DESK_URL
+    };
+
+    const registerResult = phoneRegisterByInvite(phone, '', adminData, 'qwer1234', '', customUrls);
 
     if (!registerResult || !registerResult.data) {
         throw new Error(`[${teamName}] 总代注册失败`);

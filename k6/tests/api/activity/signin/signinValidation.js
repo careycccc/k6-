@@ -106,7 +106,8 @@ function registerOrLoginUser(options) {
         };
 
         // 先尝试手机注册
-        const phone = generateRandomPhone();
+        const countryCode = ENV_CONFIG.COUNTRY_CODE || '91';
+        const phone = generateRandomPhone(countryCode);
         logger.info(`[${TAG}] 尝试手机注册: ${phone}`);
 
         const phoneResult = phoneRegister(phone, registerData, password);
