@@ -4,7 +4,7 @@
  * 使用方法：
  * k6 run -e TENANT_ID=3004 -e TARGET_UID=136139 tests/api/agentL3/runAgentL3Validation.test.js
  
-   k6 run -e TENANT_ID=3004 -e TARGET_UID=136554 runAgentL3Validation.test.js
+   k6 run -e TENANT_ID=3004 -e TARGET_UID=136737 runAgentL3Validation.test.js
 */
 
 import { logger } from '../../../libs/utils/logger.js';
