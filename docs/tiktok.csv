@@ -1,0 +1,53 @@
+用例编号,模块,标题,前置条件,步骤,预期结果,优先级
+TT-CONFIG-001,后台配置,新增 TikTok 配置成功,已登录后台且有配置权限,"1. 点击新增TikTok配置;2. 输入Pixel ID/渠道名称/Token/备注;3. 点击保存","保存成功提示;列表出现新配置;数据库新增记录字段正确",P0
+TT-CONFIG-002,后台配置,Pixel ID 为空校验,已进入新增页面,"1. Pixel ID留空;2. 输入其他字段;3. 点击保存","前端提示必填;无法保存或接口返回参数错误",P0
+TT-CONFIG-003,后台配置,渠道名称为空校验,已进入新增页面,"1. 渠道名称留空;2. 输入其他字段;3. 点击保存","前端提示必填;无法保存",P0
+TT-CONFIG-004,后台配置,Access Token 为空校验,已进入新增页面,"1. Token留空;2. 输入其他字段;3. 点击保存","前端提示必填;无法保存",P0
+TT-CONFIG-005,后台配置,渠道名称长度=30边界校验,已进入新增页面,"1. 输入30字符渠道名称;2. 填写其他字段;3. 保存","保存成功",P1
+TT-CONFIG-006,后台配置,渠道名称长度>30校验,已进入新增页面,"1. 输入31字符渠道名称;2. 填写其他字段;3. 保存","前端提示超长或保存失败",P0
+TT-CONFIG-007,后台配置,Pixel ID 输入非数字校验,已进入新增页面,"1. Pixel ID输入abc123;2. 填写其他字段;3. 保存","若限定数字则提示格式错误;若允许则保存成功并可正常上报",P1
+TT-CONFIG-008,后台配置,Token 前后空格处理,已进入新增页面,"1. Token输入含前后空格;2. 保存","系统自动trim;保存后token可用",P1
+TT-CONFIG-009,后台配置,渠道名称重复校验,已存在渠道名称配置,"1. 新增配置渠道名称与已有相同;2. 保存","若要求唯一则提示重复;若允许则保存成功且配置不冲突",P1
+TT-CONFIG-010,后台配置,Pixel ID 重复校验,已存在Pixel ID配置,"1. 新增配置Pixel ID与已有相同;2. 保存","根据业务规则:禁止重复则报错;允许则保存成功",P2
+TT-CONFIG-011,后台配置,保存后列表展示正确,已新增配置,"1. 返回列表页;2. 查看字段展示","Pixel ID/渠道名称展示正确;Token脱敏显示;备注正常",P1
+TT-CONFIG-012,后台配置,Token 是否脱敏展示,已新增配置,"1. 查看配置列表Token字段;2. 进入详情或编辑页查看","列表不显示明文token;编辑页显示受控",P0
+TT-CONFIG-013,后台配置,编辑 TikTok 配置成功,已存在配置,"1. 点击编辑;2. 修改Token或备注;3. 保存","保存成功;数据库更新;新Token立即生效",P0
+TT-CONFIG-014,后台配置,删除 TikTok 配置成功,已存在配置,"1. 点击删除;2. 二次确认","删除成功;列表消失;数据库记录删除或置无效",P1
+TT-CONFIG-015,后台配置,删除配置后事件不再上报,配置已删除,"1. 触发注册或充值事件;2. 查看日志","系统不再调用TikTok API;日志提示未配置",P0
+TT-CONFIG-016,后台配置,批量添加配置成功,有批量导入功能,"1. 批量导入多条配置;2. 提交","正确数据导入成功;列表展示正确",P2
+TT-CONFIG-017,后台配置,批量导入包含非法数据处理,有批量导入功能,"1. 导入含空字段/超长渠道名数据;2. 提交","非法数据提示失败原因;合法数据可成功导入",P2
+TT-CONFIG-018,后台配置,无权限用户无法新增配置,测试账号无权限,"1. 登录无权限账号;2. 尝试新增/编辑/删除","页面按钮不可见或接口返回403;无操作权限",P0
+TT-CONFIG-019,后台配置,配置操作日志记录,系统支持操作日志,"1. 新增配置;2. 编辑配置;3. 删除配置;4. 查询操作日志","日志记录操作人/时间/变更内容",P2
+TT-EVENT-001,埋点上报,注册成功触发 CompleteRegistration 上报,TikTok配置有效且可注册用户,"1. 注册新用户成功;2. 查看服务日志或抓包","系统调用TikTok Events API;event_name=CompleteRegistration;返回success",P0
+TT-EVENT-002,埋点上报,注册失败不触发 CompleteRegistration,TikTok配置有效,"1. 模拟注册失败;2. 查看日志","不调用TikTok Events API;无CompleteRegistration事件",P0
+TT-EVENT-003,埋点上报,首次充值成功触发 Subscribe 上报,TikTok配置有效且用户已注册,"1. 用户首次充值成功;2. 查看日志或抓包","调用TikTok API;event_name=Subscribe;返回success",P0
+TT-EVENT-004,埋点上报,充值成功触发 Purchase 上报,TikTok配置有效且用户已注册,"1. 用户充值成功;2. 查看日志","调用TikTok API;event_name=Purchase;返回success",P0
+TT-EVENT-005,埋点上报,多次充值 Purchase 上报次数正确,TikTok配置有效,"1. 用户连续充值2次成功;2. 查看日志","Purchase事件上报2次;金额与订单对应",P0
+TT-EVENT-006,埋点上报,Subscribe 仅首次充值触发一次,TikTok配置有效,"1. 首次充值成功;2. 第二次充值成功;3. 查看日志","Subscribe仅出现1次;第二次仅Purchase",P0
+TT-EVENT-007,埋点上报,支付失败不触发 Subscribe/Purchase,TikTok配置有效,"1. 创建订单但支付失败;2. 查看日志","不调用TikTok API;无Subscribe/Purchase事件",P0
+TT-EVENT-008,埋点上报,TikTok API 返回成功码校验,TikTok配置有效,"1. 触发注册或充值;2. 检查接口响应","HTTP 200且response body为success;记录request_id",P0
+TT-EVENT-009,埋点上报,payload 必填字段完整性校验,TikTok配置有效,"1. 触发事件;2. 打印请求payload","payload包含pixel_id/event/event_time/user_data/properties等必填字段",P0
+TT-EVENT-010,埋点上报,event_time 时间戳格式正确（秒级）,TikTok配置有效,"1. 触发事件;2. 检查event_time","event_time为秒级timestamp;TikTok后台显示时间正确",P1
+TT-EVENT-011,埋点上报,Purchase 金额 value 正确,TikTok配置有效,"1. 充值金额9.99;2. 检查payload value","value=9.99且与订单一致;无乘以100错误",P0
+TT-EVENT-012,埋点上报,Purchase currency 正确,TikTok配置有效,"1. 触发充值;2. 查看payload currency","currency符合业务币种且与订单一致",P0
+TT-EVENT-013,埋点上报,user_data email/phone hash 校验,用户绑定邮箱或手机号,"1. 触发注册或充值;2. 检查payload user_data","email/phone按要求SHA256 hash;不上传明文",P0
+TT-EVENT-014,埋点上报,client_ip_address 获取正确,TikTok配置有效,"1. 不同网络环境注册;2. 查看payload IP","IP为真实客户端IP而非服务器IP",P0
+TT-EVENT-015,埋点上报,client_user_agent 获取正确,TikTok配置有效,"1. 不同浏览器注册;2. 查看payload UA","UA与真实浏览器一致",P1
+TT-EVENT-016,埋点上报,订单回调重复触发幂等校验,支付回调可模拟,"1. 重复调用支付回调3次;2. 查看日志或落库","Purchase只上报1次;event_id去重生效;无重复计数",P0
+TT-EVENT-017,埋点上报,event_id 唯一性校验,系统支持event_id,"1. 连续触发两次事件;2. 检查event_id","event_id不同且可追踪;同一订单event_id固定",P0
+TT-EVENT-018,埋点上报,Token 无效时上报失败处理,修改token为错误值,"1. 修改token;2. 触发注册或充值","TikTok返回401/403;系统记录失败原因;业务流程不受影响",P0
+TT-EVENT-019,埋点上报,Pixel ID 无效时上报失败处理,修改pixel_id错误,"1. 修改pixel_id;2. 触发事件","TikTok返回错误;系统记录失败原因;业务不受影响",P0
+TT-EVENT-020,埋点上报,TikTok API 超时重试机制验证,可mock超时,"1. mock接口超时;2. 触发事件;3. 查看重试日志","触发重试;重试次数符合配置;失败可落库或告警",P0
+TT-EVENT-021,埋点上报,TikTok API 429限流处理,可mock 429,"1. 并发触发大量事件;2. mock返回429","系统识别限流;进入重试队列;不丢事件",P1
+TT-EVENT-022,埋点上报,TikTok API 5xx错误处理,可mock 500,"1. mock返回500;2. 触发事件","系统记录失败;可重试或进入失败队列",P1
+TT-EVENT-023,埋点上报,TikTok后台 Test Events 可见性验证,有TikTok后台权限,"1. 打开Events Manager Test Events;2. 触发注册","TikTok后台实时看到CompleteRegistration事件",P0
+TT-EVENT-024,埋点上报,TikTok后台 Purchase/Subscribe 可见性验证,有TikTok后台权限,"1. 打开Test Events;2. 触发充值","TikTok后台实时看到Subscribe/Purchase事件",P0
+TT-EVENT-025,埋点上报,事件延迟容忍验证,有TikTok后台权限,"1. 触发事件;2. 等待1~5分钟观察","最终能在后台出现;延迟在可接受范围",P2
+TT-MAP-001,配置生效,修改 Token 后立即生效,已存在配置,"1. 修改token保存;2. 触发注册事件","使用新token请求TikTok成功",P0
+TT-MAP-002,配置生效,修改 Pixel ID 后立即生效,已存在配置,"1. 修改pixel_id保存;2. 触发事件","payload pixel_id为新值;TikTok后台记录到新pixel",P0
+TT-MAP-003,配置映射,多渠道用户匹配正确 Pixel,存在多个渠道配置,"1. 渠道A用户注册;2. 渠道B用户注册","A使用pixel_A上报;B使用pixel_B上报",P1
+TT-MAP-004,配置映射,渠道未配置时不触发上报,用户渠道无配置,"1. 用未配置渠道用户注册","不调用TikTok API;日志提示无配置",P0
+TT-RECON-001,数据对账,CompleteRegistration 数量对账,有DB权限或统计接口,"1. 统计业务注册成功数N;2. 统计TikTok事件数","TikTok事件数≈N(允许延迟或少量误差)",P0
+TT-RECON-002,数据对账,Purchase 数量对账,有订单统计数据,"1. 统计支付成功订单数M;2. 统计TikTok Purchase事件数","Purchase事件数≈M;无明显丢失或重复",P0
+TT-RECON-003,数据对账,Purchase 金额对账,有订单金额数据,"1. 抽样10笔订单;2. 对比TikTok value","TikTok value与订单金额一致",P0
+TT-RECON-004,数据对账,Subscribe 首次充值对账,有首次充值标记,"1. 统计首次充值用户数K;2. 统计TikTok Subscribe事件数","Subscribe事件数≈K",P1
