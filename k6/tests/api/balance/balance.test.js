@@ -8,7 +8,7 @@
 import http from 'k6/http';
 import { getTimeRandom } from '../../utils/utils.js';
 import { SignedHttpClient } from '../../../libs/utils/signature.js';
-import { ENV_CONFIG } from '../../../config/envconfig.js';
+import { getEnvByTenantId } from '../../../config/envconfig.js';
 
 /**
  * 获取账号余额
@@ -23,8 +23,11 @@ export function getAccountBalance(token) {
         return null;
     }
 
+    const tenantIdStr = __ENV.TENANT || __ENV.TENANT_ID || '3004';
+    const currentEnv = getEnvByTenantId(tenantIdStr);
+    
     const api = '/api/ThirdGame/RecoverSaasBalance';
-    const fullUrl = ENV_CONFIG.BASE_DESK_URL + api;
+    const fullUrl = currentEnv.BASE_DESK_URL + api;
 
     try {
         const timeData = getTimeRandom();
@@ -52,8 +55,8 @@ export function getAccountBalance(token) {
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`,
-                'Domainurl': ENV_CONFIG.BASE_DESK_URL,
-                'Referrer': ENV_CONFIG.BASE_DESK_URL
+                'Domainurl': currentEnv.BASE_DESK_URL,
+                'Referrer': currentEnv.BASE_DESK_URL
             }
         });
 

@@ -4,7 +4,7 @@
  */
 
 import { sendQueryRequest, sendRequest } from '../common/request.js';
-import { ENV_CONFIG } from '../../../config/envconfig.js';
+import { getEnvByTenantId } from '../../../config/envconfig.js';
 
 /**
  * 根据用户账号获取用户ID
@@ -143,8 +143,10 @@ export function getUserInfo(adminToken, userAccount) {
  * @returns {object|null} 返回 {userId, inviteCode, nickName, ...} 或 null
  */
 export function getFrontUserInfo(userToken) {
+    const tenantIdStr = __ENV.TENANT || __ENV.TENANT_ID || '3004';
+    const currentEnv = getEnvByTenantId(tenantIdStr);
     console.log(`[UserManagement] 获取前台用户信息`);
-    console.log(`[UserManagement] Debug - 当前 ENV_CONFIG.BASE_DESK_URL: ${ENV_CONFIG.BASE_DESK_URL}`);
+    console.log(`[UserManagement] Debug - 当前环境 BASE_DESK_URL: ${currentEnv.BASE_DESK_URL}`);
 
     const api = '/api/User/GetUserInfo';
 

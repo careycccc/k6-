@@ -6,7 +6,7 @@
 import http from 'k6/http';
 import { getTimeRandom, generateCryptoRandomString } from '../../utils/utils.js';
 import { SignedHttpClient } from '../../../libs/utils/signature.js';
-import { ENV_CONFIG } from '../../../config/envconfig.js';
+import { getEnvByTenantId } from '../../../config/envconfig.js';
 
 /**
  * 获取第三方游戏 URL 和 Token
@@ -16,7 +16,9 @@ import { ENV_CONFIG } from '../../../config/envconfig.js';
  */
 export function getThirdGameUrl(token, gameCode) {
     const api = '/api/ThirdGame/GetGameUrl';
-    const baseUrl = ENV_CONFIG.BASE_DESK_URL; // 使用环境配置的前台地址
+    const tenantIdStr = __ENV.TENANT || __ENV.TENANT_ID || '3004';
+    const currentEnv = getEnvByTenantId(tenantIdStr);
+    const baseUrl = currentEnv.BASE_DESK_URL; // 使用环境配置的前台地址
 
     const timeData = getTimeRandom();
     const deviceTypeId = generateCryptoRandomString(32);

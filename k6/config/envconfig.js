@@ -148,6 +148,25 @@ export const ENV_3007 = {
     COUNTRY_CODE: "92"  // 巴基斯坦区号
 };
 
+// 3101 UAT 环境配置
+export const ENV_3101 = {
+    BASE_ADMIN_URL: "https://3101-tenantadmin.arplatsaasuat.com",    // 管理后台地址
+    BASE_DESK_URL: "https://arplatsaaspagesuat.club",               // 前台地址
+    INVITE_REGISTER_URL: "https://3101-register-uat.arplatsaasuat.com", // 邀请注册地址
+    PAGESIZE: 200,
+    PAGENO: 1,
+    ADMIN_USERNAME: "carey_3101",
+    ADMIN_PASSWORD: "qwer1234",
+    START_TIME: "2026-01-08 00:00:00",
+    END_TIME: "2026-01-08 23:59:59",
+    TENANTID: 3101,
+    LimitedPermissions: "carey_3101_001",
+    LimitedPermissionsPassWord: "qwer1234",
+    WorkOrderRole: "carey_3101_001",
+    WorkOrderRolePasswrod: "qwer1234",
+    COUNTRY_CODE: "91"
+};
+
 // 默认使用 3004 环境
 export const ENV_CONFIG = ENV_3004;
 
@@ -159,7 +178,8 @@ export const ENV_MAP = {
     '3004': ENV_3004,
     '3005': ENV_3005,
     '3006': ENV_3006,
-    '3007': ENV_3007
+    '3007': ENV_3007,
+    '3101': ENV_3101
 };
 
 /**
@@ -204,7 +224,12 @@ export function getEnvByTenantId(tenantId) {
 // 后台：3006-tenantadmin.ar666999.club
 // 注册：3006.zc-arplatsaassit.com
 
-// 3007 deepOrange
+// 3107 deepOrange
 // 前台：3007.arplatsaassit4.club
 // 后台：3007-tenantadmin.ar666999.club
 // 注册：3007.zc-arplatsaassit.com
+
+// 3101 UAT
+// 前台：arplatsaaspagesuat.club
+// 后台：3101-tenantadmin.arplatsaasuat.com
+// 注册：3101-register-uat.arplatsaasuat.com

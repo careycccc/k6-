@@ -12,7 +12,7 @@
 import http from 'k6/http';
 import { getTimeRandom, generateCryptoRandomString } from '../../utils/utils.js';
 import { SignedHttpClient } from '../../../libs/utils/signature.js';
-import { ENV_CONFIG } from '../../../config/envconfig.js';
+import { getEnvByTenantId } from '../../../config/envconfig.js';
 
 /**
  * 步骤1: 获取游戏token
@@ -23,8 +23,10 @@ import { ENV_CONFIG } from '../../../config/envconfig.js';
 export function getGameToken(loginToken, gameCode) {
     console.log('[BetToken] 步骤1: 获取游戏token');
 
+    const tenantIdStr = __ENV.TENANT || __ENV.TENANT_ID || '3004';
+    const currentEnv = getEnvByTenantId(tenantIdStr);
+    const baseUrl = currentEnv.BASE_DESK_URL;
     const api = '/api/ThirdGame/GetGameUrl';
-    const baseUrl = ENV_CONFIG.BASE_DESK_URL;
 
     const timeData = getTimeRandom();
     const deviceTypeId = generateCryptoRandomString(32);
