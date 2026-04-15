@@ -7,6 +7,7 @@ import { sleep } from 'k6';
 import { getRechargeCategoryList, depositRecharge, submitCertificate } from './frontendRechargeApi.js';
 import { getLocalRechargeOrderPageList, manualAuditLocalRechargeOrder, getRechargeOrderPageList, manualAuditRechargeOrder } from './backendRechargeApi.js';
 import { manualRecharge } from './manualRecharge.js';
+import { ENV_CONFIG } from '../../../config/envconfig.js';
 
 /**
  * 获取范围内的随机整数金额
@@ -15,6 +16,15 @@ function getRandomAmount(min, max) {
     min = Math.ceil(min);
     max = Math.floor(max);
     return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/**
+ * 从环境配置读取并获取随机充值金额
+ */
+export function getConfigRechargeAmount() {
+    const min = ENV_CONFIG.RECHARGE_AMOUNT_MIN || 2000;
+    const max = ENV_CONFIG.RECHARGE_AMOUNT_MAX || 5000;
+    return getRandomAmount(min, max);
 }
 
 /**

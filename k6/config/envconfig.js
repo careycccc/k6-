@@ -31,7 +31,9 @@ export const ENV_3001 = {
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3001_001",
     WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "91"
+    COUNTRY_CODE: "91",
+    RECHARGE_AMOUNT_MIN: 2000,
+    RECHARGE_AMOUNT_MAX: 5000
 };
 
 // 3002 环境配置
@@ -50,7 +52,9 @@ export const ENV_3002 = {
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3002_001",
     WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "91"
+    COUNTRY_CODE: "91",
+    RECHARGE_AMOUNT_MIN: 2000,
+    RECHARGE_AMOUNT_MAX: 5000
 };
 
 // 3003 环境配置
@@ -69,7 +73,9 @@ export const ENV_3003 = {
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3003_001",
     WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "91"
+    COUNTRY_CODE: "91",
+    RECHARGE_AMOUNT_MIN: 2000,
+    RECHARGE_AMOUNT_MAX: 5000
 };
 
 // 3004 环境配置（当前默认）
@@ -88,7 +94,9 @@ export const ENV_3004 = {
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3004_001",
     WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "91"
+    COUNTRY_CODE: "91",
+    RECHARGE_AMOUNT_MIN: 2000,
+    RECHARGE_AMOUNT_MAX: 5000
 };
 
 // 3005 环境配置
@@ -107,7 +115,9 @@ export const ENV_3005 = {
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3005_001",
     WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "52"
+    COUNTRY_CODE: "52",
+    RECHARGE_AMOUNT_MIN: 2000,
+    RECHARGE_AMOUNT_MAX: 5000
 };
 
 // 3006 环境配置
@@ -126,7 +136,9 @@ export const ENV_3006 = {
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3006_001",
     WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "880"  // 孟加拉国区号
+    COUNTRY_CODE: "880",  // 孟加拉国区号
+    RECHARGE_AMOUNT_MIN: 2000,
+    RECHARGE_AMOUNT_MAX: 5000
 };
 
 // 3007 环境配置
@@ -145,7 +157,9 @@ export const ENV_3007 = {
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3007_001",
     WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "92"  // 巴基斯坦区号
+    COUNTRY_CODE: "92",  // 巴基斯坦区号
+    RECHARGE_AMOUNT_MIN: 200,
+    RECHARGE_AMOUNT_MAX: 500
 };
 
 // 3101 UAT 环境配置
@@ -164,7 +178,9 @@ export const ENV_3101 = {
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey_3101_001",
     WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "91"
+    COUNTRY_CODE: "91",
+    RECHARGE_AMOUNT_MIN: 2000,
+    RECHARGE_AMOUNT_MAX: 5000
 };
 
 // 默认使用 3004 环境

@@ -8,7 +8,7 @@ import { phoneRegisterByInvite, emailRegisterByInvite } from '../login/register.
 import { generateRandomPhones, generateRandomEmails } from '../../utils/accountGenerator.js';
 import { betRun } from '../runbet/betRun.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
-import { hybridRecharge } from '../recharge/rechargeService.js';
+import { hybridRecharge, getConfigRechargeAmount } from '../recharge/rechargeService.js';
 import { ENV_CONFIG, getEnvByTenantId } from '../../../config/envconfig.js';
 
 // ========== 数据结构定义 ==========
@@ -85,7 +85,7 @@ export async function processNewUsers(adminData) {
             // 步骤2 - 充值（使用混合充值策略）
             console.log(`[ProcessUsers] 开始充值: ${userDetail.userAccount}`);
 
-            const rechargeAmount = Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000;
+            const rechargeAmount = getConfigRechargeAmount();
 
             // 使用混合充值服务
             const rechargeResult = hybridRecharge({

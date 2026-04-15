@@ -24,20 +24,11 @@ import { SignedHttpClient } from '../../../libs/utils/signature.js';
  * @returns {object} 投注响应
  */
 export function betWingo(gameCode, amount, betMultiple, betContent, issueNumber, betToken, gameBaseUrl) {
-    let apiArg = '';
+    // 动态推断 API 参数，支持 K3, TrxWinGo, WinGo 等全系列
+    const prefix = gameCode.split('_')[0];
+    const apiArg = prefix + 'Bet';
 
-    switch (gameCode) {
-        case 'TrxWinGo_10M':
-            apiArg = 'TrxWinGoBet';
-            break;
-        case 'WinGo_5M':
-        case 'WinGo_30S':
-            apiArg = 'WinGoBet';
-            break;
-        default:
-            console.error('[Bet] 未知的游戏代码:', gameCode);
-            return null;
-    }
+    console.log(`[Bet] 动态路由匹配: ${gameCode} -> ${apiArg}`);
 
     const api = '/api/Lottery/' + apiArg;
     const lotteryBaseUrl = 'https://sit-lotteryh5.wmgametransit.com';

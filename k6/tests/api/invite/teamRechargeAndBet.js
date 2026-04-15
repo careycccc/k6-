@@ -8,7 +8,7 @@ import { getAllRelatedUserIds, updateUserAgentRebateMode } from './agentApi.js';
 import { batchGetUserAccounts } from '../user/userAccountApi.js';
 import { mobileAutoLoginFlow } from '../login/MobileAutoLogin.test.js';
 import { emailAutoLoginFlow } from '../login/EmailAutoLogin.test.js';
-import { hybridRecharge } from '../recharge/rechargeService.js';
+import { hybridRecharge, getConfigRechargeAmount } from '../recharge/rechargeService.js';
 import { betRun } from '../runbet/betRun.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
 
@@ -76,8 +76,8 @@ function processUserRechargeAndBet(userInfo, adminToken) {
 
     console.log(`[Process] 开始处理用户 ${userInfo.account}...`);
 
-    // 充值
-    const rechargeAmount = Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000;
+    // 随机充值金额
+    const rechargeAmount = getConfigRechargeAmount();
     console.log(`[Process] 开始充值: ${userInfo.account}, 金额: ${rechargeAmount}`);
 
     const rechargeResult = hybridRecharge({

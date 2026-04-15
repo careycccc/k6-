@@ -46,7 +46,8 @@
 进入 `k6/` 目录，通过环境变量 `TENANT_ID` 指定要验证的租户（如 `3004`）：
 
 ```bash
-k6 run -e TENANT_ID=3004 tests/api/activity/rechargeWheel/rechargeWheelValidation.test.js
+k6 run -e TENANT_ID=3101 tests/api/activity/rechargeWheel/rechargeWheelValidation.test.js
+k6 run -e TENANT_ID=3101 rechargeWheelValidation.test.js
 ```
 
 如果不带参数，会默认使用 `3004` 租户：

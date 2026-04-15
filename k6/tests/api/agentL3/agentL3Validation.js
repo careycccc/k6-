@@ -190,8 +190,10 @@ export function runAgentL3Validation(data, targetUid) {
     const validInviteBet = Number(configData.agentL3InviteBetAmount.value1) || 0;
     const inviterReward = Number(configData.agentL3InviteRewardAmount.value1) || 0;
     const invitedReward = Number(configData.agentL3InvitedRewardAmount.value1) || 0;
+    const inviteDayLimitCount = configData.agentL3InviteDayLimitCount ? (Number(configData.agentL3InviteDayLimitCount.value1) || 999999) : 999999;
 
     console.log(`   ► 有效邀请门槛: 充值 >= ${validInviteRecharge}, 投注 >= ${validInviteBet}`);
+    console.log(`   ► 每日有效邀请上限: ${inviteDayLimitCount === 999999 ? '无上限' : inviteDayLimitCount} 人`);
     console.log(`   ► 单人邀请奖金: 邀请人=${inviterReward}, 被邀请人=${invitedReward}`);
     console.log(`   ► 团队等级门槛共 ${rebateLevelRates.length} 档 | 任务奖励共 ${taskConfig.length} 档\n`);
 
@@ -301,11 +303,14 @@ export function runAgentL3Validation(data, targetUid) {
     const validYesterdayL1 = l1Members.filter(m => m.isValidYesterday);
     const validTodayL1 = l1Members.filter(m => m.isValidToday);
 
-    console.log(`   ➤ 昨日达标有效邀请 ${validYesterdayL1.length} 人 ( L1总数=${l1Members.length} )`);
-    console.log(`   ➤ 今日达标有效邀请 ${validTodayL1.length} 人 ( L1总数=${l1Members.length} )`);
+    const validYesterdayL1Count = Math.min(validYesterdayL1.length, inviteDayLimitCount);
+    const validTodayL1Count = Math.min(validTodayL1.length, inviteDayLimitCount);
 
-    const inviteRewardYesterday = validYesterdayL1.length * inviterReward;
-    const inviteRewardToday = validTodayL1.length * inviterReward;
+    console.log(`   ➤ 昨日达标有效邀请 ${validYesterdayL1.length} 人 ( L1总数=${l1Members.length} ), 每日上限=${inviteDayLimitCount} -> 实际计算: ${validYesterdayL1Count} 人`);
+    console.log(`   ➤ 今日达标有效邀请 ${validTodayL1.length} 人 ( L1总数=${l1Members.length} ), 每日上限=${inviteDayLimitCount} -> 实际计算: ${validTodayL1Count} 人`);
+
+    const inviteRewardYesterday = validYesterdayL1Count * inviterReward;
+    const inviteRewardToday = validTodayL1Count * inviterReward;
     console.log(`   ► 邀请成功奖金: ${inviteRewardYesterday + inviteRewardToday} 元 (昨日: ${inviteRewardYesterday}, 今日: ${inviteRewardToday})`);
 
     // 5. 计算邀请任务阶梯奖励 (按日独立的达标人数匹配)
@@ -328,8 +333,8 @@ export function runAgentL3Validation(data, targetUid) {
         return totalReward;
     };
 
-    taskRewardYesterday = getTaskReward(validYesterdayL1.length);
-    taskRewardToday = getTaskReward(validTodayL1.length);
+    taskRewardYesterday = getTaskReward(validYesterdayL1Count);
+    taskRewardToday = getTaskReward(validTodayL1Count);
     console.log(`   ► 邀请任务奖金: ${taskRewardYesterday + taskRewardToday} 元 (昨日: ${taskRewardYesterday}, 今日: ${taskRewardToday})`);
     if (myInvitedReward > 0) {
         console.log(`   ► 被邀请奖金: ${myInvitedReward} 元`);
@@ -548,7 +553,7 @@ export function runAgentL3Validation(data, targetUid) {
         checkExact('团队匹配等级(teamLevel)', item.teamLevel, calculatedTeamLevel);
         checkTolerance('总任务奖励金额', item.totalRewardAmount, totalTaskReward);
         checkTolerance('当月邀请成功奖金', item.inviteRewardAmount, inviteRewardYesterday + inviteRewardToday);
-        checkExact('达标有效邀请人数', item.inviteRewardUserCount, validYesterdayL1.length + validTodayL1.length);
+        checkExact('达标有效邀请人数', item.inviteRewardUserCount, validYesterdayL1Count + validTodayL1Count);
         checkTolerance('当月邀请任务奖金', item.inviteTaskRewardAmount, taskRewardYesterday + taskRewardToday);
     } else {
         console.log(`\n   ⚠️ 未能查到该用户的 InviteList 数据。`);

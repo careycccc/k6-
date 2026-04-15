@@ -11,6 +11,7 @@ import { manualRecharge } from '../../recharge/manualRecharge.js';
 import { phoneRegister, emailRegister } from '../../login/register.test.js';
 import { getTimeRandom } from '../../../utils/utils.js';
 import { generateRandomPhone, generateRandomEmail } from '../../../utils/accountGenerator.js';
+import { getEnvByTenantId } from '../../../../config/envconfig.js';
 
 /**
  * 充值转盘验证标签
@@ -375,7 +376,9 @@ export function randomRegisterUser(data) {
     logger.info(`[${rechargeWheelValidationTag}] 开始随机注册用户`);
 
     // 先尝试手机注册
-    const countryCode = ENV_CONFIG.COUNTRY_CODE || '91';
+    const tenantIdStr = __ENV.TENANT || __ENV.TENANT_ID || '3004';
+    const currentEnv = getEnvByTenantId(tenantIdStr);
+    const countryCode = currentEnv.COUNTRY_CODE || '91';
     const phone = generateRandomPhone(countryCode);
     logger.info(`[${rechargeWheelValidationTag}] 尝试手机号注册: ${phone}`);
 

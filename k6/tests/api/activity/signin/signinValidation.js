@@ -11,6 +11,7 @@ import {
     receiveDailyCheckInReward,
     getDailyCheckInUserList
 } from './signinApi.js';
+import { getActivityInformationList, receiveRewardViaActivityInfo } from '../common/activityInfoApi.js';
 import { phoneRegister, emailRegister } from '../../login/register.test.js';
 import { mobileAutoLoginFlow } from '../../login/MobileAutoLogin.test.js';
 import { emailAutoLoginFlow } from '../../login/EmailAutoLogin.test.js';
@@ -258,12 +259,49 @@ function validateSingleActivityWithUser(params) {
 
     // 4. 手动领取（如果需要）
     if (manualReceive) {
-        logger.info(`[${TAG}] 手动领取签到奖励`);
-        const receiveResult = receiveDailyCheckInReward(userResult.userToken, activity.id, 0);
-        result.receiveSuccess = receiveResult.success;
+        if (Math.random() < 0.5) {
+            logger.info(`[${TAG}] 手动领取签到奖励 (方式: 活动咨询领取)`);
+            const infoList = getActivityInformationList(userResult.userToken);
+            let targetRewardType = null;
+            
+            if (infoList && infoList.length > 0) {
+                const signItem = infoList.find(item => {
+                    const titleMatch = (item.title && item.title.includes('签到')) || 
+                                       (item.tipsDetail && item.tipsDetail.activityName && item.tipsDetail.activityName.includes('签到'));
+                    return titleMatch;
+                });
 
-        if (!receiveResult.success) {
-            result.errorMessage = `手动领取失败: ${receiveResult.msg || receiveResult.error || '未知错误'}`;
+                if (signItem && signItem.tipsDetail) {
+                    if (signItem.tipsDetail.rewardDetail && signItem.tipsDetail.rewardDetail.rewardType !== undefined) {
+                        targetRewardType = signItem.tipsDetail.rewardDetail.rewardType;
+                    } else if (signItem.tipsDetail.rewardType !== undefined) {
+                        targetRewardType = signItem.tipsDetail.rewardType;
+                    }
+                }
+            }
+
+            if (targetRewardType !== null) {
+                const receiveResult = receiveRewardViaActivityInfo(userResult.userToken, activity.id, targetRewardType);
+                result.receiveSuccess = receiveResult.success;
+                if (!receiveResult.success) {
+                    result.errorMessage = `活动咨询领取失败: ${receiveResult.msg}`;
+                }
+            } else {
+                logger.error(`[${TAG}] 活动咨询列表未找到签到或rewardType，回退原有手动领取`);
+                const receiveResult = receiveDailyCheckInReward(userResult.userToken, activity.id, 0);
+                result.receiveSuccess = receiveResult.success;
+                if (!receiveResult.success) {
+                    result.errorMessage = `手动领取失败: ${receiveResult.msg || receiveResult.error || '未知错误'}`;
+                }
+            }
+        } else {
+            logger.info(`[${TAG}] 手动领取签到奖励 (方式: 原有手动领取)`);
+            const receiveResult = receiveDailyCheckInReward(userResult.userToken, activity.id, 0);
+            result.receiveSuccess = receiveResult.success;
+
+            if (!receiveResult.success) {
+                result.errorMessage = `手动领取失败: ${receiveResult.msg || receiveResult.error || '未知错误'}`;
+            }
         }
     } else {
         logger.info(`[${TAG}] 跳过手动领取`);
@@ -397,12 +435,49 @@ export function validateSingleActivity(params) {
 
     // 6. 手动领取（如果需要）
     if (manualReceive) {
-        logger.info(`[${TAG}] 手动领取签到奖励`);
-        const receiveResult = receiveDailyCheckInReward(userResult.userToken, activity.id, 0);
-        result.receiveSuccess = receiveResult.success;
+        if (Math.random() < 0.5) {
+            logger.info(`[${TAG}] 手动领取签到奖励 (方式: 活动咨询领取)`);
+            const infoList = getActivityInformationList(userResult.userToken);
+            let targetRewardType = null;
+            
+            if (infoList && infoList.length > 0) {
+                const signItem = infoList.find(item => {
+                    const titleMatch = (item.title && item.title.includes('签到')) || 
+                                       (item.tipsDetail && item.tipsDetail.activityName && item.tipsDetail.activityName.includes('签到'));
+                    return titleMatch;
+                });
 
-        if (!receiveResult.success) {
-            result.errorMessage = `手动领取失败: ${receiveResult.msg || receiveResult.error || '未知错误'}`;
+                if (signItem && signItem.tipsDetail) {
+                    if (signItem.tipsDetail.rewardDetail && signItem.tipsDetail.rewardDetail.rewardType !== undefined) {
+                        targetRewardType = signItem.tipsDetail.rewardDetail.rewardType;
+                    } else if (signItem.tipsDetail.rewardType !== undefined) {
+                        targetRewardType = signItem.tipsDetail.rewardType;
+                    }
+                }
+            }
+
+            if (targetRewardType !== null) {
+                const receiveResult = receiveRewardViaActivityInfo(userResult.userToken, activity.id, targetRewardType);
+                result.receiveSuccess = receiveResult.success;
+                if (!receiveResult.success) {
+                    result.errorMessage = `活动咨询领取失败: ${receiveResult.msg}`;
+                }
+            } else {
+                logger.error(`[${TAG}] 活动咨询列表未找到签到或rewardType，回退原有手动领取`);
+                const receiveResult = receiveDailyCheckInReward(userResult.userToken, activity.id, 0);
+                result.receiveSuccess = receiveResult.success;
+                if (!receiveResult.success) {
+                    result.errorMessage = `手动领取失败: ${receiveResult.msg || receiveResult.error || '未知错误'}`;
+                }
+            }
+        } else {
+            logger.info(`[${TAG}] 手动领取签到奖励 (方式: 原有手动领取)`);
+            const receiveResult = receiveDailyCheckInReward(userResult.userToken, activity.id, 0);
+            result.receiveSuccess = receiveResult.success;
+
+            if (!receiveResult.success) {
+                result.errorMessage = `手动领取失败: ${receiveResult.msg || receiveResult.error || '未知错误'}`;
+            }
         }
     } else {
         logger.info(`[${TAG}] 跳过手动领取`);
