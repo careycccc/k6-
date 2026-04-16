@@ -441,8 +441,152 @@ export function emailRegisterByInvite(email, inviteCode, data, password = 'qwer1
         };
     } else {
         console.error(`[EmailRegisterByInvite] ❌ 注册失败: ${email}`);
-        console.error(`[EmailRegisterByInvite] 错误: code=${statusCode}, msg=${parsedBody.msg}`);
-        console.error(`[EmailRegisterByInvite] 完整错误响应: ${JSON.stringify(parsedBody, null, 2)}`);
+        errorLog(`错误: code=${statusCode}, msg=${parsedBody.msg}`);
+        errorLog(`完整错误响应: ${JSON.stringify(parsedBody, null, 2)}`);
+        return null;
+    }
+}
+
+
+
+
+/**
+ * 埋点注册方式 (Event Identity Register)
+ * @param {string} userName - 手机号 (包含区号)
+ * @param {object} data - 包含 token 和 envConfig 的 setup 对象
+ * @param {object} options - 额外参数
+ *   - password: 密码 (默认 qwer1234)
+ *   - pixelId: Facebook/TikTok Pixel ID
+ *   - eventConfigId: 事件配置ID (默认 21)
+ *   - eventType: 事件类型 (默认 6)
+ *   - packageName: 包名 (默认 com.ar3004.fb.app)
+ *   - registerUrl: 自定义注册域名 (可选)
+ *   - customFrontUrl: 自定义前台域名 (可选，用于发送验证码)
+ * @returns {object} 注册结果
+ */
+export function eventIdentityRegister(userName, data, options = {}) {
+    const {
+        password = 'qwer1234',
+        pixelId = 'D7G8J3JC77UBV63HPUH0',
+        eventConfigId = 21,
+        eventType = 6,
+        packageName = 'com.ar3004.fb.app',
+        registerUrl = null,
+        customFrontUrl = null
+    } = options;
+
+    console.log(`[EventRegister] ========== 开始埋点注册流程 ==========`);
+    console.log(`[EventRegister] 用户名: ${userName}`);
+    console.log(`[EventRegister] PixelId: ${pixelId}`);
+    console.log(`[EventRegister] 自定义域名: ${registerUrl || '使用默认'}`);
+
+    // 1. 发送并获取验证码 (verifyCodeType=1, codeType=1)
+    console.log(`[EventRegister] 准备发送验证码: verifyCodeType=1, codeType=1`);
+    const verifyCode = sendToGetVerCode(1, 1, userName, data.token, customFrontUrl);
+
+    if (!verifyCode) {
+        console.error('[EventRegister] 注册失败：未能获取到验证码');
+        return null;
+    }
+
+    const codeStr = String(verifyCode).trim();
+    const timeData = getTimeRandom();
+    const deviceId = generateCryptoRandomString(16);
+    const browserId = generateCryptoRandomString(32);
+    const api = "/api/Home/Register";
+
+    // 2. 组装埋点信息 (确保内部字段顺序固定以便签名一致性)
+    const eventIdentityInfo = JSON.stringify({
+        AdjustDeviceId: deviceId,
+        Fbc: "",
+        Fbp: "",
+        PixelId: pixelId
+    });
+
+    const payload = {
+        loginType: "Mobile",
+        userName: userName,
+        password: password,
+        inviteCode: "",
+        code: codeStr,
+        captchaId: null,
+        deviceId: deviceId,
+        browserId: browserId,
+        packageName: packageName,
+        eventIdentity: [
+            {
+                eventConfigId: eventConfigId,
+                eventIdentityInfo: eventIdentityInfo,
+                eventType: eventType
+            }
+        ],
+        language: timeData.language,
+        random: timeData.random,
+        signature: "",
+        timestamp: timeData.timestamp
+    };
+
+    // 3. 手动处理签名：排除 complex 字段
+    const signPayload = {
+        loginType: "Mobile",
+        userName: userName,
+        password: password,
+        inviteCode: "",
+        code: codeStr,
+        captchaId: null,
+        deviceId: deviceId,
+        browserId: browserId,
+        packageName: packageName,
+        language: timeData.language,
+        random: timeData.random
+    };
+
+    const signClient = new httpClient.constructor();
+    const signedParams = signClient.signData(signPayload);
+
+    const finalPayload = {
+        ...payload,
+        signature: signedParams.signature,
+        timestamp: signedParams.timestamp
+    };
+
+    // 4. 发送请求
+    let httpResponse;
+    if (registerUrl) {
+        const fullUrl = registerUrl + api;
+        httpResponse = httpClient.request('POST', api, finalPayload, { fullUrl: fullUrl, sign: false }, true);
+    } else {
+        httpResponse = httpClient.request('POST', api, finalPayload, { sign: false }, true);
+    }
+
+    console.log(`[EventRegister] 响应状态: ${httpResponse.status}`);
+
+    if (!httpResponse || !httpResponse.body) {
+        console.error(`[EventRegister] ❌ 注册失败: 接口无响应`);
+        return null;
+    }
+
+    let parsedBody;
+    try {
+        parsedBody = typeof httpResponse.body === 'string' ? JSON.parse(httpResponse.body) : httpResponse.body;
+    } catch (e) {
+        console.error(`[EventRegister] ❌ 响应解析失败: ${e.message}`);
+        return null;
+    }
+
+    const statusCode = parsedBody.code !== undefined ? parsedBody.code : parsedBody.msgCode;
+
+    if (statusCode === 0) {
+        console.log(`[EventRegister] ✅ 注册成功: ${userName}`);
+        return {
+            headers: httpResponse.headers,
+            data: parsedBody.data,
+            code: statusCode,
+            msg: parsedBody.msg,
+            deviceId: deviceId
+        };
+    } else {
+        console.error(`[EventRegister] ❌ 注册失败: ${userName}, code=${statusCode}, msg=${parsedBody.msg}`);
         return null;
     }
 }

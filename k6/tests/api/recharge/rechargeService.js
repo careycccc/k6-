@@ -393,3 +393,82 @@ export function batchRecharge(users, adminToken, options = {}) {
         results: results
     };
 }
+
+/**
+ * 【埋点压测专用】仅发起前台充值请求 (不含审核)
+ * 副本逻辑：包含跳过 LocalUSDT 的特殊需求
+ */
+export function eventBatchFrontendRechargeRequest(userToken, targetAmount) {
+    const categories = getRechargeCategoryList(userToken);
+    if (!categories || categories.length === 0) return { success: false, message: '获取通道失败' };
+
+    // 优先非 LocalEWallet (保持原排序逻辑)
+    categories.sort((a, b) => {
+        if (a.rechargeType === 'LocalEWallet' && b.rechargeType !== 'LocalEWallet') return 1;
+        if (a.rechargeType !== 'LocalEWallet' && b.rechargeType === 'LocalEWallet') return -1;
+        return 0;
+    });
+
+    for (let category of categories) {
+        const { id: categoryId, rechargeType, name } = category;
+        // 关键逻辑：如果是 LocalUSDT，则直接跳过
+        if (rechargeType === 'LocalUSDT') {
+            console.log(`[EventBatch] 跳过 LocalUSDT 通道: ${name}`);
+            continue;
+        }
+
+        const amount = Math.min(targetAmount, category.maxAmount || targetAmount);
+        const payload = { rechargeCategoryId: categoryId, amount: amount };
+        if (rechargeType === 'LocalEWallet') {
+            payload.customerInfo = { accountNo: "467687777878978", holderName: "tester" };
+        }
+
+        const response = depositRecharge(userToken, payload);
+        const isApiSuccess = response && (response.code === 0 || response.msg === "Sorry, The system is busy, please try again later! code: 10003");
+
+        if (isApiSuccess) {
+            const orderNo = response.data?.orderNo;
+            const orderCreateTime = response.data?.createTime || Date.now();
+            if (rechargeType === 'LocalEWallet' && orderNo) {
+                submitCertificate(userToken, orderNo, orderCreateTime, "", 2);
+            }
+            console.log(`[EventBatch] 充值请求提交成功: ${orderNo}, 类型: ${rechargeType}`);
+            return { success: true, orderNo, amount, rechargeType, createTime: orderCreateTime, name };
+        }
+    }
+    return { success: false, message: '所有可用前台通道尝试失败' };
+}
+
+/**
+ * 【埋点压测专用】批量审核用户所有待处理订单
+ * 支持“连续充值 -> 连续审核”场景
+ */
+export function eventBatchAuditUserOrders(adminToken, userId) {
+    console.log(`[EventBatchAudit] 开始为用户 ${userId} 审核所有挂起订单...`);
+    let auditedCount = 0;
+
+    // 1. 处理本地订单 (查询范围 10 分钟内)
+    const localOrders = getLocalRechargeOrderPageList(adminToken, userId, Date.now() - 600000, Date.now() + 60000);
+    if (localOrders && localOrders.length > 0) {
+        for (let order of localOrders) {
+            if (order.rechargeState === 'Wait' || order.rechargeState === 'PendingReview') {
+                console.log(`[EventBatchAudit] 匹配到本地待审核订单: ${order.orderNo}`);
+                if (manualAuditLocalRechargeOrder(adminToken, order.orderNo, userId, order.createTime, order.amount)) {
+                    auditedCount++;
+                }
+            }
+        }
+    }
+
+    // 2. 处理三方订单
+    const thirdOrders = getRechargeOrderPageList(adminToken, userId, "ThirdRecharge");
+    if (thirdOrders && thirdOrders.length > 0) {
+        for (let order of thirdOrders) {
+            console.log(`[EventBatchAudit] 匹配到三方待审核订单: ${order.orderNo}`);
+            if (manualAuditRechargeOrder(adminToken, order.orderNo, userId, order.createTime, order.amount)) {
+                auditedCount++;
+            }
+        }
+    }
+    return auditedCount;
+}

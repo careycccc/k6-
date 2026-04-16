@@ -16,6 +16,17 @@
 
 接下来是ai项目意图识别和调度，在本项目中的k6-/qwen2目录下面，可以好好的研究代码后再进行我后续的需求，在后续的代码生成中你只能生成新需求的代码，可以调用项目中的代码，但是不能更改项目中已有的代码，如果真的需要更改就需要我的同意后才能进行更改，请严格执行上面的指令
 
-D7D4BF3C77UFLDKDSBSG
-4f7633755a7b8c952c9a59f5bdbf55b740950225
 
+
+App ID: com.zhiliaoapp.musically
+TikTok App ID: 7629224152880168967
+TTLwBcK3C1OUwxbXIPfEX8xoPtOEMraf
+
+
+47+87+8+167=309
+13+54+8+115=190
+7+54+8+17=86
+
+carey_tiktok_002
+
+Q59TYFN
