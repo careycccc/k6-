@@ -18,15 +18,3 @@
 
 
 
-App ID: com.zhiliaoapp.musically
-TikTok App ID: 7629224152880168967
-TTLwBcK3C1OUwxbXIPfEX8xoPtOEMraf
-
-
-47+87+8+167=309
-13+54+8+115=190
-7+54+8+17=86
-
-carey_tiktok_002
-
-Q59TYFN
