@@ -46,7 +46,7 @@ export function getRechargeCategoryList(token) {
 /**
  * 提交充值请求 (DepositRecharge)
  * @param {string} token - 前台用户 token
- * @param {object} payload - 充值参数，包含 rechargeCategoryId, amount 等
+ * @param {object} payload - 充值参数，包含 rechargeCategoryId, amount, rechargeType 等
  * @returns {object|null} 包含完整响应，用于判断 msgCode
  */
 export function depositRecharge(token, payload) {
@@ -58,16 +58,28 @@ export function depositRecharge(token, payload) {
     const currentEnv = getEnvByTenantId(tenantIdStr);
     const frontBaseUrl = currentEnv.BASE_DESK_URL || "https://arplatsaassit4.club";
 
-    // 组装完整的请求数据，补充必需字段
+    // LocalBankCard / LocalUSDT 的 returnUrl/urlInfo 顺序与其他通道相反
+    const isLocalBankCard = payload.rechargeType === 'LocalBankCard';
+    const isLocalUSDT = payload.rechargeType === 'LocalUSDT';
+    const useAltUrlOrder = isLocalBankCard || isLocalUSDT;
+    const returnUrl = useAltUrlOrder
+        ? `${frontBaseUrl},status/rechargeStatus`
+        : `${frontBaseUrl}/#/main`;
+    const urlInfo = useAltUrlOrder
+        ? `${frontBaseUrl}/#/main`
+        : `${frontBaseUrl},status/rechargeStatus`;
+
+    // 组装完整的请求数据，补充必需字段（去掉内部用的 rechargeType 字段）
+    const { rechargeType: _rt, ...restPayload } = payload;
     const requestData = {
-        returnUrl: `${frontBaseUrl}/#/main`,
-        urlInfo: `${frontBaseUrl},status/rechargeStatus`,
+        returnUrl,
+        urlInfo,
         vendorId: 0,
         language: timeData.language,
         random: timeData.random,
         signature: '',
         timestamp: timeData.timestamp,
-        ...payload
+        ...restPayload
     };
 
     // 这里由于 sendRequest 会根据 msgCode === 0 来判断成功与否，
@@ -104,8 +116,8 @@ export function depositRecharge(token, payload) {
 }
 
 /**
- * 生成12位随机数字字符串
- * @returns {string} 12位纯数字字符串
+ * 生成12位随机数字字符串（transactionId）
+ * @returns {string}
  */
 function generate12DigitTransactionId() {
     let result = '';
@@ -116,14 +128,54 @@ function generate12DigitTransactionId() {
 }
 
 /**
+ * 生成随机银行卡号（18位数字）
+ * @returns {string}
+ */
+export function generateRandomAccountNo() {
+    let result = '';
+    for (let i = 0; i < 18; i++) {
+        result += Math.floor(Math.random() * 10);
+    }
+    return result;
+}
+
+/**
+ * 生成随机开户名（3-8位随机大写字母）
+ * @returns {string}
+ */
+export function generateRandomHolderName() {
+    const len = 3 + Math.floor(Math.random() * 6); // 3~8
+    let result = '';
+    for (let i = 0; i < len; i++) {
+        result += String.fromCharCode(65 + Math.floor(Math.random() * 26));
+    }
+    return result;
+}
+
+/**
+ * 生成64位随机十六进制字符串（LocalUSDT transactionId）
+ * 符合正则 ^[0-9a-fA-F]{64}$
+ * @returns {string}
+ */
+export function generateUsdtTransactionId() {
+    const chars = '0123456789abcdef';
+    let result = '';
+    for (let i = 0; i < 64; i++) {
+        result += chars[Math.floor(Math.random() * 16)];
+    }
+    return result;
+}
+
+/**
  * 提交本地充值凭证 (SubmitCertificate)
- * 仅用于 LocalEWallet 通道
- * 支持重试机制：第一次失败后，使用12位随机数字作为 transactionId 重试
+ * 用于 LocalEWallet / LocalBankCard 通道
+ * - LocalEWallet: 第一次传空字符串，失败重试传12位随机数字
+ * - LocalBankCard: 直接传12位随机数字，无需重试
  * @param {string} token - 前台用户 token
  * @param {string} orderNo - 订单号
  * @param {number} createTime - 订单创建时间 (毫秒时间戳)
- * @param {string} transactionId - 交易ID，通常为空字符串
- * @param {number} maxRetries - 最大重试次数，默认2次
+ * @param {string} transactionId - 交易ID（LocalEWallet 传 ""，LocalBankCard 传随机12位）
+ * @param {number} maxRetries - 最大重试次数，默认2次（LocalBankCard 传1即可）
  * @returns {object|null}
  */
 export function submitCertificate(token, orderNo, createTime, transactionId = "", maxRetries = 2) {

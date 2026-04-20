@@ -4,7 +4,7 @@
  */
 
 import { sleep } from 'k6';
-import { getRechargeCategoryList, depositRecharge, submitCertificate } from './frontendRechargeApi.js';
+import { getRechargeCategoryList, depositRecharge, submitCertificate, generateRandomAccountNo, generateRandomHolderName, generateUsdtTransactionId } from './frontendRechargeApi.js';
 import { getLocalRechargeOrderPageList, manualAuditLocalRechargeOrder, getRechargeOrderPageList, manualAuditRechargeOrder } from './backendRechargeApi.js';
 import { manualRecharge } from './manualRecharge.js';
 import { ENV_CONFIG } from '../../../config/envconfig.js';
@@ -72,6 +72,76 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
         let maxAmt = category.maxAmount || 100000;
 
         // 调整金额范围
+        if (rechargeType === 'LocalUSDT') {
+            // LocalUSDT 固定随机 50-300
+            const amount = getRandomAmount(50, 300);
+            console.log(`[FrontRecharge] ========================================`);
+            console.log(`[FrontRecharge] 尝试通道 [${i + 1}/${categories.length}]`);
+            console.log(`[FrontRecharge]   - 名称: ${name}`);
+            console.log(`[FrontRecharge]   - 类型: ${rechargeType}`);
+            console.log(`[FrontRecharge]   - 金额: ${amount}`);
+            console.log(`[FrontRecharge] ========================================`);
+
+            const payload = { rechargeCategoryId: categoryId, amount: amount, rechargeType: rechargeType };
+            const response = depositRecharge(userToken, payload);
+            if (!response) { console.warn(`[FrontRecharge] LocalUSDT 充值请求无响应，尝试下一个通道`); continue; }
+
+            const code = response.code;
+            const msgCode = response.msgCode;
+            const msg = response.msg || "";
+            const isApiSuccess = (code === 0 || msg === "Sorry, The system is busy, please try again later! code: 10003");
+
+            if (!isApiSuccess) {
+                console.warn(`[FrontRecharge] LocalUSDT 充值返回错误 (code: ${code}, msgCode: ${msgCode}, msg: ${msg})，尝试下一个`);
+                continue;
+            }
+
+            const rechargeRequestTime = Date.now();
+            const orderNo = response.data?.orderNo;
+            const orderCreateTime = response.data?.createTime;
+            console.log(`[FrontRecharge] LocalUSDT 订单号: ${orderNo}`);
+
+            if (orderNo && orderCreateTime) {
+                sleep(1);
+                const txId = generateUsdtTransactionId();
+                const certResult = submitCertificate(userToken, orderNo, orderCreateTime, txId, 1);
+                if (certResult && (certResult.code === 0 || certResult.msgCode === 0)) {
+                    console.log(`[FrontRecharge] ✅ LocalUSDT 凭证提交成功`);
+                } else {
+                    console.warn(`[FrontRecharge] ⚠️ LocalUSDT 凭证提交失败: ${JSON.stringify(certResult)}`);
+                    continue;
+                }
+            }
+
+            // 后台审核（本地订单）
+            let auditSuccess = false;
+            for (let retry = 0; retry < 5; retry++) {
+                if (retry > 0) console.log(`[FrontRecharge] LocalUSDT 第${retry}次重试后台审核...`);
+                sleep(3);
+                const startTime = rechargeRequestTime - 60000;
+                const endTime = Date.now() + 60000;
+                const orders = getLocalRechargeOrderPageList(adminToken, userId, startTime, endTime);
+                if (orders && orders.length > 0) {
+                    orders.sort((a, b) => b.createTime - a.createTime);
+                    for (let order of orders) {
+                        if (order.orderNo === orderNo && (order.rechargeState === 'Wait' || order.rechargeState === 'PendingReview')) {
+                            const auditRes = manualAuditLocalRechargeOrder(adminToken, order.orderNo, userId, order.createTime, order.amount);
+                            if (auditRes) { auditSuccess = true; break; }
+                        }
+                    }
+                }
+                if (auditSuccess) break;
+            }
+
+            if (auditSuccess) {
+                console.log(`[FrontRecharge] ✅ LocalUSDT 充值完整流程成功，金额: ${amount}`);
+                return { success: true, amount: amount, method: 'frontend', message: `通道: ${name}` };
+            } else {
+                console.warn(`[FrontRecharge] LocalUSDT 后台审核失败，尝试下一个通道`);
+                continue;
+            }
+        }
+
         if (rechargeType !== 'LocalEWallet') {
             minAmt = Math.max(minAmt, 1000);
         }
@@ -90,12 +160,18 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
         const payload = {
             rechargeCategoryId: categoryId,
             amount: amount,
+            rechargeType: rechargeType,
         };
 
         if (rechargeType === 'LocalEWallet') {
             payload.customerInfo = {
                 accountNo: "467687777878978",
                 holderName: "tester"
+            };
+        } else if (rechargeType === 'LocalBankCard') {
+            payload.customerInfo = {
+                accountNo: generateRandomAccountNo(),
+                holderName: generateRandomHolderName()
             };
         }
 
@@ -134,17 +210,31 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
 
             console.log(`[FrontRecharge] 订单号: ${orderNo}, 订单创建时间: ${orderCreateTime}`);
 
-            // LocalEWallet 需要先提交凭证
+            // LocalEWallet / LocalBankCard 需要先提交凭证
             if (rechargeType === 'LocalEWallet' && orderNo && orderCreateTime) {
                 console.log(`[FrontRecharge] LocalEWallet 充值，先提交凭证...`);
-                sleep(1); // 等待1秒确保订单已保存
+                sleep(1);
 
                 const certResult = submitCertificate(userToken, orderNo, orderCreateTime, "", 2);
                 if (certResult && (certResult.code === 0 || certResult.msgCode === 0)) {
                     console.log(`[FrontRecharge] ✅ 凭证提交成功`);
                 } else {
                     console.warn(`[FrontRecharge] ⚠️ 凭证提交失败: ${JSON.stringify(certResult)}`);
-                    // 凭证提交失败，尝试下一个通道
+                    continue;
+                }
+            }
+
+            if (rechargeType === 'LocalBankCard' && orderNo && orderCreateTime) {
+                console.log(`[FrontRecharge] LocalBankCard 充值，提交凭证...`);
+                sleep(1);
+
+                let txId = '';
+                for (let i = 0; i < 12; i++) txId += Math.floor(Math.random() * 10);
+                const certResult = submitCertificate(userToken, orderNo, orderCreateTime, txId, 1);
+                if (certResult && (certResult.code === 0 || certResult.msgCode === 0)) {
+                    console.log(`[FrontRecharge] ✅ LocalBankCard 凭证提交成功`);
+                } else {
+                    console.warn(`[FrontRecharge] ⚠️ LocalBankCard 凭证提交失败: ${JSON.stringify(certResult)}`);
                     continue;
                 }
             }
@@ -161,7 +251,7 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
 
                 console.log(`[FrontRecharge] DEBUG: rechargeType = "${rechargeType}", 类型: ${typeof rechargeType}`);
 
-                if (rechargeType === 'LocalEWallet') {
+                if (rechargeType === 'LocalEWallet' || rechargeType === 'LocalBankCard') {
                     // 查询本地订单（使用固定的时间基准）
                     const queryTime = Date.now();
                     const startTime = rechargeRequestTime - (1 * 60 * 1000);  // 充值请求前1分钟
@@ -411,16 +501,19 @@ export function eventBatchFrontendRechargeRequest(userToken, targetAmount) {
 
     for (let category of categories) {
         const { id: categoryId, rechargeType, name } = category;
-        // 关键逻辑：如果是 LocalUSDT，则直接跳过
-        if (rechargeType === 'LocalUSDT') {
-            console.log(`[EventBatch] 跳过 LocalUSDT 通道: ${name}`);
-            continue;
-        }
 
-        const amount = Math.min(targetAmount, category.maxAmount || targetAmount);
-        const payload = { rechargeCategoryId: categoryId, amount: amount };
+        const amount = rechargeType === 'LocalUSDT'
+            ? getRandomAmount(50, 300)
+            : Math.min(targetAmount, category.maxAmount || targetAmount);
+
+        const payload = { rechargeCategoryId: categoryId, amount: amount, rechargeType: rechargeType };
         if (rechargeType === 'LocalEWallet') {
             payload.customerInfo = { accountNo: "467687777878978", holderName: "tester" };
+        } else if (rechargeType === 'LocalBankCard') {
+            payload.customerInfo = {
+                accountNo: generateRandomAccountNo(),
+                holderName: generateRandomHolderName()
+            };
         }
 
         const response = depositRecharge(userToken, payload);
@@ -431,6 +524,12 @@ export function eventBatchFrontendRechargeRequest(userToken, targetAmount) {
             const orderCreateTime = response.data?.createTime || Date.now();
             if (rechargeType === 'LocalEWallet' && orderNo) {
                 submitCertificate(userToken, orderNo, orderCreateTime, "", 2);
+            } else if (rechargeType === 'LocalBankCard' && orderNo) {
+                let txId = '';
+                for (let i = 0; i < 12; i++) txId += Math.floor(Math.random() * 10);
+                submitCertificate(userToken, orderNo, orderCreateTime, txId, 1);
+            } else if (rechargeType === 'LocalUSDT' && orderNo) {
+                submitCertificate(userToken, orderNo, orderCreateTime, generateUsdtTransactionId(), 1);
             }
             console.log(`[EventBatch] 充值请求提交成功: ${orderNo}, 类型: ${rechargeType}`);
             return { success: true, orderNo, amount, rechargeType, createTime: orderCreateTime, name };

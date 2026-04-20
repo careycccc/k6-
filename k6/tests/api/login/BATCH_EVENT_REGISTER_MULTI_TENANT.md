@@ -18,7 +18,10 @@
 
 ```bash
 # 基础用法（与原版完全一致）
-k6 run -e TENANT_ID=3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 batchEventRegister.multi-tenant.test.js
+k6 run -e TENANT_ID=3004 -e USER_COUNT=30 -e PACKAGE_TYPE=22 batchEventRegister.multi-tenant.test.js
+
+k6 run -e TENANT_ID=3101 -e USER_COUNT=3 batchEventRegister.multi-tenant.test.js
+
 
 # 指定邀请码
 k6 run -e TENANT_ID=3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 -e INVITE_CODE=CUSTOM123 batchEventRegister.multi-tenant.test.js

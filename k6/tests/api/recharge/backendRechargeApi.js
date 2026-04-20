@@ -22,7 +22,7 @@ export function getLocalRechargeOrderPageList(adminToken, userId, startTime, end
         startTime: startTime,
         endTime: endTime,
         pageNo: 1,
-        pageSize: 20,
+        pageSize: 500,
         dateType: 0,
         orderBy: "Desc"
     };
@@ -92,7 +92,7 @@ export function getRechargeOrderPageList(adminToken, userId, rechargeChannelType
         userId: userId,
         rechargeChannelType: rechargeChannelType,
         pageNo: 1,
-        pageSize: 20,
+        pageSize: 500,
         dateType: 1,
         orderBy: "Desc",
         minActualAmount: null,

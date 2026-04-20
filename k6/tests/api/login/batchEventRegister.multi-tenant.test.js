@@ -26,6 +26,7 @@ import { group, sleep } from 'k6';
 import { Counter } from 'k6/metrics';
 import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
 import { getEnvByTenantId } from '../../../config/envconfig.js';
+import { getEventConfig } from '../../../config/eventRegisterConfig.js';
 import { eventIdentityRegister } from './register.test.js';
 import { hybridRecharge, getConfigRechargeAmount, eventBatchFrontendRechargeRequest, eventBatchAuditUserOrders } from '../recharge/rechargeService.js';
 import { generateRandomPhone } from '../../utils/accountGenerator.js';
@@ -40,30 +41,8 @@ const doubleRechargeCounter = new Counter('custom_double_recharge_users');
 
 const tag = 'batchEventRegister';
 
-// ============================================================
-// 包类型配置（21 老包 / 22 新包）
-// ============================================================
-const packageType = __ENV.PACKAGE_TYPE || '22';
-
-const PACKAGE_CONFIGS = {
-    '21': {
-        id: 21,
-        pixelId: 'D7G8J3JC77UBV63HPUH0',
-        inviteCode: 'FXNDMAN',
-        desc: '📦 老包 (Old Package - ID: 21)'
-    },
-    '22': {
-        id: 22,
-        pixelId: 'D7GEL23C77U0PCJMRE8G',
-        inviteCode: 'CPWHUUN',
-        desc: '🚀 新包 (New Package - ID: 22)'
-    }
-};
-
-const scenarioConfig = PACKAGE_CONFIGS[packageType] || PACKAGE_CONFIGS['22'];
-
-// 优先使用环境变量传入的邀请码
-const finalInviteCode = __ENV.INVITE_CODE || scenarioConfig.inviteCode;
+// 包类型（明确传入时优先；不传则走租户专属配置）
+const packageType = __ENV.PACKAGE_TYPE || '';
 
 // ============================================================
 // 动态构建 options（支持多租户并行）
@@ -118,6 +97,7 @@ export const options = buildOptions();
 // Setup：多租户管理员登录
 // ============================================================
 export function setup() {
+
     console.log(`[BatchRegister] ========== 开始测试准备阶段 ==========`);
 
     const tenantsStr = __ENV.TENANTS || __ENV.TENANT_ID || '3004';
@@ -171,11 +151,21 @@ export default function (data) {
     const countryCode = envConfig.COUNTRY_CODE || '91';
     const userName = generateRandomPhone(countryCode);
 
-    // 3. 动态获取 tiktok 域名（优先级：环境变量 > 租户前台地址）
-    const tiktokDomain = __ENV.TIKTOK_DOMAIN || envConfig.BASE_DESK_URL;
+    // 3. 按租户动态获取埋点配置（3101 用专属配置，其他用全局包类型配置）
+    const eventCfg = getEventConfig(tenantId, packageType);
+    const finalInviteCode = __ENV.INVITE_CODE || eventCfg.inviteCode;
+
+    // 4. 动态获取 tiktok 域名
+    // 优先级：-e TIKTOK_DOMAIN 环境变量 > 配置文件 registerDomain > 租户前台地址
+    const tiktokDomain = __ENV.TIKTOK_DOMAIN
+        || eventCfg.registerDomain
+        || envConfig.BASE_DESK_URL;
 
     group('埋点批量注册', function () {
-        console.log(`[BatchRegister] [VU${__VU}][租户${tenantId}] 准备注册 [${packageType}] 账号: ${userName}`);
+        console.log(`[BatchRegister] [VU${__VU}][租户${tenantId}] 准备注册账号: ${userName}`);
+        console.log(`[BatchRegister] [VU${__VU}][租户${tenantId}] 埋点配置: ${eventCfg.desc}`);
+        console.log(`[BatchRegister] [VU${__VU}][租户${tenantId}] eventConfigId=${eventCfg.id}, pixelId=${eventCfg.pixelId}`);
+        console.log(`[BatchRegister] [VU${__VU}][租户${tenantId}] packageName=${eventCfg.packageName}`);
         console.log(`[BatchRegister] [VU${__VU}][租户${tenantId}] 使用域名: ${tiktokDomain}`);
 
         // 增加较大的随机延迟 (3-7秒)，进一步打散请求
@@ -183,8 +173,9 @@ export default function (data) {
         sleep(prepDelay);
 
         const registerResult = eventIdentityRegister(userName, { token: adminToken, envConfig }, {
-            pixelId: scenarioConfig.pixelId,
-            eventConfigId: scenarioConfig.id,
+            pixelId: eventCfg.pixelId,
+            eventConfigId: eventCfg.id,
+            packageName: eventCfg.packageName,
             inviteCode: finalInviteCode,
             registerUrl: tiktokDomain,
             customFrontUrl: tiktokDomain
@@ -193,6 +184,13 @@ export default function (data) {
         if (registerResult && registerResult.code === 0) {
             console.log(`[BatchRegister] [VU${__VU}][租户${tenantId}] ✅ 账号 ${userName} 注册成功！`);
             regSuccessCounter.add(1, { tenant: tenantId });
+
+            // REGISTER_ONLY 模式：只注册，跳过充值（用于排查注册问题）
+            const registerOnly = (__ENV.REGISTER_ONLY || '').toLowerCase() === 'true';
+            if (registerOnly) {
+                console.log(`[BatchRegister] [VU${__VU}][租户${tenantId}] ⏭️ REGISTER_ONLY 模式，跳过充值`);
+                return;
+            }
 
             // 2. 充值策略分支：40% 的用户充值两次
             const isDoubleRecharger = Math.random() < 0.4;
@@ -206,7 +204,6 @@ export default function (data) {
                 if (isBurstMode) {
                     console.log(`[BatchRegister] [VU${__VU}][租户${tenantId}] 🚀 Mode B: 两次连冲`);
                     eventBatchFrontendRechargeRequest(userToken, getConfigRechargeAmount());
-                    firstRechargeCounter.add(1, { tenant: tenantId });
                     sleep(3);
                     eventBatchFrontendRechargeRequest(userToken, getConfigRechargeAmount());
                     doubleRechargeCounter.add(1, { tenant: tenantId });
@@ -214,13 +211,12 @@ export default function (data) {
                 } else {
                     console.log(`[BatchRegister] [VU${__VU}][租户${tenantId}] 🚶 Mode A: 串行双充`);
                     hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
-                    firstRechargeCounter.add(1, { tenant: tenantId });
                     sleep(3);
                     hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
                     doubleRechargeCounter.add(1, { tenant: tenantId });
                 }
             } else {
-                // 正常单次充值
+                // 正常单次充值（仅单充用户计入 firstRechargeCounter）
                 console.log(`[BatchRegister] [VU${__VU}][租户${tenantId}] 标准单充`);
                 sleep(2);
                 hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
@@ -242,6 +238,11 @@ export function handleSummary(data) {
     const tenantsStr = __ENV.TENANTS || __ENV.TENANT_ID || '3004';
     const tenants = tenantsStr.split(',').map(t => t.trim());
 
+    // 用第一个租户的配置生成报告描述（多租户时各自配置可能不同，取第一个作代表）
+    const firstTenantId = tenants[0];
+    const reportEventCfg = getEventConfig(firstTenantId, packageType);
+    const reportInviteCode = __ENV.INVITE_CODE || reportEventCfg.inviteCode || '(无)';
+
     // 提取各租户的指标
     const tenantStats = {};
 
@@ -260,25 +261,31 @@ export function handleSummary(data) {
     }
 
     // 总计
-    const totalRegSuccess = Object.values(tenantStats).reduce((sum, s) => sum + s.regSuccess, 0);
-    const totalFirstRecharge = Object.values(tenantStats).reduce((sum, s) => sum + s.firstRecharge, 0);
+    const totalRegSuccess     = Object.values(tenantStats).reduce((sum, s) => sum + s.regSuccess, 0);
+    const totalFirstRecharge  = Object.values(tenantStats).reduce((sum, s) => sum + s.firstRecharge, 0);
     const totalDoubleRecharge = Object.values(tenantStats).reduce((sum, s) => sum + s.doubleRecharge, 0);
+
+    const registerOnly = (__ENV.REGISTER_ONLY || '').toLowerCase() === 'true';
+
+    const rechargeRows = registerOnly ? '' : `
+┃ 💰 仅单充用户数                  ┃ ${String(totalFirstRecharge).padEnd(25)} ┃
+┃ 🔄 执行双充用户数                ┃ ${String(totalDoubleRecharge).padEnd(25)} ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃ 💳 实际充值总人数                ┃ ${String(totalFirstRecharge + totalDoubleRecharge).padEnd(25)} ┃
+┃ 📈 双充转化率                    ┃ ${((totalDoubleRecharge / (totalRegSuccess || 1)) * 100).toFixed(2)}%                  ┃`;
 
     let table = `
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃           📊 埋点批量注册与充值测试汇总报告（多租户版）      ┃
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃ 🟢 测试场景模式                  ┃ ${scenarioConfig.desc.padEnd(25)} ┃
-┃ 🎫 当前使用邀请码                ┃ ${finalInviteCode.padEnd(25)} ┃
+┃ 🟢 测试场景模式                  ┃ ${reportEventCfg.desc.padEnd(25)} ┃
+┃ 🎫 当前使用邀请码                ┃ ${reportInviteCode.padEnd(25)} ┃
 ┃ 🏢 测试租户                      ┃ ${tenants.join(', ').padEnd(25)} ┃
+┃ 🔧 运行模式                      ┃ ${(registerOnly ? '仅注册 (REGISTER_ONLY)' : '注册+充值').padEnd(25)} ┃
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 ┃           统计项名称             ┃         统计数值          ┃
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃ 👥 注册成功总人数                ┃ ${String(totalRegSuccess).padEnd(25)} ┃
-┃ 💰 完成首充用户数                ┃ ${String(totalFirstRecharge).padEnd(25)} ┃
-┃ 🔄 执行双充用户数                ┃ ${String(totalDoubleRecharge).padEnd(25)} ┃
-┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃ 📈 双充转化率                    ┃ ${((totalDoubleRecharge / (totalRegSuccess || 1)) * 100).toFixed(2)}%                  ┃
+┃ 👥 注册成功总人数                ┃ ${String(totalRegSuccess).padEnd(25)} ┃${rechargeRows}
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 `;
 
