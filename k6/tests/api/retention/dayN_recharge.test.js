@@ -1,19 +1,22 @@
 /**
  * 脚本②：第N天复充执行（纯执行，不含验证）
  * 查询N天前充值成功的用户，80%概率让其今天再次充值
+ * 参与复充的用户遵循级联充值概率：90%充1次 → 50%充2次 → 20%充3次
  *
  * 使用方法：
  *   # 次日复充（查昨天的用户）
- *   k6 run -e TENANT_ID=3004 -e DAYS_AGO=1 dayN_recharge.test.js
+ *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 dayN_recharge.test.js
  *
  *   # 3日复充场景的第3天（查前天的用户）
- *   k6 run -e TENANT_ID=3004 -e DAYS_AGO=2 dayN_recharge.test.js
+ *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=2 dayN_recharge.test.js
  *
  * 参数：
  *   TENANT_ID            租户ID（必需）
+ *   CHANNEL_PACKAGE_ID   渠道来源ID（必需，不传直接报错）
  *   DAYS_AGO             查几天前的充值用户（默认1=昨天）
  *   PARTICIPATION_RATE   参与复充概率（默认0.8=80%）
- *   RECHARGE_STRATEGY    充值策略 single/double/random（默认random）
+ *   RECHARGE_STRATEGY    充值策略 single/double/triple/random（默认random）
+ *                        random = 级联概率：90%充1次 → 50%充2次 → 20%充3次
  */
 
 import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
@@ -29,6 +32,7 @@ const tenantId          = __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID);
 const daysAgo           = __ENV.DAYS_AGO ? parseInt(__ENV.DAYS_AGO) : 1;
 const participationRate = __ENV.PARTICIPATION_RATE ? parseFloat(__ENV.PARTICIPATION_RATE) : 0.8;
 const strategy          = __ENV.RECHARGE_STRATEGY || 'random';
+const channelPackageId  = __ENV.CHANNEL_PACKAGE_ID ? parseInt(__ENV.CHANNEL_PACKAGE_ID) : null;
 
 export const options = {
     scenarios: {
@@ -50,6 +54,11 @@ export function setup() {
     console.log(`[DayNRecharge] ========== 第N天复充执行 ==========`);
     console.log(`[DayNRecharge] 租户: ${tenantId}，查询 ${daysAgo} 天前的充值用户`);
     console.log(`[DayNRecharge] 参与率: ${participationRate * 100}%，策略: ${strategy}`);
+
+    if (!channelPackageId) {
+        throw new Error('[DayNRecharge] ❌ 未提供渠道来源，请通过 -e CHANNEL_PACKAGE_ID=xxx 传入');
+    }
+    console.log(`[DayNRecharge] 渠道来源: ${channelPackageId}`);
 
     const adminToken = tenantAdminLogin(tenantId);
     if (!adminToken) throw new Error(`[DayNRecharge] ❌ 租户 ${tenantId} 管理员登录失败`);
@@ -74,7 +83,7 @@ export default function (data) {
     console.log(`${'='.repeat(60)}\n`);
 
     // 1. 查询N天前充值用户
-    const userIds = getRechargedUserIds(adminData.token, tenantId, daysAgo);
+    const userIds = getRechargedUserIds(adminData.token, tenantId, daysAgo, channelPackageId);
 
     if (userIds.length === 0) {
         console.warn(`[DayNRecharge] ⚠️ ${daysAgo} 天前无充值用户，脚本结束`);

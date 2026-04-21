@@ -28,6 +28,7 @@
  *  22      │ 22            │ 通用       │ 新包（默认）
  *  2       │ 2             │ 3101 专项  │ 3101 TikTok 专项包
  *  3       │ 3             │ 3101 专项  │ 3101 TikTok 新包
+ *  4       │ 4             │ 3101 专项  │ 3101 TikTok 新包2
  *  24      │ 24            │ 3004 专项  │ 3004 TikTok 新包
  * ─────────┼───────────────┼────────────┼──────────────────────
  *  租户    │ eventConfigId │ packageType│ 说明
@@ -90,6 +91,15 @@ export const PACKAGE_CONFIGS = {
         inviteCode: 'X2X8DEN',
         registerDomain: 'https://arplatsaaspagesuat.club',
         desc: '🎯 3101 TikTok 新包 (ID: 3)'
+    },
+    // 3101 TikTok 新包2
+    '4': {
+        id: 4,
+        pixelId: 'D7J18PBC77U3A048FVTG',
+        packageName: 'com.ar3101.fb.app',
+        inviteCode: '',
+        registerDomain: 'https://arplatsaaspagesuat.club',
+        desc: '🎯 3101 TikTok 新包2 (ID: 4)'
     },
     // 3004 TikTok 新包
     '24': {

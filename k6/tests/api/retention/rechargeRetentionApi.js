@@ -89,26 +89,28 @@ const TAG_RECHARGE_ORDER = 'GetRechargeOrderPageList';
 /**
  * 拉取充值订单全量数据（自动翻页）
  *
- * 策略：
- *   - 第1页 pageSize=500
- *   - 若 totalCount > 500，继续请求后续页直到取完
- *   - 每页请求间隔 500ms，避免频率限制
- *
  * @param {string} adminToken
  * @param {number} startTime  - 毫秒时间戳
  * @param {number} endTime    - 毫秒时间戳
  * @param {string} rechargeState - 默认 'Payed'
+ * @param {number|null} channelPackageId - 渠道来源ID（必填，不传则报错）
  * @returns {Array} 全量订单列表
  */
-export function fetchAllRechargeOrders(adminToken, startTime, endTime, rechargeState = 'Payed') {
+export function fetchAllRechargeOrders(adminToken, startTime, endTime, rechargeState = 'Payed', channelPackageId = null) {
+    if (!channelPackageId) {
+        throw new Error('[RetentionApi] ❌ 未提供渠道来源（channelPackageId），请通过 -e CHANNEL_PACKAGE_ID=xxx 传入');
+    }
+
     const allOrders = [];
     let pageNo = 1;
     let totalCount = null;
 
     console.log(`[RetentionApi] 查询充值订单: ${new Date(startTime).toISOString()} ~ ${new Date(endTime).toISOString()}`);
+    console.log(`[RetentionApi] 渠道来源: ${channelPackageId}`);
 
     while (true) {
         const payload = {
+            channelPackageId: channelPackageId,
             rechargeState: rechargeState,
             startTime: startTime,
             endTime: endTime,

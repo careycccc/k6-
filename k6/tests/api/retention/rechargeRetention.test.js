@@ -4,14 +4,20 @@
  * 使用方法：
  *
  *   # 当日复充（查昨天，今天执行）
- *   k6 run -e TENANT_ID=3004 -e MODE=same_day rechargeRetention.test.js
+ *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=same_day rechargeRetention.test.js
  *
  *   # 次日复充（查前天+昨天，今天执行）
- *   k6 run -e TENANT_ID=3004 -e MODE=next_day rechargeRetention.test.js
+ *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=next_day rechargeRetention.test.js
  *
  *   # 指定目标日期（当日复充：查指定日期；次日复充：查指定日期及其次日）
- *   k6 run -e TENANT_ID=3004 -e MODE=same_day -e TARGET_DATE=2026-04-16 rechargeRetention.test.js
- *   k6 run -e TENANT_ID=3004 -e MODE=next_day -e TARGET_DATE=2026-04-14 rechargeRetention.test.js
+ *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=same_day -e TARGET_DATE=2026-04-16 rechargeRetention.test.js
+ *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=next_day -e TARGET_DATE=2026-04-14 rechargeRetention.test.js
+ *
+ * 参数：
+ *   TENANT_ID            租户ID（必需）
+ *   CHANNEL_PACKAGE_ID   渠道来源ID（必需，不传直接报错）
+ *   MODE                 same_day / next_day
+ *   TARGET_DATE          指定目标日期（可选，格式 YYYY-MM-DD）
  */
 
 import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
@@ -90,20 +96,25 @@ export function setup() {
     const tenantId = __ENV.TENANT_ID || '3004';
     console.log(`[Setup] 租户 ${tenantId} 管理员登录...`);
 
+    const channelPackageId = __ENV.CHANNEL_PACKAGE_ID ? parseInt(__ENV.CHANNEL_PACKAGE_ID) : null;
+    if (!channelPackageId) {
+        throw new Error('[Setup] ❌ 未提供渠道来源，请通过 -e CHANNEL_PACKAGE_ID=xxx 传入');
+    }
+
     const adminToken = tenantAdminLogin(tenantId);
     if (!adminToken) {
         throw new Error(`[Setup] ❌ 租户 ${tenantId} 管理员登录失败`);
     }
 
-    console.log(`[Setup] ✅ 登录成功`);
-    return { adminToken, tenantId };
+    console.log(`[Setup] ✅ 登录成功，渠道来源: ${channelPackageId}`);
+    return { adminToken, tenantId, channelPackageId };
 }
 
 // ============================================================
 // 主函数
 // ============================================================
 export default function (data) {
-    const { adminToken, tenantId } = data;
+    const { adminToken, tenantId, channelPackageId } = data;
     const mode       = (__ENV.MODE || 'same_day').toLowerCase();
     const targetDate = __ENV.TARGET_DATE || '';
 
@@ -123,7 +134,7 @@ export default function (data) {
         console.log(`[SameDay] 查询日期: ${range.dateStr}`);
         console.log(`[SameDay] 时间范围: ${new Date(range.startTime).toISOString()} ~ ${new Date(range.endTime).toISOString()}`);
 
-        const orders = fetchAllRechargeOrders(adminToken, range.startTime, range.endTime);
+        const orders = fetchAllRechargeOrders(adminToken, range.startTime, range.endTime, 'Payed', channelPackageId);
         const result = analyzeSameDayRetention(orders);
 
         _reportData.sameDayDate        = range.dateStr;
@@ -146,8 +157,8 @@ export default function (data) {
         console.log(`[NextDay] 第一天: ${day1Range.dateStr}`);
         console.log(`[NextDay] 第二天: ${day2Range.dateStr}`);
 
-        const day1Orders = fetchAllRechargeOrders(adminToken, day1Range.startTime, day1Range.endTime);
-        const day2Orders = fetchAllRechargeOrders(adminToken, day2Range.startTime, day2Range.endTime);
+        const day1Orders = fetchAllRechargeOrders(adminToken, day1Range.startTime, day1Range.endTime, 'Payed', channelPackageId);
+        const day2Orders = fetchAllRechargeOrders(adminToken, day2Range.startTime, day2Range.endTime, 'Payed', channelPackageId);
         const result     = analyzeNextDayRetention(day1Orders, day2Orders);
 
         _reportData.nextDayDate1  = day1Range.dateStr;

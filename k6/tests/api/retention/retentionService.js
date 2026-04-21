@@ -8,22 +8,23 @@ import { fetchAllRechargeOrders, getDayRange } from './rechargeRetentionApi.js';
 import { getUserAccount, detectAccountType } from '../user/userAccountApi.js';
 import { mobileAutoLoginFlow } from '../login/MobileAutoLogin.test.js';
 import { emailAutoLoginFlow } from '../login/EmailAutoLogin.test.js';
-import { hybridRecharge } from '../recharge/rechargeService.js';
+import { hybridRecharge, eventBatchFrontendRechargeRequest } from '../recharge/rechargeService.js';
 
 /**
  * 查询指定日期充值成功的 userId 列表（去重）
  * @param {string} adminToken
  * @param {string} tenantId
  * @param {number} daysAgo - 相对今天往前几天，0=今天，1=昨天，2=前天
+ * @param {number} channelPackageId - 渠道来源ID（必填）
  * @returns {Array<number>} 去重后的 userId 列表
  */
-export function getRechargedUserIds(adminToken, tenantId, daysAgo) {
+export function getRechargedUserIds(adminToken, tenantId, daysAgo, channelPackageId) {
     console.log(`[RetentionService] 查询 ${daysAgo} 天前充值用户...`);
 
     const range = getDayRange(daysAgo, tenantId);
     console.log(`[RetentionService] 时间范围: ${range.dateStr} (${new Date(range.startTime).toISOString()} ~ ${new Date(range.endTime).toISOString()})`);
 
-    const orders = fetchAllRechargeOrders(adminToken, range.startTime, range.endTime);
+    const orders = fetchAllRechargeOrders(adminToken, range.startTime, range.endTime, 'Payed', channelPackageId);
 
     if (!orders || orders.length === 0) {
         console.warn(`[RetentionService] ${daysAgo} 天前无充值订单`);
@@ -160,27 +161,34 @@ export function executeUserRecharge(userId, account, accountType, userToken, adm
     for (let i = 0; i < rechargeCount; i++) {
         console.log(`[RetentionService] 第 ${i + 1}/${rechargeCount} 次充值...`);
 
-        // 随机金额 2000-5000
         const amount = 2000 + Math.floor(Math.random() * 3001);
 
-        const result = hybridRecharge({
-            userToken,
-            adminToken,
-            userId,
-            amount,
-            frontendFirst: true,
-            remark: `Day N Recharge - ${i + 1}`
-        });
+        // 50% 概率只发起充值不审核（模拟挂单场景）
+        const pendingOnly = Math.random() < 0.5;
 
-        if (result.success) {
-            successCount++;
-            totalAmount += result.amount;
-            console.log(`[RetentionService] ✅ 第 ${i + 1} 次充值成功，金额: ${result.amount}`);
+        if (pendingOnly) {
+            console.log(`[RetentionService] 第 ${i + 1} 次充值：仅发起，不审核（挂单）`);
+            eventBatchFrontendRechargeRequest(userToken, amount);
+            // 不计入成功，模拟待审核状态
         } else {
-            console.error(`[RetentionService] ❌ 第 ${i + 1} 次充值失败`);
+            const result = hybridRecharge({
+                userToken,
+                adminToken,
+                userId,
+                amount,
+                frontendFirst: true,
+                remark: `Day N Recharge - ${i + 1}`
+            });
+
+            if (result.success) {
+                successCount++;
+                totalAmount += result.amount;
+                console.log(`[RetentionService] ✅ 第 ${i + 1} 次充值成功，金额: ${result.amount}`);
+            } else {
+                console.error(`[RetentionService] ❌ 第 ${i + 1} 次充值失败`);
+            }
         }
 
-        // 两次充值之间等待3秒
         if (i < rechargeCount - 1) {
             sleep(3);
         }
