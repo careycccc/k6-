@@ -3,7 +3,7 @@
  *
  * 使用方法：
  *   # 当日复充验证（昨天同一天内充值≥2次）
- *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=1 dayN_verify.test.js
+ *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100051 -e RETENTION_DAYS=1 dayN_verify.test.js
  *
  *   # 次日复充验证（前天+昨天，连续2天）
  *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=2 dayN_verify.test.js

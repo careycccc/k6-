@@ -10,13 +10,13 @@
  * 使用方法：
  *
  *   # 单租户（兼容原版）
- *   k6 run -e TENANT_ID=3004 -e USER_COUNT=10 -e PACKAGE_TYPE=24 batchEventRegister.multi-tenant.test.js
+ *   k6 run -e TENANT_ID=3101 -e USER_COUNT=1 -e PACKAGE_TYPE=4 batchEventRegister.multi-tenant.test.js
  *
  *   # 多租户并行
  *   k6 run -e TENANTS=3001,3002,3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 batchEventRegister.multi-tenant.test.js
  *
  *   # 自定义邀请码
- *   k6 run -e TENANT_ID=3004 -e USER_COUNT=300 -e PACKAGE_TYPE=24 -e INVITE_CODE=3U6ADUN batchEventRegister.multi-tenant.test.js
+ *   k6 run -e TENANT_ID=3004 -e USER_COUNT=30 -e PACKAGE_TYPE=22 -e INVITE_CODE=3PNQHQN batchEventRegister.multi-tenant.test.js
  *
  *   # 指定 tiktok 域名（覆盖租户配置）
  *   k6 run -e TENANT_ID=3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 -e TIKTOK_DOMAIN=https://custom.domain.com batchEventRegister.multi-tenant.test.js
@@ -261,8 +261,8 @@ export function handleSummary(data) {
     }
 
     // 总计
-    const totalRegSuccess     = Object.values(tenantStats).reduce((sum, s) => sum + s.regSuccess, 0);
-    const totalFirstRecharge  = Object.values(tenantStats).reduce((sum, s) => sum + s.firstRecharge, 0);
+    const totalRegSuccess = Object.values(tenantStats).reduce((sum, s) => sum + s.regSuccess, 0);
+    const totalFirstRecharge = Object.values(tenantStats).reduce((sum, s) => sum + s.firstRecharge, 0);
     const totalDoubleRecharge = Object.values(tenantStats).reduce((sum, s) => sum + s.doubleRecharge, 0);
 
     const registerOnly = (__ENV.REGISTER_ONLY || '').toLowerCase() === 'true';
