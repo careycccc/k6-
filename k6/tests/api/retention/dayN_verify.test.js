@@ -2,10 +2,10 @@
  * 脚本③：复充率验证（纯查询，不执行充值）
  *
  * 使用方法：
- *   # 当日复充验证（昨天同一天内充值≥2次）
+ *   # 当日复充验证（今天同一天内充值≥2次）
  *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100051 -e RETENTION_DAYS=1 dayN_verify.test.js
  *
- *   # 次日复充验证（前天+昨天，连续2天）
+ *   # 次日复充验证（昨天+今天，连续2天）
  *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=2 dayN_verify.test.js
  *
  *   # 3日复充验证（连续3天）
@@ -20,8 +20,10 @@
 import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
 import { ENV_CONFIG } from '../../../config/envconfig.js';
 import { getDayRange, fetchAllRechargeOrders, analyzeSameDayRetention } from './rechargeRetentionApi.js';
+import { sendRequest } from '../common/request.js';
+import { getTimeRandom } from '../../utils/utils.js';
 
-const tenantId      = __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID);
+const tenantId = __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID);
 const retentionDays = __ENV.RETENTION_DAYS ? parseInt(__ENV.RETENTION_DAYS) : 2;
 const channelPackageId = __ENV.CHANNEL_PACKAGE_ID ? parseInt(__ENV.CHANNEL_PACKAGE_ID) : null;
 
@@ -72,17 +74,62 @@ export default function (data) {
     console.log(_reportOutput);
 }
 
+function getNewUserCount(adminToken, startTime, endTime, packageId) {
+    const api = '/api/Users/GetPageList';
+    const timeData = getTimeRandom();
+    const payload = {
+        packageId: packageId,
+        registerBeginTime: startTime,
+        registerEndTime: endTime,
+        pageNo: 1,
+        pageSize: 1,
+        orderBy: 'Desc',
+        language: timeData.language,
+        random: timeData.random,
+        timestamp: timeData.timestamp
+    };
+    const response = sendRequest(payload, api, 'GetUserCount', false, adminToken);
+    if (!response) return 0;
+    const data = response.data ? response.data : response;
+    return data.totalCount || 0;
+}
+
 // ============================================================
 // 当日复充报表
 // ============================================================
 function buildSameDayReport(adminToken) {
-    const range = getDayRange(1, tenantId);
+    const range = getDayRange(0, tenantId);
     console.log(`[Verify] 当日复充验证，查询日期: ${range.dateStr}`);
 
     const orders = fetchAllRechargeOrders(adminToken, range.startTime, range.endTime, 'Payed', channelPackageId);
     const result = analyzeSameDayRetention(orders);
-    const totalUsers = new Set(orders.map(o => String(o.userId))).size;
+    
+    // 获取当天的渠道总注册人数
+    const totalRegisteredUsers = getNewUserCount(adminToken, range.startTime, range.endTime, channelPackageId);
+    
+    // 聚合充值数据
+    let totalRechargeAmount = 0;
+    let firstRechargeUsers = new Set();
+    let firstRechargeAmount = 0;
+    
+    const rechargedUsers = new Set();
+
+    for (const order of orders) {
+        rechargedUsers.add(String(order.userId));
+        totalRechargeAmount += (order.amount || 0);
+        // order.rechargeCount === 0 表示该订单是用户的首充订单
+        if (order.rechargeCount === 0) {
+            firstRechargeUsers.add(String(order.userId));
+            firstRechargeAmount += (order.amount || 0);
+        }
+    }
+
+    const totalUsers = rechargedUsers.size;
+    const firstRechargeUserCount = firstRechargeUsers.size;
+
     const retentionRate = totalUsers > 0 ? ((result.length / totalUsers) * 100).toFixed(2) : '0.00';
+    const payingRate = totalRegisteredUsers > 0 ? ((totalUsers / totalRegisteredUsers) * 100).toFixed(2) : '0.00';
+    const firstPayingRate = totalRegisteredUsers > 0 ? ((firstRechargeUserCount / totalRegisteredUsers) * 100).toFixed(2) : '0.00';
 
     const lines = [
         '',
@@ -91,7 +138,13 @@ function buildSameDayReport(adminToken) {
         '┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┫',
         `┃ 租户ID                           ┃ ${String(tenantId).padEnd(25)} ┃`,
         `┃ 统计日期                         ┃ ${range.dateStr.padEnd(25)} ┃`,
-        `┃ 当日充值总用户数                 ┃ ${String(totalUsers).padEnd(25)} ┃`,
+        `┃ 渠道当天注册总人数               ┃ ${String(totalRegisteredUsers).padEnd(25)} ┃`,
+        `┃ 充值总金额                       ┃ ${totalRechargeAmount.toFixed(2).padEnd(25)} ┃`,
+        `┃ 首充人数                         ┃ ${String(firstRechargeUserCount).padEnd(25)} ┃`,
+        `┃ 首充金额总和                     ┃ ${firstRechargeAmount.toFixed(2).padEnd(25)} ┃`,
+        `┃ 付费率 (充值人数/总注册数)       ┃ ${(payingRate + '%').padEnd(25)} ┃`,
+        `┃ 首充付费率(首充人数/总注册数)    ┃ ${(firstPayingRate + '%').padEnd(25)} ┃`,
+        `┃ 当日充值总用户数(充值人数)       ┃ ${String(totalUsers).padEnd(25)} ┃`,
         `┃ 当日复充用户数（≥2次）           ┃ ${String(result.length).padEnd(25)} ┃`,
         `┃ 当日复充率                       ┃ ${(retentionRate + '%').padEnd(25)} ┃`,
         '┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━┛',
@@ -122,9 +175,9 @@ function buildMultiDayReport(adminToken) {
     const titleMap = { 2: '次日复充', 3: '3日复充', 7: '7日复充' };
     const title = titleMap[retentionDays] || `${retentionDays}日复充`;
 
-    // 查询每天数据，从最早那天到昨天（不含今天）
+    // 查询每天数据，从最早那天到今天
     const daySets = [];
-    for (let i = retentionDays; i >= 1; i--) {
+    for (let i = retentionDays - 1; i >= 0; i--) {
         const range = getDayRange(i, tenantId);
         const orders = fetchAllRechargeOrders(adminToken, range.startTime, range.endTime, 'Payed', channelPackageId);
         const userMap = new Map();
@@ -136,7 +189,7 @@ function buildMultiDayReport(adminToken) {
             entry.count++;
         }
         daySets.push({ daysAgo: i, dateStr: range.dateStr, userMap, count: userMap.size });
-        console.log(`[Verify] Day ${retentionDays - i + 1} (${range.dateStr}): ${userMap.size} 人充值`);
+        console.log(`[Verify] Day ${retentionDays - i} (${range.dateStr}): ${userMap.size} 人充值`);
     }
 
     // 取交集
@@ -160,8 +213,8 @@ function buildMultiDayReport(adminToken) {
     }
     detail.sort((a, b) => b.totalAmount - a.totalAmount);
 
-    const baseCount     = daySets[0].count;
-    const retainCount   = intersectionIds.size;
+    const baseCount = daySets[0].count;
+    const retainCount = intersectionIds.size;
     const retentionRate = baseCount > 0 ? ((retainCount / baseCount) * 100).toFixed(2) : '0.00';
 
     // 汇总表

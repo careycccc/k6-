@@ -3,10 +3,10 @@
  *
  * 使用方法：
  *
- *   # 当日复充（查昨天，今天执行）
+ *   # 当日复充（查今天，今天执行）
  *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=same_day rechargeRetention.test.js
  *
- *   # 次日复充（查前天+昨天，今天执行）
+ *   # 次日复充（查昨天+今天，今天执行）
  *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=next_day rechargeRetention.test.js
  *
  *   # 指定目标日期（当日复充：查指定日期；次日复充：查指定日期及其次日）
@@ -126,10 +126,10 @@ export default function (data) {
     console.log(`${'='.repeat(60)}\n`);
 
     if (mode === 'same_day') {
-        // 当日复充：不传 TARGET_DATE → 查昨天；传了 → 查指定日期
+        // 当日复充：不传 TARGET_DATE → 查今天；传了 → 查指定日期
         const range = targetDate
             ? parseDateRange(targetDate, tenantId)
-            : getDayRange(1, tenantId);
+            : getDayRange(0, tenantId);
 
         console.log(`[SameDay] 查询日期: ${range.dateStr}`);
         console.log(`[SameDay] 时间范围: ${new Date(range.startTime).toISOString()} ~ ${new Date(range.endTime).toISOString()}`);
@@ -144,14 +144,14 @@ export default function (data) {
         console.log(`[SameDay] ✅ 当日复充用户数: ${result.length}`);
 
     } else if (mode === 'next_day') {
-        // 次日复充：不传 TARGET_DATE → day1=前天, day2=昨天；传了 → day1=指定日期, day2=指定日期+1
+        // 次日复充：不传 TARGET_DATE → day1=昨天, day2=今天；传了 → day1=指定日期, day2=指定日期+1
         let day1Range, day2Range;
         if (targetDate) {
             day1Range = parseDateRange(targetDate, tenantId);
             day2Range = parseDateRange(addDays(targetDate, 1), tenantId);
         } else {
-            day1Range = getDayRange(2, tenantId);
-            day2Range = getDayRange(1, tenantId);
+            day1Range = getDayRange(1, tenantId);
+            day2Range = getDayRange(0, tenantId);
         }
 
         console.log(`[NextDay] 第一天: ${day1Range.dateStr}`);

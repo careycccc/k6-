@@ -75,10 +75,10 @@ k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 -e RECHARGE_
 纯查询，验证连续N天都有充值的用户数量及复充率，不执行任何充值操作。
 
 ```bash
-# 当日复充验证（昨天同一天内充值≥2次）
+# 当日复充验证（今天同一天内充值≥2次）
 k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=1 dayN_verify.test.js
 
-# 次日复充验证（前天+昨天，连续2天）
+# 次日复充验证（昨天+今天，连续2天）
 k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=2 dayN_verify.test.js
 
 # 3日复充验证（连续3天）
@@ -95,10 +95,10 @@ k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=7 dayN_v
 | RETENTION_DAYS | 验证连续几天 | 2（次日复充） |
 
 **验证逻辑：**
-- `RETENTION_DAYS=1`：当日复充，昨天同一天内充值≥2次的用户
+- `RETENTION_DAYS=1`：当日复充，今天同一天内充值≥2次的用户
 - `RETENTION_DAYS≥2`：多天连续复充，今天往前推N天，每天都必须有充值记录
 - 复充率 = |Day1 ∩ Day2 ∩ ... ∩ DayN| / |Day1|
-- 永远不包含今天（今天数据未完整），今天只用于计算日期偏移
+- 包含今天的数据，实现 N+1 准实时复盘
 
 ---
 
@@ -190,4 +190,4 @@ k6 run -e TENANT_ID=3101 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=2 dayN_v
 3. `dayN_verify.test.js` 纯查询，随时可以重复执行，不影响数据
 4. `CHANNEL_PACKAGE_ID` 为渠道来源ID，查询时用于过滤指定渠道的充值订单，不传直接报错
 5. 充值金额默认随机 2000-5000，可通过 `envconfig.js` 中的 `RECHARGE_AMOUNT_MIN/MAX` 调整
-6. 复充率验证永远不包含今天的数据，今天只用于计算日期偏移
+6. 复充率验证包含今天的数据，实现当日实时跟踪验证

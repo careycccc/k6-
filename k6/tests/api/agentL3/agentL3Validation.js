@@ -242,7 +242,11 @@ export function runAgentL3Validation(data, targetUid) {
             // 是昨日注册的，检查是否达标有效邀请条件
             const selfYdRecharge = getRechargeAmount(data, rootId, timeRange.yesterday.startTs, timeRange.yesterday.endTs);
             const selfYdBet = getBetData(data, rootId, timeRange.yesterday.startTs, timeRange.yesterday.endTs);
-            const selfIsValidYd = (selfYdRecharge >= validInviteRecharge) && (selfYdBet.totalValidAmount >= validInviteBet);
+            let selfIsValidYd = (selfYdRecharge >= validInviteRecharge) && (selfYdBet.totalValidAmount >= validInviteBet);
+            // 增加僵尸用户过滤
+            if (selfYdRecharge === 0 && selfYdBet.totalValidAmount === 0) {
+                selfIsValidYd = false;
+            }
             
             if (selfIsValidYd) {
                 myInvitedReward = invitedReward;
@@ -280,19 +284,29 @@ export function runAgentL3Validation(data, targetUid) {
         sleep(0.5);
         if (idx % 5 === 0 && idx > 0) console.log(`   ...已查询 ${idx}/${enrichedMembers.length}人 ...`);
 
+        // 增加对下级注册日期的判断
+        const isRegYesterday = m.registerTime >= timeRange.yesterday.startTs && m.registerTime <= timeRange.yesterday.endTs;
+        const isRegToday = m.registerTime >= timeRange.today.startTs && m.registerTime <= timeRange.today.endTs;
+
         // 昨日
         const ydRecharge = getRechargeAmount(data, m.userId, timeRange.yesterday.startTs, timeRange.yesterday.endTs);
         const ydBet = getBetData(data, m.userId, timeRange.yesterday.startTs, timeRange.yesterday.endTs);
         m.yesterday.recharge = ydRecharge;
         m.yesterday.bet = ydBet;
-        m.isValidYesterday = (ydRecharge >= validInviteRecharge) && (ydBet.totalValidAmount >= validInviteBet);
+        m.isValidYesterday = isRegYesterday && (ydRecharge >= validInviteRecharge) && (ydBet.totalValidAmount >= validInviteBet);
+        if (ydRecharge === 0 && ydBet.totalValidAmount === 0) {
+            m.isValidYesterday = false;
+        }
 
         // 今日
         const tdRecharge = getRechargeAmount(data, m.userId, timeRange.today.startTs, timeRange.today.endTs);
         const tdBet = getBetData(data, m.userId, timeRange.today.startTs, timeRange.today.endTs);
         m.today.recharge = tdRecharge;
         m.today.bet = tdBet;
-        m.isValidToday = (tdRecharge >= validInviteRecharge) && (tdBet.totalValidAmount >= validInviteBet);
+        m.isValidToday = isRegToday && (tdRecharge >= validInviteRecharge) && (tdBet.totalValidAmount >= validInviteBet);
+        if (tdRecharge === 0 && tdBet.totalValidAmount === 0) {
+            m.isValidToday = false;
+        }
     });
     console.log(`   ✅ 数据查询完毕\n`);
 

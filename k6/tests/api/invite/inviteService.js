@@ -320,11 +320,31 @@ export function bindOneLevel(parentInviteCodes, count, level, adminData) {
         // 随机选择一个父级邀请码
         const parentInviteCode = parentInviteCodes[Math.floor(Math.random() * parentInviteCodes.length)];
 
-        // 注册用户（手机号优先，失败则邮箱）
-        const registerResult = registerUser(phoneNumbers[i], emails[i], parentInviteCode, adminData);
+        // ====== 新增混合模式逻辑 ======
+        let inviteIdentifier = parentInviteCode;
+        let parentUserId = null;
+        let useUserId = false;
+        
+        // 尝试从已注册的详情中找到这个父级的 userId
+        const parentDetail = userDetails.find(u => u.inviteCode === parentInviteCode);
+        if (parentDetail && parentDetail.userId) {
+            parentUserId = parentDetail.userId;
+            // 50%概率使用 userId
+            useUserId = Math.random() < 0.5;
+        }
+
+        if (useUserId) {
+            inviteIdentifier = String(parentUserId);
+            console.log(`[BindLevel] 🔀 混合邀请: 使用上级 userId (${parentUserId}) 代替 inviteCode`);
+        } else {
+            console.log(`[BindLevel] 🔀 混合邀请: 使用上级 inviteCode (${parentInviteCode})`);
+        }
+
+        // 注册用户（手机号优先，失败则邮箱），传入的是选定的 inviteIdentifier
+        const registerResult = registerUser(phoneNumbers[i], emails[i], inviteIdentifier, adminData);
 
         if (!registerResult) {
-            const errorMsg = `注册失败: ${phoneNumbers[i]} / ${emails[i]} -> ${parentInviteCode}`;
+            const errorMsg = `注册失败: ${phoneNumbers[i]} / ${emails[i]} -> ${inviteIdentifier} (原码: ${parentInviteCode})`;
             console.error(`[BindLevel] ${errorMsg}`);
             errors.push(errorMsg);
             // 两种方式都失败，立即停止
@@ -352,7 +372,8 @@ export function bindOneLevel(parentInviteCodes, count, level, adminData) {
             userDB.set(registerResult.inviteCode, new User(registerResult.inviteCode));
         }
 
-        console.log(`✅ [${i + 1}/${count}] ${registerResult.account} -> ${parentInviteCode} (邀请码: ${registerResult.inviteCode})`);
+        const invStr = useUserId ? `userId:${parentUserId}` : `code:${parentInviteCode}`;
+        console.log(`✅ [${i + 1}/${count}] ${registerResult.account} -> ${invStr} (新邀请码: ${registerResult.inviteCode})`);
     }
 
     // 检查是否有错误
