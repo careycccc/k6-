@@ -530,6 +530,33 @@ export function runAgentL3Validation(data, targetUid) {
         console.log(`${'='.repeat(70)}\n`);
     }
 
+    // 6.1 新增：团队成员明细 (今日数据)
+    console.log(`\n   ► 团队成员明细 (今日数据 - 仅统计活动):`);
+    let tdSumRech = 0, tdSumBet = 0, tdSumValid = 0;
+    console.log(`      ┌──────┬────────────┬────────────┬────────────┬────────────┬────────────┬────────────┐`);
+    console.log(`      │ 层级 │    UID     │  充值金额  │  投注金额  │  有效投注  │  充值返佣  │  投注返佣  │`);
+    console.log(`      ├──────┼────────────┼────────────┼────────────┼────────────┼────────────┼────────────┤`);
+    enrichedMembers.forEach(m => {
+        if (m.relHier === 0) return;
+        const hierStr = `L${m.relHier}`.padEnd(4);
+        const uidStr = String(m.userId).padEnd(10);
+        const rechAmtStr = m.today.recharge.toFixed(2).padStart(10);
+        const betAmtStr = m.today.bet.totalBetAmount.toFixed(2).padStart(10);
+        const validAmtStr = m.today.bet.totalValidAmount.toFixed(2).padStart(10);
+        const rechRebStr = "0.00".padStart(10); // 今日返佣尚未结算，显示为 0.00
+        const betRebStr = "0.00".padStart(10);
+
+        tdSumRech += m.today.recharge;
+        tdSumBet += m.today.bet.totalBetAmount;
+        tdSumValid += m.today.bet.totalValidAmount;
+
+        console.log(`      │ ${hierStr} │ ${uidStr} │ ${rechAmtStr} │ ${betAmtStr} │ ${validAmtStr} │ ${rechRebStr} │ ${betRebStr} │`);
+    });
+    console.log(`      ├──────┼────────────┼────────────┼────────────┼────────────┼────────────┼────────────┤`);
+    const tdCountStr = String(enrichedMembers.length - 1) + '人';
+    console.log(`      │ 总计 │ ${tdCountStr.padStart(10)} │ ${tdSumRech.toFixed(2).padStart(10)} │ ${tdSumBet.toFixed(2).padStart(10)} │ ${tdSumValid.toFixed(2).padStart(10)} │ ${"0.00".padStart(10)} │ ${"0.00".padStart(10)} │`);
+    console.log(`      └──────┴────────────┴────────────┴────────────┴────────────┴────────────┴────────────┘`);
+
     // ============================================================
     // ============ V E R I F I C A T I O N  ======================
     // ============================================================
@@ -591,6 +618,358 @@ export function runAgentL3Validation(data, targetUid) {
         checkTolerance('团队总返佣合计', item.totalCommission, finalRechargeRebate + finalSumBet);
     } else {
         console.log(`   ⚠️ 未能查到昨日(${timeRange.yesterday.dateStr}) 的 RebateList 返佣明细记录！`);
+    }
+
+    console.log(`\n${'='.repeat(70)}\n`);
+}
+
+// ============================================================
+// 增强版 L3 验证：支持传入原始 L1 成员集合（解绑绑定场景专用）
+// ============================================================
+
+/**
+ * 快照某个总代当前的 L1 直推成员 userId 集合
+ * 在 swap 操作前调用，用于后续有效邀请计算的过滤依据
+ *
+ * @param {object} data       - 包含 token 的管理员数据
+ * @param {number} rootUserId - 总代 userId
+ * @returns {Set<number>}     - L1 成员 userId 的 Set
+ */
+export function snapshotL1Members(data, rootUserId) {
+    const api = '/api/Agent/GetPageListAgentList';
+    const payload = {
+        userId: rootUserId,
+        isAll: true,
+        isIncludeSelfAndParent: true,
+        pageNo: 1,
+        pageSize: 500
+    };
+
+    let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token);
+    if (typeof result !== 'object') {
+        try { result = JSON.parse(result); } catch (e) { return new Set(); }
+    }
+
+    let memberList = [];
+    if (result && Array.isArray(result.list)) memberList = result.list;
+    else if (result && result.data && Array.isArray(result.data.list)) memberList = result.data.list;
+
+    // 找到 root 自身的 hierarchy 基准
+    const rootRecord = memberList.find(m => m.userId === rootUserId);
+    if (!rootRecord) return new Set();
+
+    const l1Set = new Set(
+        memberList
+            .filter(m => (m.hierarchy - rootRecord.hierarchy) === 1)
+            .map(m => m.userId)
+    );
+
+    console.log(`[L3Snapshot] 总代 ${rootUserId} 原始 L1 成员快照: ${l1Set.size} 人 → [${[...l1Set].join(', ')}]`);
+    return l1Set;
+}
+
+/**
+ * 增强版 L3 验证（解绑绑定场景专用）
+ *
+ * 与 runAgentL3Validation 的唯一区别：
+ *   有效邀请计算时，只统计 originalL1Set 中的 L1 成员（即解绑绑定前的原始团队成员）
+ *   返佣计算不受影响，仍按当前团队全量成员计算
+ *
+ * @param {object}     data          - 包含 token 的管理员数据
+ * @param {number}     targetUid     - 总代 userId
+ * @param {Set<number>} originalL1Set - swap 前快照的原始 L1 成员 userId 集合
+ */
+export function runAgentL3ValidationWithOriginalTeam(data, targetUid, originalL1Set) {
+    if (!targetUid) {
+        logger.error(`[${agentL3Tag}] 缺少参数: targetUid`);
+        return;
+    }
+
+    const rootId = Number(targetUid);
+    const timeRange = getTimeRanges();
+    const hasOriginalFilter = originalL1Set && originalL1Set.size > 0;
+
+    console.log(`\n${'='.repeat(70)}`);
+    console.log(`📊 [增强版] 3级代理(AgentL3) 验证 - UID=${rootId}`);
+    console.log(`   昨日时间: ${timeRange.yesterday.dateStr} | 今日时间: ${timeRange.today.dateStr}`);
+    if (hasOriginalFilter) {
+        console.log(`   🔒 有效邀请过滤: 仅统计原始 L1 成员 (${originalL1Set.size} 人)`);
+    }
+    console.log(`${'='.repeat(70)}\n`);
+
+    // Step 1: 获取配置
+    console.log('【Step 1】获取 3 级代理相关配置...');
+    const configData = GetConfig(data);
+    const taskConfig = GetListInviteTaskConfig(data) || [];
+    const rebateLevelRates = GetListRebateLevelRate(data) || [];
+
+    if (!configData || !taskConfig.length || !rebateLevelRates.length) {
+        logger.error(`[${agentL3Tag}] 配置获取失败，终止验证流程。`);
+        return;
+    }
+
+    const validInviteRecharge  = Number(configData.agentL3InviteRechargeAmount.value1) || 0;
+    const validInviteBet       = Number(configData.agentL3InviteBetAmount.value1) || 0;
+    const inviterReward        = Number(configData.agentL3InviteRewardAmount.value1) || 0;
+    const invitedReward        = Number(configData.agentL3InvitedRewardAmount.value1) || 0;
+    const inviteDayLimitCount  = configData.agentL3InviteDayLimitCount
+        ? (Number(configData.agentL3InviteDayLimitCount.value1) || 999999)
+        : 999999;
+
+    console.log(`   ► 有效邀请门槛: 充值 >= ${validInviteRecharge}, 投注 >= ${validInviteBet}`);
+    console.log(`   ► 每日有效邀请上限: ${inviteDayLimitCount === 999999 ? '无上限' : inviteDayLimitCount} 人`);
+    console.log(`   ► 单人邀请奖金: 邀请人=${inviterReward}, 被邀请人=${invitedReward}\n`);
+
+    // Step 2: 获取当前团队成员（用于返佣计算）
+    console.log('【Step 2】获取当前团队成员列表（用于返佣计算）...');
+    const agentListApi = '/api/Agent/GetPageListAgentList';
+    const agentPayload = { userId: rootId, isAll: true, isIncludeSelfAndParent: true, pageNo: 1, pageSize: 500 };
+    let agentResult = sendQueryRequest(agentPayload, agentListApi, agentL3Tag, false, data.token);
+    if (typeof agentResult !== 'object') {
+        try { agentResult = JSON.parse(agentResult); } catch (e) { return; }
+    }
+
+    let memberList = [];
+    if (agentResult && Array.isArray(agentResult.list)) memberList = agentResult.list;
+    else if (agentResult && agentResult.data && Array.isArray(agentResult.data.list)) memberList = agentResult.data.list;
+
+    if (!memberList.length) {
+        logger.error(`[${agentL3Tag}] 未获取到任何成员`);
+        return;
+    }
+
+    const rootRecord = memberList.find(m => m.userId === rootId);
+    if (!rootRecord) {
+        logger.error(`[${agentL3Tag}] 成员列表中不包含总代本身`);
+        return;
+    }
+    console.log(`   ✅ 当前团队成员 ${memberList.length} 人（含自身）\n`);
+
+    // Step 2.1: 被邀请奖励
+    let myInvitedReward = 0;
+    console.log('【Step 2.1】计算自身是否获得被邀请奖励...');
+    if (rootRecord.parentId === 0) {
+        console.log(`   ► 总代账号，无被邀请奖金`);
+    } else {
+        const regYesterday = rootRecord.registerTime >= timeRange.yesterday.startTs && rootRecord.registerTime <= timeRange.yesterday.endTs;
+        if (!regYesterday) {
+            console.log(`   ► 非昨日注册，无被邀请奖金`);
+        } else {
+            const selfYdRecharge = getRechargeAmount(data, rootId, timeRange.yesterday.startTs, timeRange.yesterday.endTs);
+            const selfYdBet = getBetData(data, rootId, timeRange.yesterday.startTs, timeRange.yesterday.endTs);
+            const selfIsValid = selfYdRecharge > 0 && selfYdRecharge >= validInviteRecharge && selfYdBet.totalValidAmount >= validInviteBet;
+            if (selfIsValid) {
+                myInvitedReward = invitedReward;
+                console.log(`   ✅ 满足被邀请条件，奖金: ${myInvitedReward}`);
+            } else {
+                console.log(`   ❌ 未满足被邀请条件`);
+            }
+        }
+    }
+
+    // Step 3: 查询 L1~L3 成员数据
+    console.log('【Step 3】获取成员(L1~L3及自身) 昨日+今日 的充值与投注数据...');
+    const enrichedMembers = [];
+    memberList.forEach(m => {
+        const relHier = m.hierarchy - rootRecord.hierarchy;
+        if (relHier >= 0 && relHier <= 3) {
+            enrichedMembers.push({
+                ...m, relHier,
+                yesterday: { recharge: 0, bet: null },
+                today: { recharge: 0, bet: null },
+                isValidYesterday: false,
+                isValidToday: false
+            });
+        }
+    });
+
+    enrichedMembers.forEach((m, idx) => {
+        sleep(0.5);
+        if (idx % 5 === 0 && idx > 0) console.log(`   ...已查询 ${idx}/${enrichedMembers.length}人...`);
+
+        const isRegYesterday = m.registerTime >= timeRange.yesterday.startTs && m.registerTime <= timeRange.yesterday.endTs;
+        const isRegToday     = m.registerTime >= timeRange.today.startTs     && m.registerTime <= timeRange.today.endTs;
+
+        const ydRecharge = getRechargeAmount(data, m.userId, timeRange.yesterday.startTs, timeRange.yesterday.endTs);
+        const ydBet      = getBetData(data, m.userId, timeRange.yesterday.startTs, timeRange.yesterday.endTs);
+        m.yesterday.recharge = ydRecharge;
+        m.yesterday.bet      = ydBet;
+        m.isValidYesterday   = isRegYesterday && ydRecharge > 0 && ydRecharge >= validInviteRecharge && ydBet.totalValidAmount >= validInviteBet;
+
+        const tdRecharge = getRechargeAmount(data, m.userId, timeRange.today.startTs, timeRange.today.endTs);
+        const tdBet      = getBetData(data, m.userId, timeRange.today.startTs, timeRange.today.endTs);
+        m.today.recharge = tdRecharge;
+        m.today.bet      = tdBet;
+        m.isValidToday   = isRegToday && tdRecharge > 0 && tdRecharge >= validInviteRecharge && tdBet.totalValidAmount >= validInviteBet;
+    });
+    console.log(`   ✅ 数据查询完毕\n`);
+
+    // Step 4: 有效邀请计算（关键：只统计原始 L1 成员）
+    console.log('【Step 4】计算有效邀请奖励（仅统计原始团队 L1 成员）...');
+    const l1Members = enrichedMembers.filter(m => m.relHier === 1);
+
+    // 过滤：如果有原始快照，只算原始 L1 成员；否则全量计算（兼容无 swap 场景）
+    const eligibleL1 = hasOriginalFilter
+        ? l1Members.filter(m => originalL1Set.has(m.userId))
+        : l1Members;
+
+    const swappedInL1 = hasOriginalFilter
+        ? l1Members.filter(m => !originalL1Set.has(m.userId))
+        : [];
+
+    if (hasOriginalFilter) {
+        console.log(`   ► 当前 L1 总数: ${l1Members.length} 人`);
+        console.log(`   ► 原始 L1 成员（参与有效邀请计算）: ${eligibleL1.length} 人`);
+        console.log(`   ► 换入的 L1 成员（不计入有效邀请）: ${swappedInL1.length} 人 → [${swappedInL1.map(m => m.userId).join(', ')}]`);
+    }
+
+    const validYesterdayL1 = eligibleL1.filter(m => m.isValidYesterday);
+    const validTodayL1     = eligibleL1.filter(m => m.isValidToday);
+
+    const validYesterdayL1Count = Math.min(validYesterdayL1.length, inviteDayLimitCount);
+    const validTodayL1Count     = Math.min(validTodayL1.length, inviteDayLimitCount);
+
+    console.log(`   ➤ 昨日达标有效邀请 ${validYesterdayL1.length} 人 → 实际计算: ${validYesterdayL1Count} 人`);
+    console.log(`   ➤ 今日达标有效邀请 ${validTodayL1.length} 人 → 实际计算: ${validTodayL1Count} 人`);
+
+    const inviteRewardYesterday = validYesterdayL1Count * inviterReward;
+    const inviteRewardToday     = validTodayL1Count * inviterReward;
+    console.log(`   ► 邀请成功奖金: ${inviteRewardYesterday + inviteRewardToday} 元`);
+
+    // Step 5: 邀请任务阶梯奖励
+    console.log('\n【Step 5】计算邀请任务阶梯奖励...');
+    const getTaskReward = (validCount) => {
+        let total = 0;
+        const sorted = [...taskConfig].sort((a, b) => a.inviteUserCount - b.inviteUserCount);
+        for (const t of sorted) {
+            if (validCount >= t.inviteUserCount) total += t.rewardAmount;
+            else break;
+        }
+        return total;
+    };
+    const taskRewardYesterday = getTaskReward(validYesterdayL1Count);
+    const taskRewardToday     = getTaskReward(validTodayL1Count);
+    const totalTaskReward     = inviteRewardYesterday + inviteRewardToday + taskRewardYesterday + taskRewardToday + myInvitedReward;
+    console.log(`   ► 邀请任务奖金: ${taskRewardYesterday + taskRewardToday} 元`);
+    console.log(`   ► 总任务奖励: ${totalTaskReward} 元`);
+
+    // Step 6: 团队返佣（按当前全量成员计算，不受 swap 影响）
+    console.log('\n【Step 6】计算团队返佣（使用当前全量成员昨日数据）...');
+    let teamPeoples = 0, teamBetAmt = 0, teamRechargeAmt = 0;
+    enrichedMembers.forEach(m => {
+        if (!INCLUDE_SELF && m.relHier === 0) return;
+        teamPeoples++;
+        teamRechargeAmt += m.yesterday.recharge;
+        teamBetAmt      += m.yesterday.bet.totalValidAmount;
+    });
+    console.log(`   ➤ 团队人数: ${teamPeoples} | 昨日有效投注: ${teamBetAmt.toFixed(2)} | 昨日充值: ${teamRechargeAmt.toFixed(2)}`);
+
+    let finalLevelConfig = null;
+    const sortedLevels = [...rebateLevelRates].sort((a, b) => b.teamLevel - a.teamLevel);
+    for (const lvl of sortedLevels) {
+        if (teamPeoples >= lvl.teamPeoples && teamBetAmt >= lvl.teamBetAmount) {
+            finalLevelConfig = lvl;
+            break;
+        }
+    }
+
+    let finalRechargeRebate = 0, finalBetRebateL1 = 0, finalBetRebateL2 = 0, finalBetRebateL3 = 0, finalSumBet = 0;
+    let calculatedTeamLevel = 0;
+
+    if (!finalLevelConfig) {
+        console.log(`   ► ⚠️ 未满足任何团队等级门槛，无团队返佣`);
+    } else {
+        calculatedTeamLevel = finalLevelConfig.teamLevel;
+        console.log(`   ► 匹配团队等级: Level ${calculatedTeamLevel}`);
+
+        const rateRecharge = Number(finalLevelConfig.teamRechargeRewardRate) / 100;
+        const rateBet      = finalLevelConfig.teamBetRewardRate;
+        const totalBetRebate = { L1: 0, L2: 0, L3: 0 };
+
+        enrichedMembers.forEach(m => {
+            if (m.relHier === 0) return;
+            let myRechargeRebate = 0;
+            if (m.relHier === 1) {
+                myRechargeRebate = m.yesterday.recharge * rateRecharge;
+                finalRechargeRebate += myRechargeRebate;
+            }
+            const b  = m.yesterday.bet.categories;
+            const hl = `teamBetRewardRate_L${m.relHier}`;
+            const userBetRebate =
+                b.electronic.valid * ((Number(rateBet.electronic[hl]) || 0) / 100) +
+                b.liveCasino.valid  * ((Number(rateBet.video[hl])      || 0) / 100) +
+                b.sports.valid      * ((Number(rateBet.sports[hl])     || 0) / 100) +
+                b.lottery.valid     * ((Number(rateBet.lottery[hl])    || 0) / 100) +
+                b.chessCard.valid   * ((Number(rateBet.chessCard[hl])  || 0) / 100);
+
+            if (m.relHier === 1) totalBetRebate.L1 += userBetRebate;
+            if (m.relHier === 2) totalBetRebate.L2 += userBetRebate;
+            if (m.relHier === 3) totalBetRebate.L3 += userBetRebate;
+        });
+
+        finalBetRebateL1 = totalBetRebate.L1;
+        finalBetRebateL2 = totalBetRebate.L2;
+        finalBetRebateL3 = totalBetRebate.L3;
+        finalSumBet      = totalBetRebate.L1 + totalBetRebate.L2 + totalBetRebate.L3;
+
+        console.log(`   ► 团队返佣合计: ${(finalRechargeRebate + finalSumBet).toFixed(4)} 元`);
+        console.log(`      └─ 首充返佣(L1): ${finalRechargeRebate.toFixed(4)}`);
+        console.log(`      └─ 投注返佣: L1=${finalBetRebateL1.toFixed(4)}, L2=${finalBetRebateL2.toFixed(4)}, L3=${finalBetRebateL3.toFixed(4)}`);
+    }
+
+    const grandTotal = totalTaskReward + finalRechargeRebate + finalSumBet;
+    console.log(`\n   💰 最终可领取合计: ${grandTotal.toFixed(4)} 元`);
+    console.log(`${'='.repeat(70)}\n`);
+
+    // Step 7: 后台接口对比验证
+    console.log('【Step 7】后台接口自动化对比验证...');
+
+    const checkTolerance = (name, actual, expected, tolerance = 5) => {
+        const diff = Math.abs(actual - expected);
+        if (diff <= tolerance) {
+            console.log(`   ✅ [验证通过] ${name} | 计算值: ${expected.toFixed(4)} | 接口值: ${actual.toFixed(4)}`);
+        } else {
+            console.log(`   ❌ [验证失败] ${name} | 计算值: ${expected.toFixed(4)} | 接口值: ${actual.toFixed(4)} (误差: ${diff.toFixed(4)})`);
+        }
+    };
+    const checkExact = (name, actual, expected) => {
+        if (actual === expected) {
+            console.log(`   ✅ [验证通过] ${name} | 计算值: ${expected} | 接口值: ${actual}`);
+        } else {
+            console.log(`   ❌ [验证失败] ${name} | 计算值: ${expected} | 接口值: ${actual}`);
+        }
+    };
+
+    const inviteApi = '/api/AgentL3/GetPageListInviteList';
+    let inviteRes = sendQueryRequest({ userId: rootId, pageNo: 1, pageSize: 20, orderBy: 'Desc' }, inviteApi, agentL3Tag, false, data.token);
+    if (typeof inviteRes !== 'object') { try { inviteRes = JSON.parse(inviteRes); } catch(e) {} }
+
+    if (inviteRes && inviteRes.list && inviteRes.list.length > 0) {
+        const item = inviteRes.list[0];
+        console.log(`\n   ► 验证 InviteList (UID=${item.userId}):`);
+        checkExact('团队匹配等级', item.teamLevel, calculatedTeamLevel);
+        checkTolerance('总任务奖励金额', item.totalRewardAmount, totalTaskReward);
+        checkTolerance('邀请成功奖金', item.inviteRewardAmount, inviteRewardYesterday + inviteRewardToday);
+        checkExact('达标有效邀请人数', item.inviteRewardUserCount, validYesterdayL1Count + validTodayL1Count);
+        checkTolerance('邀请任务奖金', item.inviteTaskRewardAmount, taskRewardYesterday + taskRewardToday);
+    } else {
+        console.log(`\n   ⚠️ 未能查到 InviteList 数据`);
+    }
+
+    const rebateApi = '/api/AgentL3/GetPageListRebateList';
+    let rebateRes = sendQueryRequest({ reportDate: timeRange.yesterday.dateStr, userId: rootId, pageNo: 1, pageSize: 20, orderBy: 'Desc' }, rebateApi, agentL3Tag, false, data.token);
+    if (typeof rebateRes !== 'object') { try { rebateRes = JSON.parse(rebateRes); } catch(e) {} }
+
+    if (rebateRes && rebateRes.list && rebateRes.list.length > 0) {
+        const item = rebateRes.list[0];
+        console.log(`\n   ► 验证昨日 RebateList (${timeRange.yesterday.dateStr}):`);
+        checkTolerance('首充返佣(L1)', item.rechargeCommission_L1, finalRechargeRebate);
+        checkTolerance('一级投注返佣(L1)', item.betCommission_L1, finalBetRebateL1);
+        checkTolerance('二级投注返佣(L2)', item.betCommission_L2, finalBetRebateL2);
+        checkTolerance('三级投注返佣(L3)', item.betCommission_L3, finalBetRebateL3);
+        checkTolerance('团队总返佣', item.totalCommission, finalRechargeRebate + finalSumBet);
+    } else {
+        console.log(`   ⚠️ 未能查到昨日 RebateList 数据`);
     }
 
     console.log(`\n${'='.repeat(70)}\n`);

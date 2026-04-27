@@ -9,7 +9,7 @@
  * 
  * 运行方式：
  * k6 run -e TENANT_ID=3004 -e FETCH_COUNT=10 k6/tests/api/recharge/batchFrontRecharge.test.js
- * k6 run -e TENANT_ID=3004 -e FETCH_COUNT=25 batchFrontRecharge.test.js
+ * k6 run -e TENANT_ID=3004 -e FETCH_COUNT=15 batchFrontRecharge.test.js
  */
 
 import { sleep } from 'k6';
@@ -57,6 +57,8 @@ export function setup() {
     // 2. 获取用户列表
     const userPageApi = '/api/Users/GetPageList';
     const payload = {
+        userType: 0,
+        state: 1,
         pageNo: 1,
         pageSize: FETCH_COUNT,
         orderBy: 'Desc'

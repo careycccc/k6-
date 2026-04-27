@@ -9,23 +9,24 @@
  * 运行方式：
  * k6 run -e TENANT_ID=3004 -e FETCH_COUNT=10 k6/tests/api/withdraw/batchWithdraw.test.js
  * 
+ * k6 run -e TENANT_ID=3004 -e FETCH_COUNT=15 batchWithdraw.test.js
+ * 
  * 参数说明：
  * FETCH_COUNT: 获取的用户数量，默认10
  */
 
 import { sleep } from 'k6';
 import { tenantAdminLogin, tenantRequest } from '../../../libs/http/tenantRequest.js';
-import { mobileAutoLoginFlow } from '../login/MobileAutoLogin.test.js';
+import { batchGetUserAccounts, autoLoginByAccount } from '../user/userAccountApi.js';
 import { backendRecharge } from '../recharge/rechargeService.js';
 import { getAccountBalance } from '../balance/balance.test.js';
 import { addAllWallets } from './addWalletApi.js';
-import { batchGetUserAccounts } from '../user/userAccountApi.js';
 import { sendRequest } from '../common/request.js';
-import { 
-    getWithdrawBasicInfo, 
-    setWithdrawPassword, 
-    getUserWithdrawWallet, 
-    withdrawApply 
+import {
+    getWithdrawBasicInfo,
+    setWithdrawPassword,
+    getUserWithdrawWallet,
+    withdrawApply
 } from './withdrawApi.js';
 
 // 获取环境变量
@@ -58,6 +59,8 @@ export function setup() {
     // 2. 获取用户列表
     const userPageApi = '/api/Users/GetPageList';
     const payload = {
+        userType: 0,
+        state: 1,
         pageNo: 1,
         pageSize: FETCH_COUNT,
         orderBy: 'Desc'
@@ -65,7 +68,7 @@ export function setup() {
 
     console.log(`[Setup] 正在请求用户列表: ${userPageApi}`);
     const response = sendRequest(payload, userPageApi, 'GetUserPageList', false, adminToken);
-    
+
     if (!response || !response.list) {
         console.error(`[Setup] 获取列表失败，响应内容:`, JSON.stringify(response));
         throw new Error('[Setup] ❌ 获取用户列表失败');
@@ -96,7 +99,7 @@ function getRandomInt(min, max) {
 
 export default function (data) {
     const { accounts, adminToken } = data;
-    
+
     const index = __ITER;
     if (index >= accounts.length) {
         console.warn(`[Iteration ${index}] 超出账号列表范围，跳过`);
@@ -111,10 +114,10 @@ export default function (data) {
     console.log(`[BatchWithdraw] 正在处理 [${index + 1}/${accounts.length}]: ${account} (ID: ${userId})`);
     console.log(`===========================================`);
 
-    // 1. 登录会话获取 userToken (使用验证码登录，响应用户要求)
+    // 1. 登录会话获取 userToken（自动识别手机号/邮箱，调用对应登录方式）
     console.log(`[BatchWithdraw] 正在执行验证码登录流程: ${account}...`);
-    const userToken = mobileAutoLoginFlow(String(account), { token: adminToken });
-    
+    const userToken = autoLoginByAccount(String(account), adminToken);
+
     if (!userToken) {
         console.error(`[BatchWithdraw] ❌ 用户 ${account} 验证码登录失败`);
         return;
@@ -201,7 +204,7 @@ export default function (data) {
 
         while (retryCount <= maxRetries) {
             const response = withdrawApplyLocal(userToken, amount, walletId, category.id, category.withdrawType, '123456');
-            
+
             if (response && response.msgCode === 0) {
                 console.log(`[BatchWithdraw] ✅ 用户 ${account} 第 ${i + 1} 次提现申请成功: ${amount}`);
                 break;

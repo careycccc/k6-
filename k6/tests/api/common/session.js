@@ -4,11 +4,10 @@
  */
 
 import { AdminLogin } from '../login/adminlogin.test.js';
-import { mobileAutoLoginFlow } from '../login/MobileAutoLogin.test.js';
-import { emailAutoLoginFlow } from '../login/EmailAutoLogin.test.js';
 import { phoneRegister, emailRegister } from '../login/register.test.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
 import { getEnvByTenantId } from '../../../config/envconfig.js';
+import { autoLoginByAccount } from '../user/userAccountApi.js';
 
 /**
  * 生成随机账号
@@ -131,7 +130,7 @@ export function getTestSession(userName, isRegister = false, accountType = 'phon
         }
     } else {
         console.log(`[${tag}] 执行${isEmail ? '邮箱' : '手机号'}自动登录流程: ${userName}`);
-        userToken = isEmail ? emailAutoLoginFlow(userName, adminData) : mobileAutoLoginFlow(userName, adminData);
+        userToken = autoLoginByAccount(userName, adminData.token);
     }
 
     if (!userToken) {

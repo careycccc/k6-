@@ -1,4 +1,4 @@
-import { sendQueryRequest } from '../common/request.js';
+﻿import { sendQueryRequest } from '../common/request.js';
 import { isNonEmptyArray } from '../../utils/utils.js';
 import { logger } from '../../../libs/utils/logger.js';
 import { RebateLevel, RebateLevelRate } from './RebateLevel.test.js';
@@ -745,4 +745,345 @@ function printFinalSummary(agentRebateSummary, masterHierarchy, accountId, dateS
         });
     }
     console.log(`${'='.repeat(70)}\n`);
+}
+
+// ============================================================
+// 前台接口自动化对比验证（新增，不改动上方任何现有逻辑）
+// ============================================================
+
+import { getUserAccount, detectAccountType, autoLoginByUserId } from '../user/userAccountApi.js';
+
+const frontVerifyTag = 'sixearnFrontVerify';
+
+/**
+ * 用前台 token 请求 /api/AgentRebate/GetPromotionData
+ * @param {string} frontToken - 前台用户 token
+ * @returns {object|null} 接口返回的 data 字段
+ */
+function getPromotionData(frontToken) {
+    const api = '/api/AgentRebate/GetPromotionData';
+    const result = sendRequest({}, api, frontVerifyTag, true, frontToken);
+
+    if (!result) {
+        console.error(`[FrontVerify] GetPromotionData 请求失败`);
+        return null;
+    }
+
+    // sendRequest 返回 data 字段或完整响应
+    if (result.myInviteCode !== undefined) return result;          // 已是 data 层
+    if (result.data && result.data.myInviteCode !== undefined) return result.data;
+    return null;
+}
+
+/**
+ * 根据 userId 获取前台 token（后台查账号 → 验证码登录）
+ * @param {object} data       - 含 adminToken 的管理员数据
+ * @param {number} userId
+ * @returns {string|null} 前台 token
+ */
+function getFrontTokenByUserId(data, userId) {
+    // Step 1: userId → 账号
+    const account = getUserAccount(data.token, userId);
+    if (!account) {
+        console.error(`[FrontVerify] userId=${userId} 获取账号失败`);
+        return null;
+    }
+    console.log(`[FrontVerify] userId=${userId} → 账号: ${account}`);
+
+    // Step 2: 账号 → 前台 token（验证码登录）
+    const accountType = detectAccountType(account);
+    let frontToken = null;
+
+    if (accountType === 'phone') {
+        frontToken = mobileAutoLoginFlow(account, data);
+    } else if (accountType === 'email') {
+        frontToken = emailAutoLoginFlow(account, data);
+    } else {
+        console.error(`[FrontVerify] 未知账号类型: ${account}`);
+        return null;
+    }
+
+    if (!frontToken) {
+        console.error(`[FrontVerify] userId=${userId} 前台登录失败`);
+        return null;
+    }
+
+    console.log(`[FrontVerify] userId=${userId} 前台登录成功`);
+    return frontToken;
+}
+
+/**
+ * 对比验证辅助：数值误差在 tolerance 内视为通过
+ */
+function checkTolerance(name, apiVal, calcVal, tolerance = 1) {
+    const diff = Math.abs(apiVal - calcVal);
+    if (diff <= tolerance) {
+        console.log(`   ✅ [通过] ${name} | 计算值: ${calcVal} | 接口值: ${apiVal}`);
+    } else {
+        console.log(`   ❌ [失败] ${name} | 计算值: ${calcVal} | 接口值: ${apiVal} (误差: ${diff})`);
+    }
+}
+
+function checkExact(name, apiVal, calcVal) {
+    if (apiVal === calcVal) {
+        console.log(`   ✅ [通过] ${name} | 计算值: ${calcVal} | 接口值: ${apiVal}`);
+    } else {
+        console.log(`   ❌ [失败] ${name} | 计算值: ${calcVal} | 接口值: ${apiVal}`);
+    }
+}
+
+/**
+ * 前台接口自动化对比验证主函数
+ *
+ * 流程：
+ *   1. userId → 账号（后台接口）
+ *   2. 账号 → 前台 token（验证码登录）
+ *   3. 调用 /api/AgentRebate/GetPromotionData
+ *   4. 本地重新计算直推/团队统计数据
+ *   5. 与接口返回值逐字段对比
+ *
+ * @param {object} data      - 含 adminToken 的管理员数据
+ * @param {number} targetUid - 要验证的账号 userId
+ */
+export function verifyPromotionDataByUserId(data, targetUid) {
+    if (!targetUid) {
+        console.error(`[FrontVerify] 缺少 targetUid`);
+        return;
+    }
+
+    const accountId = Number(targetUid);
+    const { startTs, endTs, dateStr } = getYesterdayRange();
+
+    console.log(`\n${'='.repeat(70)}`);
+    console.log(`🔍 前台接口对比验证 - UID=${accountId}  昨日=${dateStr}`);
+    console.log(`${'='.repeat(70)}\n`);
+
+    // ── Step 1: 获取前台 token ──────────────────────────────
+    console.log('【Step 1】获取前台 token...');
+    const frontToken = autoLoginByUserId(data.token, accountId);
+    if (!frontToken) {
+        console.error(`[FrontVerify] 无法获取前台 token，终止验证`);
+        return;
+    }
+
+    // ── Step 2: 调用前台接口 ────────────────────────────────
+    console.log('\n【Step 2】调用 GetPromotionData...');
+    const promotionData = getPromotionData(frontToken);
+    if (!promotionData) {
+        console.error(`[FrontVerify] GetPromotionData 返回空，终止验证`);
+        return;
+    }
+    console.log(`   ✅ 接口返回成功`);
+    console.log(`   接口数据: ${JSON.stringify(promotionData, null, 2)}`);
+
+    // ── Step 3: 查询团队成员（复用现有逻辑）──────────────────
+    console.log('\n【Step 3】查询团队成员列表...');
+    const agentListApi = '/api/Agent/GetPageListAgentList';
+    const agentPayload = {
+        userId: accountId,
+        isAll: true,
+        isIncludeSelfAndParent: true,
+        pageNo: 1,
+        pageSize: 500
+    };
+    let agentResult = sendQueryRequest(agentPayload, agentListApi, frontVerifyTag, false, data.token);
+    if (typeof agentResult === 'string') {
+        try { agentResult = JSON.parse(agentResult); } catch (e) { return; }
+    }
+
+    let memberList = null;
+    if (agentResult && Array.isArray(agentResult.list)) memberList = agentResult.list;
+    else if (agentResult && agentResult.data && Array.isArray(agentResult.data.list)) memberList = agentResult.data.list;
+
+    if (!memberList || memberList.length === 0) {
+        console.error(`[FrontVerify] 未获取到团队成员，终止验证`);
+        return;
+    }
+
+    const masterRecord = memberList.find(m => m.userId === accountId);
+    if (!masterRecord) {
+        console.error(`[FrontVerify] 成员列表中不包含目标账号本身`);
+        return;
+    }
+
+    const masterHierarchy = masterRecord.hierarchy;
+    // 直推 = 相对层级 1，即绝对层级 = masterHierarchy + 1
+    const directSubHierarchy = masterHierarchy + 1;
+
+    console.log(`   ✅ 共 ${memberList.length} 人 | 目标账号绝对层级=${masterHierarchy} | 直推层级=${directSubHierarchy}`);
+
+    // ── Step 4: 查询每个成员的昨日充值数据 ──────────────────
+    console.log('\n【Step 4】查询成员昨日充值数据...');
+    const nonMasterMembers = memberList.filter(m => m.userId !== accountId);
+    const memberDataMap = {};
+
+    nonMasterMembers.forEach((member, idx) => {
+        sleep(0.3);
+        if (idx % 10 === 0 && idx > 0) console.log(`   ...已查询 ${idx}/${nonMasterMembers.length} 人...`);
+        const enriched = fetchMemberData(data, member, startTs, endTs,
+            `${dateStr} 00:00:00`, `${dateStr} 23:59:59`);
+        memberDataMap[member.userId] = enriched;
+    });
+    console.log(`   ✅ 数据查询完毕`);
+
+    // ── Step 5: 本地计算统计数据 ────────────────────────────
+    console.log('\n【Step 5】本地计算统计数据...');
+
+    const directSubs  = nonMasterMembers.filter(m => m.hierarchy === directSubHierarchy);
+    const allTeam     = nonMasterMembers; // 全团队（不含自身）
+
+    // 直推统计
+    const directStats = {
+        registerCount:      0,
+        rechargeCount:      0,
+        firstRechargeCount: 0,
+        rechargeAmount:     0
+    };
+
+    directSubs.forEach(m => {
+        const d = memberDataMap[m.userId];
+        if (!d) return;
+        // 昨日注册：registerTime 落在昨日
+        if (m.registerTime >= startTs && m.registerTime <= endTs) directStats.registerCount++;
+        // 昨日充值
+        if (d.totalRechargeAmount > 0) directStats.rechargeCount++;
+        // 昨日首充
+        if (d.isFirstCharge) directStats.firstRechargeCount++;
+        // 充值金额
+        directStats.rechargeAmount += (d.totalRechargeAmount || 0);
+    });
+
+    // 团队统计
+    const teamStats = {
+        registerCount:      0,
+        rechargeCount:      0,
+        firstRechargeCount: 0,
+        rechargeAmount:     0
+    };
+
+    allTeam.forEach(m => {
+        const d = memberDataMap[m.userId];
+        if (!d) return;
+        if (m.registerTime >= startTs && m.registerTime <= endTs) teamStats.registerCount++;
+        if (d.totalRechargeAmount > 0) teamStats.rechargeCount++;
+        if (d.isFirstCharge) teamStats.firstRechargeCount++;
+        teamStats.rechargeAmount += (d.totalRechargeAmount || 0);
+    });
+
+    console.log(`   直推(层级${directSubHierarchy}): 注册=${directStats.registerCount} 充值=${directStats.rechargeCount} 首充=${directStats.firstRechargeCount} 充值额=${directStats.rechargeAmount.toFixed(2)}`);
+    console.log(`   全团队: 注册=${teamStats.registerCount} 充值=${teamStats.rechargeCount} 首充=${teamStats.firstRechargeCount} 充值额=${teamStats.rechargeAmount.toFixed(2)}`);
+
+    // ── Step 6: 对比验证 ────────────────────────────────────
+    console.log('\n【Step 6】逐字段对比验证...');
+
+    checkExact('直推昨日注册人数 (yesterdayDirectSubRegisterCount)',
+        promotionData.yesterdayDirectSubRegisterCount, directStats.registerCount);
+
+    checkExact('直推昨日充值人数 (yesterdayDirectSubRechargeCount)',
+        promotionData.yesterdayDirectSubRechargeCount, directStats.rechargeCount);
+
+    checkExact('直推昨日首充人数 (yesterdayDirectSubFirstRechargeCount)',
+        promotionData.yesterdayDirectSubFirstRechargeCount, directStats.firstRechargeCount);
+
+    checkTolerance('直推昨日充值金额 (yesterdayDirectSubRechargeAmount)',
+        promotionData.yesterdayDirectSubRechargeAmount, directStats.rechargeAmount);
+
+    checkExact('团队昨日注册人数 (yesterdayTeamRegisterCount)',
+        promotionData.yesterdayTeamRegisterCount, teamStats.registerCount);
+
+    checkExact('团队昨日充值人数 (yesterdayTeamRechargeCount)',
+        promotionData.yesterdayTeamRechargeCount, teamStats.rechargeCount);
+
+    checkExact('团队昨日首充人数 (yesterdayTeamFirstRechargeCount)',
+        promotionData.yesterdayTeamFirstRechargeCount, teamStats.firstRechargeCount);
+
+    checkTolerance('团队昨日充值金额 (yesterdayTeamRechargeAmount)',
+        promotionData.yesterdayTeamRechargeAmount, teamStats.rechargeAmount);
+
+
+    // ── Step 7: 计算昨日总返佣（复用 querySubAccounts 核心逻辑）──
+    console.log('\n[Step 7] 计算昨日总返佣（返佣等级 + 利率）...');
+
+    const rebateLevelList = RebateLevel(data);
+    const rebateRateList  = RebateLevelRate(data);
+    let calcTotalRebate   = null;
+
+    if (isNonEmptyArray(rebateLevelList) && isNonEmptyArray(rebateRateList) && masterRecord) {
+        // 动态获取最大返佣层级
+        let maxHier = 6;
+        rebateRateList.forEach(entry => {
+            if (entry.list && Array.isArray(entry.list)) {
+                const h = Math.max(...entry.list.filter(i => i.hierarchy > 0).map(r => r.hierarchy));
+                if (h > maxHier) maxHier = h;
+            }
+        });
+
+        // 构建树，获取所有下级
+        const childrenMap   = buildChildrenMap(memberList);
+        const descendantIds = getDescendants(accountId, childrenMap);
+        const descendants   = descendantIds
+            .filter(id => id !== accountId)
+            .map(id => memberDataMap[id])
+            .filter(Boolean);
+
+        // 确定返佣等级
+        let earnLevel;
+        if (masterRecord.rebateMode === 1) {
+            earnLevel = masterRecord.rebateLevel;
+        } else {
+            const validDesc = descendants.filter(d => (d.hierarchy - masterHierarchy) <= maxHier);
+            const rechargePeopleCount = validDesc.filter(d => d.totalRechargeAmount > 0).length;
+            const totalRechargeAmt    = validDesc.reduce((s, d) => s + (d.totalRechargeAmount || 0), 0);
+            const totalBetAmt         = validDesc.reduce((s, d) => s + (d.betAmountSum || 0), 0);
+            const normalLevel = computeNormalEarnLevel(rechargePeopleCount, totalRechargeAmt, totalBetAmt, rebateLevelList);
+            earnLevel = masterRecord.rebateMode === 2
+                ? Math.max(masterRecord.rebateLevel, normalLevel >= 0 ? normalLevel : 0)
+                : (normalLevel >= 0 ? normalLevel : 0);
+        }
+
+        // 按层级计算返佣
+        const rateConfig = getRateConfigForLevel(earnLevel, rebateRateList);
+        let agentTotalRebate = 0;
+        descendants.forEach(desc => {
+            if (!desc) return;
+            const relHier = desc.hierarchy - masterHierarchy;
+            if (relHier <= 0 || relHier > maxHier) return;
+            const rateItem = rateConfig ? rateConfig.find(r => r.hierarchy === relHier) : null;
+            agentTotalRebate += calculateContribution(rateItem, desc, accountId, relHier).total;
+        });
+
+        calcTotalRebate = agentTotalRebate;
+        console.log(`   本地计算昨日总返佣: ${calcTotalRebate.toFixed(4)} | 匹配等级: LV${earnLevel}`);
+    } else {
+        console.warn('   [WARN] 返佣配置获取失败，跳过 yesterdayTotalCommission 对比');
+    }
+
+    // ── Step 8: 对比所有字段 ────────────────────────────────
+    console.log('\n[Step 8] 逐字段对比验证...');
+
+    checkExact('直推昨日注册人数 (yesterdayDirectSubRegisterCount)',
+        promotionData.yesterdayDirectSubRegisterCount, directStats.registerCount);
+    checkExact('直推昨日充值人数 (yesterdayDirectSubRechargeCount)',
+        promotionData.yesterdayDirectSubRechargeCount, directStats.rechargeCount);
+    checkExact('直推昨日首充人数 (yesterdayDirectSubFirstRechargeCount)',
+        promotionData.yesterdayDirectSubFirstRechargeCount, directStats.firstRechargeCount);
+    checkTolerance('直推昨日充值金额 (yesterdayDirectSubRechargeAmount)',
+        promotionData.yesterdayDirectSubRechargeAmount, directStats.rechargeAmount);
+    checkExact('团队昨日注册人数 (yesterdayTeamRegisterCount)',
+        promotionData.yesterdayTeamRegisterCount, teamStats.registerCount);
+    checkExact('团队昨日充值人数 (yesterdayTeamRechargeCount)',
+        promotionData.yesterdayTeamRechargeCount, teamStats.rechargeCount);
+    checkExact('团队昨日首充人数 (yesterdayTeamFirstRechargeCount)',
+        promotionData.yesterdayTeamFirstRechargeCount, teamStats.firstRechargeCount);
+    checkTolerance('团队昨日充值金额 (yesterdayTeamRechargeAmount)',
+        promotionData.yesterdayTeamRechargeAmount, teamStats.rechargeAmount);
+
+    if (calcTotalRebate !== null) {
+        checkTolerance('昨日总返佣 (yesterdayTotalCommission)',
+            promotionData.yesterdayTotalCommission, calcTotalRebate, 1);
+    }
+
+    console.log('\n' + '='.repeat(70));
+    console.log('✅ 全量自动化对比验证完成 - UID=' + accountId);
+    console.log('='.repeat(70) + '\n');
 }

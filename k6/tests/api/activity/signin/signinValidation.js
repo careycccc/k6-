@@ -13,11 +13,10 @@ import {
 } from './signinApi.js';
 import { getActivityInformationList, receiveRewardViaActivityInfo } from '../common/activityInfoApi.js';
 import { phoneRegister, emailRegister } from '../../login/register.test.js';
-import { mobileAutoLoginFlow } from '../../login/MobileAutoLogin.test.js';
-import { emailAutoLoginFlow } from '../../login/EmailAutoLogin.test.js';
 import { getFrontUserInfo } from '../../user/userManagement.js';
 import { hybridRecharge } from '../../recharge/rechargeService.js';
 import { generateRandomPhone, generateRandomEmail } from '../../../utils/accountGenerator.js';
+import { autoLoginByAccount } from '../../user/userAccountApi.js';
 
 const TAG = 'SignInValidation';
 
@@ -155,17 +154,9 @@ function registerOrLoginUser(options) {
         return { success: false };
 
     } else {
-        // 指定账号登录（使用验证码方式）
+        // 指定账号登录（自动识别手机号/邮箱）
         logger.info(`[${TAG}] 使用指定账号登录: ${account}`);
-
-        let token;
-        if (accountType === 'phone') {
-            // 使用手机号验证码登录
-            token = mobileAutoLoginFlow(account, { token: adminToken });
-        } else {
-            // 使用邮箱验证码登录
-            token = emailAutoLoginFlow(account, { token: adminToken });
-        }
+        const token = autoLoginByAccount(account, adminToken);
 
         if (!token) {
             logger.error(`[${TAG}] 登录失败: 未获取到token`);

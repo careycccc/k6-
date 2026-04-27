@@ -13,7 +13,7 @@
  *    k6 run k6/tests/api/invite/runInviteByTenant.test.js
  */
 
-import { runMultiLevelInvite, clearInviteData } from './inviteService.js';
+import { runMultiLevelInvite, runMultiLevelInviteV2, clearInviteData } from './inviteService.js';
 import { AdminLogin } from '../login/adminlogin.test.js';
 import { getTenantConfig, validateTenantConfig, printTenantConfig } from './tenantConfig.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
@@ -54,7 +54,10 @@ function getTestConfig() {
         tenantName: tenantConfig ? tenantConfig.name : `租户${tenantId}`,
         rootInviteCode: rootInviteCode,
         subordinates: subordinates,
-        description: tenantConfig ? tenantConfig.description : ''
+        description: tenantConfig ? tenantConfig.description : '',
+        inviteMode: __ENV.INVITE_MODE || 'default',          // default | v2
+        inactiveRate: parseFloat(__ENV.INACTIVE_RATE || '0.2'),
+        rechargeOnlyRate: parseFloat(__ENV.RECHARGE_ONLY_RATE || '0.2')
     };
 }
 
@@ -100,6 +103,11 @@ export function setup() {
     console.log(`总代邀请码: ${config.rootInviteCode}`);
     console.log(`层级配置: ${config.subordinates.join(' -> ')} (共${config.subordinates.length}层)`);
     console.log(`总用户数: ${config.subordinates.reduce((a, b) => a + b, 0)}`);
+    console.log(`邀请模式: ${config.inviteMode === 'v2' ? 'V2（三段式分层）' : '默认'}`);
+    if (config.inviteMode === 'v2') {
+        const activeRate = Math.max(0, 1 - config.inactiveRate - config.rechargeOnlyRate);
+        console.log(`  不活跃: ${(config.inactiveRate * 100).toFixed(0)}% | 只充值: ${(config.rechargeOnlyRate * 100).toFixed(0)}% | 充值+投注: ${(activeRate * 100).toFixed(0)}%`);
+    }
     if (config.description) {
         console.log(`描述: ${config.description}`);
     }
@@ -170,7 +178,19 @@ export default async function (data) {
         if (__ENV.ADMIN_URL) tenantConfig.adminUrl = __ENV.ADMIN_URL;
         if (__ENV.REGISTER_API_URL) tenantConfig.registerApiUrl = __ENV.REGISTER_API_URL;
 
-        await runMultiLevelInvite(config.rootInviteCode, config.subordinates, data, tenantConfig);
+        if (config.inviteMode === 'v2') {
+            // V2：三段式行为分层
+            await runMultiLevelInviteV2(
+                config.rootInviteCode,
+                config.subordinates,
+                data,
+                tenantConfig,
+                { inactiveRate: config.inactiveRate, rechargeOnlyRate: config.rechargeOnlyRate }
+            );
+        } else {
+            // 默认：现有逻辑
+            await runMultiLevelInvite(config.rootInviteCode, config.subordinates, data, tenantConfig);
+        }
 
         console.log('\n========== 📊 测试结果 ==========');
         console.log(`✅ 租户 ${config.tenantId} 多层级邀请测试成功完成！`);

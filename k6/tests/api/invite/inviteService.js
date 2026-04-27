@@ -572,3 +572,219 @@ export function clearInviteData() {
     currentTenantConfig = null;
     console.log('[Invite] 全局数据已清理');
 }
+
+// ============================================================
+// V2：三段式行为分层（不改动上方任何现有逻辑）
+// ============================================================
+
+/**
+ * 处理所有新注册用户的充值和投注 V2（三段式行为分层）
+ *
+ * 将用户按概率分为三组：
+ *   - 不活跃（inactiveRate）：不充值，不投注
+ *   - 半活跃（rechargeOnlyRate）：只充值，不投注
+ *   - 活跃（剩余）：充值 + 投注（与现有 processNewUsers 行为一致）
+ *
+ * @param {object} adminData
+ * @param {object} [rates]
+ * @param {number} [rates.inactiveRate=0.2]      - 不活跃比例
+ * @param {number} [rates.rechargeOnlyRate=0.2]  - 半活跃比例
+ *
+ * @example
+ * // 默认分层
+ * await processNewUsersV2(adminData);
+ *
+ * // 自定义分层
+ * await processNewUsersV2(adminData, { inactiveRate: 0.3, rechargeOnlyRate: 0.1 });
+ */
+export async function processNewUsersV2(adminData, rates = {}) {
+    const {
+        inactiveRate     = 0.2,
+        rechargeOnlyRate = 0.2
+    } = rates;
+
+    const activeRate = Math.max(0, 1 - inactiveRate - rechargeOnlyRate);
+
+    if (userDetails.length === 0) {
+        console.error('[ProcessUsersV2] 用户详情列表为空，无法处理');
+        throw new Error('用户详情列表为空');
+    }
+
+    console.log(`\n[ProcessUsersV2] 开始处理 ${userDetails.length} 个用户（三段式分层）`);
+    console.log(`  不活跃: ${(inactiveRate * 100).toFixed(0)}%  → 不充值，不投注`);
+    console.log(`  半活跃: ${(rechargeOnlyRate * 100).toFixed(0)}%  → 只充值，不投注`);
+    console.log(`  活跃  : ${(activeRate * 100).toFixed(0)}%  → 充值 + 投注\n`);
+
+    // 按概率给每个用户分配行为标签
+    const INACTIVE      = 'inactive';
+    const RECHARGE_ONLY = 'rechargeOnly';
+    const ACTIVE        = 'active';
+
+    const behaviorMap = new Map(); // userAccount -> behavior
+    const groupCount  = { inactive: 0, rechargeOnly: 0, active: 0 };
+
+    for (const ud of userDetails) {
+        const rand = Math.random();
+        let behavior;
+        if (rand < inactiveRate) {
+            behavior = INACTIVE;
+        } else if (rand < inactiveRate + rechargeOnlyRate) {
+            behavior = RECHARGE_ONLY;
+        } else {
+            behavior = ACTIVE;
+        }
+        behaviorMap.set(ud.userAccount, behavior);
+        groupCount[behavior]++;
+    }
+
+    console.log(`[ProcessUsersV2] 分组结果: 不活跃=${groupCount.inactive}, 半活跃=${groupCount.rechargeOnly}, 活跃=${groupCount.active}\n`);
+
+    let rechargeSuccessCount = 0;
+    let betSuccessCount      = 0;
+
+    for (let i = 0; i < userDetails.length; i++) {
+        const userDetail = userDetails[i];
+        const behavior   = behaviorMap.get(userDetail.userAccount);
+
+        console.log(`\n[ProcessUsersV2] [${i + 1}/${userDetails.length}] 用户: ${userDetail.userAccount} | 分组: ${behavior}`);
+
+        // 不活跃：直接跳过
+        if (behavior === INACTIVE) {
+            console.log(`[ProcessUsersV2] ⏭️  跳过（不活跃）: ${userDetail.userAccount}`);
+            sleep(0.5);
+            continue;
+        }
+
+        try {
+            const userId = userDetail.userId;
+            if (!userId) {
+                console.error(`[ProcessUsersV2] 用户ID为空: ${userDetail.userAccount}`);
+                continue;
+            }
+
+            sleep(2);
+
+            // 充值（半活跃和活跃都充值）
+            const rechargeAmount = getConfigRechargeAmount();
+            console.log(`[ProcessUsersV2] 开始充值: ${userDetail.userAccount}, 金额: ${rechargeAmount}`);
+
+            const rechargeResult = hybridRecharge({
+                userToken  : userDetail.token,
+                adminToken : adminData.token,
+                userId     : userId,
+                amount     : rechargeAmount,
+                frontendFirst: true,
+                remark     : `Invite V2 - ${behavior}`
+            });
+
+            if (rechargeResult.success) {
+                userDetail.recharged      = true;
+                userDetail.rechargeAmount = rechargeResult.amount;
+                rechargeSuccessCount++;
+                console.log(`[ProcessUsersV2] ✅ 充值成功: ${userDetail.userAccount}, 金额: ${rechargeResult.amount}, 方式: ${rechargeResult.method}`);
+            } else {
+                userDetail.recharged    = false;
+                userDetail.failedReason = '充值失败';
+                console.error(`[ProcessUsersV2] ❌ 充值失败: ${userDetail.userAccount}, 原因: ${rechargeResult.message}`);
+                continue;
+            }
+
+            // 半活跃：充值后跳过投注
+            if (behavior === RECHARGE_ONLY) {
+                console.log(`[ProcessUsersV2] ⏭️  跳过投注（半活跃）: ${userDetail.userAccount}`);
+                sleep(1);
+                continue;
+            }
+
+            sleep(2);
+
+            // 活跃：投注
+            console.log(`[ProcessUsersV2] 开始投注: ${userDetail.userAccount}`);
+            const betResult = betRun(userDetail.token, userDetail.userAccount);
+
+            if (betResult) {
+                betSuccessCount++;
+                userDetail.betSuccess = true;
+                userDetail.betAmount  = betResult.amount || 0;
+                console.log(`[ProcessUsersV2] ✅ 投注成功: ${userDetail.userAccount}`);
+            } else {
+                userDetail.betSuccess   = false;
+                userDetail.failedReason = '投注失败';
+                console.error(`[ProcessUsersV2] ❌ 投注失败: ${userDetail.userAccount}`);
+            }
+
+        } catch (error) {
+            console.error(`[ProcessUsersV2] 处理异常: ${userDetail.userAccount}, 错误: ${error.message}`);
+        }
+
+        sleep(1);
+    }
+
+    console.log('\n========== [V2] 处理结果统计 ==========');
+    console.log(`总用户数  : ${userDetails.length}`);
+    console.log(`不活跃    : ${groupCount.inactive}`);
+    console.log(`半活跃    : ${groupCount.rechargeOnly}`);
+    console.log(`活跃      : ${groupCount.active}`);
+    console.log(`充值成功  : ${rechargeSuccessCount}`);
+    console.log(`投注成功  : ${betSuccessCount}`);
+    console.log('========================================\n');
+}
+
+/**
+ * 执行多层级邀请绑定 V2（三段式行为分层版）
+ *
+ * 与 runMultiLevelInvite 完全相同的注册流程，
+ * 仅将充值投注阶段替换为 processNewUsersV2。
+ *
+ * @param {string}   rootInviteCode
+ * @param {number[]} subordinates
+ * @param {object}   adminData
+ * @param {object}   [tenantConfig]
+ * @param {object}   [rates]
+ * @param {number}   [rates.inactiveRate=0.2]
+ * @param {number}   [rates.rechargeOnlyRate=0.2]
+ *
+ * @example
+ * // 默认分层
+ * await runMultiLevelInviteV2('ABC123', [3, 5, 10], adminData);
+ *
+ * // 自定义分层
+ * await runMultiLevelInviteV2('ABC123', [3, 5], adminData, null, { inactiveRate: 0.3, rechargeOnlyRate: 0.1 });
+ */
+export async function runMultiLevelInviteV2(rootInviteCode, subordinates, adminData, tenantConfig = null, rates = {}) {
+    if (!subordinates || subordinates.length === 0) {
+        throw new Error('层级人数列表不能为空');
+    }
+
+    const { inactiveRate = 0.2, rechargeOnlyRate = 0.2 } = rates;
+    const activeRate = Math.max(0, 1 - inactiveRate - rechargeOnlyRate);
+
+    console.log(`🎯 [V2] 开始多层级邀请绑定到总代: ${rootInviteCode}, 层级: ${subordinates}`);
+    console.log(`  不活跃: ${(inactiveRate * 100).toFixed(0)}% | 半活跃: ${(rechargeOnlyRate * 100).toFixed(0)}% | 活跃: ${(activeRate * 100).toFixed(0)}%`);
+
+    // 复用现有的注册流程（重置全局状态）
+    currentTenantConfig = tenantConfig;
+    userDetails = [];
+    userDB      = new Map();
+
+    const layers = [];
+
+    console.log(`\n🚀 === 开始第1层绑定到总代 [${rootInviteCode}] (${subordinates[0]}人) ===`);
+    const firstLayer = bindOneLevel([rootInviteCode], subordinates[0], 0, adminData);
+    layers.push(firstLayer);
+
+    let currentParentCodes = firstLayer;
+    for (let level = 1; level < subordinates.length; level++) {
+        const count = subordinates[level];
+        console.log(`\n🚀 === 开始第${level + 1}层绑定 (${count}人) ===`);
+        const newLayer = bindOneLevel(currentParentCodes, count, level, adminData);
+        layers.push(newLayer);
+        currentParentCodes = newLayer;
+    }
+
+    // 使用 V2 充值投注
+    console.log('\n🚀 === [V2] 开始三段式充值和投注 ===');
+    await processNewUsersV2(adminData, { inactiveRate, rechargeOnlyRate });
+
+    console.log('\n🎉 [V2] 多层级邀请绑定完成！');
+}

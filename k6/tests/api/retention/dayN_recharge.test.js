@@ -5,7 +5,7 @@
  *
  * 使用方法：
  *   # 次日复充（查昨天的用户）
- *   k6 run -e TENANT_ID=3101 -e CHANNEL_PACKAGE_ID=18 -e DAYS_AGO=1 dayN_recharge.test.js
+ *   k6 run -e TENANT_ID=3101 -e CHANNEL_PACKAGE_ID=100051 -e DAYS_AGO=1 dayN_recharge.test.js
  *
  *   # 3日复充场景的第3天（查前天的用户）
  *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=2 dayN_recharge.test.js
@@ -28,11 +28,11 @@ import {
     batchRecharge
 } from './retentionService.js';
 
-const tenantId          = __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID);
-const daysAgo           = __ENV.DAYS_AGO ? parseInt(__ENV.DAYS_AGO) : 1;
+const tenantId = __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID);
+const daysAgo = __ENV.DAYS_AGO ? parseInt(__ENV.DAYS_AGO) : 1;
 const participationRate = __ENV.PARTICIPATION_RATE ? parseFloat(__ENV.PARTICIPATION_RATE) : 0.8;
-const strategy          = __ENV.RECHARGE_STRATEGY || 'random';
-const channelPackageId  = __ENV.CHANNEL_PACKAGE_ID ? parseInt(__ENV.CHANNEL_PACKAGE_ID) : null;
+const strategy = __ENV.RECHARGE_STRATEGY || 'random';
+const channelPackageId = __ENV.CHANNEL_PACKAGE_ID ? parseInt(__ENV.CHANNEL_PACKAGE_ID) : null;
 
 export const options = {
     scenarios: {

@@ -5,9 +5,7 @@
 
 import { sleep } from 'k6';
 import { fetchAllRechargeOrders, getDayRange } from './rechargeRetentionApi.js';
-import { getUserAccount, detectAccountType } from '../user/userAccountApi.js';
-import { mobileAutoLoginFlow } from '../login/MobileAutoLogin.test.js';
-import { emailAutoLoginFlow } from '../login/EmailAutoLogin.test.js';
+import { getUserAccount, detectAccountType, autoLoginByAccount } from '../user/userAccountApi.js';
 import { hybridRecharge, eventBatchFrontendRechargeRequest } from '../recharge/rechargeService.js';
 
 /**
@@ -90,18 +88,7 @@ export function getUsersWithAccounts(adminToken, userIds) {
  */
 export function autoLogin(account, accountType, adminData) {
     console.log(`[RetentionService] 自动登录: ${account} (${accountType})`);
-
-    let token = null;
-
-    if (accountType === 'phone') {
-        token = mobileAutoLoginFlow(account, adminData);
-    } else if (accountType === 'email') {
-        token = emailAutoLoginFlow(account, adminData);
-    } else {
-        console.error(`[RetentionService] ❌ 未知账号类型: ${accountType}`);
-        return null;
-    }
-
+    const token = autoLoginByAccount(account, adminData.token);
     if (token) {
         console.log(`[RetentionService] ✅ 登录成功: ${account}`);
     } else {

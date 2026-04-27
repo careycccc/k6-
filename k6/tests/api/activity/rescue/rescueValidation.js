@@ -2,8 +2,7 @@ import { logger } from '../../../../libs/utils/logger.js';
 import { sendQueryRequest, sendRequest } from '../../common/request.js';
 import { createRescue } from './createRescue.js';
 import { phoneRegister, emailRegister } from '../../login/register.test.js';
-import { mobileAutoLoginFlow } from '../../login/MobileAutoLogin.test.js';
-import { emailAutoLoginFlow } from '../../login/EmailAutoLogin.test.js';
+import { autoLoginByAccount } from '../../user/userAccountApi.js';
 import { hybridRecharge } from '../../recharge/rechargeService.js';
 import { getBetToken } from '../../runbet/betToken.js';
 import { isBet } from '../../runbet/issueNumber.js';
@@ -252,11 +251,7 @@ export function validateRescue(data) {
         }
 
         // 注册之后使用自动登录拿取前台Token
-        if (isPhoneUser) {
-            loginToken = mobileAutoLoginFlow(targetAccount, data);
-        } else {
-            loginToken = emailAutoLoginFlow(targetAccount, data);
-        }
+        loginToken = autoLoginByAccount(targetAccount, data.token);
     } else {
         // VIP > 0 从现有的账号里找来的
         logger.info(`[${tag}] 以目标VIP查找获取到可操作后台绑定的用户ID: ${userRecord.userId}`);
@@ -295,12 +290,8 @@ export function validateRescue(data) {
 
         logger.info(`[${tag}] 还原真实账号以用于前台登录: ${targetAccount}`);
 
-        // 使用现有账号执行自动登录那去前台Token
-        if (isPhoneUser) {
-            loginToken = mobileAutoLoginFlow(targetAccount, data);
-        } else {
-            loginToken = emailAutoLoginFlow(targetAccount, data);
-        }
+        // 使用现有账号执行自动登录拿取前台Token
+        loginToken = autoLoginByAccount(targetAccount, data.token);
     }
 
     if (!loginToken) {

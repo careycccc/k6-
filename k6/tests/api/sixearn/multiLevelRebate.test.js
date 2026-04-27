@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 多级返佣流程测试
  * 
  * 测试场景：
@@ -11,8 +11,28 @@
  * 7. 注意只有团队2进行充值投注的时候才会有一定的几率把成员加入到特殊/固定的返佣中
  * 
  * 使用方法：
- * k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=23 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=18 -e TEAM2_LEVELS=5 multiLevelRebate.test.js
- */
+ * k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=2 multiLevelRebate.test.js
+
+# 默认模式（不变）
+k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=2 multiLevelRebate.test.js
+
+# 团队1使用 V2 模式
+k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
+  -e TEAM1_MODE=v2 -e TEAM1_INACTIVE_RATE=0.2 -e TEAM1_RECHARGE_ONLY_RATE=0.2 \
+  -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=2 \
+  multiLevelRebate.test.js
+
+# 团队2使用 V2 模式
+k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
+  -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=2 \
+  -e TEAM2_MODE=v2 -e TEAM2_INACTIVE_RATE=0.3 -e TEAM2_RECHARGE_ONLY_RATE=0.1 \
+  multiLevelRebate.test.js
+
+# 两个团队都用 V2
+k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM1_MODE=v2 -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=2 -e TEAM2_MODE=v2 multiLevelRebate.test.js
+ 
+
+*/
 
 import { sleep } from 'k6';
 import { AdminLogin } from '../login/adminlogin.test.js';
@@ -20,10 +40,11 @@ import { phoneRegister, phoneRegisterByInvite } from '../login/register.test.js'
 import { generateRandomPhone } from '../../utils/accountGenerator.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
 import { getAgentHierarchyList } from '../invite/agentApi.js';
-import { runMultiLevelInvite } from '../invite/inviteService.js';
-import { runTeamRechargeAndBet } from '../invite/teamRechargeAndBet.js';
+import { runMultiLevelInvite, runMultiLevelInviteV2 } from '../invite/inviteService.js';
+import { runTeamRechargeAndBet, runTeamRechargeAndBetV2 } from '../invite/teamRechargeAndBet.js';
 import { bundEarn } from './bundearn.test.js';
 import { getEnvByTenantId } from '../../../config/envconfig.js';
+import { snapshotL1Members, runAgentL3ValidationWithOriginalTeam } from '../agentL3/agentL3Validation.js';
 
 /**
  * 将总人数按层级递减地随机分配
@@ -165,8 +186,9 @@ function registerRootAgent(adminData, teamName) {
  * @param {object} adminData - 管理员数据
  * @param {boolean} withRecharge - 是否充值投注
  * @param {string} teamName - 团队名称
+ * @param {object} [v2Rates] - V2 分层比例（mode=v2 时生效）
  */
-async function executeMultiLevelInvite(rootInviteCode, levels, adminData, withRecharge, teamName) {
+async function executeMultiLevelInvite(rootInviteCode, levels, adminData, withRecharge, teamName, v2Rates = {}) {
     console.log(`\n[${teamName}] 开始多级邀请...`);
     console.log(`[${teamName}] 层级配置: ${levels.join(' -> ')}`);
     console.log(`[${teamName}] 是否充值投注: ${withRecharge ? '是' : '否'}`);
@@ -179,13 +201,26 @@ async function executeMultiLevelInvite(rootInviteCode, levels, adminData, withRe
         registerApiUrl: null
     };
 
-    await runMultiLevelInvite(
-        rootInviteCode,
-        levels,
-        adminData,
-        tenantConfig,
-        withRecharge
-    );
+    const { mode = 'default', inactiveRate = 0.2, rechargeOnlyRate = 0.2 } = v2Rates;
+
+    if (withRecharge && mode === 'v2') {
+        console.log(`[${teamName}] 使用 V2 三段式分层: 不活跃=${(inactiveRate*100).toFixed(0)}% | 只充值=${(rechargeOnlyRate*100).toFixed(0)}% | 充值+投注=${((1-inactiveRate-rechargeOnlyRate)*100).toFixed(0)}%`);
+        await runMultiLevelInviteV2(
+            rootInviteCode,
+            levels,
+            adminData,
+            tenantConfig,
+            { inactiveRate, rechargeOnlyRate }
+        );
+    } else {
+        await runMultiLevelInvite(
+            rootInviteCode,
+            levels,
+            adminData,
+            tenantConfig,
+            withRecharge
+        );
+    }
 
     console.log(`[${teamName}] ✅ 多级邀请完成`);
 }
@@ -290,19 +325,32 @@ function selectRandomSubordinate(adminToken, rootUserId) {
  * @param {string} adminToken - 管理员token  
  * @param {number} targetUserId - 目标用户ID（总代）
  * @param {string} teamName - 团队名称
+ * @param {number} rechargeChance - 充值几率（仅 default 模式使用）
+ * @param {object} [v2Rates] - V2 分层比例
  */
-function executeTeamRechargeAndBet(adminToken, targetUserId, teamName) {
+function executeTeamRechargeAndBet(adminToken, targetUserId, teamName, rechargeChance = 0.5, v2Rates = {}) {
     console.log(`\n[${teamName}] 开始团队充值投注...`);
     console.log(`[${teamName}] 目标用户ID: ${targetUserId}`);
 
     const adminData = { token: adminToken };
-    const options = {
-        rechargeChance: 0.5,  // 50%充值几率
-        rebateChance: 0.2,    // 20%返佣设置几率
-        delayMs: 1000
-    };
+    const { mode = 'default', inactiveRate = 0.2, rechargeOnlyRate = 0.2 } = v2Rates;
 
-    const stats = runTeamRechargeAndBet(targetUserId, adminData, options);
+    let stats;
+    if (mode === 'v2') {
+        console.log(`[${teamName}] 使用 V2 三段式分层: 不活跃=${(inactiveRate*100).toFixed(0)}% | 只充值=${(rechargeOnlyRate*100).toFixed(0)}% | 充值+投注=${((1-inactiveRate-rechargeOnlyRate)*100).toFixed(0)}%`);
+        stats = runTeamRechargeAndBetV2(targetUserId, adminData, {
+            inactiveRate,
+            rechargeOnlyRate,
+            rebateChance: 0.2,
+            delayMs: 1000
+        });
+    } else {
+        stats = runTeamRechargeAndBet(targetUserId, adminData, {
+            rechargeChance,
+            rebateChance: 0.2,
+            delayMs: 1000
+        });
+    }
 
     console.log(`[${teamName}] ✅ 团队充值投注完成`);
     console.log(`[${teamName}]   充值成功: ${stats.rechargeSuccess} 人`);
@@ -343,7 +391,7 @@ export const options = {
             executor: 'per-vu-iterations',
             vus: 1,
             iterations: 1,
-            maxDuration: '60m'
+            maxDuration: '2h'  // 含 L3 验证等待时间，预留充足时长
         },
     },
     thresholds: {
@@ -359,137 +407,375 @@ export default async function (data) {
     console.log('🚀 多级返佣流程测试开始');
     console.log('='.repeat(80) + '\n');
 
-    // ========== 1. 解析配置 ==========
-    const team1Total = parseInt(__ENV.TEAM1_TOTAL || '50', 10);
-    const team1Levels = parseInt(__ENV.TEAM1_LEVELS || '4', 10);
-    const team2Total = parseInt(__ENV.TEAM2_TOTAL || '40', 10);
-    const team2Levels = parseInt(__ENV.TEAM2_LEVELS || '3', 10);
+    // ========== 公共参数解析 ==========
+    const team1Total  = parseInt(__ENV.TEAM1_TOTAL  || '50', 10);
+    const team1Levels = parseInt(__ENV.TEAM1_LEVELS || '4',  10);
+    const team2Total  = parseInt(__ENV.TEAM2_TOTAL  || '40', 10);
+    const team2Levels = parseInt(__ENV.TEAM2_LEVELS || '3',  10);
+    const rebateMode  = __ENV.REBATE_MODE || 'mode1';
 
-    console.log('📋 测试配置:');
-    console.log(`  团队1: ${team1Total}人, ${team1Levels}层`);
-    console.log(`  团队2: ${team2Total}人, ${team2Levels}层`);
-    console.log('');
+    // 全局 V2 比例（两个团队共用，也可通过 TEAM1_/TEAM2_ 前缀单独覆盖）
+    const globalInactive     = parseFloat(__ENV.INACTIVE_RATE      || '0.2');
+    const globalRechargeOnly = parseFloat(__ENV.RECHARGE_ONLY_RATE || '0.2');
 
-    // ========== 2. 计算层级分配 ==========
+    const v2A = {
+        mode            : 'v2',
+        inactiveRate    : parseFloat(__ENV.TEAM1_INACTIVE_RATE      || globalInactive),
+        rechargeOnlyRate: parseFloat(__ENV.TEAM1_RECHARGE_ONLY_RATE || globalRechargeOnly)
+    };
+    const v2B = {
+        mode            : 'v2',
+        inactiveRate    : parseFloat(__ENV.TEAM2_INACTIVE_RATE      || globalInactive),
+        rechargeOnlyRate: parseFloat(__ENV.TEAM2_RECHARGE_ONLY_RATE || globalRechargeOnly)
+    };
+    const full     = { mode: 'default' };
+    const recharge = { mode: 'recharge' };  // 只充值不投注（见 executeAction 内部处理）
+    const none     = null;                  // 不做任何操作
+
     const team1Distribution = distributePeople(team1Total, team1Levels);
     const team2Distribution = distributePeople(team2Total, team2Levels);
 
-    console.log('📊 层级分配:');
-    console.log(`  团队1: ${team1Distribution.join(' -> ')}`);
-    console.log(`  团队2: ${team2Distribution.join(' -> ')}`);
-    console.log('');
+    console.log(`� REBATE_MODE : ${rebateMode}`);
+    console.log(`📋 团队A: ${team1Total}人 ${team1Levels}层 → ${team1Distribution.join('->')}`);
+    console.log(`📋 团队B: ${team2Total}人 ${team2Levels}层 → ${team2Distribution.join('->')}`);
+    console.log(`📋 V2比例: 不活跃=${(globalInactive*100).toFixed(0)}% 只充值=${(globalRechargeOnly*100).toFixed(0)}%\n`);
 
-    // ========== 3. 注册两个总代 ==========
-    console.log('\n' + '─'.repeat(80));
-    console.log('步骤1: 注册总代');
-    console.log('─'.repeat(80));
+    // ========== 工具函数 ==========
 
-    const team1Root = registerRootAgent(data, '团队1');
-    sleep(2);
-    const team2Root = registerRootAgent(data, '团队2');
-    sleep(2);
+    /**
+     * 注册团队并执行指定行为
+     * @param {string} teamName
+     * @param {number[]} distribution
+     * @param {object|null} actionMode  - full/v2/recharge/null
+     */
+    async function buildTeam(teamName, distribution, actionMode) {
+        const root = registerRootAgent(data, teamName);
+        sleep(2);
+        const withRecharge = actionMode !== null && actionMode !== none;
+        // recharge 模式：注册时不投注，后续单独处理
+        const doFullInvite = actionMode && actionMode.mode !== 'recharge';
+        await executeMultiLevelInvite(root.inviteCode, distribution, data, withRecharge && doFullInvite, teamName, actionMode || {});
 
-    // ========== 4. 团队1：多级邀请 + 充值投注 ==========
-    console.log('\n' + '─'.repeat(80));
-    console.log('步骤2: 团队1 - 多级邀请（含充值投注）');
-    console.log('─'.repeat(80));
-
-    await executeMultiLevelInvite(
-        team1Root.inviteCode,
-        team1Distribution,
-        data,
-        true,  // 充值投注
-        '团队1'
-    );
-
-    sleep(3);
-
-    // ========== 5. 团队2：多级邀请（不充值投注）==========
-    console.log('\n' + '─'.repeat(80));
-    console.log('步骤3: 团队2 - 多级邀请（不充值投注）');
-    console.log('─'.repeat(80));
-
-    await executeMultiLevelInvite(
-        team2Root.inviteCode,
-        team2Distribution,
-        data,
-        false,  // 不充值投注
-        '团队2'
-    );
-
-    sleep(3);
-
-    // ========== 6. 等待5秒 ==========
-    console.log('\n⏳ 等待5秒...');
-    sleep(5);
-
-    // ========== 7. 团队1随机解绑一个下级，绑定到团队2 ==========
-    console.log('\n' + '─'.repeat(80));
-    console.log('步骤4: 团队1 -> 团队2 解绑绑定');
-    console.log('─'.repeat(80));
-
-    const team1UnbindUserId = selectRandomSubordinate(data.token, team1Root.userId);
-
-    if (team1UnbindUserId) {
-        console.log(`\n[解绑绑定] 团队1用户 ${team1UnbindUserId} 解绑并绑定到团队2`);
-
-        // 设置环境变量供 bundearn 使用
-        __ENV.UNBIND_UID = team1UnbindUserId.toString();
-        __ENV.BIND_INVITE_CODE = team2Root.inviteCode;
-
-        // 调用解绑绑定函数
-        bundEarn(data);
-
-        console.log(`[解绑绑定] ✅ 完成`);
-    } else {
-        console.warn(`[解绑绑定] ⚠️  团队1没有符合条件的下级，跳过此步骤`);
+        // recharge 模式：只充值不投注，借用 rechargeOnly V2（100% 只充值）
+        if (actionMode && actionMode.mode === 'recharge') {
+            await executeMultiLevelInvite(root.inviteCode, distribution, data, false, teamName, {});
+            executeTeamRechargeAndBet(data.token, root.userId, teamName, 1.0, {
+                mode: 'v2', inactiveRate: 0, rechargeOnlyRate: 1.0  // 100% 只充值
+            });
+        }
+        sleep(3);
+        return root;
     }
 
-    // ========== 8. 团队2进行充值投注 ==========
-    console.log('\n' + '─'.repeat(80));
-    console.log('步骤5: 团队2 - 充值投注');
-    console.log('─'.repeat(80));
-
-    executeTeamRechargeAndBet(data.token, team2Root.userId, '团队2');
-
-    sleep(3);
-
-    // ========== 9. 团队2随机解绑一个下级，绑定到团队1 ==========
-    console.log('\n' + '─'.repeat(80));
-    console.log('步骤6: 团队2 -> 团队1 解绑绑定');
-    console.log('─'.repeat(80));
-
-    const team2UnbindUserId = selectRandomSubordinate(data.token, team2Root.userId);
-
-    if (team2UnbindUserId) {
-        console.log(`\n[解绑绑定] 团队2用户 ${team2UnbindUserId} 解绑并绑定到团队1`);
-
-        // 设置环境变量供 bundearn 使用
-        __ENV.UNBIND_UID = team2UnbindUserId.toString();
-        __ENV.BIND_INVITE_CODE = team1Root.inviteCode;
-
-        // 调用解绑绑定函数
-        bundEarn(data);
-
-        console.log(`[解绑绑定] ✅ 完成`);
-    } else {
-        console.warn(`[解绑绑定] ⚠️  团队2没有符合条件的下级，跳过此步骤`);
+    /**
+     * 对已有团队执行行为（充值/投注）
+     * @param {object} root        - { userId, inviteCode }
+     * @param {string} teamName
+     * @param {object|null} actionMode
+     */
+    function doAction(root, teamName, actionMode) {
+        if (!actionMode) {
+            console.log(`[${teamName}] ⏭️  跳过（none）`);
+            return;
+        }
+        if (actionMode.mode === 'recharge') {
+            executeTeamRechargeAndBet(data.token, root.userId, teamName, 1.0, {
+                mode: 'v2', inactiveRate: 0, rechargeOnlyRate: 1.0
+            });
+        } else {
+            executeTeamRechargeAndBet(data.token, root.userId, teamName, 1.0, actionMode);
+        }
+        sleep(3);
     }
 
-    // ========== 10. 完成 ==========
+    /**
+     * 执行 A→B 解绑绑定
+     */
+    function swap(fromRoot, toRoot, fromName, toName) {
+        console.log(`\n${'─'.repeat(60)}`);
+        console.log(`🔄 解绑绑定: ${fromName} → ${toName}`);
+        const uid = selectRandomSubordinate(data.token, fromRoot.userId);
+        if (uid) {
+            __ENV.UNBIND_UID       = uid.toString();
+            __ENV.BIND_INVITE_CODE = toRoot.inviteCode;
+            bundEarn(data);
+        } else {
+            console.warn(`[${fromName}] ⚠️  无符合条件的下级，跳过`);
+        }
+        sleep(3);
+        return uid;
+    }
+
+    /**
+     * 执行互相解绑绑定（根据团队人数决定执行 1 次或 2 次）
+     * 触发条件：任意一个团队人数 > 30，执行 2 次互换（间隔 10 秒）
+     */
+    function executeSwaps() {
+        const needDoubleSwap = team1Total > 30 || team2Total > 30;
+        const swapRounds = needDoubleSwap ? 2 : 1;
+
+        if (needDoubleSwap) {
+            console.log(`\n${'═'.repeat(60)}`);
+            console.log(`🔄 检测到大团队（A=${team1Total}人 | B=${team2Total}人），执行 ${swapRounds} 轮互换`);
+            console.log(`${'═'.repeat(60)}\n`);
+        }
+
+        for (let round = 1; round <= swapRounds; round++) {
+            if (swapRounds > 1) {
+                console.log(`\n${'─'.repeat(60)}`);
+                console.log(`🔄 第 ${round}/${swapRounds} 轮互换`);
+                console.log(`${'─'.repeat(60)}`);
+            }
+
+            swapLog.push(swap(rootA, rootB, '团队A', '团队B'));
+            swapLog.push(swap(rootB, rootA, '团队B', '团队A'));
+
+            // 第1轮完成后等待 10 秒再进行第2轮
+            if (round < swapRounds) {
+                console.log(`\n⏳ 第 ${round} 轮完成，等待 10 秒后进行第 ${round + 1} 轮互换...`);
+                sleep(10);
+            }
+        }
+    }
+
+    // ========== 16 种模式 ==========
+    let rootA, rootB;
+    const swapLog = [];
+    // swap 前的原始 L1 成员快照（用于 L3 有效邀请过滤）
+    let originalL1A = new Set();
+    let originalL1B = new Set();
+
+    // ── 辅助：打印模式说明 ──
+    function printMode(desc) {
+        console.log(`\n${'═'.repeat(80)}`);
+        console.log(`🎯 ${rebateMode}: ${desc}`);
+        console.log(`${'═'.repeat(80)}\n`);
+    }
+
+    // ── 辅助：在 swap 前快照两个团队的 L1 成员 ──
+    function snapshotBeforeSwap() {
+        console.log(`\n📸 快照 swap 前的原始 L1 成员...`);
+        originalL1A = snapshotL1Members(data, rootA.userId);
+        originalL1B = snapshotL1Members(data, rootB.userId);
+        console.log(`   团队A 原始 L1: ${originalL1A.size} 人 | 团队B 原始 L1: ${originalL1B.size} 人`);
+    }
+
+    switch (rebateMode) {
+
+        // ── mode1（现有逻辑）A充投 → swap → B充投 ──────────────────────────
+        case 'mode1':
+            printMode('A充投 | 无 → A→B, B→A → 无 | B充投');
+            rootA = await buildTeam('团队A', team1Distribution, full);
+            rootB = await buildTeam('团队B', team2Distribution, none);
+            snapshotBeforeSwap();
+            executeSwaps();
+            doAction(rootB, '团队B', full);
+            break;
+
+        // ── mode2 双方充投后互换 ────────────────────────────────────────────
+        case 'mode2':
+            printMode('A充投 | B充投 → A→B, B→A → 无 | 无');
+            rootA = await buildTeam('团队A', team1Distribution, full);
+            rootB = await buildTeam('团队B', team2Distribution, full);
+            snapshotBeforeSwap();
+            executeSwaps();
+            break;
+
+        // ── mode3 A只充值，换人后B充投 ─────────────────────────────────────
+        case 'mode3':
+            printMode('A只充值 | 无 → A→B, B→A → 无 | B充投');
+            rootA = await buildTeam('团队A', team1Distribution, recharge);
+            rootB = await buildTeam('团队B', team2Distribution, none);
+            snapshotBeforeSwap();
+            executeSwaps();
+            doAction(rootB, '团队B', full);
+            break;
+
+        // ── mode4 先换人再双方充投 ──────────────────────────────────────────
+        case 'mode4':
+            printMode('无 | 无 → A→B, B→A → A充投 | B充投');
+            rootA = await buildTeam('团队A', team1Distribution, none);
+            rootB = await buildTeam('团队B', team2Distribution, none);
+            snapshotBeforeSwap();
+            executeSwaps();
+            doAction(rootA, '团队A', full);
+            doAction(rootB, '团队B', full);
+            break;
+
+        // ── mode5 换人前后A持续充投，B换人后充投 ───────────────────────────
+        case 'mode5':
+            printMode('A充投 | 无 → A→B, B→A → A充投 | B充投');
+            rootA = await buildTeam('团队A', team1Distribution, full);
+            rootB = await buildTeam('团队B', team2Distribution, none);
+            snapshotBeforeSwap();
+            executeSwaps();
+            doAction(rootA, '团队A', full);
+            doAction(rootB, '团队B', full);
+            break;
+
+        // ── mode6 换人前只充值，换人后补投注 ───────────────────────────────
+        case 'mode6':
+            printMode('A只充值 | B只充值 → A→B, B→A → A充投 | B充投');
+            rootA = await buildTeam('团队A', team1Distribution, recharge);
+            rootB = await buildTeam('团队B', team2Distribution, recharge);
+            snapshotBeforeSwap();
+            executeSwaps();
+            doAction(rootA, '团队A', full);
+            doAction(rootB, '团队B', full);
+            break;
+
+        // ── mode7 A充投B只充，换人后B补完 ──────────────────────────────────
+        case 'mode7':
+            printMode('A充投 | B只充值 → A→B, B→A → 无 | B充投');
+            rootA = await buildTeam('团队A', team1Distribution, full);
+            rootB = await buildTeam('团队B', team2Distribution, recharge);
+            snapshotBeforeSwap();
+            executeSwaps();
+            doAction(rootB, '团队B', full);
+            break;
+
+        // ── mode8 B先充投，换人后A充投（对称） ─────────────────────────────
+        case 'mode8':
+            printMode('无 | B充投 → A→B, B→A → A充投 | 无');
+            rootA = await buildTeam('团队A', team1Distribution, none);
+            rootB = await buildTeam('团队B', team2Distribution, full);
+            snapshotBeforeSwap();
+            executeSwaps();
+            doAction(rootA, '团队A', full);
+            break;
+
+        // ── mode9 A随机分层，换人后B随机分层 ───────────────────────────────
+        case 'mode9':
+            printMode('A(V2) | 无 → A→B, B→A → 无 | B(V2)');
+            rootA = await buildTeam('团队A', team1Distribution, v2A);
+            rootB = await buildTeam('团队B', team2Distribution, none);
+            snapshotBeforeSwap();
+            executeSwaps();
+            doAction(rootB, '团队B', v2B);
+            break;
+
+        // ── mode10 双方随机分层后互换 ───────────────────────────────────────
+        case 'mode10':
+            printMode('A(V2) | B(V2) → A→B, B→A → 无 | 无');
+            rootA = await buildTeam('团队A', team1Distribution, v2A);
+            rootB = await buildTeam('团队B', team2Distribution, v2B);
+            snapshotBeforeSwap();
+            executeSwaps();
+            break;
+
+        // ── mode11 换人后双方随机分层 ───────────────────────────────────────
+        case 'mode11':
+            printMode('A充投 | 无 → A→B, B→A → A(V2) | B(V2)');
+            rootA = await buildTeam('团队A', team1Distribution, full);
+            rootB = await buildTeam('团队B', team2Distribution, none);
+            snapshotBeforeSwap();
+            executeSwaps();
+            doAction(rootA, '团队A', v2A);
+            doAction(rootB, '团队B', v2B);
+            break;
+
+        // ── mode12 A随机B只充，换人后B补完 ─────────────────────────────────
+        case 'mode12':
+            printMode('A(V2) | B只充值 → A→B, B→A → 无 | B充投');
+            rootA = await buildTeam('团队A', team1Distribution, v2A);
+            rootB = await buildTeam('团队B', team2Distribution, recharge);
+            snapshotBeforeSwap();
+            executeSwaps();
+            doAction(rootB, '团队B', full);
+            break;
+
+        // ── mode13 A只充B随机，换人后A补完 ─────────────────────────────────
+        case 'mode13':
+            printMode('A只充值 | B(V2) → A→B, B→A → A充投 | 无');
+            rootA = await buildTeam('团队A', team1Distribution, recharge);
+            rootB = await buildTeam('团队B', team2Distribution, v2B);
+            snapshotBeforeSwap();
+            executeSwaps();
+            doAction(rootA, '团队A', full);
+            break;
+
+        // ── mode14 全程随机，最大不确定性 ───────────────────────────────────
+        case 'mode14':
+            printMode('A(V2) | B(V2) → A→B, B→A → A(V2) | B(V2)');
+            rootA = await buildTeam('团队A', team1Distribution, v2A);
+            rootB = await buildTeam('团队B', team2Distribution, v2B);
+            snapshotBeforeSwap();
+            executeSwaps();
+            doAction(rootA, '团队A', v2A);
+            doAction(rootB, '团队B', v2B);
+            break;
+
+        // ── mode15 A确定B随机交叉 ───────────────────────────────────────────
+        case 'mode15':
+            printMode('A充投 | B(V2) → A→B, B→A → A(V2) | B充投');
+            rootA = await buildTeam('团队A', team1Distribution, full);
+            rootB = await buildTeam('团队B', team2Distribution, v2B);
+            snapshotBeforeSwap();
+            executeSwaps();
+            doAction(rootA, '团队A', v2A);
+            doAction(rootB, '团队B', full);
+            break;
+
+        // ── mode16 与 mode15 对称 ────────────────────────────────────────────
+        case 'mode16':
+            printMode('A(V2) | B充投 → A→B, B→A → A充投 | B(V2)');
+            rootA = await buildTeam('团队A', team1Distribution, v2A);
+            rootB = await buildTeam('团队B', team2Distribution, full);
+            snapshotBeforeSwap();
+            executeSwaps();
+            doAction(rootA, '团队A', full);
+            doAction(rootB, '团队B', v2B);
+            break;
+
+        // ── mode17 A充投，B无操作，互换后双方都不操作 ───────────────────────
+        case 'mode17':
+            printMode('A充投 | 无 → A→B, B→A → 无 | 无');
+            rootA = await buildTeam('团队A', team1Distribution, full);
+            rootB = await buildTeam('团队B', team2Distribution, none);
+            snapshotBeforeSwap();
+            executeSwaps();
+            break;
+
+        default:
+            console.error(`❌ 未知 REBATE_MODE: ${rebateMode}，支持 mode1~mode17`);
+            return;
+    }
+
+    // ========== 完成摘要 ==========
     console.log('\n' + '='.repeat(80));
-    console.log('✅ 多级返佣流程测试完成');
+    console.log(`✅ ${rebateMode} 测试完成`);
     console.log('='.repeat(80));
-    console.log('\n📊 测试摘要:');
-    console.log(`  团队1总代: ${team1Root.userId} (邀请码: ${team1Root.inviteCode})`);
-    console.log(`  团队2总代: ${team2Root.userId} (邀请码: ${team2Root.inviteCode})`);
-    if (team1UnbindUserId) {
-        console.log(`  团队1->团队2: 用户 ${team1UnbindUserId}`);
-    }
-    if (team2UnbindUserId) {
-        console.log(`  团队2->团队1: 用户 ${team2UnbindUserId}`);
-    }
+    console.log(`  团队A总代: ${rootA.userId} (邀请码: ${rootA.inviteCode})`);
+    console.log(`  团队B总代: ${rootB.userId} (邀请码: ${rootB.inviteCode})`);
+    console.log(`  解绑绑定记录: ${swapLog.filter(Boolean).join(', ')}`);
     console.log('');
+
+    // ========== L3 验证（可选，-e VERIFY=L3 触发）==========
+    const verifyMode = __ENV.VERIFY || '';
+    if (verifyMode.toUpperCase() === 'L3') {
+        const waitMinutes = parseInt(__ENV.VERIFY_WAIT_MINUTES || '10', 10);
+        console.log(`\n${'='.repeat(80)}`);
+        console.log(`⏳ VERIFY=L3 已启用，等待 ${waitMinutes} 分钟后开始 L3 验证...`);
+        console.log(`   团队A总代: ${rootA.userId} | 团队B总代: ${rootB.userId}`);
+        console.log(`   原始L1快照 - 团队A: ${originalL1A.size} 人 | 团队B: ${originalL1B.size} 人`);
+        console.log(`${'='.repeat(80)}\n`);
+
+        sleep(waitMinutes * 60);
+
+        console.log(`\n${'='.repeat(80)}`);
+        console.log(`🔍 开始 L3 验证 - 团队A (总代 UID: ${rootA.userId})`);
+        console.log(`${'='.repeat(80)}`);
+        runAgentL3ValidationWithOriginalTeam(data, rootA.userId, originalL1A);
+
+        console.log(`\n${'='.repeat(80)}`);
+        console.log(`🔍 开始 L3 验证 - 团队B (总代 UID: ${rootB.userId})`);
+        console.log(`${'='.repeat(80)}`);
+        runAgentL3ValidationWithOriginalTeam(data, rootB.userId, originalL1B);
+
+        console.log(`\n${'='.repeat(80)}`);
+        console.log(`✅ L3 验证全部完成`);
+        console.log(`${'='.repeat(80)}\n`);
+    }
 }
 
 /**

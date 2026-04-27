@@ -1,5 +1,5 @@
 import { AdminLogin, adminTag } from '../login/adminlogin.test.js';
-import { querySubAccounts as sixearnFunc, sixearnTag } from '../sixearn/sixearn.test.js';
+import { querySubAccounts as sixearnFunc, sixearnTag, verifyPromotionDataByUserId } from '../sixearn/sixearn.test.js';
 import { hanlderThresholds } from '../../../config/thresholds.js';
 import { logger } from '../../../libs/utils/logger.js';
 import { VerifyBetAmountStatistics as verifyBetAmountStatisticsFunc } from '../sixearn/RebateLevel.test.js';
@@ -37,6 +37,10 @@ export function loginExec() {
 
 // k6 run -e TENANT_ID=3002 -e UNBIND_UID=5945198 -e BIND_INVITE_CODE=NP672GN runSixearn.js
 
+// 进行前后台一起的验证逻辑
+// k6 run -e TENANT_ID=3007 -e TARGET_UID=135833 -e ACTION=verifyPromotion runSixearn.js
+
+
 // ============================================================
 // 配置：要查询明日返佣的总代 UID 和 租户
 // 支持通过环境变量动态传入，例如：
@@ -60,6 +64,14 @@ export function verifyBetAmountStatistics(data) {
 
 export function bundEarn(data) {
     return unbindSubAccountsFunc(data);
+}
+
+export function verifyPromotion(data) {
+    const uid = parseInt(TARGET_UID, 10);
+    // 先跑后台返佣计算（打印详细明细）
+    sixearnFunc(data, uid);
+    // 再跑前台接口对比验证（含 yesterdayTotalCommission 自动对比）
+    verifyPromotionDataByUserId(data, uid);
 }
 
 const thresholds = {
@@ -89,16 +101,27 @@ if (__ENV.ACTION === 'bundearn' || __ENV.UNBIND_UID || __ENV.BIND_INVITE_CODE) {
     options.scenarios.bundEarn = {
         executor: 'per-vu-iterations',
         vus: 1,
-        iterations: 1, // 只运行一次
+        iterations: 1,
         exec: 'bundEarn',
         startTime: '2s',
+    };
+} else if (__ENV.ACTION === 'verifyPromotion') {
+    // 场景5：前台接口对比验证（GetPromotionData）
+    // k6 run -e TENANT_ID=3004 -e TARGET_UID=135833 -e ACTION=verifyPromotion runSixearn.js
+    options.scenarios.verifyPromotion = {
+        executor: 'per-vu-iterations',
+        vus: 1,
+        iterations: 1,
+        exec: 'verifyPromotion',
+        startTime: '2s',
+        maxDuration: '300s'
     };
 } else {
     // 场景2：查询下级账号执行返佣逻辑的检查（默认）
     options.scenarios.querySubAccounts = {
         executor: 'per-vu-iterations',
         vus: 1,
-        iterations: 1, // 只运行一次
+        iterations: 1,
         exec: 'querySubAccounts',
         startTime: '2s',
         maxDuration: '1000s'
