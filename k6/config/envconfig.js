@@ -52,7 +52,7 @@ export const ENV_3002 = {
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3002_001",
     WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "91",
+    COUNTRY_CODE: "92",
     RECHARGE_AMOUNT_MIN: 2000,
     RECHARGE_AMOUNT_MAX: 5000
 };
@@ -158,8 +158,8 @@ export const ENV_3007 = {
     WorkOrderRole: "carey3007_001",
     WorkOrderRolePasswrod: "qwer1234",
     COUNTRY_CODE: "92",  // 巴基斯坦区号
-    RECHARGE_AMOUNT_MIN: 200,
-    RECHARGE_AMOUNT_MAX: 500
+    RECHARGE_AMOUNT_MIN: 2000,
+    RECHARGE_AMOUNT_MAX: 5000
 };
 
 // 3101 UAT 环境配置

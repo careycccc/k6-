@@ -10,6 +10,7 @@ import { betRun } from '../runbet/betRun.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
 import { hybridRecharge, getConfigRechargeAmount } from '../recharge/rechargeService.js';
 import { ENV_CONFIG, getEnvByTenantId } from '../../../config/envconfig.js';
+import { updateUserAgentRebateMode } from './agentApi.js';
 
 // ========== 数据结构定义 ==========
 
@@ -54,9 +55,10 @@ let currentTenantConfig = null;            // 当前租户配置
  * 处理新用户的后续操作（充值和投注）
  * 使用混合充值策略：优先前台充值，失败则后台充值兜底
  * @param {object} adminData - 管理员登录数据
+ * @param {number} rebateChance - 设置特殊/锁定返佣的几率
  * @returns {Promise<void>}
  */
-export async function processNewUsers(adminData) {
+export async function processNewUsers(adminData, rebateChance = 0.2) {
     if (userDetails.length === 0) {
         console.error('[ProcessUsers] 用户详情列表为空，无法处理');
         throw new Error('用户详情列表为空');
@@ -80,6 +82,15 @@ export async function processNewUsers(adminData) {
             }
 
             console.log(`[ProcessUsers] 用户ID: ${userId}, 邀请码: ${userDetail.inviteCode}`);
+            
+            // 步骤1.5 - 随机设置返佣模式 (特殊/锁定)
+            if (Math.random() < rebateChance) {
+                const rebateMode = Math.floor(Math.random() * 2) + 1;
+                const rebateLevel = Math.floor(Math.random() * 6) + 1;
+                updateUserAgentRebateMode(adminData.token, userId, rebateMode, rebateLevel);
+                sleep(0.5);
+            }
+            
             sleep(2);
 
             // 步骤2 - 充值（使用混合充值策略）
@@ -405,9 +416,10 @@ export function bindOneLevel(parentInviteCodes, count, level, adminData) {
  * @param {object} adminData - 管理员登录数据
  * @param {object} tenantConfig - 租户配置（可选）
  * @param {boolean} withRecharge - 是否进行充值投注，默认true
+ * @param {number} rebateChance - 设置特殊/锁定返佣的几率
  * @returns {Promise<void>}
  */
-export async function runMultiLevelInvite(rootInviteCode, subordinates, adminData, tenantConfig = null, withRecharge = true) {
+export async function runMultiLevelInvite(rootInviteCode, subordinates, adminData, tenantConfig = null, withRecharge = true, rebateChance = 0.2) {
     if (!subordinates || subordinates.length === 0) {
         throw new Error('层级人数列表不能为空');
     }
@@ -458,7 +470,7 @@ export async function runMultiLevelInvite(rootInviteCode, subordinates, adminDat
     // 处理所有新用户（充值和投注）- 根据参数决定是否执行
     if (withRecharge) {
         console.log('\n🚀 === 开始处理所有用户的充值和投注 ===');
-        await processNewUsers(adminData);
+        await processNewUsers(adminData, rebateChance);
     } else {
         console.log('\n⏭️  跳过充值和投注步骤');
     }
@@ -600,7 +612,8 @@ export function clearInviteData() {
 export async function processNewUsersV2(adminData, rates = {}) {
     const {
         inactiveRate     = 0.2,
-        rechargeOnlyRate = 0.2
+        rechargeOnlyRate = 0.2,
+        rebateChance     = 0.2
     } = rates;
 
     const activeRate = Math.max(0, 1 - inactiveRate - rechargeOnlyRate);
@@ -682,6 +695,14 @@ export async function processNewUsersV2(adminData, rates = {}) {
                 userDetail.rechargeAmount = rechargeResult.amount;
                 rechargeSuccessCount++;
                 console.log(`[ProcessUsersV2] ✅ 充值成功: ${userDetail.userAccount}, 金额: ${rechargeResult.amount}, 方式: ${rechargeResult.method}`);
+                
+                // 步骤1.5 - 随机设置返佣模式 (特殊/锁定)
+                if (Math.random() < rebateChance) {
+                    const rebateMode = Math.floor(Math.random() * 2) + 1;
+                    const rebateLevel = Math.floor(Math.random() * 6) + 1;
+                    updateUserAgentRebateMode(adminData.token, userId, rebateMode, rebateLevel);
+                    sleep(0.5);
+                }
             } else {
                 userDetail.recharged    = false;
                 userDetail.failedReason = '充值失败';
@@ -756,7 +777,7 @@ export async function runMultiLevelInviteV2(rootInviteCode, subordinates, adminD
         throw new Error('层级人数列表不能为空');
     }
 
-    const { inactiveRate = 0.2, rechargeOnlyRate = 0.2 } = rates;
+    const { inactiveRate = 0.2, rechargeOnlyRate = 0.2, rebateChance = 0.2 } = rates;
     const activeRate = Math.max(0, 1 - inactiveRate - rechargeOnlyRate);
 
     console.log(`🎯 [V2] 开始多层级邀请绑定到总代: ${rootInviteCode}, 层级: ${subordinates}`);
@@ -784,7 +805,7 @@ export async function runMultiLevelInviteV2(rootInviteCode, subordinates, adminD
 
     // 使用 V2 充值投注
     console.log('\n🚀 === [V2] 开始三段式充值和投注 ===');
-    await processNewUsersV2(adminData, { inactiveRate, rechargeOnlyRate });
+    await processNewUsersV2(adminData, { inactiveRate, rechargeOnlyRate, rebateChance });
 
     console.log('\n🎉 [V2] 多层级邀请绑定完成！');
 }

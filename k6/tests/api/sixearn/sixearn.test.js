@@ -1,4 +1,4 @@
-﻿import { sendQueryRequest } from '../common/request.js';
+import { sendQueryRequest, sendRequest } from '../common/request.js';
 import { isNonEmptyArray } from '../../utils/utils.js';
 import { logger } from '../../../libs/utils/logger.js';
 import { RebateLevel, RebateLevelRate } from './RebateLevel.test.js';
@@ -199,6 +199,27 @@ export function querySubAccounts(data, targetUid) {
     }
 
     // -------------------------------------------------------
+    // Step 1.5: 查询昨日从本团队转出的成员
+    // -------------------------------------------------------
+    console.log('【Step 1.5】查询昨日从本团队转出的成员...');
+    const teamMemberIdSet = new Set(allMembers.map(m => m.userId));
+    const transferOutMap = fetchTransferOutMembers(data, teamMemberIdSet, startTs, endTs, sixearnTag);
+    const transferOutIds = Object.keys(transferOutMap).map(Number);
+
+    // 过滤掉已经在当前团队里的（极少数情况：转出后又转回来了）
+    const newlyTransferOutIds = transferOutIds.filter(uid => !teamMemberIdSet.has(uid));
+
+    if (newlyTransferOutIds.length > 0) {
+        console.log(`[Step 1.5] ⬅️  发现 ${newlyTransferOutIds.length} 个昨日转出成员，将补充查询其转出前的数据：`);
+        newlyTransferOutIds.forEach(uid => {
+            const info = transferOutMap[uid];
+            console.log(`   └─ UID=${uid}  原上级=${info.oldParentId}  原层级=${info.oldHierarchy}  转出时间=${new Date(info.transferBeginTime).toLocaleString()}`);
+        });
+    } else {
+        console.log(`[Step 1.5] ✅ 昨日无成员从本团队转出\n`);
+    }
+
+    // -------------------------------------------------------
     // Step 2: 获取返佣等级配置表（一次查询，全局复用）
     // -------------------------------------------------------
     console.log('【Step 2】获取返佣等级配置表...');
@@ -241,7 +262,11 @@ export function querySubAccounts(data, targetUid) {
     // 注意：总代自身（accountId）的充值/投注不计入任何人的团队统计，
     // 因此跳过对总代自身数据的API查询，节省请求次数。
     const nonMasterMembers = allMembers.filter((m) => m.userId !== accountId);
-    console.log(`【Step 4】开始查询 ${nonMasterMembers.length} 个成员的昨日充值/投注数据（总代自身不查询）...\n`);
+
+    console.log('\n【Step 3.5】查询成员昨日转线记录...');
+    const transferMap = fetchTransferMap(data, nonMasterMembers, startTs, endTs, sixearnTag);
+
+    console.log(`\n【Step 4】开始查询 ${nonMasterMembers.length} 个成员的昨日充值/投注数据（总代自身不查询）...\n`);
     const memberDataMap = {}; // userId → enriched member data
 
     nonMasterMembers.forEach((member, idx) => {
@@ -249,9 +274,53 @@ export function querySubAccounts(data, targetUid) {
         console.log(
             `  [${String(idx + 1).padStart(3)}/${nonMasterMembers.length}] 查询 UID=${member.userId}  绝对层级=${member.hierarchy} ...`
         );
-        const enriched = fetchMemberData(data, member, startTs, endTs, startDateStr, endDateStr);
+        const enriched = fetchMemberData(data, member, startTs, endTs, startDateStr, endDateStr,
+            transferMap[member.userId] ? transferMap[member.userId].transferEndTime : null);
         memberDataMap[member.userId] = enriched;
     });
+
+    // -------------------------------------------------------
+    // Step 4.5: 查询转出成员在转出前的充值/投注数据
+    // -------------------------------------------------------
+    // transferOutMemberDataMap: userId → enriched（时间范围为 startTs ~ transferBeginTime）
+    const transferOutMemberDataMap = {};
+
+    if (newlyTransferOutIds.length > 0) {
+        console.log(`\n【Step 4.5】查询 ${newlyTransferOutIds.length} 个转出成员的转出前数据...\n`);
+        newlyTransferOutIds.forEach((uid, idx) => {
+            sleep(0.5);
+            const info = transferOutMap[uid];
+            // 时间范围：昨日开始 ~ 转线开始时间（转线开始后数据归新团队）
+            const effectiveEnd = Math.min(endTs, info.transferBeginTime);
+            console.log(
+                `  [${String(idx + 1).padStart(3)}/${newlyTransferOutIds.length}] 查询转出成员 UID=${uid}  原层级=${info.oldHierarchy}  有效时间范围: ${new Date(startTs).toLocaleString()} ~ ${new Date(effectiveEnd).toLocaleString()}`
+            );
+            // 构造一个虚拟 member 对象（转出成员已不在 allMembers 里）
+            const virtualMember = {
+                userId: uid,
+                parentId: info.oldParentId,
+                hierarchy: info.oldHierarchy,
+                rebateState: 1,   // 默认正常，无法从团队列表获取
+                rebateMode: 0,
+                rebateLevel: 0,
+                rebateSetTime: 0,
+                registerTime: 0
+            };
+            const enriched = fetchMemberData(
+                data, virtualMember,
+                startTs, effectiveEnd,
+                startDateStr, endDateStr,
+                null  // 不再做转入方向的过滤，直接查 startTs ~ effectiveEnd
+            );
+            // 标记为转出成员，方便打印时区分
+            enriched.isTransferOut = true;
+            enriched.transferBeginTime = info.transferBeginTime;
+            enriched.oldParentId = info.oldParentId;
+            enriched.oldHierarchy = info.oldHierarchy;
+            transferOutMemberDataMap[uid] = enriched;
+        });
+        console.log(`[Step 4.5] ✅ 转出成员数据查询完毕\n`);
+    }
 
     // -------------------------------------------------------
     // Step 5 & 6: 为每个有下级的成员（代理）计算返佣
@@ -270,8 +339,8 @@ export function querySubAccounts(data, targetUid) {
     if (agent) {
         // 找出该 agent 的所有下级 userId
         const descendantIds = getDescendants(agent.userId, childrenMap);
-        if (descendantIds.length === 0) {
-            // 没有任何下级，无需计算返佣
+        if (descendantIds.length === 0 && newlyTransferOutIds.length === 0) {
+            // 没有任何下级（含转出），无需计算返佣
             return;
         }
 
@@ -280,6 +349,14 @@ export function querySubAccounts(data, targetUid) {
             .filter((id) => id !== accountId)
             .map((id) => memberDataMap[id])
             .filter(Boolean);
+
+        // ---- 合并转出成员数据（转出成员的转出前数据也计入返佣计算）----
+        // 转出成员的相对层级用其原层级（oldHierarchy）与总代层级的差值
+        const transferOutDescendants = newlyTransferOutIds
+            .map(uid => transferOutMemberDataMap[uid])
+            .filter(Boolean);
+
+        const allDescendants = [...descendants, ...transferOutDescendants];
 
         // ---- 确定该代理的 earnLevel ----
         let earnLevel;
@@ -291,7 +368,7 @@ export function querySubAccounts(data, targetUid) {
             earnLevelReason = `锁定返佣 rebateLevel=${agent.rebateLevel}`;
         } else {
             // 先根据团队数据计算正常返佣等级 - 仅统计最大返佣层级内的下级
-            const validDescendantsForLevel = descendants.filter(d => (d.hierarchy - agent.hierarchy) <= MAX_REBATE_HIERARCHY);
+            const validDescendantsForLevel = allDescendants.filter(d => (d.hierarchy - agent.hierarchy) <= MAX_REBATE_HIERARCHY);
             const rechargePeopleCount = validDescendantsForLevel.filter((d) => d.totalRechargeAmount > 0).length;
             const totalRechargeAmt = validDescendantsForLevel.reduce((s, d) => s + (d.totalRechargeAmount || 0), 0);
             const totalBetAmt = validDescendantsForLevel.reduce((s, d) => s + (d.betAmountSum || 0), 0);
@@ -325,7 +402,7 @@ export function querySubAccounts(data, targetUid) {
             rechargeAmount: 0
         };
 
-        descendants.forEach(desc => {
+        allDescendants.forEach(desc => {
             if (desc.hierarchy - agent.hierarchy === 1) {
                 level1Stats.count++;
                 if (desc.registeredYesterday) level1Stats.registerCount++;
@@ -338,7 +415,7 @@ export function querySubAccounts(data, targetUid) {
         let agentTotalRebate = 0;
         const perDescendantResults = [];
 
-        descendants.forEach((desc) => {
+        allDescendants.forEach((desc) => {
             if (!desc) return;
 
             // 相对层级 = 下级绝对层级 - 代理绝对层级
@@ -381,12 +458,96 @@ export function querySubAccounts(data, targetUid) {
             rebateState: agent.rebateState,
             earnLevel,
             totalRebate: agentTotalRebate,
-            descendantCount: descendants.length
+            descendantCount: allDescendants.length
         });
     }
 
+    // ---- 打印团队明细报表 ----
+    printTeamDetailReport(nonMasterMembers, memberDataMap, accountId, masterHierarchy, startTs, endTs, transferMap, transferOutMemberDataMap, transferOutMap);
+
     // ---- 最终汇总 ----
     printFinalSummary(agentRebateSummary, masterHierarchy, accountId, dateStr, noRebateUsers);
+}
+
+/**
+ * 打印团队下级成员的昨日投注、充值和转线状态报表
+ */
+function printTeamDetailReport(nonMasterMembers, memberDataMap, accountId, masterHierarchy, startTs, endTs, transferMap, transferOutMemberDataMap, transferOutMap) {
+    if (nonMasterMembers.length === 0 && Object.keys(transferOutMemberDataMap || {}).length === 0) return;
+
+    console.log(`\n${'─'.repeat(100)}`);
+    console.log(`📋 团队下级成员明细报表（含所有层级）- UID=${accountId}`);
+    console.log(`${'─'.repeat(100)}`);
+    console.log(`  ${'userId'.padEnd(12)} ${'充值金额'.padEnd(12)} ${'是否首充'.padEnd(10)} ${'是否投注'.padEnd(10)} ${'投注金额'.padEnd(12)} ${'昨日注册'.padEnd(10)} ${'层级'.padEnd(6)} 转线状态`);
+    console.log(`  ${'─'.repeat(90)}`);
+
+    let tSumAmount = 0, tSumRecharge = 0, tSumFirst = 0, tSumReg = 0, tSumBet = 0, tSumBetCount = 0;
+
+    // 打印现有团队成员
+    nonMasterMembers.forEach(m => {
+        const d = memberDataMap[m.userId];
+        if (!d) return;
+        const amt      = d.totalRechargeAmount || 0;
+        const betAmt   = d.betAmountSum || 0;
+        const isFirst  = d.isFirstCharge ? '✅ 是' : '否';
+        const isBet    = betAmt > 0 ? '✅ 是' : '否';
+        const isReg    = (m.registerTime >= startTs && m.registerTime <= endTs) ? '✅ 是' : '否';
+        const relHier  = m.hierarchy - masterHierarchy;
+
+        const transfer = transferMap[m.userId];
+        let transferStatus = '否';
+        if (transfer && transfer.transferred) {
+            if (d.isFirstCharge && d.firstChargeTime && transfer.transferEndTime) {
+                transferStatus = d.firstChargeTime < transfer.transferEndTime
+                    ? '⚠️ 转入(首充前)' : '✅ 转入(首充后)';
+            } else {
+                transferStatus = '✅ 转线';
+            }
+        }
+
+        tSumAmount  += amt;
+        tSumBet     += betAmt;
+        if (amt > 0)   tSumRecharge++;
+        if (d.isFirstCharge) {
+            const t = transferMap[m.userId];
+            if (!t || !t.transferred || !t.transferEndTime || !d.firstChargeTime || d.firstChargeTime >= t.transferEndTime) {
+                tSumFirst++;
+            }
+        }
+        if (betAmt > 0) tSumBetCount++;
+        if (m.registerTime >= startTs && m.registerTime <= endTs) tSumReg++;
+        console.log(`  ${String(m.userId).padEnd(12)} ${amt.toFixed(2).padEnd(12)} ${isFirst.padEnd(10)} ${isBet.padEnd(10)} ${betAmt.toFixed(2).padEnd(12)} ${isReg.padEnd(10)} ${('L'+String(relHier)).padEnd(6)} ${transferStatus}`);
+    });
+
+    // 打印转出成员（特殊标记）
+    const toMap = transferOutMemberDataMap || {};
+    const toInfoMap = transferOutMap || {};
+    Object.keys(toMap).forEach(uidStr => {
+        const uid = Number(uidStr);
+        const d = toMap[uid];
+        if (!d) return;
+        const info     = toInfoMap[uid] || {};
+        const amt      = d.totalRechargeAmount || 0;
+        const betAmt   = d.betAmountSum || 0;
+        const isFirst  = d.isFirstCharge ? '✅ 是' : '否';
+        const isBet    = betAmt > 0 ? '✅ 是' : '否';
+        const isReg    = '─';  // 转出成员 registerTime 未知，不统计
+        const relHier  = (info.oldHierarchy || 0) - masterHierarchy;
+        const transferStatus = `⬅️ 转出(${new Date(info.transferBeginTime || 0).toLocaleTimeString()})`;
+
+        tSumAmount  += amt;
+        tSumBet     += betAmt;
+        if (amt > 0)   tSumRecharge++;
+        if (d.isFirstCharge) tSumFirst++;
+        if (betAmt > 0) tSumBetCount++;
+
+        console.log(`  ${String(uid).padEnd(12)} ${amt.toFixed(2).padEnd(12)} ${isFirst.padEnd(10)} ${isBet.padEnd(10)} ${betAmt.toFixed(2).padEnd(12)} ${isReg.padEnd(10)} ${('L'+String(relHier)).padEnd(6)} ${transferStatus}`);
+    });
+
+    console.log(`  ${'─'.repeat(90)}`);
+    const totalCount = nonMasterMembers.length + Object.keys(toMap).length;
+    console.log(`  团队汇总: 共${totalCount}人(含${Object.keys(toMap).length}转出) | 充值${tSumRecharge}人 | 首充${tSumFirst}人(转线修正后) | 充值总额: ${tSumAmount.toFixed(2)} | 投注${tSumBetCount}人 | 投注总额: ${tSumBet.toFixed(2)} | 昨日注册: ${tSumReg}人`);
+    console.log(`${'─'.repeat(100)}\n`);
 }
 
 // ============================================================
@@ -401,9 +562,10 @@ export function querySubAccounts(data, targetUid) {
  * @param {number} endTs    - 昨日结束时间戳（毫秒）
  * @param {string} startDateStr - 昨日开始时间字符串（如 "2026-03-16 00:00:00"）
  * @param {string} endDateStr   - 昨日结束时间字符串（如 "2026-03-16 23:59:59"）
+ * @param {number} transferEndTime - 可选，转线完成时间戳（毫秒），如果有，则充值/投注统计从该时间起算
  * @returns {Object}        - enriched member 含 totalRechargeAmount, betAmountSum, 各类型投注数组
  */
-function fetchMemberData(data, member, startTs, endTs, startDateStr, endDateStr) {
+function fetchMemberData(data, member, startTs, endTs, startDateStr, endDateStr, transferEndTime = null) {
     const enriched = {
         userId: member.userId,
         parentId: member.parentId,
@@ -426,11 +588,14 @@ function fetchMemberData(data, member, startTs, endTs, startDateStr, endDateStr)
         betAmountSum: 0,
         // 充值
         totalRechargeAmount: 0,
-        isFirstCharge: false
+        isFirstCharge: false,
+        firstChargeTime: null  // R1 充值完成时间戳（毫秒），供转线判断使用
     };
 
-    // 1. 查询昨日充值
-    const rechargeList = GetRechargeOrderPageList(data, member.userId, 'Payed', startTs, endTs);
+    const effectiveStartTs = transferEndTime ? Math.max(startTs, transferEndTime) : startTs;
+
+    // 1. 查询昨日充值 (如果转线，则排除转线前的充值)
+    const rechargeList = GetRechargeOrderPageList(data, member.userId, 'Payed', effectiveStartTs, endTs);
     if (isNonEmptyArray(rechargeList)) {
         rechargeList.forEach((item) => {
             const amt = Number(item.actualAmount || 0);
@@ -440,20 +605,123 @@ function fetchMemberData(data, member, startTs, endTs, startDateStr, endDateStr)
         });
     }
 
-    // 2. 查询昨日投注（5 个类别）
-    GetBetRecordPageList(data, enriched, startTs, endTs, 'BetTime', 'BetTime');
+    // 2. 查询昨日投注（5 个类别），如果转线则排除转线前的投注
+    GetBetRecordPageList(data, enriched, effectiveStartTs, endTs, 'BetTime', 'BetTime');
 
     // 3. 查询是否首充
     // 注意：/api/RptUserInfo/GetUserRptRechargePageList 接口要求的 startTime/endTime 是字符串格式的日期（如"2026-03-16 00:00:00"）而非时间戳
     const firstChargeList = GetUserRptRechargePageList(data, member.userId, 1, startDateStr, endDateStr);
     if (isNonEmptyArray(firstChargeList)) {
-        const allR1 = firstChargeList.every((item) => item.rechargeType === 'R1');
-        if (allR1) {
+        // 只要有任意一条 R1 记录，就算首充（修复：原逻辑用 every 要求全部是 R1，导致有二充/三充时误判）
+        const hasR1 = firstChargeList.some((item) => item.rechargeType === 'R1');
+        if (hasR1) {
             enriched.isFirstCharge = true;
+            // 保存 R1 的充值完成时间，供转线判断使用
+            const r1Item = firstChargeList.find(item => item.rechargeType === 'R1');
+            enriched.firstChargeTime = r1Item ? (r1Item.rechargeTime || null) : null;
         }
     }
 
     return enriched;
+}
+
+/**
+ * 批量获取团队成员的转线记录（转入方向，timeType=2）
+ * 用于判断现有成员是否昨日从其他团队转入
+ */
+function fetchTransferMap(data, members, startTs, endTs, tag) {
+    const transferMap = {}; 
+    members.forEach((member) => {
+        const api = '/api/Agent/GetPageListAgentTransfer';
+        const payload = {
+            timeType: 2, userId: member.userId, timeFrom: startTs, timeTo: endTs, pageNo: 1, pageSize: 20, orderBy: 'Desc'
+        };
+        let result = sendQueryRequest(payload, api, tag, false, data.token);
+        if (typeof result !== 'object') {
+            try { result = JSON.parse(result); } catch (e) { result = null; }
+        }
+        const list = result && result.list ? result.list : [];
+        if (list.length >= 2) {
+            const bindRecord = list.find(r => r.newParentId !== 0 && r.newParentId !== null);
+            transferMap[member.userId] = { transferred: true, transferEndTime: bindRecord ? bindRecord.transferEndTime : null };
+        } else {
+            transferMap[member.userId] = { transferred: false, transferEndTime: null };
+        }
+    });
+    return transferMap;
+}
+
+/**
+ * 查询昨日从总代团队转出的成员（timeType=1，按转线时间查全局记录）
+ *
+ * 逻辑：
+ *   - 用 timeType=1 查昨日所有转线记录（不限 userId）
+ *   - 找出 oldParentId 在当前团队成员集合内、且 newParentId===0 的记录
+ *     （newParentId=0 表示"脱离"中间态，即从原上级断开）
+ *   - 这些 userId 就是昨日从本团队转出的成员
+ *   - 返回 Map: userId → { transferBeginTime, oldParentId, oldHierarchy }
+ *
+ * @param {Object} data
+ * @param {Set<number>} teamMemberIdSet - 当前团队所有成员 userId 的集合（含总代自身）
+ * @param {number} startTs
+ * @param {number} endTs
+ * @param {string} tag
+ * @returns {Object} transferOutMap: userId → { transferBeginTime, oldParentId, oldHierarchy }
+ */
+function fetchTransferOutMembers(data, teamMemberIdSet, startTs, endTs, tag) {
+    const api = '/api/Agent/GetPageListAgentTransfer';
+    const transferOutMap = {};
+
+    // 必须用 sendRequest 而非 sendQueryRequest：
+    // sendQueryRequest 会强制覆盖 payload 里的 pageNo/pageSize，导致分页失效，永远只查第 1 页
+    const pageSize = 500;
+    let pageNo = 1;
+    let totalPage = 1;
+
+    while (pageNo <= totalPage && pageNo <= 10) {
+        const payload = {
+            timeType: 1,
+            timeFrom: startTs,
+            timeTo: endTs,
+            pageNo: pageNo,
+            pageSize: pageSize,
+            orderBy: 'Desc'
+        };
+
+        let result = sendRequest(payload, api, tag, false, data.token);
+        if (typeof result !== 'object') {
+            try { result = JSON.parse(result); } catch (e) { break; }
+        }
+        if (!result) break;
+
+        // sendRequest 返回 parsedBody.data，结构为 { list, totalPage, totalCount, pageNo }
+        const list = result.list || [];
+        if (result.totalPage && result.totalPage > totalPage) {
+            totalPage = result.totalPage;
+        }
+
+        console.log(`   [转出查询] 第${pageNo}/${totalPage}页，本页 ${list.length} 条记录`);
+
+        list.forEach(record => {
+            // 条件：脱离中间态（newParentId=0）且原上级在本团队内
+            if (record.newParentId === 0 && teamMemberIdSet.has(record.oldParentId)) {
+                const uid = record.userId;
+                // 同一个 userId 可能有多条转出记录，取最早的那次（transferBeginTime 最小）
+                if (!transferOutMap[uid] || record.transferBeginTime < transferOutMap[uid].transferBeginTime) {
+                    transferOutMap[uid] = {
+                        transferBeginTime: record.transferBeginTime,
+                        transferEndTime:   record.transferEndTime,
+                        oldParentId:       record.oldParentId,
+                        oldHierarchy:      record.oldHierarchy
+                    };
+                }
+            }
+        });
+
+        pageNo++;
+    }
+
+    return transferOutMap;
 }
 
 // ============================================================
@@ -496,9 +764,17 @@ export function GetBetRecordPageList(data, enriched, startTime, endTime, queryTi
         if (typeof result !== 'object') {
             try { result = JSON.parse(result); } catch (e) { continue; }
         }
-        if (result && result.list && result.list.length > 0) {
+
+        // 优先从 sum 字段取汇总数据（更高效），兜底从 list 逐条累加
+        if (result && result.sum) {
+            const catBet = parseFloat(USE_VALID_AMOUNT ? result.sum.validAmountSum : result.sum.betAmountSum) || 0;
+            if (j === 0) enriched.electronicGame.push(catBet);
+            else if (j === 1) enriched.liveCasino.push(catBet);
+            else if (j === 2) enriched.sports.push(catBet);
+            else if (j === 3) enriched.lottery.push(catBet);
+            else if (j === 4) enriched.chessCard.push(catBet);
+        } else if (result && result.list && result.list.length > 0) {
             result.list.forEach((item) => {
-                // 根据配置选择投注金额字段
                 const rawAmt = USE_VALID_AMOUNT ? item.validAmount : item.betAmount;
                 const amt = parseFloat(rawAmt) || 0;
                 if (j === 0) enriched.electronicGame.push(amt);
@@ -752,6 +1028,7 @@ function printFinalSummary(agentRebateSummary, masterHierarchy, accountId, dateS
 // ============================================================
 
 import { getUserAccount, detectAccountType, autoLoginByUserId } from '../user/userAccountApi.js';
+import { tenantRequest } from '../../../libs/http/tenantRequest.js';
 
 const frontVerifyTag = 'sixearnFrontVerify';
 
@@ -762,17 +1039,14 @@ const frontVerifyTag = 'sixearnFrontVerify';
  */
 function getPromotionData(frontToken) {
     const api = '/api/AgentRebate/GetPromotionData';
-    const result = sendRequest({}, api, frontVerifyTag, true, frontToken);
+    const result = tenantRequest(api, {}, { isDesk: true, token: frontToken });
 
-    if (!result) {
-        console.error(`[FrontVerify] GetPromotionData 请求失败`);
+    if (!result || result.msgCode !== 0) {
+        console.error(`[FrontVerify] GetPromotionData 请求失败: ${result ? result.msg : '无响应'}`);
         return null;
     }
 
-    // sendRequest 返回 data 字段或完整响应
-    if (result.myInviteCode !== undefined) return result;          // 已是 data 层
-    if (result.data && result.data.myInviteCode !== undefined) return result.data;
-    return null;
+    return result.data || null;
 }
 
 /**
@@ -912,16 +1186,22 @@ export function verifyPromotionDataByUserId(data, targetUid) {
 
     console.log(`   ✅ 共 ${memberList.length} 人 | 目标账号绝对层级=${masterHierarchy} | 直推层级=${directSubHierarchy}`);
 
-    // ── Step 4: 查询每个成员的昨日充值数据 ──────────────────
-    console.log('\n【Step 4】查询成员昨日充值数据...');
+    // ── Step 4: 查询每个成员的转线记录与昨日充值数据 ──────────────────
+    console.log('\n【Step 4】查询成员昨日转线记录...');
     const nonMasterMembers = memberList.filter(m => m.userId !== accountId);
+    
+    const transferMap = fetchTransferMap(data, nonMasterMembers, startTs, endTs, frontVerifyTag);
+    console.log(`   ✅ 转线查询完毕，共 ${Object.values(transferMap).filter(t => t.transferred).length} 人昨日发生转线`);
+
+    console.log('\n【Step 4.5】查询成员昨日充值/投注数据...');
     const memberDataMap = {};
 
     nonMasterMembers.forEach((member, idx) => {
         sleep(0.3);
         if (idx % 10 === 0 && idx > 0) console.log(`   ...已查询 ${idx}/${nonMasterMembers.length} 人...`);
         const enriched = fetchMemberData(data, member, startTs, endTs,
-            `${dateStr} 00:00:00`, `${dateStr} 23:59:59`);
+            `${dateStr} 00:00:00`, `${dateStr} 23:59:59`,
+            transferMap[member.userId] ? transferMap[member.userId].transferEndTime : null);
         memberDataMap[member.userId] = enriched;
     });
     console.log(`   ✅ 数据查询完毕`);
@@ -947,18 +1227,31 @@ export function verifyPromotionDataByUserId(data, targetUid) {
         if (m.registerTime >= startTs && m.registerTime <= endTs) directStats.registerCount++;
         // 昨日充值
         if (d.totalRechargeAmount > 0) directStats.rechargeCount++;
-        // 昨日首充
-        if (d.isFirstCharge) directStats.firstRechargeCount++;
+        // 昨日首充（需考虑转线：首充时间 < 转线完成时间 → 首充在原团队，不计入）
+        if (d.isFirstCharge) {
+            const transfer = transferMap[m.userId];
+            if (transfer && transfer.transferred && transfer.transferEndTime && d.firstChargeTime) {
+                // 首充时间 < 转线完成时间 → 首充发生在原团队，不计入本团队
+                if (d.firstChargeTime < transfer.transferEndTime) {
+                    // 不计入
+                } else {
+                    directStats.firstRechargeCount++;
+                }
+            } else {
+                directStats.firstRechargeCount++;
+            }
+        }
         // 充值金额
         directStats.rechargeAmount += (d.totalRechargeAmount || 0);
     });
 
     // 团队统计
     const teamStats = {
-        registerCount:      0,
-        rechargeCount:      0,
-        firstRechargeCount: 0,
-        rechargeAmount:     0
+        registerCount:        0,
+        rechargeCount:        0,
+        firstRechargeCount:   0,
+        rechargeAmount:       0,
+        firstRechargeAmount:  0
     };
 
     allTeam.forEach(m => {
@@ -966,12 +1259,115 @@ export function verifyPromotionDataByUserId(data, targetUid) {
         if (!d) return;
         if (m.registerTime >= startTs && m.registerTime <= endTs) teamStats.registerCount++;
         if (d.totalRechargeAmount > 0) teamStats.rechargeCount++;
-        if (d.isFirstCharge) teamStats.firstRechargeCount++;
+        // 首充计数同样考虑转线
+        if (d.isFirstCharge) {
+            const transfer = transferMap[m.userId];
+            if (transfer && transfer.transferred && transfer.transferEndTime && d.firstChargeTime) {
+                if (d.firstChargeTime >= transfer.transferEndTime) {
+                    teamStats.firstRechargeCount++;
+                    teamStats.firstRechargeAmount += (d.totalRechargeAmount || 0);
+                }
+            } else {
+                teamStats.firstRechargeCount++;
+                teamStats.firstRechargeAmount += (d.totalRechargeAmount || 0);
+            }
+        }
         teamStats.rechargeAmount += (d.totalRechargeAmount || 0);
     });
 
     console.log(`   直推(层级${directSubHierarchy}): 注册=${directStats.registerCount} 充值=${directStats.rechargeCount} 首充=${directStats.firstRechargeCount} 充值额=${directStats.rechargeAmount.toFixed(2)}`);
-    console.log(`   全团队: 注册=${teamStats.registerCount} 充值=${teamStats.rechargeCount} 首充=${teamStats.firstRechargeCount} 充值额=${teamStats.rechargeAmount.toFixed(2)}`);
+    console.log(`   全团队: 注册=${teamStats.registerCount} 充值=${teamStats.rechargeCount} 首充=${teamStats.firstRechargeCount} 首充额=${teamStats.firstRechargeAmount.toFixed(2)} 充值额=${teamStats.rechargeAmount.toFixed(2)}`);
+
+    // ── 明细表格：直推成员 ──────────────────────────────────
+    console.log(`\n${'─'.repeat(90)}`);
+    console.log(`📋 直推成员明细（层级 L${directSubHierarchy}）`);
+    console.log(`${'─'.repeat(90)}`);
+    console.log(`  ${'userId'.padEnd(12)} ${'充值金额'.padEnd(12)} ${'是否首充'.padEnd(10)} ${'是否投注'.padEnd(10)} ${'投注金额'.padEnd(12)} ${'昨日注册'.padEnd(10)} 转线状态`);
+    console.log(`  ${'─'.repeat(85)}`);
+
+    let dSumAmount = 0, dSumRecharge = 0, dSumFirst = 0, dSumReg = 0, dSumBet = 0, dSumBetCount = 0;
+    directSubs.forEach(m => {
+        const d = memberDataMap[m.userId];
+        if (!d) return;
+        const amt      = d.totalRechargeAmount || 0;
+        const betAmt   = d.betAmountSum || 0;
+        const isFirst  = d.isFirstCharge ? '✅ 是' : '否';
+        const isBet    = betAmt > 0 ? '✅ 是' : '否';
+        const isReg    = (m.registerTime >= startTs && m.registerTime <= endTs) ? '✅ 是' : '否';
+
+        // 转线状态
+        const transfer = transferMap[m.userId];
+        let transferStatus = '否';
+        if (transfer && transfer.transferred) {
+            if (d.isFirstCharge && d.firstChargeTime && transfer.transferEndTime) {
+                transferStatus = d.firstChargeTime < transfer.transferEndTime
+                    ? '⚠️ 转入(首充前)' : '✅ 转入(首充后)';
+            } else {
+                transferStatus = '✅ 转线';
+            }
+        }
+
+        dSumAmount  += amt;
+        dSumBet     += betAmt;
+        if (amt > 0)   dSumRecharge++;
+        if (d.isFirstCharge) {
+            const t = transferMap[m.userId];
+            if (!t || !t.transferred || !t.transferEndTime || !d.firstChargeTime || d.firstChargeTime >= t.transferEndTime) {
+                dSumFirst++;
+            }
+        }
+        if (betAmt > 0) dSumBetCount++;
+        if (m.registerTime >= startTs && m.registerTime <= endTs) dSumReg++;
+        console.log(`  ${String(m.userId).padEnd(12)} ${amt.toFixed(2).padEnd(12)} ${isFirst.padEnd(10)} ${isBet.padEnd(10)} ${betAmt.toFixed(2).padEnd(12)} ${isReg.padEnd(10)} ${transferStatus}`);
+    });
+    console.log(`  ${'─'.repeat(85)}`);
+    console.log(`  直推汇总: 共${directSubs.length}人 | 充值${dSumRecharge}人 | 首充${dSumFirst}人(转线修正后) | 充值总额: ${dSumAmount.toFixed(2)} | 投注${dSumBetCount}人 | 投注总额: ${dSumBet.toFixed(2)} | 昨日注册: ${dSumReg}人`);
+
+    // ── 明细表格：全团队成员 ────────────────────────────────
+    console.log(`\n${'─'.repeat(100)}`);
+    console.log(`📋 全团队成员明细（含所有层级）`);
+    console.log(`${'─'.repeat(100)}`);
+    console.log(`  ${'userId'.padEnd(12)} ${'充值金额'.padEnd(12)} ${'是否首充'.padEnd(10)} ${'是否投注'.padEnd(10)} ${'投注金额'.padEnd(12)} ${'昨日注册'.padEnd(10)} ${'层级'.padEnd(6)} 转线状态`);
+    console.log(`  ${'─'.repeat(90)}`);
+
+    let tSumAmount = 0, tSumRecharge = 0, tSumFirst = 0, tSumReg = 0, tSumBet = 0, tSumBetCount = 0;
+    nonMasterMembers.forEach(m => {
+        const d = memberDataMap[m.userId];
+        if (!d) return;
+        const amt      = d.totalRechargeAmount || 0;
+        const betAmt   = d.betAmountSum || 0;
+        const isFirst  = d.isFirstCharge ? '✅ 是' : '否';
+        const isBet    = betAmt > 0 ? '✅ 是' : '否';
+        const isReg    = (m.registerTime >= startTs && m.registerTime <= endTs) ? '✅ 是' : '否';
+        const relHier  = m.hierarchy - masterHierarchy;
+
+        const transfer = transferMap[m.userId];
+        let transferStatus = '否';
+        if (transfer && transfer.transferred) {
+            if (d.isFirstCharge && d.firstChargeTime && transfer.transferEndTime) {
+                transferStatus = d.firstChargeTime < transfer.transferEndTime
+                    ? '⚠️ 转入(首充前)' : '✅ 转入(首充后)';
+            } else {
+                transferStatus = '✅ 转线';
+            }
+        }
+
+        tSumAmount  += amt;
+        tSumBet     += betAmt;
+        if (amt > 0)   tSumRecharge++;
+        if (d.isFirstCharge) {
+            const t = transferMap[m.userId];
+            if (!t || !t.transferred || !t.transferEndTime || !d.firstChargeTime || d.firstChargeTime >= t.transferEndTime) {
+                tSumFirst++;
+            }
+        }
+        if (betAmt > 0) tSumBetCount++;
+        if (m.registerTime >= startTs && m.registerTime <= endTs) tSumReg++;
+        console.log(`  ${String(m.userId).padEnd(12)} ${amt.toFixed(2).padEnd(12)} ${isFirst.padEnd(10)} ${isBet.padEnd(10)} ${betAmt.toFixed(2).padEnd(12)} ${isReg.padEnd(10)} ${'L'+String(relHier).padEnd(5)} ${transferStatus}`);
+    });
+    console.log(`  ${'─'.repeat(90)}`);
+    console.log(`  团队汇总: 共${nonMasterMembers.length}人 | 充值${tSumRecharge}人 | 首充${tSumFirst}人(转线修正后) | 充值总额: ${tSumAmount.toFixed(2)} | 投注${tSumBetCount}人 | 投注总额: ${tSumBet.toFixed(2)} | 昨日注册: ${tSumReg}人`);
+    console.log(`${'─'.repeat(100)}\n`);
 
     // ── Step 6: 对比验证 ────────────────────────────────────
     console.log('\n【Step 6】逐字段对比验证...');
@@ -999,6 +1395,9 @@ export function verifyPromotionDataByUserId(data, targetUid) {
 
     checkTolerance('团队昨日充值金额 (yesterdayTeamRechargeAmount)',
         promotionData.yesterdayTeamRechargeAmount, teamStats.rechargeAmount);
+
+    checkTolerance('团队昨日首充金额 (yesterdayTeamFirstRechargeAmount)',
+        promotionData.yesterdayTeamFirstRechargeAmount, teamStats.firstRechargeAmount);
 
 
     // ── Step 7: 计算昨日总返佣（复用 querySubAccounts 核心逻辑）──
@@ -1041,19 +1440,79 @@ export function verifyPromotionDataByUserId(data, targetUid) {
                 : (normalLevel >= 0 ? normalLevel : 0);
         }
 
-        // 按层级计算返佣
+        // 按层级计算返佣，同时收集明细用于展示
         const rateConfig = getRateConfigForLevel(earnLevel, rebateRateList);
         let agentTotalRebate = 0;
+        const rebateDetails = []; // 收集每个下级的返佣明细
+
         descendants.forEach(desc => {
             if (!desc) return;
             const relHier = desc.hierarchy - masterHierarchy;
             if (relHier <= 0 || relHier > maxHier) return;
             const rateItem = rateConfig ? rateConfig.find(r => r.hierarchy === relHier) : null;
-            agentTotalRebate += calculateContribution(rateItem, desc, accountId, relHier).total;
+            const contrib  = calculateContribution(rateItem, desc, accountId, relHier);
+            agentTotalRebate += contrib.total;
+            if (contrib.total > 0 || (contrib.betElectronic + contrib.betLive + contrib.betSports + contrib.betLottery + contrib.betChess) > 0) {
+                rebateDetails.push(contrib);
+            }
         });
 
         calcTotalRebate = agentTotalRebate;
-        console.log(`   本地计算昨日总返佣: ${calcTotalRebate.toFixed(4)} | 匹配等级: LV${earnLevel}`);
+
+        // ── 返佣计算明细展示 ──────────────────────────────────
+        console.log(`\n${'═'.repeat(90)}`);
+        console.log(`💰 返佣计算明细  |  匹配等级: LV${earnLevel}  |  最大返佣层级: ${maxHier}层`);
+        console.log(`${'═'.repeat(90)}`);
+
+        // 打印利率配置
+        if (rateConfig && rateConfig.length > 0) {
+            console.log(`\n📐 LV${earnLevel} 利率配置:`);
+            console.log(`   ${'层级'.padEnd(6)} ${'电子'.padEnd(8)} ${'真人'.padEnd(8)} ${'体育'.padEnd(8)} ${'彩票'.padEnd(8)} 棋牌`);
+            console.log(`   ${'─'.repeat(50)}`);
+            rateConfig.forEach(r => {
+                console.log(`   L${String(r.hierarchy).padEnd(5)} ${String(r.rateElectronic+'%').padEnd(8)} ${String(r.rateVideo+'%').padEnd(8)} ${String(r.rateSports+'%').padEnd(8)} ${String(r.rateLottery+'%').padEnd(8)} ${r.rateChessCard}%`);
+            });
+        }
+
+        // 打印每个下级的返佣明细
+        if (rebateDetails.length > 0) {
+            console.log(`\n📋 下级返佣明细（仅展示有投注或有返佣的成员）:`);
+            console.log(`   ${'userId'.padEnd(10)} ${'层级'.padEnd(5)} ${'电子投注'.padEnd(10)} ${'真人投注'.padEnd(10)} ${'体育投注'.padEnd(10)} ${'彩票投注'.padEnd(10)} ${'棋牌投注'.padEnd(10)} ${'返佣合计'.padEnd(10)} 计算公式`);
+            console.log(`   ${'─'.repeat(110)}`);
+
+            rebateDetails.forEach(c => {
+                const totalBet = c.betElectronic + c.betLive + c.betSports + c.betLottery + c.betChess;
+                const formulaParts = [];
+                if (c.betElectronic > 0) formulaParts.push(`电子${c.betElectronic.toFixed(2)}×${c.rateElectronic}%=${c.electronearn.toFixed(4)}`);
+                if (c.betLive > 0)       formulaParts.push(`真人${c.betLive.toFixed(2)}×${c.rateVideo}%=${c.liveCasinoearn.toFixed(4)}`);
+                if (c.betSports > 0)     formulaParts.push(`体育${c.betSports.toFixed(2)}×${c.rateSports}%=${c.sportsearn.toFixed(4)}`);
+                if (c.betLottery > 0)    formulaParts.push(`彩票${c.betLottery.toFixed(2)}×${c.rateLottery}%=${c.lotteryearn.toFixed(4)}`);
+                if (c.betChess > 0)      formulaParts.push(`棋牌${c.betChess.toFixed(2)}×${c.rateChessCard}%=${c.chessCardearn.toFixed(4)}`);
+                const formula = formulaParts.length > 0 ? formulaParts.join(' + ') : '无投注';
+
+                console.log(`   ${String(c.userId).padEnd(10)} L${String(c.relHier).padEnd(4)} ${c.betElectronic.toFixed(2).padEnd(10)} ${c.betLive.toFixed(2).padEnd(10)} ${c.betSports.toFixed(2).padEnd(10)} ${c.betLottery.toFixed(2).padEnd(10)} ${c.betChess.toFixed(2).padEnd(10)} ${c.total.toFixed(4).padEnd(10)} ${formula}`);
+            });
+
+            console.log(`   ${'─'.repeat(110)}`);
+        } else {
+            console.log(`\n   ℹ️  所有下级昨日均无投注，返佣为 0`);
+        }
+
+        // 按层级汇总
+        const byLevel = {};
+        rebateDetails.forEach(c => {
+            if (!byLevel[c.relHier]) byLevel[c.relHier] = 0;
+            byLevel[c.relHier] += c.total;
+        });
+        if (Object.keys(byLevel).length > 0) {
+            console.log(`\n📊 按层级汇总:`);
+            Object.keys(byLevel).sort((a,b) => a-b).forEach(lv => {
+                console.log(`   L${lv}: ${byLevel[lv].toFixed(4)} 元`);
+            });
+        }
+
+        console.log(`\n   💰 昨日总返佣: ${calcTotalRebate.toFixed(4)} 元`);
+        console.log(`${'═'.repeat(90)}\n`);
     } else {
         console.warn('   [WARN] 返佣配置获取失败，跳过 yesterdayTotalCommission 对比');
     }
@@ -1077,6 +1536,8 @@ export function verifyPromotionDataByUserId(data, targetUid) {
         promotionData.yesterdayTeamFirstRechargeCount, teamStats.firstRechargeCount);
     checkTolerance('团队昨日充值金额 (yesterdayTeamRechargeAmount)',
         promotionData.yesterdayTeamRechargeAmount, teamStats.rechargeAmount);
+    checkTolerance('团队昨日首充金额 (yesterdayTeamFirstRechargeAmount)',
+        promotionData.yesterdayTeamFirstRechargeAmount, teamStats.firstRechargeAmount);
 
     if (calcTotalRebate !== null) {
         checkTolerance('昨日总返佣 (yesterdayTotalCommission)',

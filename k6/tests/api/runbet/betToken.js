@@ -10,6 +10,7 @@
  */
 
 import http from 'k6/http';
+import { sleep } from 'k6';
 import { getTimeRandom, generateCryptoRandomString } from '../../utils/utils.js';
 import { SignedHttpClient } from '../../../libs/utils/signature.js';
 import { getEnvByTenantId } from '../../../config/envconfig.js';
@@ -28,6 +29,8 @@ export function getGameToken(loginToken, gameCode) {
     const baseUrl = currentEnv.BASE_DESK_URL;
     const api = '/api/ThirdGame/GetGameUrl';
 
+    console.log(`[BetToken] 租户: ${tenantIdStr} | 前台地址: ${baseUrl}`);
+
     const timeData = getTimeRandom();
     const deviceTypeId = generateCryptoRandomString(32);
     const returnUrl = `${baseUrl}/game/allGames?categoryCode=C202505280608510046&vendorCode=ARLottery`;
@@ -39,7 +42,7 @@ export function getGameToken(loginToken, gameCode) {
         returnUrl: returnUrl,
         deviceType: 'PC',
         deviceTypeId: deviceTypeId,
-        language: timeData.language,
+        language: 'en', // 强制使用 en，避免第三方游戏因不支持小语种（如 ur/bn）报错 "Game requires recharge to enter"
         random: timeData.random,
         signature: '',
         timestamp: timeData.timestamp
@@ -55,13 +58,62 @@ export function getGameToken(loginToken, gameCode) {
         'Authorization': `Bearer ${loginToken}`,
     };
 
+    // 在 GetGameUrl 之前增加 CheckCanBet 请求，失败时重试（充值后余额同步需要时间）
+    const checkApi = '/api/Home/CheckCanBet';
+    const checkPayload = {
+        language: 'en',
+        random: timeData.random,
+        signature: '',
+        timestamp: timeData.timestamp
+    };
+    const signedCheckData = signClient.signData(checkPayload);
+
+    const maxCheckRetries = 3;
+    const checkRetryInterval = 3; // 秒
+    let checkPassed = false;
+
+    for (let checkAttempt = 1; checkAttempt <= maxCheckRetries; checkAttempt++) {
+        const checkResponse = http.post(baseUrl + checkApi, JSON.stringify(signedCheckData), { headers });
+        console.log(`[BetToken] CheckCanBet 第${checkAttempt}次 响应状态: ${checkResponse.status}`);
+        console.log(`[BetToken] CheckCanBet 第${checkAttempt}次 完整响应: ${checkResponse.body}`);
+
+        if (checkResponse.status === 200 && checkResponse.body) {
+            try {
+                const checkResult = JSON.parse(checkResponse.body);
+                if (checkResult.data === true) {
+                    console.log('[BetToken] ✅ CheckCanBet 校验通过');
+                    checkPassed = true;
+                    break;
+                } else {
+                    console.warn(`[BetToken] CheckCanBet 返回 false（第${checkAttempt}/${maxCheckRetries}次），等待 ${checkRetryInterval}s 后重试...`);
+                    if (checkAttempt < maxCheckRetries) {
+                        sleep(checkRetryInterval);
+                    }
+                }
+            } catch (e) {
+                console.error('[BetToken] 解析 CheckCanBet 响应失败:', e.message);
+                break;
+            }
+        } else {
+            console.error('[BetToken] CheckCanBet 请求失败');
+            break;
+        }
+    }
+
+    if (!checkPassed) {
+        console.error('[BetToken] CheckCanBet 多次重试后仍返回 false，无法执行投注操作');
+        return null;
+    }
+
     const response = http.post(baseUrl + api, JSON.stringify(signedData), { headers });
 
+    console.log('[BetToken] GetGameUrl请求URL:', baseUrl + api);
     console.log('[BetToken] GetGameUrl响应状态:', response.status);
 
     if (response.status === 200 && response.body) {
         try {
             const result = JSON.parse(response.body);
+            console.log('[BetToken] GetGameUrl完整响应:', response.body);
             if (result.msgCode === 0 && result.data && result.data.url) {
                 const url = result.data.url;
                 //console.log('[BetToken] 游戏URL:', url);
@@ -97,10 +149,11 @@ export function refreshTokenWithGameList(gameToken, gameBaseUrl) {
 
     const api = '/api/Lottery/GetGameList';
     const lotteryBaseUrl = 'https://sit-lotteryh5.wmgametransit.com';
+    console.log(`[BetToken] 步骤2 请求URL: ${lotteryBaseUrl + api}`);
 
     const timeData = getTimeRandom();
     const params = {
-        language: timeData.language,
+        language: 'en',
         random: timeData.random,
         signature: '',
         timestamp: timeData.timestamp
@@ -123,6 +176,7 @@ export function refreshTokenWithGameList(gameToken, gameBaseUrl) {
     const response = http.get(lotteryBaseUrl + api + '?' + queryString, { headers });
 
     console.log('[BetToken] GetGameList响应状态:', response.status);
+    console.log('[BetToken] GetGameList响应体:', response.body ? response.body.substring(0, 200) : '空');
 
     if (response.status === 200) {
         const authHeader = response.headers['Authorization'] || response.headers['authorization'];
@@ -148,10 +202,11 @@ export function getBalanceAndRefreshToken(currentToken, gameBaseUrl) {
 
     const api = '/api/Lottery/GetBalance';
     const lotteryBaseUrl = 'https://sit-lotteryh5.wmgametransit.com';
+    console.log(`[BetToken] 步骤3 请求URL: ${lotteryBaseUrl + api}`);
 
     const timeData = getTimeRandom();
     const params = {
-        language: timeData.language,
+        language: 'en',
         random: timeData.random,
         signature: '',
         timestamp: timeData.timestamp
@@ -174,6 +229,7 @@ export function getBalanceAndRefreshToken(currentToken, gameBaseUrl) {
     const response = http.get(lotteryBaseUrl + api + '?' + queryString, { headers });
 
     console.log('[BetToken] GetBalance响应状态:', response.status);
+    console.log('[BetToken] GetBalance响应体:', response.body ? response.body.substring(0, 200) : '空');
 
     if (response.status === 200 && response.body) {
         try {

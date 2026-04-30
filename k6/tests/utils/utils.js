@@ -36,15 +36,10 @@ export function randomTwelveK6() {
  */
 export function getTimeRandom() {
   // 优先从环境变量读取语言
-  // 如果环境变量未设置，则根据租户ID自动获取语言配置
   let LANGUAGE = __ENV.LANGUAGE;
 
   if (!LANGUAGE) {
-    // 根据租户ID获取语言配置
-    // 3003使用西班牙语(es)
-    // 3006使用孟加拉语(bn)
-    // 3007使用孟加拉语(bn)
-    // 其他平台使用英语(en)
+    // 根据租户ID从 tenantLanguageConfig 动态获取主语言（数组第一个）
     const tenantId = __ENV.TENANT || __ENV.TENANT_ID || '3004';
     if (tenantId === '3003') {
       LANGUAGE = 'es';
@@ -55,7 +50,7 @@ export function getTimeRandom() {
     }
   }
 
-  const timestamp = Math.floor(Date.now() / 1000); // 当前时间戳（秒级），与 Go 的 time.Now().Unix() 等价
+  const timestamp = Math.floor(Date.now() / 1000);
   const random = randomTwelveK6();
 
   console.log(`[TimeRandom] 生成参数: timestamp=${timestamp}, random=${random}, language=${LANGUAGE}`);

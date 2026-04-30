@@ -41,7 +41,7 @@ export function betWingo(gameCode, amount, betMultiple, betContent, issueNumber,
         amount: amount,
         betMultiple: betMultiple,
         betContent: betContent,
-        language: timeData.language,
+        language: 'en',
         random: timeData.random,
         signature: '',
         timestamp: timeData.timestamp

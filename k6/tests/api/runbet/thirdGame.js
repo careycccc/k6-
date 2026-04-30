@@ -32,7 +32,7 @@ export function getThirdGameUrl(token, gameCode) {
         deviceType: 'PC',
         deviceTypeId: deviceTypeId,
         random: timeData.random,
-        language: timeData.language,
+        language: 'en', // 强制使用 en
         signature: '',
         timestamp: timeData.timestamp
     };
@@ -51,6 +51,35 @@ export function getThirdGameUrl(token, gameCode) {
 
     console.log('[ThirdGame] 请求 URL:', baseUrl + api);
     console.log('[ThirdGame] 请求 payload:', JSON.stringify(signedData));
+
+    // 在 GetGameUrl 之前增加 CheckCanBet 请求
+    const checkApi = '/api/Home/CheckCanBet';
+    const checkPayload = {
+        language: 'en',
+        random: timeData.random,
+        signature: '',
+        timestamp: timeData.timestamp
+    };
+    const signedCheckData = signClient.signData(checkPayload);
+    const checkResponse = http.post(baseUrl + checkApi, JSON.stringify(signedCheckData), { headers });
+    console.log('[ThirdGame] CheckCanBet响应状态:', checkResponse.status);
+    
+    if (checkResponse.status === 200 && checkResponse.body) {
+        try {
+            const checkResult = JSON.parse(checkResponse.body);
+            if (checkResult.data !== true) {
+                console.error('[ThirdGame] CheckCanBet 返回不是 true，无法执行投注操作');
+                return null;
+            }
+            console.log('[ThirdGame] ✅ CheckCanBet 校验通过');
+        } catch (e) {
+            console.error('[ThirdGame] 解析 CheckCanBet 响应失败:', e.message);
+            return null;
+        }
+    } else {
+        console.error('[ThirdGame] CheckCanBet 请求失败');
+        return null;
+    }
 
     const response = http.post(baseUrl + api, JSON.stringify(signedData), {
         headers: headers

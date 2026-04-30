@@ -2,7 +2,7 @@
  * 团队充值和投注测试脚本
  * 
  * 使用方法：
- * k6 run -e TENANT_ID=3004 -e TARGET_UID=137529 k6/tests/api/invite/runTeamRechargeAndBet.test.js
+ * k6 run -e TENANT_ID=3007 -e TARGET_UID=110491 k6/tests/api/invite/runTeamRechargeAndBet.test.js
  * 
  * 环境变量：
  * - TENANT_ID: 租户ID（可选，默认3004）
@@ -77,9 +77,12 @@ export default function (data) {
     console.log(`\n目标用户ID: ${targetUid}`);
     console.log(`充值几率: ${(rechargeChance * 100).toFixed(0)}%\n`);
 
+    const rebateChance = __ENV.REBATE_CHANCE ? parseFloat(__ENV.REBATE_CHANCE) : 0.2;
+
     // 执行团队充值和投注
     runTeamRechargeAndBet(parseInt(targetUid), data, {
         rechargeChance: rechargeChance,
+        rebateChance: rebateChance,
         delayMs: 1000
     });
 }

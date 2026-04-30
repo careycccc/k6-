@@ -7,7 +7,7 @@
  *    k6 run -e TENANT_ID=3003 -e ROOT_INVITE_CODE=TQNA5XN -e LEVELS=4,5,3,5,4 k6/tests/api/invite/runInviteByTenant.test.js
  * 
  * 2. 或者在 tenantConfig.js 中配置租户信息后直接运行：
- *    k6 run -e TENANT_ID=3007 -e ROOT_INVITE_CODE=99UYYYN -e LEVELS=1,2,2,5,6 runInviteByTenant.test.js
+ *    k6 run -e TENANT_ID=3007 -e ROOT_INVITE_CODE=XYX46DN -e LEVELS=1 runInviteByTenant.test.js
  * 
  * 3. 不指定租户ID时使用默认租户3004：
  *    k6 run k6/tests/api/invite/runInviteByTenant.test.js

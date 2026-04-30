@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 多级返佣流程测试
  * 
  * 测试场景：
@@ -43,7 +43,7 @@ import { getAgentHierarchyList } from '../invite/agentApi.js';
 import { runMultiLevelInvite, runMultiLevelInviteV2 } from '../invite/inviteService.js';
 import { runTeamRechargeAndBet, runTeamRechargeAndBetV2 } from '../invite/teamRechargeAndBet.js';
 import { bundEarn } from './bundearn.test.js';
-import { getEnvByTenantId } from '../../../config/envconfig.js';
+import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
 import { snapshotL1Members, runAgentL3ValidationWithOriginalTeam } from '../agentL3/agentL3Validation.js';
 
 /**
@@ -121,15 +121,28 @@ function registerRootAgent(adminData, teamName) {
     const phone = generateRandomPhone(countryCode);
     console.log(`[${teamName}] 生成手机号: ${phone} (区号: ${countryCode})`);
 
-    // 使用邀请注册的接口来注册总代，只是邀请码传空字符串
-    // 很多租户关闭了常规注册(codeType=1)，只开放邀请注册(codeType=19)
-    const customUrls = {
-        frontUrl: adminData.envConfig.INVITE_REGISTER_URL || adminData.envConfig.BASE_DESK_URL,
+    // 策略1：优先用普通注册 (codeType=1) via BASE_DESK_URL
+    // BASE_DESK_URL 的 SMS 通道稳定，且总代注册不需要邀请码
+    const deskUrls = {
+        frontUrl: adminData.envConfig.BASE_DESK_URL,
         adminUrl: adminData.envConfig.BASE_ADMIN_URL,
-        registerUrl: adminData.envConfig.INVITE_REGISTER_URL || adminData.envConfig.BASE_DESK_URL
+        registerUrl: adminData.envConfig.BASE_DESK_URL
     };
 
-    const registerResult = phoneRegisterByInvite(phone, '', adminData, 'qwer1234', '', customUrls);
+    console.log(`[${teamName}] 策略1: 普通注册 (codeType=1) via ${deskUrls.frontUrl}`);
+    let registerResult = phoneRegister(phone, adminData, 'qwer1234', '', null);
+
+    // 策略2：如果普通注册失败（租户关闭了 codeType=1），降级到邀请注册域名
+    if (!registerResult || !registerResult.data) {
+        const inviteUrl = adminData.envConfig.INVITE_REGISTER_URL || adminData.envConfig.BASE_DESK_URL;
+        const inviteUrls = {
+            frontUrl: inviteUrl,
+            adminUrl: adminData.envConfig.BASE_ADMIN_URL,
+            registerUrl: inviteUrl
+        };
+        console.log(`[${teamName}] 策略2: 邀请注册域名 (codeType=19) via ${inviteUrl}`);
+        registerResult = phoneRegisterByInvite(phone, '', adminData, 'qwer1234', '', inviteUrls);
+    }
 
     if (!registerResult || !registerResult.data) {
         throw new Error(`[${teamName}] 总代注册失败`);
@@ -201,16 +214,16 @@ async function executeMultiLevelInvite(rootInviteCode, levels, adminData, withRe
         registerApiUrl: null
     };
 
-    const { mode = 'default', inactiveRate = 0.2, rechargeOnlyRate = 0.2 } = v2Rates;
+    const { mode = 'default', inactiveRate = 0.2, rechargeOnlyRate = 0.2, rebateChance = 0.2 } = v2Rates;
 
     if (withRecharge && mode === 'v2') {
-        console.log(`[${teamName}] 使用 V2 三段式分层: 不活跃=${(inactiveRate*100).toFixed(0)}% | 只充值=${(rechargeOnlyRate*100).toFixed(0)}% | 充值+投注=${((1-inactiveRate-rechargeOnlyRate)*100).toFixed(0)}%`);
+        console.log(`[${teamName}] 使用 V2 三段式分层: 不活跃=${(inactiveRate*100).toFixed(0)}% | 只充值=${(rechargeOnlyRate*100).toFixed(0)}% | 充值+投注=${((1-inactiveRate-rechargeOnlyRate)*100).toFixed(0)}% | 返佣几率=${(rebateChance*100).toFixed(0)}%`);
         await runMultiLevelInviteV2(
             rootInviteCode,
             levels,
             adminData,
             tenantConfig,
-            { inactiveRate, rechargeOnlyRate }
+            { inactiveRate, rechargeOnlyRate, rebateChance }
         );
     } else {
         await runMultiLevelInvite(
@@ -218,7 +231,8 @@ async function executeMultiLevelInvite(rootInviteCode, levels, adminData, withRe
             levels,
             adminData,
             tenantConfig,
-            withRecharge
+            withRecharge,
+            rebateChance
         );
     }
 
@@ -333,21 +347,21 @@ function executeTeamRechargeAndBet(adminToken, targetUserId, teamName, rechargeC
     console.log(`[${teamName}] 目标用户ID: ${targetUserId}`);
 
     const adminData = { token: adminToken };
-    const { mode = 'default', inactiveRate = 0.2, rechargeOnlyRate = 0.2 } = v2Rates;
+    const { mode = 'default', inactiveRate = 0.2, rechargeOnlyRate = 0.2, rebateChance = 0.2 } = v2Rates;
 
     let stats;
     if (mode === 'v2') {
-        console.log(`[${teamName}] 使用 V2 三段式分层: 不活跃=${(inactiveRate*100).toFixed(0)}% | 只充值=${(rechargeOnlyRate*100).toFixed(0)}% | 充值+投注=${((1-inactiveRate-rechargeOnlyRate)*100).toFixed(0)}%`);
+        console.log(`[${teamName}] 使用 V2 三段式分层: 不活跃=${(inactiveRate*100).toFixed(0)}% | 只充值=${(rechargeOnlyRate*100).toFixed(0)}% | 充值+投注=${((1-inactiveRate-rechargeOnlyRate)*100).toFixed(0)}% | 返佣几率=${(rebateChance*100).toFixed(0)}%`);
         stats = runTeamRechargeAndBetV2(targetUserId, adminData, {
             inactiveRate,
             rechargeOnlyRate,
-            rebateChance: 0.2,
+            rebateChance,
             delayMs: 1000
         });
     } else {
         stats = runTeamRechargeAndBet(targetUserId, adminData, {
             rechargeChance,
-            rebateChance: 0.2,
+            rebateChance,
             delayMs: 1000
         });
     }
@@ -375,6 +389,14 @@ export function setup() {
     // 获取环境配置
     const tenantId = __ENV.TENANT_ID || __ENV.TENANT || '3004';
     const envConfig = getEnvByTenantId(tenantId);
+
+    // 切换全局 ENV_CONFIG（影响 inviteService、teamRechargeAndBet 等内部模块）
+    if (tenantId !== '3004') {
+        Object.assign(ENV_CONFIG, envConfig);
+        console.log(`[Setup] 已切换到租户 ${tenantId} 的环境配置`);
+        console.log(`[Setup]   前台地址: ${ENV_CONFIG.BASE_DESK_URL}`);
+        console.log(`[Setup]   后台地址: ${ENV_CONFIG.BASE_ADMIN_URL}`);
+    }
 
     return {
         token: adminToken,
@@ -407,6 +429,16 @@ export default async function (data) {
     console.log('🚀 多级返佣流程测试开始');
     console.log('='.repeat(80) + '\n');
 
+    // VU 阶段重新切换租户环境（k6 VU 会重新加载模块，ENV_CONFIG 会恢复默认值）
+    const tenantId = __ENV.TENANT_ID || __ENV.TENANT || '3004';
+    if (tenantId !== '3004') {
+        const envConfig = getEnvByTenantId(tenantId);
+        Object.assign(ENV_CONFIG, envConfig);
+        console.log(`[VU] 重新切换到租户 ${tenantId} 的环境配置`);
+        console.log(`[VU]   前台地址: ${ENV_CONFIG.BASE_DESK_URL}`);
+        console.log(`[VU]   后台地址: ${ENV_CONFIG.BASE_ADMIN_URL}`);
+    }
+
     // ========== 公共参数解析 ==========
     const team1Total  = parseInt(__ENV.TEAM1_TOTAL  || '50', 10);
     const team1Levels = parseInt(__ENV.TEAM1_LEVELS || '4',  10);
@@ -415,21 +447,24 @@ export default async function (data) {
     const rebateMode  = __ENV.REBATE_MODE || 'mode1';
 
     // 全局 V2 比例（两个团队共用，也可通过 TEAM1_/TEAM2_ 前缀单独覆盖）
-    const globalInactive     = parseFloat(__ENV.INACTIVE_RATE      || '0.2');
-    const globalRechargeOnly = parseFloat(__ENV.RECHARGE_ONLY_RATE || '0.2');
+    const globalInactive      = parseFloat(__ENV.INACTIVE_RATE      || '0.2');
+    const globalRechargeOnly  = parseFloat(__ENV.RECHARGE_ONLY_RATE || '0.2');
+    const globalRebateChance  = parseFloat(__ENV.REBATE_CHANCE      || '0.2');
 
     const v2A = {
         mode            : 'v2',
         inactiveRate    : parseFloat(__ENV.TEAM1_INACTIVE_RATE      || globalInactive),
-        rechargeOnlyRate: parseFloat(__ENV.TEAM1_RECHARGE_ONLY_RATE || globalRechargeOnly)
+        rechargeOnlyRate: parseFloat(__ENV.TEAM1_RECHARGE_ONLY_RATE || globalRechargeOnly),
+        rebateChance    : globalRebateChance
     };
     const v2B = {
         mode            : 'v2',
         inactiveRate    : parseFloat(__ENV.TEAM2_INACTIVE_RATE      || globalInactive),
-        rechargeOnlyRate: parseFloat(__ENV.TEAM2_RECHARGE_ONLY_RATE || globalRechargeOnly)
+        rechargeOnlyRate: parseFloat(__ENV.TEAM2_RECHARGE_ONLY_RATE || globalRechargeOnly),
+        rebateChance    : globalRebateChance
     };
-    const full     = { mode: 'default' };
-    const recharge = { mode: 'recharge' };  // 只充值不投注（见 executeAction 内部处理）
+    const full     = { mode: 'default', rebateChance: globalRebateChance };
+    const recharge = { mode: 'recharge', rebateChance: globalRebateChance };  // 只充值不投注（见 executeAction 内部处理）
     const none     = null;                  // 不做任何操作
 
     const team1Distribution = distributePeople(team1Total, team1Levels);
@@ -454,11 +489,16 @@ export default async function (data) {
         const withRecharge = actionMode !== null && actionMode !== none;
         // recharge 模式：注册时不投注，后续单独处理
         const doFullInvite = actionMode && actionMode.mode !== 'recharge';
-        await executeMultiLevelInvite(root.inviteCode, distribution, data, withRecharge && doFullInvite, teamName, actionMode || {});
+        // 如果没有下级需要注册，直接跳过邀请流程，只保留总代
+        if (distribution && distribution.length > 0) {
+            await executeMultiLevelInvite(root.inviteCode, distribution, data, withRecharge && doFullInvite, teamName, actionMode || {});
+        }
 
         // recharge 模式：只充值不投注，借用 rechargeOnly V2（100% 只充值）
         if (actionMode && actionMode.mode === 'recharge') {
-            await executeMultiLevelInvite(root.inviteCode, distribution, data, false, teamName, {});
+            if (distribution && distribution.length > 0) {
+                await executeMultiLevelInvite(root.inviteCode, distribution, data, false, teamName, {});
+            }
             executeTeamRechargeAndBet(data.token, root.userId, teamName, 1.0, {
                 mode: 'v2', inactiveRate: 0, rechargeOnlyRate: 1.0  // 100% 只充值
             });

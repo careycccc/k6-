@@ -57,9 +57,7 @@
 验证：A的历史充投记录在成员换组后，B的新充投返佣归属是否正确。
 
 ```bash
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
-  -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 \
-  multiLevelRebate.test.js
+k6 run -e TENANT_ID=3007 -e TEAM1_TOTAL=1 -e TEAM1_LEVELS=0 -e TEAM2_TOTAL=0 -e TEAM2_LEVELS=0  multiLevelRebate.test.js
 ```
 
 ---
@@ -89,9 +87,7 @@ k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
 验证：充值但未投注的成员换组后，投注发生在新团队，返佣应归新团队。
 
 ```bash
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
-  -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 \
-  -e REBATE_MODE=mode3 multiLevelRebate.test.js
+k6 run -e TENANT_ID=3007 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 -e REBATE_MODE=mode3 multiLevelRebate.test.js
 ```
 
 ---
@@ -273,12 +269,7 @@ k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
   multiLevelRebate.test.js
 
 # 两个团队使用不同的V2比例
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
-  -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 \
-  -e REBATE_MODE=mode14 \
-  -e TEAM1_INACTIVE_RATE=0.3 -e TEAM1_RECHARGE_ONLY_RATE=0.1 \
-  -e TEAM2_INACTIVE_RATE=0.1 -e TEAM2_RECHARGE_ONLY_RATE=0.3 \
-  multiLevelRebate.test.js
+k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=35 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=25 -e TEAM2_LEVELS=3 -e REBATE_MODE=mode14 -e TEAM1_INACTIVE_RATE=0.3 -e TEAM1_RECHARGE_ONLY_RATE=0.1 -e TEAM2_INACTIVE_RATE=0.1 -e TEAM2_RECHARGE_ONLY_RATE=0.3   multiLevelRebate.test.js
 ```
 
 ---

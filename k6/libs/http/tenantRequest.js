@@ -41,11 +41,12 @@ export function tenantRequest(api, payload = {}, options = {}) {
     console.log(`[TenantRequest] 原始payload: ${JSON.stringify(payload, null, 2)}`);
 
     // 添加时间戳、随机数、签名
+    // 注意：payload 中已有 language 时优先使用（支持多语言降级重试），否则使用 getTimeRandom 的随机语言
     const timeData = getTimeRandom();
     const requestData = {
         ...payload,
         random: timeData.random,
-        language: timeData.language,
+        language: payload.language !== undefined ? payload.language : timeData.language,
         timestamp: timeData.timestamp
     };
 

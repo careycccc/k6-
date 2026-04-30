@@ -3,6 +3,7 @@ import http from 'k6/http';
 import { tenantRequest, tenantQueryRequest } from '../../../libs/http/tenantRequest.js';
 import { SignedHttpClient } from '../../../libs/utils/signature.js';
 import { getTimeRandom } from '../../utils/utils.js';
+import { getTenantVerifyCodeLanguages } from '../../../config/tenantLanguageConfig.js';
 
 /**
  * 发送验证码
@@ -10,26 +11,25 @@ import { getTimeRandom } from '../../utils/utils.js';
  * @param {string} userName 手机号码或邮箱
  * @param {number} codeType 验证码类型 19=邀请注册手机 20=邀请注册邮箱
  * @param {string} customFrontUrl - 自定义前台域名（邀请注册时传入专用域名）
+ * @param {string} [language] - 指定语言（不传则从 getTimeRandom 获取）
  * @returns {object} 响应结果
  */
-export function sendVerificationCode(verifyCodeType, userName, codeType, customFrontUrl = null) {
+export function sendVerificationCode(verifyCodeType, userName, codeType, customFrontUrl = null, language = null) {
   console.log(`[SendVerificationCode] 发送验证码请求: ${userName}, verifyCodeType: ${verifyCodeType}, codeType: ${codeType}`);
   console.log(`[SendVerificationCode] customFrontUrl: ${customFrontUrl || '使用默认前台域名'}`);
 
   let response;
 
   if (customFrontUrl) {
-    // 使用自定义域名（邀请注册专用域名）直接发送
     const url = `${customFrontUrl}/api/Home/SendVerifiyCode`;
     console.log(`[SendVerificationCode] 使用自定义域名发送: ${url}`);
 
     const timeData = getTimeRandom();
 
-    // 如果是邀请注册验证码（codeType 19或20），强制使用英语避免模板缺失
-    let language = timeData.language;
-    if (codeType === 19 || codeType === 20) {
-      language = 'en';
-      console.log(`[SendVerificationCode] 邀请注册场景，强制使用英语语言: ${language}`);
+    // 语言优先级：外部传入 > getTimeRandom 随机
+    let lang = language || timeData.language;
+    if (language) {
+      console.log(`[SendVerificationCode] 使用指定语言: ${lang}`);
     }
 
     const payload = {
@@ -37,7 +37,7 @@ export function sendVerificationCode(verifyCodeType, userName, codeType, customF
       phoneOrEmail: userName,
       codeType: codeType,
       random: timeData.random,
-      language: language,
+      language: lang,
       timestamp: timeData.timestamp
     };
 
@@ -70,19 +70,23 @@ export function sendVerificationCode(verifyCodeType, userName, codeType, customF
     console.log(`[SendVerificationCode] 响应msg: ${msg}`);
 
     if (msgCode === 0) {
-      console.log(`[SendVerificationCode] ✅ 验证码发送成功: ${userName}`);
+      console.log(`[SendVerificationCode] ✅ 验证码发送成功: ${userName} (language=${lang})`);
     } else {
-      console.error(`[SendVerificationCode] ❌ 验证码发送失败: ${userName}, code=${msgCode}, msg=${msg}`);
+      console.error(`[SendVerificationCode] ❌ 验证码发送失败: ${userName}, code=${msgCode}, msg=${msg} (language=${lang})`);
     }
 
     return parsedBody;
   }
 
   // 无自定义域名：走原来的 tenantRequest 逻辑
+  const timeData = getTimeRandom();
+  const lang = language || timeData.language;
+
   response = tenantRequest('/api/Home/SendVerifiyCode', {
     verifyCodeType: verifyCodeType,
     phoneOrEmail: userName,
-    codeType: codeType
+    codeType: codeType,
+    language: lang
   }, {
     isDesk: true
   });
@@ -93,9 +97,9 @@ export function sendVerificationCode(verifyCodeType, userName, codeType, customF
   console.log(`[SendVerificationCode] 完整响应体: ${JSON.stringify(response.raw)}`);
 
   if (response.msgCode === 0) {
-    console.log(`[SendVerificationCode] ✅ 验证码发送成功: ${userName}`);
+    console.log(`[SendVerificationCode] ✅ 验证码发送成功: ${userName} (language=${lang})`);
   } else {
-    console.error(`[SendVerificationCode] ❌ 验证码发送失败: ${userName}, code=${response.msgCode}, msg=${response.msg}`);
+    console.error(`[SendVerificationCode] ❌ 验证码发送失败: ${userName}, code=${response.msgCode}, msg=${response.msg} (language=${lang})`);
   }
 
   return response.raw;
@@ -170,56 +174,82 @@ export function getVerificationCode(userName, adminToken, expectedCodeType = nul
 }
 
 /**
- * 发送并获取验证码
- * @param {number} verifyCodeType 
- * @param {number} codeType 验证码类型 18是登录验证 1是注册验证. 2是邮箱验证
+ * 发送并获取验证码（支持多语言降级重试）
+ *
+ * 语言优先级从 TENANT_VERIFYCODE_LANGUAGES 读取，按顺序逐个尝试：
+ *   - 某个语言发送成功 → 继续获取验证码
+ *   - 某个语言发送失败 → 自动切换下一个语言重试
+ *   - 全部语言失败 → 返回 null（真正的错误）
+ *
+ * @param {number} verifyCodeType
+ * @param {number} codeType 验证码类型 18=登录 1=注册 2=邮箱验证
  * @param {string} userName 手机号码或邮箱
- * @param {string} adminToken 后台登录 token（必须从外部传入）
- * @param {string} customFrontUrl - 自定义前台域名（可选，用于多租户发送验证码）
- * @param {string} customAdminUrl - 自定义后台域名（可选，用于多租户查询验证码）
+ * @param {string} adminToken 后台登录 token
+ * @param {string} customFrontUrl - 自定义前台域名（可选）
+ * @param {string} customAdminUrl - 自定义后台域名（可选）
  * @returns {string|null} 验证码
  */
 export function sendToGetVerCode(verifyCodeType, codeType, userName, adminToken, customFrontUrl = null, customAdminUrl = null) {
   console.log(`[SendVerifyCode] 发送验证码: ${userName}, codeType: ${codeType}`);
-
-  const sendResponse = sendVerificationCode(verifyCodeType, userName, codeType, customFrontUrl);
 
   if (!adminToken) {
     console.error('[SendVerifyCode] 后台登录失败，无法获取验证码：adminToken 为空');
     return null;
   }
 
-  // 检查发送响应
-  if (!sendResponse) {
-    console.error(`[SendVerifyCode] 验证码发送失败，接口无响应或返回非JSON格式(可能是502/503报错)`);
-    return null;
-  }
-  
-  const sendCode = sendResponse.code !== undefined ? sendResponse.code : sendResponse.msgCode;
-  if (sendCode !== 0) {
-    console.error(`[SendVerifyCode] 验证码发送失败，无法继续: code=${sendCode}, msg=${sendResponse.msg}`);
-    return null;
-  }
+  // 获取当前租户的验证码语言优先级列表
+  const tenantId = typeof __ENV !== 'undefined' ? __ENV.TENANT_ID : null;
+  const langList = getTenantVerifyCodeLanguages(tenantId);
+  console.log(`[SendVerifyCode] 租户 ${tenantId || 'default'} 验证码语言优先级: [${langList.join(', ')}]`);
 
-  // 等待验证码生成（2秒）
-  console.log('[SendVerifyCode] 等待验证码生成（2秒）...');
-  sleep(2);
+  for (let i = 0; i < langList.length; i++) {
+    const lang = langList[i];
+    const isLastLang = i === langList.length - 1;
 
-  // 获取验证码（带重试机制）
-  let verificationCode = getVerificationCode(userName, adminToken, codeType, customAdminUrl);
+    console.log(`[SendVerifyCode] 尝试语言 [${i + 1}/${langList.length}]: ${lang}`);
 
-  // 如果第一次没获取到，再等待2秒重试一次
-  if (!verificationCode) {
-    console.log('[SendVerifyCode] 第一次未获取到验证码，等待2秒后重试...');
+    const sendResponse = sendVerificationCode(verifyCodeType, userName, codeType, customFrontUrl, lang);
+
+    if (!sendResponse) {
+      console.error(`[SendVerifyCode] language=${lang}: 接口无响应或返回非JSON格式`);
+      if (!isLastLang) {
+        console.warn(`[SendVerifyCode] 切换到下一个语言重试...`);
+        continue;
+      }
+      return null;
+    }
+
+    const sendCode = sendResponse.code !== undefined ? sendResponse.code : sendResponse.msgCode;
+    if (sendCode !== 0) {
+      console.warn(`[SendVerifyCode] language=${lang} 发送失败: code=${sendCode}, msg=${sendResponse.msg}`);
+      if (!isLastLang) {
+        console.warn(`[SendVerifyCode] 切换到下一个语言重试...`);
+        continue;
+      }
+      console.error(`[SendVerifyCode] ❌ 所有语言均发送失败，真正的错误: ${userName}`);
+      return null;
+    }
+
+    // 发送成功，等待验证码生成
+    console.log(`[SendVerifyCode] language=${lang} 发送成功，等待验证码生成（2秒）...`);
     sleep(2);
-    verificationCode = getVerificationCode(userName, adminToken, codeType, customAdminUrl);
+
+    let verificationCode = getVerificationCode(userName, adminToken, codeType, customAdminUrl);
+
+    if (!verificationCode) {
+      console.log('[SendVerifyCode] 第一次未获取到验证码，等待2秒后重试...');
+      sleep(2);
+      verificationCode = getVerificationCode(userName, adminToken, codeType, customAdminUrl);
+    }
+
+    if (!verificationCode) {
+      console.error(`[SendVerifyCode] ❌ 获取验证码失败: ${userName}`);
+      return null;
+    }
+
+    console.log(`[SendVerifyCode] ✅ 验证码获取成功: ${userName} -> ${verificationCode} (language=${lang})`);
+    return verificationCode;
   }
 
-  if (!verificationCode) {
-    console.error(`[SendVerifyCode] ❌ 获取验证码失败: ${userName}`);
-    return null;
-  }
-
-  console.log(`[SendVerifyCode] ✅ 验证码获取成功: ${userName} -> ${verificationCode}`);
-  return verificationCode;
+  return null;
 }

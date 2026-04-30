@@ -38,7 +38,9 @@ export function loginExec() {
 // k6 run -e TENANT_ID=3002 -e UNBIND_UID=5945198 -e BIND_INVITE_CODE=NP672GN runSixearn.js
 
 // 进行前后台一起的验证逻辑
-// k6 run -e TENANT_ID=3007 -e TARGET_UID=135833 -e ACTION=verifyPromotion runSixearn.js
+// k6 run -e TENANT_ID=3007 -e TARGET_UID=110610 -e ACTION=verifyPromotion runSixearn.js
+
+// k6 run -e TENANT_ID=3007 -e TARGET_UID=110610  runSixearn.js
 
 
 // ============================================================
