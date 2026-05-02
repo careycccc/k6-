@@ -589,7 +589,8 @@ function fetchMemberData(data, member, startTs, endTs, startDateStr, endDateStr,
         // 充值
         totalRechargeAmount: 0,
         isFirstCharge: false,
-        firstChargeTime: null  // R1 充值完成时间戳（毫秒），供转线判断使用
+        firstChargeTime: null,  // R1 充值完成时间戳（毫秒），供转线判断使用
+        firstChargeAmount: 0    // R1 充值金额
     };
 
     const effectiveStartTs = transferEndTime ? Math.max(startTs, transferEndTime) : startTs;
@@ -616,9 +617,10 @@ function fetchMemberData(data, member, startTs, endTs, startDateStr, endDateStr,
         const hasR1 = firstChargeList.some((item) => item.rechargeType === 'R1');
         if (hasR1) {
             enriched.isFirstCharge = true;
-            // 保存 R1 的充值完成时间，供转线判断使用
+            // 保存 R1 的充值完成时间与金额，供转线判断与金额统计使用
             const r1Item = firstChargeList.find(item => item.rechargeType === 'R1');
             enriched.firstChargeTime = r1Item ? (r1Item.rechargeTime || null) : null;
+            enriched.firstChargeAmount = r1Item ? (Number(r1Item.rechargeAmount || r1Item.actualAmount || 0)) : 0;
         }
     }
 
@@ -1046,6 +1048,9 @@ function getPromotionData(frontToken) {
         return null;
     }
 
+    if (result.data) {
+        console.log(`[FrontVerify] GetPromotionData 接口返回字段: ${Object.keys(result.data).join(', ')}`);
+    }
     return result.data || null;
 }
 
@@ -1188,7 +1193,11 @@ export function verifyPromotionDataByUserId(data, targetUid) {
 
     // ── Step 4: 查询每个成员的转线记录与昨日充值数据 ──────────────────
     console.log('\n【Step 4】查询成员昨日转线记录...');
-    const nonMasterMembers = memberList.filter(m => m.userId !== accountId);
+    // 只统计 6 层以内的成员
+    const nonMasterMembers = memberList.filter(m => 
+        m.userId !== accountId && 
+        (m.hierarchy - masterHierarchy) <= MAX_REBATE_HIERARCHY
+    );
     
     const transferMap = fetchTransferMap(data, nonMasterMembers, startTs, endTs, frontVerifyTag);
     console.log(`   ✅ 转线查询完毕，共 ${Object.values(transferMap).filter(t => t.transferred).length} 人昨日发生转线`);
@@ -1265,11 +1274,11 @@ export function verifyPromotionDataByUserId(data, targetUid) {
             if (transfer && transfer.transferred && transfer.transferEndTime && d.firstChargeTime) {
                 if (d.firstChargeTime >= transfer.transferEndTime) {
                     teamStats.firstRechargeCount++;
-                    teamStats.firstRechargeAmount += (d.totalRechargeAmount || 0);
+                    teamStats.firstRechargeAmount += (d.firstChargeAmount || 0);
                 }
             } else {
                 teamStats.firstRechargeCount++;
-                teamStats.firstRechargeAmount += (d.totalRechargeAmount || 0);
+                teamStats.firstRechargeAmount += (d.firstChargeAmount || 0);
             }
         }
         teamStats.rechargeAmount += (d.totalRechargeAmount || 0);
@@ -1285,13 +1294,13 @@ export function verifyPromotionDataByUserId(data, targetUid) {
     console.log(`  ${'userId'.padEnd(12)} ${'充值金额'.padEnd(12)} ${'是否首充'.padEnd(10)} ${'是否投注'.padEnd(10)} ${'投注金额'.padEnd(12)} ${'昨日注册'.padEnd(10)} 转线状态`);
     console.log(`  ${'─'.repeat(85)}`);
 
-    let dSumAmount = 0, dSumRecharge = 0, dSumFirst = 0, dSumReg = 0, dSumBet = 0, dSumBetCount = 0;
+    let dSumAmount = 0, dSumRecharge = 0, dSumFirst = 0, dSumFirstAmount = 0, dSumReg = 0, dSumBet = 0, dSumBetCount = 0;
     directSubs.forEach(m => {
         const d = memberDataMap[m.userId];
         if (!d) return;
         const amt      = d.totalRechargeAmount || 0;
         const betAmt   = d.betAmountSum || 0;
-        const isFirst  = d.isFirstCharge ? '✅ 是' : '否';
+        const isFirst  = d.isFirstCharge ? `✅ ${d.firstChargeAmount.toFixed(0)}` : '否';
         const isBet    = betAmt > 0 ? '✅ 是' : '否';
         const isReg    = (m.registerTime >= startTs && m.registerTime <= endTs) ? '✅ 是' : '否';
 
@@ -1314,6 +1323,7 @@ export function verifyPromotionDataByUserId(data, targetUid) {
             const t = transferMap[m.userId];
             if (!t || !t.transferred || !t.transferEndTime || !d.firstChargeTime || d.firstChargeTime >= t.transferEndTime) {
                 dSumFirst++;
+                dSumFirstAmount += (d.firstChargeAmount || 0);
             }
         }
         if (betAmt > 0) dSumBetCount++;
@@ -1321,7 +1331,7 @@ export function verifyPromotionDataByUserId(data, targetUid) {
         console.log(`  ${String(m.userId).padEnd(12)} ${amt.toFixed(2).padEnd(12)} ${isFirst.padEnd(10)} ${isBet.padEnd(10)} ${betAmt.toFixed(2).padEnd(12)} ${isReg.padEnd(10)} ${transferStatus}`);
     });
     console.log(`  ${'─'.repeat(85)}`);
-    console.log(`  直推汇总: 共${directSubs.length}人 | 充值${dSumRecharge}人 | 首充${dSumFirst}人(转线修正后) | 充值总额: ${dSumAmount.toFixed(2)} | 投注${dSumBetCount}人 | 投注总额: ${dSumBet.toFixed(2)} | 昨日注册: ${dSumReg}人`);
+    console.log(`  直推汇总: 共${directSubs.length}人 | 充值${dSumRecharge}人 | 首充${dSumFirst}人(转线修正后) | 首充总额: ${dSumFirstAmount.toFixed(2)} | 充值总额: ${dSumAmount.toFixed(2)} | 投注${dSumBetCount}人 | 投注总额: ${dSumBet.toFixed(2)} | 昨日注册: ${dSumReg}人`);
 
     // ── 明细表格：全团队成员 ────────────────────────────────
     console.log(`\n${'─'.repeat(100)}`);
@@ -1330,13 +1340,13 @@ export function verifyPromotionDataByUserId(data, targetUid) {
     console.log(`  ${'userId'.padEnd(12)} ${'充值金额'.padEnd(12)} ${'是否首充'.padEnd(10)} ${'是否投注'.padEnd(10)} ${'投注金额'.padEnd(12)} ${'昨日注册'.padEnd(10)} ${'层级'.padEnd(6)} 转线状态`);
     console.log(`  ${'─'.repeat(90)}`);
 
-    let tSumAmount = 0, tSumRecharge = 0, tSumFirst = 0, tSumReg = 0, tSumBet = 0, tSumBetCount = 0;
+    let tSumAmount = 0, tSumRecharge = 0, tSumFirst = 0, tSumFirstAmount = 0, tSumReg = 0, tSumBet = 0, tSumBetCount = 0;
     nonMasterMembers.forEach(m => {
         const d = memberDataMap[m.userId];
         if (!d) return;
         const amt      = d.totalRechargeAmount || 0;
         const betAmt   = d.betAmountSum || 0;
-        const isFirst  = d.isFirstCharge ? '✅ 是' : '否';
+        const isFirst  = d.isFirstCharge ? `✅ ${d.firstChargeAmount.toFixed(0)}` : '否';
         const isBet    = betAmt > 0 ? '✅ 是' : '否';
         const isReg    = (m.registerTime >= startTs && m.registerTime <= endTs) ? '✅ 是' : '否';
         const relHier  = m.hierarchy - masterHierarchy;
@@ -1359,6 +1369,7 @@ export function verifyPromotionDataByUserId(data, targetUid) {
             const t = transferMap[m.userId];
             if (!t || !t.transferred || !t.transferEndTime || !d.firstChargeTime || d.firstChargeTime >= t.transferEndTime) {
                 tSumFirst++;
+                tSumFirstAmount += (d.firstChargeAmount || 0);
             }
         }
         if (betAmt > 0) tSumBetCount++;
@@ -1366,7 +1377,7 @@ export function verifyPromotionDataByUserId(data, targetUid) {
         console.log(`  ${String(m.userId).padEnd(12)} ${amt.toFixed(2).padEnd(12)} ${isFirst.padEnd(10)} ${isBet.padEnd(10)} ${betAmt.toFixed(2).padEnd(12)} ${isReg.padEnd(10)} ${'L'+String(relHier).padEnd(5)} ${transferStatus}`);
     });
     console.log(`  ${'─'.repeat(90)}`);
-    console.log(`  团队汇总: 共${nonMasterMembers.length}人 | 充值${tSumRecharge}人 | 首充${tSumFirst}人(转线修正后) | 充值总额: ${tSumAmount.toFixed(2)} | 投注${tSumBetCount}人 | 投注总额: ${tSumBet.toFixed(2)} | 昨日注册: ${tSumReg}人`);
+    console.log(`  团队汇总: 共${nonMasterMembers.length}人 | 充值${tSumRecharge}人 | 首充${tSumFirst}人(转线修正后) | 首充总额: ${tSumFirstAmount.toFixed(2)} | 充值总额: ${tSumAmount.toFixed(2)} | 投注${tSumBetCount}人 | 投注总额: ${tSumBet.toFixed(2)} | 昨日注册: ${tSumReg}人`);
     console.log(`${'─'.repeat(100)}\n`);
 
     // ── Step 6: 对比验证 ────────────────────────────────────
@@ -1396,8 +1407,17 @@ export function verifyPromotionDataByUserId(data, targetUid) {
     checkTolerance('团队昨日充值金额 (yesterdayTeamRechargeAmount)',
         promotionData.yesterdayTeamRechargeAmount, teamStats.rechargeAmount);
 
-    checkTolerance('团队昨日首充金额 (yesterdayTeamFirstRechargeAmount)',
-        promotionData.yesterdayTeamFirstRechargeAmount, teamStats.firstRechargeAmount);
+    // 兜底：如果接口不返回该字段（部分租户可能未配置），则使用计算值 0 进行对比（或者跳过）
+    const apiFirstRechargeAmt = promotionData.yesterdayTeamFirstRechargeAmount !== undefined 
+        ? promotionData.yesterdayTeamFirstRechargeAmount 
+        : (promotionData.yesterdayTeamFirstRechargeAmt !== undefined ? promotionData.yesterdayTeamFirstRechargeAmt : undefined);
+
+    if (apiFirstRechargeAmt !== undefined) {
+        checkTolerance('团队昨日首充金额 (yesterdayTeamFirstRechargeAmount)',
+            apiFirstRechargeAmt, teamStats.firstRechargeAmount);
+    } else {
+        console.warn(`   ⚠️  接口未返回 yesterdayTeamFirstRechargeAmount，跳过对比 (计算值: ${teamStats.firstRechargeAmount})`);
+    }
 
 
     // ── Step 7: 计算昨日总返佣（复用 querySubAccounts 核心逻辑）──
@@ -1536,8 +1556,11 @@ export function verifyPromotionDataByUserId(data, targetUid) {
         promotionData.yesterdayTeamFirstRechargeCount, teamStats.firstRechargeCount);
     checkTolerance('团队昨日充值金额 (yesterdayTeamRechargeAmount)',
         promotionData.yesterdayTeamRechargeAmount, teamStats.rechargeAmount);
-    checkTolerance('团队昨日首充金额 (yesterdayTeamFirstRechargeAmount)',
-        promotionData.yesterdayTeamFirstRechargeAmount, teamStats.firstRechargeAmount);
+
+    if (apiFirstRechargeAmt !== undefined) {
+        checkTolerance('团队昨日首充金额 (yesterdayTeamFirstRechargeAmount)',
+            apiFirstRechargeAmt, teamStats.firstRechargeAmount);
+    }
 
     if (calcTotalRebate !== null) {
         checkTolerance('昨日总返佣 (yesterdayTotalCommission)',

@@ -12,6 +12,51 @@ import { hybridRecharge, getConfigRechargeAmount } from '../recharge/rechargeSer
 import { ENV_CONFIG, getEnvByTenantId } from '../../../config/envconfig.js';
 import { updateUserAgentRebateMode } from './agentApi.js';
 
+/**
+ * 随机执行 1~3 次充值（首充 + 随机二充/三充）
+ * 60% 概率1次，30% 概率2次，10% 概率3次
+ * @param {object} userDetail  - UserDetail 实例（含 token, userId, userAccount）
+ * @param {string} adminToken
+ * @param {string} [tag]       - 日志前缀，默认 ProcessUsers
+ * @returns {{ recharged: boolean, totalAmount: number }}
+ */
+function multiRecharge(userDetail, adminToken, tag = 'ProcessUsers') {
+    const rand = Math.random();
+    const rechargeCount = rand < 0.6 ? 1 : rand < 0.9 ? 2 : 3;
+    console.log(`[${tag}] 本次充值次数: ${rechargeCount} 次`);
+
+    let totalAmount = 0;
+    let anySuccess = false;
+
+    for (let i = 0; i < rechargeCount; i++) {
+        if (i > 0) sleep(2);
+
+        const rechargeAmount = getConfigRechargeAmount();
+        const label = i === 0 ? '首充' : i === 1 ? '二充' : '三充';
+        console.log(`[${tag}] ${label}: ${userDetail.userAccount}, 金额: ${rechargeAmount}`);
+
+        const rechargeResult = hybridRecharge({
+            userToken: userDetail.token,
+            adminToken: adminToken,
+            userId: userDetail.userId,
+            amount: rechargeAmount,
+            frontendFirst: true,
+            remark: `Invite - ${label}`
+        });
+
+        if (rechargeResult.success) {
+            anySuccess = true;
+            totalAmount += rechargeResult.amount;
+            console.log(`[${tag}] ✅ ${label}成功: ${userDetail.userAccount}, 金额: ${rechargeResult.amount}, 方式: ${rechargeResult.method}`);
+        } else {
+            console.error(`[${tag}] ❌ ${label}失败: ${userDetail.userAccount}, 原因: ${rechargeResult.message}`);
+            break;
+        }
+    }
+
+    return { recharged: anySuccess, totalAmount };
+}
+
 // ========== 数据结构定义 ==========
 
 /**
@@ -93,30 +138,20 @@ export async function processNewUsers(adminData, rebateChance = 0.2) {
             
             sleep(2);
 
-            // 步骤2 - 充值（使用混合充值策略）
+            // 步骤2 - 充值（随机 1~3 次）
             console.log(`[ProcessUsers] 开始充值: ${userDetail.userAccount}`);
 
-            const rechargeAmount = getConfigRechargeAmount();
+            const { recharged, totalAmount } = multiRecharge(userDetail, adminData.token, 'ProcessUsers');
 
-            // 使用混合充值服务
-            const rechargeResult = hybridRecharge({
-                userToken: userDetail.token,
-                adminToken: adminData.token,
-                userId: userId,
-                amount: rechargeAmount,
-                frontendFirst: true,
-                remark: 'Invite Test Recharge'
-            });
-
-            if (rechargeResult.success) {
+            if (recharged) {
                 userDetail.recharged = true;
-                userDetail.rechargeAmount = rechargeResult.amount;
+                userDetail.rechargeAmount = totalAmount;
                 rechargeSuccessCount++;
-                console.log(`[ProcessUsers] ✅ 充值成功: ${userDetail.userAccount}, 金额: ${rechargeResult.amount}, 方式: ${rechargeResult.method}`);
+                console.log(`[ProcessUsers] ✅ 充值完成: ${userDetail.userAccount}, 累计金额: ${totalAmount}`);
             } else {
                 userDetail.recharged = false;
                 userDetail.failedReason = "充值失败";
-                console.error(`[ProcessUsers] ❌ 充值失败: ${userDetail.userAccount}, 原因: ${rechargeResult.message}`);
+                console.error(`[ProcessUsers] ❌ 充值失败: ${userDetail.userAccount}`);
                 continue; // 充值失败，跳过投注
             }
 
@@ -677,24 +712,14 @@ export async function processNewUsersV2(adminData, rates = {}) {
 
             sleep(2);
 
-            // 充值（半活跃和活跃都充值）
-            const rechargeAmount = getConfigRechargeAmount();
-            console.log(`[ProcessUsersV2] 开始充值: ${userDetail.userAccount}, 金额: ${rechargeAmount}`);
+            // 充值（半活跃和活跃都充值，随机 1~3 次）
+            const { recharged: rechargeOk, totalAmount } = multiRecharge(userDetail, adminData.token, 'ProcessUsersV2');
 
-            const rechargeResult = hybridRecharge({
-                userToken  : userDetail.token,
-                adminToken : adminData.token,
-                userId     : userId,
-                amount     : rechargeAmount,
-                frontendFirst: true,
-                remark     : `Invite V2 - ${behavior}`
-            });
-
-            if (rechargeResult.success) {
+            if (rechargeOk) {
                 userDetail.recharged      = true;
-                userDetail.rechargeAmount = rechargeResult.amount;
+                userDetail.rechargeAmount = totalAmount;
                 rechargeSuccessCount++;
-                console.log(`[ProcessUsersV2] ✅ 充值成功: ${userDetail.userAccount}, 金额: ${rechargeResult.amount}, 方式: ${rechargeResult.method}`);
+                console.log(`[ProcessUsersV2] ✅ 充值完成: ${userDetail.userAccount}, 累计金额: ${totalAmount}`);
                 
                 // 步骤1.5 - 随机设置返佣模式 (特殊/锁定)
                 if (Math.random() < rebateChance) {
@@ -706,7 +731,7 @@ export async function processNewUsersV2(adminData, rates = {}) {
             } else {
                 userDetail.recharged    = false;
                 userDetail.failedReason = '充值失败';
-                console.error(`[ProcessUsersV2] ❌ 充值失败: ${userDetail.userAccount}, 原因: ${rechargeResult.message}`);
+                console.error(`[ProcessUsersV2] ❌ 充值失败: ${userDetail.userAccount}`);
                 continue;
             }
 

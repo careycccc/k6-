@@ -46,6 +46,51 @@ function loginUser(account, accountType, adminData) {
 }
 
 /**
+ * 随机执行 1~3 次充值（首充 + 随机二充/三充）
+ * @param {object} userInfo   - { token, userId, account }
+ * @param {string} adminToken
+ * @returns {{ recharged: boolean, totalAmount: number }}
+ */
+function processMultiRecharge(userInfo, adminToken) {
+    // 随机决定充值次数：60% 概率1次，30% 概率2次，10% 概率3次
+    const rand = Math.random();
+    const rechargeCount = rand < 0.6 ? 1 : rand < 0.9 ? 2 : 3;
+
+    console.log(`[Process] 本次充值次数: ${rechargeCount} 次`);
+
+    let totalAmount = 0;
+    let anySuccess = false;
+
+    for (let i = 0; i < rechargeCount; i++) {
+        if (i > 0) sleep(2); // 二充/三充前等待
+
+        const rechargeAmount = getConfigRechargeAmount();
+        const label = i === 0 ? '首充' : i === 1 ? '二充' : '三充';
+        console.log(`[Process] ${label}: ${userInfo.account}, 金额: ${rechargeAmount}`);
+
+        const rechargeResult = hybridRecharge({
+            userToken: userInfo.token,
+            adminToken: adminToken,
+            userId: userInfo.userId,
+            amount: rechargeAmount,
+            frontendFirst: true,
+            remark: `Team Recharge - ${label}`
+        });
+
+        if (rechargeResult.success) {
+            anySuccess = true;
+            totalAmount += rechargeResult.amount;
+            console.log(`[Process] ✅ ${label}成功: ${userInfo.account}, 金额: ${rechargeResult.amount}, 方式: ${rechargeResult.method}`);
+        } else {
+            console.error(`[Process] ❌ ${label}失败: ${userInfo.account}, 原因: ${rechargeResult.message}`);
+            break; // 充值失败则不继续
+        }
+    }
+
+    return { recharged: anySuccess, totalAmount };
+}
+
+/**
  * 处理单个用户的充值和投注
  * @param {object} userInfo - 用户信息 { token, userId, account }
  * @param {string} adminToken - 管理员token
@@ -56,22 +101,11 @@ function processUserRechargeAndBet(userInfo, adminToken) {
 
     console.log(`[Process] 开始处理用户 ${userInfo.account}...`);
 
-    // 随机充值金额
-    const rechargeAmount = getConfigRechargeAmount();
-    console.log(`[Process] 开始充值: ${userInfo.account}, 金额: ${rechargeAmount}`);
+    const { recharged, totalAmount } = processMultiRecharge(userInfo, adminToken);
 
-    const rechargeResult = hybridRecharge({
-        userToken: userInfo.token,
-        adminToken: adminToken,
-        userId: userInfo.userId,
-        amount: rechargeAmount,
-        frontendFirst: true,
-        remark: 'Team Recharge'
-    });
-
-    if (rechargeResult.success) {
+    if (recharged) {
         result.recharged = true;
-        console.log(`[Process] ✅ 充值成功: ${userInfo.account}, 金额: ${rechargeResult.amount}, 方式: ${rechargeResult.method}`);
+        console.log(`[Process] ✅ 充值完成: ${userInfo.account}, 累计金额: ${totalAmount}`);
 
         sleep(2);
 
@@ -86,7 +120,7 @@ function processUserRechargeAndBet(userInfo, adminToken) {
             console.error(`[Process] ❌ 投注失败: ${userInfo.account}`);
         }
     } else {
-        console.error(`[Process] ❌ 充值失败: ${userInfo.account}, 原因: ${rechargeResult.message}`);
+        console.error(`[Process] ❌ 充值失败: ${userInfo.account}`);
     }
 
     return result;
@@ -265,34 +299,14 @@ export function runTeamRechargeAndBet(targetUserId, adminData, options = {}) {
 // ============================================================
 
 /**
- * 处理单个用户 - 仅充值，不投注
+ * 处理单个用户 - 仅充值，不投注（支持随机多次充值）
  * @param {object} userInfo  - { token, userId, account }
  * @param {string} adminToken
  * @returns {object} { recharged: boolean, betted: false }
  */
 function processUserRechargeOnly(userInfo, adminToken) {
-    const result = { recharged: false, betted: false };
-
-    const rechargeAmount = getConfigRechargeAmount();
-    console.log(`[ProcessV2] 开始充值（仅充值）: ${userInfo.account}, 金额: ${rechargeAmount}`);
-
-    const rechargeResult = hybridRecharge({
-        userToken: userInfo.token,
-        adminToken: adminToken,
-        userId: userInfo.userId,
-        amount: rechargeAmount,
-        frontendFirst: true,
-        remark: 'Team Recharge V2 - RechargeOnly'
-    });
-
-    if (rechargeResult.success) {
-        result.recharged = true;
-        console.log(`[ProcessV2] ✅ 充值成功: ${userInfo.account}, 金额: ${rechargeResult.amount}, 方式: ${rechargeResult.method}`);
-    } else {
-        console.error(`[ProcessV2] ❌ 充值失败: ${userInfo.account}, 原因: ${rechargeResult.message}`);
-    }
-
-    return result;
+    const { recharged } = processMultiRecharge(userInfo, adminToken);
+    return { recharged, betted: false };
 }
 
 /**
