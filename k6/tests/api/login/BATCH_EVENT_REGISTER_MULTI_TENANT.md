@@ -26,8 +26,8 @@ k6 run -e TENANT_ID=3101 -e USER_COUNT=3 batchEventRegister.multi-tenant.test.js
 # 指定邀请码
 k6 run -e TENANT_ID=3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 -e INVITE_CODE=CUSTOM123 batchEventRegister.multi-tenant.test.js
 
-# 使用老包（ID: 21）
-k6 run -e TENANT_ID=3004 -e USER_COUNT=300 -e PACKAGE_TYPE=21 batchEventRegister.multi-tenant.test.js
+# 使用老包（ID: 21）carey_tiktok_002   （id:22）carey_tiktok_022
+k6 run -e TENANT_ID=3004 -e USER_COUNT=1 -e PACKAGE_TYPE=22 batchEventRegister.multi-tenant.test.js
 ```
 
 ### 多租户并行

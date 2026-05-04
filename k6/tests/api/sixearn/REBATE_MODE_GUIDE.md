@@ -34,6 +34,38 @@
 | `TEAM1_RECHARGE_ONLY_RATE` | V2 只充值比例（团队A单独覆盖） | 同全局 |
 | `TEAM2_INACTIVE_RATE` | V2 不活跃比例（团队B单独覆盖） | 同全局 |
 | `TEAM2_RECHARGE_ONLY_RATE` | V2 只充值比例（团队B单独覆盖） | 同全局 |
+| `INVITE_CODE_MODE` | 邀请码模式（见下方说明） | `1` |
+
+---
+
+## 邀请码模式（INVITE_CODE_MODE）
+
+控制每个下级注册时使用哪种邀请标识，对所有 mode 均生效。
+
+| 值 | 模式名称 | 行为 | 示例 |
+|---|---|---|---|
+| `1`（默认） | 代理邀请码 | 直接使用上级的 `inviteCode` 原样 | `SPEX6LN` |
+| `2` | 邀请转盘 | 上级 `inviteCode` 去掉最后一位，补 `W` | `SPEX6LN → SPEX6LW` |
+| `3` | userId | 直接使用上级的 `userId` 字符串 | `110610` |
+| `mix` | 混合随机 | 每个下级独立随机：50% 模式1 / 30% 模式2 / 20% 模式3 | — |
+
+### 使用示例
+
+```bash
+# 模式1（默认，代理邀请码）
+k6 run -e TENANT_ID=3007 -e REBATE_MODE=mode1 multiLevelRebate.test.js
+
+# 模式2（邀请转盘，尾字母换W）
+k6 run -e TENANT_ID=3007 -e REBATE_MODE=mode1 -e INVITE_CODE_MODE=2 multiLevelRebate.test.js
+
+# 模式3（userId 作为邀请标识）
+k6 run -e TENANT_ID=3007 -e REBATE_MODE=mode1 -e INVITE_CODE_MODE=3 multiLevelRebate.test.js
+
+# mix（三种模式随机混合）
+k6 run -e TENANT_ID=3007 -e REBATE_MODE=mode9 -e INVITE_CODE_MODE=mix multiLevelRebate.test.js
+```
+
+> **注意**：模式3在找不到上级 `userId` 时（如总代是第一层，尚未在 `userDetails` 中记录）会自动降级到模式1。
 
 ---
 

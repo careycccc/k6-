@@ -9,6 +9,20 @@
  * 2. 或者在 tenantConfig.js 中配置租户信息后直接运行：
  *    k6 run -e TENANT_ID=3007 -e ROOT_INVITE_CODE=110610 -e LEVELS=2,3,4,2,1,4,3 runInviteByTenant.test.js
  * 
+ * # 模式1（默认，inviteCode 原样）
+k6 run -e TENANT_ID=3007 -e ROOT_INVITE_CODE=SPEX6LN -e LEVELS=2,3 runInviteByTenant.test.js
+
+# 模式2（转盘，尾字母换W）
+k6 run -e TENANT_ID=3007 -e ROOT_INVITE_CODE=SPEX6LN -e LEVELS=2,3 -e INVITE_CODE_MODE=2 runInviteByTenant.test.js
+
+# 模式3（userId）
+k6 run -e TENANT_ID=3007 -e ROOT_INVITE_CODE=SPEX6LN -e LEVELS=2,3 -e INVITE_CODE_MODE=3 runInviteByTenant.test.js
+
+# mix（50%模式1 / 30%模式2 / 20%模式3）
+k6 run -e TENANT_ID=3007 -e ROOT_INVITE_CODE=SPEX6LN -e LEVELS=2,3 -e INVITE_CODE_MODE=mix runInviteByTenant.test.js
+
+ * 
+ * 
  * 3. 不指定租户ID时使用默认租户3004：
  *    k6 run k6/tests/api/invite/runInviteByTenant.test.js
  */
@@ -56,6 +70,7 @@ function getTestConfig() {
         subordinates: subordinates,
         description: tenantConfig ? tenantConfig.description : '',
         inviteMode: __ENV.INVITE_MODE || 'default',          // default | v2
+        inviteCodeMode: __ENV.INVITE_CODE_MODE || '1',       // 1 | 2 | 3 | mix
         inactiveRate: parseFloat(__ENV.INACTIVE_RATE || '0.2'),
         rechargeOnlyRate: parseFloat(__ENV.RECHARGE_ONLY_RATE || '0.2')
     };
@@ -104,6 +119,8 @@ export function setup() {
     console.log(`层级配置: ${config.subordinates.join(' -> ')} (共${config.subordinates.length}层)`);
     console.log(`总用户数: ${config.subordinates.reduce((a, b) => a + b, 0)}`);
     console.log(`邀请模式: ${config.inviteMode === 'v2' ? 'V2（三段式分层）' : '默认'}`);
+    const codeModeLabel = { '1': '模式1-inviteCode原样', '2': '模式2-转盘(尾字母换W)', '3': '模式3-userId', 'mix': 'mix(50%模式1/30%模式2/20%模式3)' };
+    console.log(`邀请码模式: ${codeModeLabel[config.inviteCodeMode] || config.inviteCodeMode}`);
     if (config.inviteMode === 'v2') {
         const activeRate = Math.max(0, 1 - config.inactiveRate - config.rechargeOnlyRate);
         console.log(`  不活跃: ${(config.inactiveRate * 100).toFixed(0)}% | 只充值: ${(config.rechargeOnlyRate * 100).toFixed(0)}% | 充值+投注: ${(activeRate * 100).toFixed(0)}%`);

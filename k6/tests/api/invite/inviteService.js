@@ -366,24 +366,47 @@ export function bindOneLevel(parentInviteCodes, count, level, adminData) {
         // 随机选择一个父级邀请码
         const parentInviteCode = parentInviteCodes[Math.floor(Math.random() * parentInviteCodes.length)];
 
-        // ====== 新增混合模式逻辑 ======
-        let inviteIdentifier = parentInviteCode;
+        // ====== 邀请码模式选择 ======
+        // INVITE_CODE_MODE:
+        //   1 (默认) → 上级 inviteCode 原样
+        //   2        → 上级 inviteCode 去掉最后一位补 W（邀请转盘）
+        //   3        → 上级 userId 字符串
+        //   mix      → 每个下级独立随机：50% 模式1，30% 模式2，20% 模式3
+        const inviteCodeMode = (typeof __ENV !== 'undefined' && __ENV.INVITE_CODE_MODE) ? __ENV.INVITE_CODE_MODE : '1';
+
+        // 确定本次使用哪种模式
+        let effectiveMode;
+        if (inviteCodeMode === 'mix') {
+            const r = Math.random();
+            effectiveMode = r < 0.5 ? '1' : r < 0.8 ? '2' : '3';
+        } else {
+            effectiveMode = inviteCodeMode;
+        }
+
+        // 模式3 需要 userId，尝试从已注册详情中查找
         let parentUserId = null;
-        let useUserId = false;
-        
-        // 尝试从已注册的详情中找到这个父级的 userId
         const parentDetail = userDetails.find(u => u.inviteCode === parentInviteCode);
         if (parentDetail && parentDetail.userId) {
             parentUserId = parentDetail.userId;
-            // 50%概率使用 userId
-            useUserId = Math.random() < 0.5;
         }
 
-        if (useUserId) {
+        // 如果模式3但找不到 userId，降级到模式1
+        if (effectiveMode === '3' && !parentUserId) {
+            console.warn(`[BindLevel] ⚠️  模式3找不到上级 userId，降级到模式1`);
+            effectiveMode = '1';
+        }
+
+        let inviteIdentifier;
+        if (effectiveMode === '2') {
+            // 去掉最后一位，补 W
+            inviteIdentifier = parentInviteCode.slice(0, -1) + 'W';
+            console.log(`[BindLevel] 🎡 模式2(转盘): ${parentInviteCode} → ${inviteIdentifier}`);
+        } else if (effectiveMode === '3') {
             inviteIdentifier = String(parentUserId);
-            console.log(`[BindLevel] 🔀 混合邀请: 使用上级 userId (${parentUserId}) 代替 inviteCode`);
+            console.log(`[BindLevel] 🆔 模式3(userId): ${parentUserId}`);
         } else {
-            console.log(`[BindLevel] 🔀 混合邀请: 使用上级 inviteCode (${parentInviteCode})`);
+            inviteIdentifier = parentInviteCode;
+            console.log(`[BindLevel] 🔗 模式1(inviteCode): ${parentInviteCode}`);
         }
 
         // 注册用户（手机号优先，失败则邮箱），传入的是选定的 inviteIdentifier
@@ -418,7 +441,7 @@ export function bindOneLevel(parentInviteCodes, count, level, adminData) {
             userDB.set(registerResult.inviteCode, new User(registerResult.inviteCode));
         }
 
-        const invStr = useUserId ? `userId:${parentUserId}` : `code:${parentInviteCode}`;
+        const invStr = effectiveMode === '3' ? `userId:${parentUserId}` : effectiveMode === '2' ? `转盘:${inviteIdentifier}` : `code:${parentInviteCode}`;
         console.log(`✅ [${i + 1}/${count}] ${registerResult.account} -> ${invStr} (新邀请码: ${registerResult.inviteCode})`);
     }
 
