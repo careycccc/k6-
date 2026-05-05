@@ -6,7 +6,7 @@
  *   总充值、总提现、总打码量、代理佣金、佣金贡献比、活跃会员、活跃率
  *
  * 运行示例：
- *   k6 run -e TENANT_ID=3007 -e ROOT_UIDS=110599,110577，110716，110650，110874 -e DATE_RANGE=2026-04-25~2026-04-30  -e AGENT_TYPE=L6 -e REBATE_LEVEL=L0 agentTeamReport.test.js
+ *   k6 run -e TENANT_ID=3007 -e ROOT_UIDS=137861 -e DATE_RANGE=2026-05-04~2026-05-05 -e AGENT_TYPE=L6 -e REBATE_LEVEL=L0 agentTeamReport.test.js
  *
  * 
  * 
@@ -36,7 +36,9 @@ const TENANT_ID   = __ENV.TENANT_ID    || '3004';
 const ROOT_UIDS   = (__ENV.ROOT_UIDS   || '').split(',').map(s => parseInt(s.trim(), 10)).filter(Boolean);
 const DATE_RANGE  = __ENV.DATE_RANGE   || '';
 const AGENT_TYPE  = (__ENV.AGENT_TYPE  || 'L6').toUpperCase();   // L3 | L6
-const REBATE_LEVEL = parseInt((__ENV.REBATE_LEVEL || 'L0').replace(/[Ll]/, ''), 10); // 0~6
+const REBATE_LEVEL = (__ENV.REBATE_LEVEL !== undefined && __ENV.REBATE_LEVEL !== '')
+    ? parseInt(__ENV.REBATE_LEVEL.replace(/[Ll]/, ''), 10)
+    : -1;  // -1 表示不过滤层级，统计全团队
 
 const TAG = 'AgentTeamReport';
 
@@ -228,9 +230,14 @@ function calcAgentCommission(adminToken, rootUid, memberList, dates) {
     const rootHierarchy = rootRecord ? rootRecord.hierarchy : 0;
 
     let targetUidSet;
-    if (REBATE_LEVEL === 0) {
+    if (REBATE_LEVEL === -1) {
+        // 不传层级：统计全团队所有成员的佣金
+        targetUidSet = new Set(memberList.filter(m => m.userId !== rootUid).map(m => m.userId));
+    } else if (REBATE_LEVEL === 0) {
+        // L0：总代自身
         targetUidSet = new Set([rootUid]);
     } else {
+        // LN：绝对层级 = rootHierarchy + N 的成员
         const targetAbsHierarchy = rootHierarchy + REBATE_LEVEL;
         targetUidSet = new Set(
             memberList
@@ -284,18 +291,36 @@ function calcRootAgentStats(adminToken, rootUid, startDate, endDate, dates) {
     const memberList = getAgentHierarchyList(adminToken, rootUid, { isAll: true, isIncludeSelfAndParent: true, pageSize: 500 });
     const totalMembers = memberList.filter(m => m.userId !== rootUid).length; // 不含总代自身
 
-    // 统计期内新增会员（registerTime 在范围内，排除总代自身）
-    const newMembers = memberList.filter(m =>
-        m.userId !== rootUid &&
+    // 确定总代自身的绝对层级
+    const rootRecord    = memberList.find(m => m.userId === rootUid);
+    const rootHierarchy = rootRecord ? rootRecord.hierarchy : 0;
+
+    // 确定"新增会员"的统计范围：
+    //   - 不传 REBATE_LEVEL（-1）→ 全团队所有成员
+    //   - 传入 L0 → 总代直属下级（绝对层级 = rootHierarchy + 1）
+    //   - 传入 LN → 绝对层级 = rootHierarchy + N + 1 的成员
+    const isLevelFiltered = REBATE_LEVEL >= 0;
+    const targetAbsHierarchy = rootHierarchy + REBATE_LEVEL + 1;
+
+    const nonRootMembers = memberList.filter(m => m.userId !== rootUid);
+
+    // 新增会员候选池：受 REBATE_LEVEL 影响
+    const newMemberCandidates = isLevelFiltered
+        ? nonRootMembers.filter(m => m.hierarchy === targetAbsHierarchy)
+        : nonRootMembers;
+
+    // 统计期内新增会员
+    const newMembers = newMemberCandidates.filter(m =>
         m.registerTime >= startTs &&
         m.registerTime <= endTs
     );
     const newMemberCount = newMembers.length;
 
-    console.log(`  [${rootUid}] 团队总人数: ${totalMembers}，统计期新增: ${newMemberCount}`);
+    console.log(`  [${rootUid}] 团队总人数: ${totalMembers}，统计层级: ${isLevelFiltered ? `L${REBATE_LEVEL}直属(绝对层级${targetAbsHierarchy})` : '全团队'}，统计期新增: ${newMemberCount}`);
 
     // ── Step 2: 逐成员查充值、提现、投注、首充 ───────────────
-    const nonRootMembers = memberList.filter(m => m.userId !== rootUid);
+    // 总充值/总提现/总打码量/活跃：始终统计全团队（nonRootMembers）
+    // 首充：只统计新增会员（newMemberIdSet）
 
     let totalRecharge      = 0;
     let totalWithdraw      = 0;
@@ -409,7 +434,7 @@ function printReport(statsArr, startDate, endDate) {
         { label: '总充值',  key: 'totalRecharge',          },
         { label: '总提现',  key: 'totalWithdraw',          },
         { label: '打码量',  key: 'totalBet',               },
-        { label: `佣金(${AGENT_TYPE}L${REBATE_LEVEL})`, key: 'agentCommission' },
+        { label: `佣金(${AGENT_TYPE}${REBATE_LEVEL === -1 ? '全' : 'L' + REBATE_LEVEL})`, key: 'agentCommission' },
         { label: '佣金占比',key: 'commissionContribRate',  },
         { label: '活跃数',  key: 'activeMembers',          },
         { label: '活跃率',  key: 'activeRate',             }
@@ -442,7 +467,7 @@ function printReport(statsArr, startDate, endDate) {
     const sep = '+' + cols.map(c => '-'.repeat(c.width + 2)).join('+') + '+';
 
     console.log(`\n${'═'.repeat(sep.length)}`);
-    console.log(`  📊 代理团队报表 | 租户:${TENANT_ID} | ${startDate}~${endDate} | ${AGENT_TYPE} L${REBATE_LEVEL}`);
+    console.log(`  📊 代理团队报表 | 租户:${TENANT_ID} | ${startDate}~${endDate} | ${AGENT_TYPE} ${REBATE_LEVEL === -1 ? '全团队' : 'L' + REBATE_LEVEL}`);
     console.log(`${'═'.repeat(sep.length)}`);
     console.log(sep);
 

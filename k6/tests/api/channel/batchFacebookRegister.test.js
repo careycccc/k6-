@@ -58,6 +58,8 @@ import {
 import { runBackendWithdrawApproval } from '../withdraw/backendWithdrawApi.js';
 import { facebookIdentityRegister } from './facebookRegister.js';
 import { getFbConfig } from './facebookRegisterConfig.js';
+import { buildChannelTeam, printTeamReport } from './channelInviteService.js';
+import { getFrontUserInfo } from '../user/userManagement.js';
 
 // ============================================================
 // 自定义指标
@@ -150,13 +152,21 @@ function buildOptions() {
     const userCount  = __ENV.USER_COUNT ? parseInt(__ENV.USER_COUNT) : 1;
     const tenantsStr = __ENV.TENANTS || __ENV.TENANT_ID || '3004';
     const tenants    = tenantsStr.split(',').map(t => t.trim());
+    const teamMode   = (__ENV.TEAM_MODE || '').toLowerCase() === 'true';
     const scenarios  = {};
 
     if (tenants.length === 1) {
-        scenarios['batch_fb_register'] = {
-            executor: 'per-vu-iterations', vus: userCount, iterations: 1, maxDuration: '60m',
-            env: { TENANT_ID: tenants[0] }, tags: { tenant: tenants[0], package_type: packageType }
-        };
+        if (teamMode) {
+            scenarios['batch_fb_team'] = {
+                executor: 'per-vu-iterations', vus: 1, iterations: 1, maxDuration: '4h',
+                env: { TENANT_ID: tenants[0] }, tags: { tenant: tenants[0], mode: 'team' }
+            };
+        } else {
+            scenarios['batch_fb_register'] = {
+                executor: 'per-vu-iterations', vus: userCount, iterations: 1, maxDuration: '60m',
+                env: { TENANT_ID: tenants[0] }, tags: { tenant: tenants[0], package_type: packageType }
+            };
+        }
     } else {
         for (const tenantId of tenants) {
             scenarios[`batch_fb_register_${tenantId}`] = {
@@ -205,6 +215,12 @@ export default function (data) {
 
     if (!adminToken || !envConfig) {
         console.error(`[FbBatch] ❌ 未找到租户 ${tenantId} 的配置`);
+        return;
+    }
+
+    const teamMode = (__ENV.TEAM_MODE || '').toLowerCase() === 'true';
+    if (teamMode) {
+        runWithTeam(data, tenantId, adminToken, envConfig);
         return;
     }
 
@@ -373,4 +389,84 @@ export function handleSummary(data) {
 
 export function teardown() {
     console.log('[FbBatch] 测试结束');
+}
+
+// ============================================================
+// 团队模式
+// ============================================================
+
+/**
+ * 团队模式主函数
+ *
+ * 运行命令：
+ *   k6 run -e TENANT_ID=3004 -e TEAM_MODE=true \
+ *          -e TEAM_TOTAL=50 -e TEAM_LEVELS=4 \
+ *          -e EMBED_RATE=0.6 -e RECHARGE_RATE=0.9 \
+ *          -e BET_RATE=0.8 -e WITHDRAW_RATE=0.6 \
+ *          -e ENABLE_BACKEND_APPROVAL=true \
+ *          batchFacebookRegister.test.js
+ */
+function runWithTeam(data, tenantId, adminToken, envConfig) {
+    const fbCfg           = getFbConfig(tenantId, packageType);
+    const finalInviteCode = __ENV.INVITE_CODE || fbCfg.inviteCode;
+    const fbDomain        = __ENV.FB_DOMAIN || fbCfg.registerDomain || envConfig.BASE_DESK_URL;
+    const countryCode     = envConfig.COUNTRY_CODE || '91';
+    const enableBackendApproval = (__ENV.ENABLE_BACKEND_APPROVAL || '').toLowerCase() === 'true';
+
+    console.log(`\n[FbTeam] ========== Facebook 团队模式 ==========`);
+    console.log(`[FbTeam] 租户: ${tenantId} | 配置: ${fbCfg.desc}`);
+
+    // 1. 注册总代
+    const rootPhone = generateRandomPhone(countryCode);
+    console.log(`[FbTeam] 注册总代: ${rootPhone}`);
+
+    const rootResult = facebookIdentityRegister(rootPhone, { token: adminToken, envConfig }, {
+        pixelId:        fbCfg.pixelId,
+        eventConfigId:  fbCfg.id,
+        eventType:      fbCfg.eventType,
+        packageName:    fbCfg.packageName,
+        inviteCode:     finalInviteCode,
+        registerUrl:    fbDomain,
+        customFrontUrl: fbDomain
+    });
+
+    if (!rootResult || rootResult.code !== 0) {
+        console.error('[FbTeam] ❌ 总代注册失败');
+        return;
+    }
+
+    console.log(`[FbTeam] ✅ 总代注册成功: userId=${rootResult.data.userId}`);
+    regSuccessCounter.add(1, { tenant: tenantId });
+
+    sleep(1);
+    const rootFrontInfo  = getFrontUserInfo(rootResult.data.token);
+    const rootInviteCode = rootFrontInfo ? rootFrontInfo.inviteCode : String(rootResult.data.userId);
+
+    const rootInfo = {
+        token:      rootResult.data.token,
+        userId:     rootResult.data.userId,
+        inviteCode: rootInviteCode,
+        account:    rootPhone
+    };
+
+    // 2. 构建团队
+    const embedOptions = {
+        pixelId:       fbCfg.pixelId,
+        eventConfigId: fbCfg.id,
+        eventType:     fbCfg.eventType,
+        packageName:   fbCfg.packageName
+    };
+
+    const teamReport = buildChannelTeam(rootInfo, { token: adminToken }, embedOptions, envConfig, {
+        totalPeople:          parseInt(__ENV.TEAM_TOTAL  || '50', 10),
+        levels:               parseInt(__ENV.TEAM_LEVELS || '4',  10),
+        embedRate:            parseFloat(__ENV.EMBED_RATE    || '0.6'),
+        rechargeRate:         parseFloat(__ENV.RECHARGE_RATE || '0.9'),
+        betRate:              parseFloat(__ENV.BET_RATE      || '0.8'),
+        withdrawRate:         parseFloat(__ENV.WITHDRAW_RATE || '0.6'),
+        enableBackendApproval
+    });
+
+    // 3. 打印报表
+    printTeamReport(rootInfo, teamReport, new Date().toISOString().slice(0, 10));
 }

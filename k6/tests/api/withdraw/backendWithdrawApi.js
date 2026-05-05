@@ -175,7 +175,38 @@ export function confirmWithdrawOrder(adminToken, userId, orderInfo) {
 }
 
 /**
+ * 人工确认出款（三方提现失败时的保底方案）
+ * @param {string} adminToken - 后台管理员token
+ * @param {number} userId - 用户ID
+ * @param {object} orderInfo - 订单信息 {orderNo, createTime}
+ * @param {string} remark - 备注（可选）
+ * @returns {boolean} 是否成功
+ */
+export function artificialConfirmWithdrawOrder(adminToken, userId, orderInfo, remark = 'Auto artificial confirm by K6') {
+    const api = '/api/WithdrawOrder/ArtificialConfirmWithdrawOrder';
+    const tag = 'ArtificialConfirmWithdrawOrder';
+
+    const payload = {
+        orderNo:    orderInfo.orderNo,
+        userId:     userId,
+        createTime: orderInfo.createTime,
+        remark:     remark
+    };
+
+    const response = tenantRequest(api, payload, { token: adminToken, isDesk: false });
+
+    if (!response || response.msgCode !== 0) {
+        console.error(`[${tag}] 人工确认出款失败:`, response);
+        return false;
+    }
+
+    console.log(`[${tag}] ✅ 人工确认出款成功: ${orderInfo.orderNo}`);
+    return true;
+}
+
+/**
  * 完整的后台审核流程
+ * 三方提现失败时自动降级到人工确认出款
  * @param {string} adminToken - 后台管理员token
  * @param {number} userId - 用户ID
  * @param {string} withdrawType - 提现类型
@@ -226,8 +257,15 @@ export function runBackendWithdrawApproval(adminToken, userId, withdrawType, amo
     // 4. 三方提现
     console.log(`[${tag}] 步骤4: 执行三方提现...`);
     if (!thirdWithdraw(adminToken, userId, orderInfo, channelId)) {
-        console.error(`[${tag}] ❌ 三方提现失败`);
-        return false;
+        console.warn(`[${tag}] ⚠️ 三方提现失败，降级到人工确认出款...`);
+        sleep(1);
+        if (!artificialConfirmWithdrawOrder(adminToken, userId, orderInfo)) {
+            console.error(`[${tag}] ❌ 人工确认出款也失败，审核流程终止`);
+            return false;
+        }
+        console.log(`[${tag}] ✅ 人工确认出款成功，跳过步骤5`);
+        console.log(`[${tag}] ========== 后台审核流程完成（人工兜底）==========`);
+        return true;
     }
 
     // 等待1秒

@@ -4,6 +4,8 @@
 
 ---
 
+// https://ar-cfdeploy.club/register?inviteCode=7DFAG4W&from=app
+
 ## 目录结构
 
 ```
@@ -112,6 +114,20 @@ k6 run -e TENANT_ID=3004 -e USER_COUNT=10 \
 # 仅注册，跳过充值（排查注册问题时使用）
 k6 run -e TENANT_ID=3004 -e USER_COUNT=10 -e REGISTER_ONLY=true \
   k6/tests/api/channel/batchAdjustRegister.test.js
+
+
+# 团队的方式
+
+# Adjust 团队模式，50人4层
+k6 run -e TENANT_ID=3004 -e TEAM_MODE=true -e TEAM_TOTAL=55 -e TEAM_LEVELS=7 batchAdjustRegister.test.js
+
+# Facebook 团队模式，30人3层
+k6 run -e TENANT_ID=3004 -e TEAM_MODE=true -e TEAM_TOTAL=55 -e TEAM_LEVELS=7 batchFacebookRegister.test.js
+
+# tiktok 团队模式，30人3层
+k6 run -e TENANT_ID=3004 -e TEAM_MODE=true  -e TEAM_TOTAL=50 -e TEAM_LEVELS=4 -e EMBED_RATE=0.6 -e RECHARGE_RATE=0.9 -e BET_RATE=0.8 -e WITHDRAW_RATE=0.6 -e ENABLE_BACKEND_APPROVAL=true batchTiktokRegister.test.js
+
+
 ```
 
 ---
@@ -141,9 +157,7 @@ k6 run -e TENANT_ID=3004 -e USER_COUNT=10 -e REGISTER_ONLY=true \
 k6 run -e TENANT_ID=3004 -e USER_COUNT=1 batchFacebookRegister.test.js
 
 # 注册 + 充值 + 投注 + 提现
-k6 run -e TENANT_ID=3004 -e USER_COUNT=10 \
-  -e ENABLE_BET=true -e ENABLE_WITHDRAW=true -e ENABLE_BACKEND_APPROVAL=true \
-  k6/tests/api/channel/batchFacebookRegister.test.js
+k6 run -e TENANT_ID=3004 -e USER_COUNT=1 -e ENABLE_BET=true -e ENABLE_WITHDRAW=true -e ENABLE_BACKEND_APPROVAL=true batchFacebookRegister.test.js
 
 # 多租户并行
 k6 run -e TENANTS=3004,3007 -e USER_COUNT=50 \

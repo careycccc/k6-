@@ -29,7 +29,7 @@ k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
   multiLevelRebate.test.js
 
 # 两个团队都用 V2
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM1_MODE=v2 -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=2 -e TEAM2_MODE=v2 multiLevelRebate.test.js
+k6 run -e TENANT_ID=3007 -e TEAM1_TOTAL=45 -e TEAM1_LEVELS=6 -e TEAM1_MODE=v2 -e TEAM2_TOTAL=35 -e TEAM2_LEVELS=5 -e TEAM2_MODE=v2 multiLevelRebate.test.js
  
 
 */
@@ -217,7 +217,7 @@ async function executeMultiLevelInvite(rootInviteCode, levels, adminData, withRe
     const { mode = 'default', inactiveRate = 0.2, rechargeOnlyRate = 0.2, rebateChance = 0.2 } = v2Rates;
 
     if (withRecharge && mode === 'v2') {
-        console.log(`[${teamName}] 使用 V2 三段式分层: 不活跃=${(inactiveRate*100).toFixed(0)}% | 只充值=${(rechargeOnlyRate*100).toFixed(0)}% | 充值+投注=${((1-inactiveRate-rechargeOnlyRate)*100).toFixed(0)}% | 返佣几率=${(rebateChance*100).toFixed(0)}%`);
+        console.log(`[${teamName}] 使用 V2 三段式分层: 不活跃=${(inactiveRate * 100).toFixed(0)}% | 只充值=${(rechargeOnlyRate * 100).toFixed(0)}% | 充值+投注=${((1 - inactiveRate - rechargeOnlyRate) * 100).toFixed(0)}% | 返佣几率=${(rebateChance * 100).toFixed(0)}%`);
         await runMultiLevelInviteV2(
             rootInviteCode,
             levels,
@@ -351,7 +351,7 @@ function executeTeamRechargeAndBet(adminToken, targetUserId, teamName, rechargeC
 
     let stats;
     if (mode === 'v2') {
-        console.log(`[${teamName}] 使用 V2 三段式分层: 不活跃=${(inactiveRate*100).toFixed(0)}% | 只充值=${(rechargeOnlyRate*100).toFixed(0)}% | 充值+投注=${((1-inactiveRate-rechargeOnlyRate)*100).toFixed(0)}% | 返佣几率=${(rebateChance*100).toFixed(0)}%`);
+        console.log(`[${teamName}] 使用 V2 三段式分层: 不活跃=${(inactiveRate * 100).toFixed(0)}% | 只充值=${(rechargeOnlyRate * 100).toFixed(0)}% | 充值+投注=${((1 - inactiveRate - rechargeOnlyRate) * 100).toFixed(0)}% | 返佣几率=${(rebateChance * 100).toFixed(0)}%`);
         stats = runTeamRechargeAndBetV2(targetUserId, adminData, {
             inactiveRate,
             rechargeOnlyRate,
@@ -440,32 +440,32 @@ export default async function (data) {
     }
 
     // ========== 公共参数解析 ==========
-    const team1Total  = parseInt(__ENV.TEAM1_TOTAL  || '50', 10);
-    const team1Levels = parseInt(__ENV.TEAM1_LEVELS || '4',  10);
-    const team2Total  = parseInt(__ENV.TEAM2_TOTAL  || '40', 10);
-    const team2Levels = parseInt(__ENV.TEAM2_LEVELS || '3',  10);
-    const rebateMode  = __ENV.REBATE_MODE || 'mode1';
+    const team1Total = parseInt(__ENV.TEAM1_TOTAL || '50', 10);
+    const team1Levels = parseInt(__ENV.TEAM1_LEVELS || '4', 10);
+    const team2Total = parseInt(__ENV.TEAM2_TOTAL || '40', 10);
+    const team2Levels = parseInt(__ENV.TEAM2_LEVELS || '3', 10);
+    const rebateMode = __ENV.REBATE_MODE || 'mode1';
 
     // 全局 V2 比例（两个团队共用，也可通过 TEAM1_/TEAM2_ 前缀单独覆盖）
-    const globalInactive      = parseFloat(__ENV.INACTIVE_RATE      || '0.2');
-    const globalRechargeOnly  = parseFloat(__ENV.RECHARGE_ONLY_RATE || '0.2');
-    const globalRebateChance  = parseFloat(__ENV.REBATE_CHANCE      || '0.2');
+    const globalInactive = parseFloat(__ENV.INACTIVE_RATE || '0.2');
+    const globalRechargeOnly = parseFloat(__ENV.RECHARGE_ONLY_RATE || '0.2');
+    const globalRebateChance = parseFloat(__ENV.REBATE_CHANCE || '0.2');
 
     const v2A = {
-        mode            : 'v2',
-        inactiveRate    : parseFloat(__ENV.TEAM1_INACTIVE_RATE      || globalInactive),
+        mode: 'v2',
+        inactiveRate: parseFloat(__ENV.TEAM1_INACTIVE_RATE || globalInactive),
         rechargeOnlyRate: parseFloat(__ENV.TEAM1_RECHARGE_ONLY_RATE || globalRechargeOnly),
-        rebateChance    : globalRebateChance
+        rebateChance: globalRebateChance
     };
     const v2B = {
-        mode            : 'v2',
-        inactiveRate    : parseFloat(__ENV.TEAM2_INACTIVE_RATE      || globalInactive),
+        mode: 'v2',
+        inactiveRate: parseFloat(__ENV.TEAM2_INACTIVE_RATE || globalInactive),
         rechargeOnlyRate: parseFloat(__ENV.TEAM2_RECHARGE_ONLY_RATE || globalRechargeOnly),
-        rebateChance    : globalRebateChance
+        rebateChance: globalRebateChance
     };
-    const full     = { mode: 'default', rebateChance: globalRebateChance };
+    const full = { mode: 'default', rebateChance: globalRebateChance };
     const recharge = { mode: 'recharge', rebateChance: globalRebateChance };  // 只充值不投注（见 executeAction 内部处理）
-    const none     = null;                  // 不做任何操作
+    const none = null;                  // 不做任何操作
 
     const team1Distribution = distributePeople(team1Total, team1Levels);
     const team2Distribution = distributePeople(team2Total, team2Levels);
@@ -473,7 +473,7 @@ export default async function (data) {
     console.log(`� REBATE_MODE : ${rebateMode}`);
     console.log(`📋 团队A: ${team1Total}人 ${team1Levels}层 → ${team1Distribution.join('->')}`);
     console.log(`📋 团队B: ${team2Total}人 ${team2Levels}层 → ${team2Distribution.join('->')}`);
-    console.log(`📋 V2比例: 不活跃=${(globalInactive*100).toFixed(0)}% 只充值=${(globalRechargeOnly*100).toFixed(0)}%\n`);
+    console.log(`📋 V2比例: 不活跃=${(globalInactive * 100).toFixed(0)}% 只充值=${(globalRechargeOnly * 100).toFixed(0)}%\n`);
 
     // ========== 工具函数 ==========
 
@@ -536,7 +536,7 @@ export default async function (data) {
         console.log(`🔄 解绑绑定: ${fromName} → ${toName}`);
         const uid = selectRandomSubordinate(data.token, fromRoot.userId);
         if (uid) {
-            __ENV.UNBIND_UID       = uid.toString();
+            __ENV.UNBIND_UID = uid.toString();
             __ENV.BIND_INVITE_CODE = toRoot.inviteCode;
             bundEarn(data);
         } else {
