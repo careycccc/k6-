@@ -169,8 +169,8 @@ export async function processNewUsers(adminData, rebateChance = 0.2) {
             if (betResult) {
                 betSuccessCount++;
                 userDetail.betSuccess = true;
-                userDetail.betAmount = betResult.amount || 0;
-                console.log(`[ProcessUsers] ✅ 投注成功: ${userDetail.userAccount}`);
+                userDetail.betAmount = (betResult && typeof betResult === 'object') ? (betResult.amount || 0) : 0;
+                console.log(`[ProcessUsers] ✅ 投注成功: ${userDetail.userAccount}, 金额: ${userDetail.betAmount} (结果: ${JSON.stringify(betResult)})`);
             } else {
                 userDetail.betSuccess = false;
                 userDetail.failedReason = "投注失败";
@@ -536,6 +536,20 @@ export async function runMultiLevelInvite(rootInviteCode, subordinates, adminDat
     console.log('\n🎉 多层级邀请绑定完成！');
 
     // ========== 生成最终测试报表 ==========
+    printInviteReport(userDetails, rootInviteCode);
+}
+
+/**
+ * 打印详细邀请测试报表
+ * @param {Array} userDetails - 用户详情列表
+ * @param {string} rootInviteCode - 总代邀请码
+ */
+export function printInviteReport(userDetails, rootInviteCode) {
+    if (!userDetails || userDetails.length === 0) {
+        console.log('\n[Report] 没有用户数据，无法生成报表');
+        return;
+    }
+
     console.log('\n========== 最终测试报表 ==========');
     
     // 构建映射: inviteCode -> userAccount
@@ -576,16 +590,30 @@ export async function runMultiLevelInvite(rootInviteCode, subordinates, adminDat
     
     // 收集所有行数据
     const rows = [];
+    let totalRecharge = 0;
+    let totalBet = 0;
+
     for (const ud of userDetails) {
         const parentAccount = codeToAccountMap.get(ud.parentInviteCode) || ud.parentInviteCode;
         const childAccount = ud.userAccount;
         const inviteSuccess = (ud.recharged && ud.betSuccess) ? "是" : "否";
-        const rechargeAmt = ud.rechargeAmount || "-";
-        const betAmt = ud.betAmount || "-";
+        const rechargeAmt = ud.rechargeAmount || 0;
+        const betAmt = ud.betAmount || 0;
         const failedReason = ud.failedReason || "-";
         const childCount = childrenCountMap.get(ud.inviteCode) || 0;
 
-        rows.push([parentAccount, childAccount, inviteSuccess, rechargeAmt, betAmt, failedReason, childCount]);
+        totalRecharge += rechargeAmt;
+        totalBet += betAmt;
+
+        rows.push([
+            parentAccount, 
+            childAccount, 
+            inviteSuccess, 
+            rechargeAmt > 0 ? rechargeAmt : "-", 
+            betAmt > 0 ? betAmt : "-", 
+            failedReason, 
+            childCount
+        ]);
     }
 
     // 计算各列最大宽度
@@ -630,7 +658,13 @@ export async function runMultiLevelInvite(rootInviteCode, subordinates, adminDat
 
     // 将报表输出为单条日志以避免格式错乱
     console.log(reportTable);
-    console.log('===================================\n');
+
+    // 打印汇总信息
+    console.log('\n========== 汇总统计 ==========');
+    console.log(`总用户数: ${userDetails.length}`);
+    console.log(`总充值额: ${totalRecharge}`);
+    console.log(`总投注额: ${totalBet}`);
+    console.log('===============================\n');
 }
 
 /**
@@ -774,8 +808,8 @@ export async function processNewUsersV2(adminData, rates = {}) {
             if (betResult) {
                 betSuccessCount++;
                 userDetail.betSuccess = true;
-                userDetail.betAmount  = betResult.amount || 0;
-                console.log(`[ProcessUsersV2] ✅ 投注成功: ${userDetail.userAccount}`);
+                userDetail.betAmount  = (betResult && typeof betResult === 'object') ? (betResult.amount || 0) : 0;
+                console.log(`[ProcessUsersV2] ✅ 投注成功: ${userDetail.userAccount}, 金额: ${userDetail.betAmount} (结果: ${JSON.stringify(betResult)})`);
             } else {
                 userDetail.betSuccess   = false;
                 userDetail.failedReason = '投注失败';
@@ -856,4 +890,7 @@ export async function runMultiLevelInviteV2(rootInviteCode, subordinates, adminD
     await processNewUsersV2(adminData, { inactiveRate, rechargeOnlyRate, rebateChance });
 
     console.log('\n🎉 [V2] 多层级邀请绑定完成！');
+
+    // ========== 生成最终测试报表 ==========
+    printInviteReport(userDetails, rootInviteCode);
 }

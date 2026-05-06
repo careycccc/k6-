@@ -234,7 +234,7 @@ function printReport(adminToken, originalRootMembersMap) {
         console.log(sep);
         console.log('|' + groupCols.map(c => ' ' + padW(c.label, c.width) + ' ').join('|') + '|');
         console.log(sep);
-        rows.forEach(r => { console.log('|' + groupCols.map(c => ' ' + padW(String(r[col.key] ?? ''), c.width) + ' ').join('|') + '|'); });
+        rows.forEach(r => { console.log('|' + groupCols.map(c => ' ' + padW(String(r[c.key] ?? ''), c.width) + ' ').join('|') + '|'); });
         console.log(sep);
         const gR = opRows.reduce((s, r) => s + (parseFloat(r._rechargeAmt) || 0), 0);
         const gB = opRows.reduce((s, r) => s + (parseFloat(r._betAmt) || 0), 0);

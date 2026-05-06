@@ -72,6 +72,12 @@ const doubleRechargeCounter  = new Counter('tiktok_double_recharge_users');
 const betSuccessCounter      = new Counter('tiktok_bet_success');
 const withdrawSuccessCounter = new Counter('tiktok_withdraw_success');
 
+// 埋点专用指标
+const embedRegCounter        = new Counter('tiktok_embed_reg_success');
+const embedRechargeCounter   = new Counter('tiktok_embed_recharge_amount');
+const embedBetCounter        = new Counter('tiktok_embed_bet_amount');
+const embedWithdrawCounter   = new Counter('tiktok_embed_withdraw_amount');
+
 const tag         = 'batchTiktokRegister';
 const packageType = __ENV.PACKAGE_TYPE || '';
 
@@ -257,6 +263,7 @@ export default function (data) {
 
         console.log(`[TiktokBatch] [VU${__VU}][租户${tenantId}] ✅ 注册成功: ${userName}`);
         regSuccessCounter.add(1, { tenant: tenantId });
+        embedRegCounter.add(1, { tenant: tenantId });
 
         if (registerOnly || !enableRecharge) {
             console.log(`[TiktokBatch] [VU${__VU}][租户${tenantId}] ⏭️ 跳过充值/投注/提现`);
@@ -273,10 +280,13 @@ export default function (data) {
         if (isDoubleRecharger) {
             if (Math.random() < 0.5) {
                 console.log(`[TiktokBatch] [VU${__VU}][租户${tenantId}] 🚀 Mode B: 两次连冲`);
-                eventBatchFrontendRechargeRequest(userToken, getConfigRechargeAmount());
+                const amt1 = getConfigRechargeAmount();
+                const amt2 = getConfigRechargeAmount();
+                eventBatchFrontendRechargeRequest(userToken, amt1);
                 sleep(3);
-                eventBatchFrontendRechargeRequest(userToken, getConfigRechargeAmount());
+                eventBatchFrontendRechargeRequest(userToken, amt2);
                 doubleRechargeCounter.add(1, { tenant: tenantId });
+                embedRechargeCounter.add(amt1 + amt2, { tenant: tenantId });
                 eventBatchAuditUserOrders(adminToken, userId);
                 rechargeSuccess = true;
             } else {
@@ -285,13 +295,17 @@ export default function (data) {
                 sleep(3);
                 const r2 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
                 doubleRechargeCounter.add(1, { tenant: tenantId });
+                if (r1.success) embedRechargeCounter.add(r1.amount, { tenant: tenantId });
+                if (r2.success) embedRechargeCounter.add(r2.amount, { tenant: tenantId });
                 rechargeSuccess = r1.success || r2.success;
             }
         } else {
             console.log(`[TiktokBatch] [VU${__VU}][租户${tenantId}] 标准单充`);
             sleep(2);
-            const r = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
+            const amt = getConfigRechargeAmount();
+            const r = hybridRecharge({ userToken, adminToken, userId, amount: amt });
             firstRechargeCounter.add(1, { tenant: tenantId });
+            if (r.success) embedRechargeCounter.add(amt, { tenant: tenantId });
             rechargeSuccess = r.success;
         }
 
@@ -309,6 +323,7 @@ export default function (data) {
                 const betResult = betRun(userToken, userName);
                 if (betResult) {
                     betSuccessCounter.add(1, { tenant: tenantId });
+                    embedBetCounter.add(betResult.amount || 0, { tenant: tenantId });
                     console.log(`[TiktokBatch] [VU${__VU}][租户${tenantId}] ✅ 第 ${b + 1} 次投注成功`);
                 } else {
                     console.error(`[TiktokBatch] [VU${__VU}][租户${tenantId}] ❌ 第 ${b + 1} 次投注失败`);
@@ -321,7 +336,10 @@ export default function (data) {
         if (enableWithdraw) {
             console.log(`[TiktokBatch] [VU${__VU}][租户${tenantId}] 💸 开始提现流程`);
             const ok = runWithdraw(userToken, userId, adminToken, enableBackendApproval);
-            if (ok) withdrawSuccessCounter.add(1, { tenant: tenantId });
+            if (ok) {
+                withdrawSuccessCounter.add(1, { tenant: tenantId });
+                // 标准流程无法直接获取提现金额，此处逻辑主要针对团队模式优化
+            }
         }
     });
 
@@ -343,6 +361,11 @@ export function handleSummary(data) {
     const totalBet      = data.metrics.tiktok_bet_success?.values?.count || 0;
     const totalWithdraw = data.metrics.tiktok_withdraw_success?.values?.count || 0;
 
+    const embedRegCount      = data.metrics.tiktok_embed_reg_success?.values?.count || 0;
+    const embedRechargeAmt   = data.metrics.tiktok_embed_recharge_amount?.values?.count || 0;
+    const embedBetAmt        = data.metrics.tiktok_embed_bet_amount?.values?.count || 0;
+    const embedWithdrawAmt   = data.metrics.tiktok_embed_withdraw_amount?.values?.count || 0;
+
     const registerOnly   = (__ENV.REGISTER_ONLY   || '').toLowerCase() === 'true';
     const teamMode       = (__ENV.TEAM_MODE        || '').toLowerCase() === 'true';
     const enableBet      = (__ENV.ENABLE_BET      || '').toLowerCase() === 'true';
@@ -361,6 +384,12 @@ export function handleSummary(data) {
     const betRow      = enableBet      ? `\n┃ 🎲 投注成功次数                  ┃ ${String(totalBet).padEnd(25)} ┃` : '';
     const withdrawRow = enableWithdraw ? `\n┃ 💸 提现成功人数                  ┃ ${String(totalWithdraw).padEnd(25)} ┃` : '';
 
+    const embedReportRows = `
+┃ 🏷️ 埋点会员总数                  ┃ ${String(embedRegCount).padEnd(25)} ┃
+┃ 💰 埋点会员总充值                ┃ ${String(embedRechargeAmt.toFixed(2)).padEnd(25)} ┃
+┃ 🎲 埋点会员总投注                ┃ ${String(embedBetAmt.toFixed(2)).padEnd(25)} ┃
+┃ 💸 埋点会员总提现                ┃ ${String(embedWithdrawAmt.toFixed(2)).padEnd(25)} ┃`;
+
     const table = `
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃        🎵 TikTok 埋点批量注册与充值测试汇总报告              ┃
@@ -372,7 +401,7 @@ export function handleSummary(data) {
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
 ┃           统计项名称             ┃         统计数值          ┃
 ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
-┃ 👥 注册成功总人数                ┃ ${String(totalReg).padEnd(25)} ┃${rechargeRows}${betRow}${withdrawRow}
+┃ 👥 注册成功总人数                ┃ ${String(totalReg).padEnd(25)} ┃${rechargeRows}${betRow}${withdrawRow}${embedReportRows}
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 `;
 
@@ -452,4 +481,21 @@ function runWithTeam(data, tenantId, adminToken, envConfig) {
 
     // 3. 打印报表
     printTeamReport(rootInfo, teamReport, new Date().toISOString().slice(0, 10));
+
+    // 4. 更新全局指标（确保 handleSummary 能拿到团队数据）
+    teamReport.forEach(r => {
+        if (r.registerOk) {
+            // 排除总代（前面已加过一次）
+            if (r.userId !== rootInfo.userId) {
+                regSuccessCounter.add(1, { tenant: tenantId });
+            }
+            if (r.isEmbed) {
+                // 总代也是埋点用户，由于 buildChannelTeam 不包含总代行为，此处只需统计下级
+                embedRegCounter.add(1, { tenant: tenantId });
+                if (r.rechargeAmt > 0) embedRechargeCounter.add(r.rechargeAmt, { tenant: tenantId });
+                if (r.betAmt > 0)      embedBetCounter.add(r.betAmt, { tenant: tenantId });
+                if (r.withdrawAmt > 0) embedWithdrawCounter.add(r.withdrawAmt, { tenant: tenantId });
+            }
+        }
+    });
 }

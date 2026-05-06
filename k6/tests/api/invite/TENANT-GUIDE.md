@@ -10,7 +10,7 @@
 
 ```bash
 # 指定租户3002，使用自定义邀请码和层级
-k6 run -e TENANT_ID=3002 -e ROOT_INVITE_CODE=QSQKH5N -e LEVELS=6,7,5,5,7,6,3 k6/tests/api/invite/runInviteByTenant.test.js
+k6 run -e TENANT_ID=3101 -e ROOT_INVITE_CODE=QSQKH5N -e LEVELS=6,7,5,5,7,6,3 k6/tests/api/invite/runInviteByTenant.test.js
 
 # 只指定租户，使用配置文件中的默认值
 k6 run -e TENANT_ID=3002 k6/tests/api/invite/runInviteByTenant.test.js
