@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 渠道获客漏斗报表验证
  *
  * 流程：
@@ -10,7 +10,7 @@
  *
  * 运行命令：
  *   k6 run -e TENANT_ID=3004 -e PACKAGE_ID=1 -e DATE_RANGE=2026-05-01~2026-05-05 channelFunnelVerify.test.js
- *   k6 run -e TENANT_ID=3004 -e PACKAGE_ID=1,2,3 -e DATE_RANGE=2026-05-01~2026-05-05 channelFunnelVerify.test.js
+ *   k6 run -e TENANT_ID=3101 -e PACKAGE_ID=0,1,2 -e DATE_RANGE=2026-05-06~2026-05-06 channelFunnelVerify.test.js
  *
  * 参数说明：
  *   TENANT_ID    租户ID（必填）
@@ -26,10 +26,10 @@ import { sendRequest, sendQueryRequest } from '../common/request.js';
 import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
 import { getTzOffset } from '../retention/rechargeRetentionApi.js';
 
-const TENANT_ID   = __ENV.TENANT_ID  || '3004';
+const TENANT_ID = __ENV.TENANT_ID || '3004';
 // 支持多个渠道包ID，逗号分隔，如 "1,2,3"
 const PACKAGE_IDS = (__ENV.PACKAGE_ID || '0').split(',').map(s => parseInt(s.trim(), 10)).filter(v => !isNaN(v));
-const DATE_RANGE  = __ENV.DATE_RANGE || '';
+const DATE_RANGE = __ENV.DATE_RANGE || '';
 
 const TZ_OFFSET_MS = getTzOffset(TENANT_ID) * 3600 * 1000;
 
@@ -38,9 +38,9 @@ const TAG = 'ChannelFunnelVerify';
 export const options = {
     scenarios: {
         channel_funnel_verify: {
-            executor:    'per-vu-iterations',
-            vus:         1,
-            iterations:  1,
+            executor: 'per-vu-iterations',
+            vus: 1,
+            iterations: 1,
             maxDuration: '4h'
         }
     }
@@ -59,7 +59,7 @@ function parseDateRange(rangeStr) {
 function enumerateDates(startDate, endDate) {
     const dates = [];
     const cur = new Date(startDate + 'T00:00:00Z');
-    const fin = new Date(endDate   + 'T00:00:00Z');
+    const fin = new Date(endDate + 'T00:00:00Z');
     while (cur <= fin) {
         const y = cur.getUTCFullYear();
         const m = String(cur.getUTCMonth() + 1).padStart(2, '0');
@@ -97,7 +97,7 @@ function fetchRealUsers(adminToken, packageId, startTs, endTs) {
         const result = sendRequest({
             packageId,
             registerBeginTime: startTs,
-            registerEndTime:   endTs,
+            registerEndTime: endTs,
             pageNo,
             pageSize: 500,
             orderBy: 'Desc'
@@ -121,8 +121,8 @@ function fetchRealUsers(adminToken, packageId, startTs, endTs) {
 function fetchAdSpend(adminToken, packageId, startDateStr, endDateStr) {
     const result = sendRequest({
         channelPackageId: packageId,
-        reportDateStart:  startDateStr,
-        reportDateEnd:    endDateStr,
+        reportDateStart: startDateStr,
+        reportDateEnd: endDateStr,
         pageNo: 1,
         pageSize: 200
     }, '/api/FinanceAdSpend/GetPageList', TAG, false, adminToken);
@@ -132,9 +132,12 @@ function fetchAdSpend(adminToken, packageId, startDateStr, endDateStr) {
     }
     let spendAmount = 0, impressions = 0, clicks = 0;
     result.list.forEach(r => {
-        spendAmount += parseFloat(r.spendAmount  || 0);
-        impressions += parseInt(r.impressions    || 0, 10);
-        clicks      += parseInt(r.clicks         || 0, 10);
+        // 只累加匹配当前渠道包的数据，防止 packageId=0 时获取到全量汇总
+        if (r.channelPackageId !== undefined && r.channelPackageId !== packageId) return;
+
+        spendAmount += parseFloat(r.spendAmount || 0);
+        impressions += parseInt(r.impressions || 0, 10);
+        clicks += parseInt(r.clicks || 0, 10);
     });
     return { spendAmount, impressions, clicks };
 }
@@ -143,8 +146,8 @@ function fetchAdSpend(adminToken, packageId, startDateStr, endDateStr) {
 function fetchFunnelReport(adminToken, packageId, startDateStr, endDateStr) {
     const result = sendRequest({
         channelPackageId: packageId,
-        startTime:        startDateStr,
-        endTime:          endDateStr,
+        startTime: startDateStr,
+        endTime: endDateStr,
         pageNo: 1,
         pageSize: 200,
         sortField: 'ReportDate',
@@ -156,6 +159,9 @@ function fetchFunnelReport(adminToken, packageId, startDateStr, endDateStr) {
     // 多天时把所有行的数值累加成一条汇总
     const sum = {};
     result.list.forEach(row => {
+        // 只累加匹配当前渠道包的数据
+        if (row.channelPackageId !== undefined && row.channelPackageId !== packageId) return;
+
         Object.keys(row).forEach(k => {
             const v = parseFloat(row[k]);
             if (!isNaN(v)) {
@@ -174,7 +180,7 @@ function fetchUserRecharge(adminToken, userId, startTs, endTs) {
         userId,
         rechargeState: 'Payed',
         startTime: startTs,
-        endTime:   endTs,
+        endTime: endTs,
         pageNo: 1,
         pageSize: 500,
         dateType: 0,
@@ -188,9 +194,9 @@ function fetchUserRecharge(adminToken, userId, startTs, endTs) {
 function fetchUserRptRecharge(adminToken, userId, startDateStr, endDateStr) {
     const result = sendQueryRequest({
         memberIdType: 1,
-        memberId:     userId,
-        startTime:    `${startDateStr} 00:00:00`,
-        endTime:      `${endDateStr} 23:59:59`
+        memberId: userId,
+        startTime: `${startDateStr} 00:00:00`,
+        endTime: `${endDateStr} 23:59:59`
     }, '/api/RptUserInfo/GetUserRptRechargePageList', TAG, false, adminToken);
 
     return result && result.list ? result.list : [];
@@ -202,7 +208,7 @@ function fetchUserWithdraw(adminToken, userId, startTs, endTs) {
         userId,
         withdrawState: 'Pass',
         startTime: startTs,
-        endTime:   endTs,
+        endTime: endTs,
         pageNo: 1,
         pageSize: 500,
         dateType: 1,
@@ -219,11 +225,11 @@ function fetchUserBet(adminToken, userId, startTs, endTs) {
     for (let cat = 0; cat < 5; cat++) {
         try {
             const result = sendQueryRequest({
-                categoryType:  cat,
+                categoryType: cat,
                 queryTimeType: 'BetTime',
                 userId,
                 beginTimeUnix: startTs,
-                endTimeUnix:   endTs,
+                endTimeUnix: endTs,
                 pageSize: 200,
                 sortField: 'BetTime'
             }, '/api/ThirdGame/GetBetRecordPageList', TAG, false, adminToken);
@@ -246,9 +252,9 @@ function fetchUserBet(adminToken, userId, startTs, endTs) {
 function fetchUserActivityAmount(adminToken, userId, startDateStr, endDateStr) {
     const result = sendQueryRequest({
         memberIdType: 1,
-        memberId:     userId,
-        startTime:    `${startDateStr} 00:00:00`,
-        endTime:      `${endDateStr} 23:59:59`
+        memberId: userId,
+        startTime: `${startDateStr} 00:00:00`,
+        endTime: `${endDateStr} 23:59:59`
     }, '/api/RptUserInfo/GetUserRptActivityPageList', TAG, false, adminToken);
 
     if (!result || !result.summary) return 0;
@@ -277,7 +283,7 @@ function calcMetrics(users, adSpend, startTs, endTs, startDateStr, endDateStr, a
     let totalBet = 0, totalWin = 0;
     let firstRechargeUsers = 0, firstRechargeAmt = 0;
     let secondRechargeUsers = 0, secondRechargeAmt = 0;
-    let thirdRechargeUsers  = 0, thirdRechargeAmt  = 0;
+    let thirdRechargeUsers = 0, thirdRechargeAmt = 0;
     let betUsers = 0;
     let activityAmount = 0;
 
@@ -325,9 +331,9 @@ function calcMetrics(users, adSpend, startTs, endTs, startDateStr, endDateStr, a
     });
 
     // 派生指标
-    const platWinLose   = totalBet - totalWin;
+    const platWinLose = totalBet - totalWin;
     const platNetProfit = platWinLose - activityAmount;
-    const netDeposit    = totalRecharge - totalWithdraw;
+    const netDeposit = totalRecharge - totalWithdraw;
 
     const safe = (n, d) => d === 0 ? 0 : n / d;
 
@@ -340,28 +346,28 @@ function calcMetrics(users, adSpend, startTs, endTs, startDateStr, endDateStr, a
         betUsers, totalBet, totalWin,
         totalRecharge, totalWithdraw, netDeposit,
         activityAmount, platWinLose, platNetProfit,
-        ctr:                    safe(clicks, impressions),
-        cpm:                    safe(spendAmount, impressions) * 1000,
-        cpc:                    safe(spendAmount, clicks),
-        clickToRegisterRate:    safe(registerCount, clicks),
-        cpa:                    safe(spendAmount, registerCount),
-        registerToFirstRate:    safe(firstRechargeUsers, registerCount),
-        avgFirstRecharge:       safe(firstRechargeAmt, firstRechargeUsers),
-        cpfd:                   safe(spendAmount, firstRechargeUsers),
-        firstToSecondRate:      safe(secondRechargeUsers, firstRechargeUsers),
-        secondToThirdRate:      safe(thirdRechargeUsers, secondRechargeUsers),
-        costPerSecondRecharge:  safe(spendAmount, secondRechargeUsers),
-        costPerThirdRecharge:   safe(spendAmount, thirdRechargeUsers),
-        registerToBetRate:      safe(betUsers, registerCount),
-        avgBetAmount:           safe(totalBet, betUsers),
-        costPerBetUser:         safe(spendAmount, betUsers),
-        roasRecharge:           safe(totalRecharge, spendAmount),
-        roasWinLose:            safe(platWinLose, spendAmount),
-        roasNetProfit:          safe(platNetProfit, spendAmount),
-        roi:                    safe(platNetProfit - spendAmount, spendAmount),
-        userLtv:                safe(platNetProfit, registerCount),
-        firstRechargeUserLtv:   safe(platNetProfit, firstRechargeUsers),
-        ltvCacRatio:            safe(safe(platNetProfit, firstRechargeUsers), safe(spendAmount, firstRechargeUsers))
+        ctr: safe(clicks, impressions),
+        cpm: safe(spendAmount, impressions) * 1000,
+        cpc: safe(spendAmount, clicks),
+        clickToRegisterRate: safe(registerCount, clicks),
+        cpa: safe(spendAmount, registerCount),
+        registerToFirstRate: safe(firstRechargeUsers, registerCount),
+        avgFirstRecharge: safe(firstRechargeAmt, firstRechargeUsers),
+        cpfd: safe(spendAmount, firstRechargeUsers),
+        firstToSecondRate: safe(secondRechargeUsers, firstRechargeUsers),
+        secondToThirdRate: safe(thirdRechargeUsers, secondRechargeUsers),
+        costPerSecondRecharge: safe(spendAmount, secondRechargeUsers),
+        costPerThirdRecharge: safe(spendAmount, thirdRechargeUsers),
+        registerToBetRate: safe(betUsers, registerCount),
+        avgBetAmount: safe(totalBet, betUsers),
+        costPerBetUser: safe(spendAmount, betUsers),
+        roasRecharge: safe(totalRecharge, spendAmount),
+        roasWinLose: safe(platWinLose, spendAmount),
+        roasNetProfit: safe(platNetProfit, spendAmount),
+        roi: safe(platNetProfit - spendAmount, spendAmount),
+        userLtv: safe(platNetProfit, registerCount),
+        firstRechargeUserLtv: safe(platNetProfit, firstRechargeUsers),
+        ltvCacRatio: safe(safe(platNetProfit, firstRechargeUsers), safe(spendAmount, firstRechargeUsers))
     };
 }
 
@@ -381,7 +387,7 @@ function buildReport(dateStr, calc, sys) {
 
     function check(label, calcVal, sysVal, isCount = false) {
         const c = parseFloat(calcVal) || 0;
-        const s = parseFloat(sysVal)  || 0;
+        const s = parseFloat(sysVal) || 0;
         let ok;
         if (isCount) {
             ok = c === s;
@@ -389,9 +395,9 @@ function buildReport(dateStr, calc, sys) {
             const diff = Math.abs(c - s);
             ok = diff <= TOL_ABS || (s !== 0 && diff / Math.abs(s) * 100 <= TOL_PCT);
         }
-        const icon    = ok ? '✅' : '❌';
+        const icon = ok ? '✅' : '❌';
         const calcStr = typeof calcVal === 'number' ? calcVal.toFixed(4) : String(calcVal);
-        const sysStr  = typeof sysVal  === 'number' ? sysVal.toFixed(4)  : String(sysVal);
+        const sysStr = typeof sysVal === 'number' ? sysVal.toFixed(4) : String(sysVal);
         const diffStr = ok ? '' : ` ← 差值: ${(c - s).toFixed(4)}`;
         const line = `${icon} ${label.padEnd(28)} | 计算: ${calcStr.padStart(12)} | 系统: ${sysStr.padStart(12)}${diffStr}`;
         if (!ok) errorLines.push(`  ${line}`);
@@ -403,56 +409,56 @@ function buildReport(dateStr, calc, sys) {
     lines.push(`${'═'.repeat(75)}`);
 
     lines.push(`\n  ── 广告投放 ──────────────────────────────────────────────────────`);
-    lines.push(`  ${check('投放消耗(spendAmount)',      calc.spendAmount,      sys.spendAmount)}`);
-    lines.push(`  ${check('曝光次数(impressions)',      calc.impressions,      sys.impressions,      true)}`);
-    lines.push(`  ${check('点击次数(clicks)',           calc.clicks,           sys.clicks,           true)}`);
-    lines.push(`  ${check('点击率CTR(%)',               calc.ctr,              sys.ctr)}`);
-    lines.push(`  ${check('CPM(千次曝光成本)',          calc.cpm,              sys.cpm)}`);
-    lines.push(`  ${check('CPC(单次点击成本)',          calc.cpc,              sys.cpc)}`);
+    lines.push(`  ${check('投放消耗(spendAmount)', calc.spendAmount, sys.spendAmount)}`);
+    lines.push(`  ${check('曝光次数(impressions)', calc.impressions, sys.impressions, true)}`);
+    lines.push(`  ${check('点击次数(clicks)', calc.clicks, sys.clicks, true)}`);
+    lines.push(`  ${check('点击率CTR(%)', calc.ctr, sys.ctr)}`);
+    lines.push(`  ${check('CPM(千次曝光成本)', calc.cpm, sys.cpm)}`);
+    lines.push(`  ${check('CPC(单次点击成本)', calc.cpc, sys.cpc)}`);
 
     lines.push(`\n  ── 注册漏斗 ──────────────────────────────────────────────────────`);
-    lines.push(`  ${check('注册人数(registerCount)',    calc.registerCount,    sys.registerCount,    true)}`);
-    lines.push(`  ${check('点击→注册转化率(%)',         calc.clickToRegisterRate, sys.clickToRegisterRate)}`);
-    lines.push(`  ${check('单注册成本CPA',              calc.cpa,              sys.cpa)}`);
+    lines.push(`  ${check('注册人数(registerCount)', calc.registerCount, sys.registerCount, true)}`);
+    lines.push(`  ${check('点击→注册转化率(%)', calc.clickToRegisterRate, sys.clickToRegisterRate)}`);
+    lines.push(`  ${check('单注册成本CPA', calc.cpa, sys.cpa)}`);
 
     lines.push(`\n  ── 充值漏斗 ──────────────────────────────────────────────────────`);
-    lines.push(`  ${check('首充人数',                   calc.firstRechargeUsers,  sys.firstRechargeUserCount,  true)}`);
-    lines.push(`  ${check('注册→首充转化率(%)',          calc.registerToFirstRate, sys.registerToFirstRate)}`);
-    lines.push(`  ${check('首充金额',                   calc.firstRechargeAmt,    sys.firstRechargeAmount)}`);
-    lines.push(`  ${check('人均首充',                   calc.avgFirstRecharge,    sys.avgFirstRecharge)}`);
-    lines.push(`  ${check('单首充成本CPFD',             calc.cpfd,                sys.cpfd)}`);
-    lines.push(`  ${check('二充人数',                   calc.secondRechargeUsers, sys.secondRechargeUserCount, true)}`);
-    lines.push(`  ${check('二充金额',                   calc.secondRechargeAmt,   sys.secondRechargeAmount)}`);
-    lines.push(`  ${check('首充→二充转化率(%)',          calc.firstToSecondRate,   sys.firstToSecondRate)}`);
-    lines.push(`  ${check('单二充成本',                  calc.costPerSecondRecharge, sys.costPerSecondRecharge)}`);
-    lines.push(`  ${check('三充人数',                   calc.thirdRechargeUsers,  sys.thirdRechargeUserCount,  true)}`);
-    lines.push(`  ${check('三充金额',                   calc.thirdRechargeAmt,    sys.thirdRechargeAmount)}`);
-    lines.push(`  ${check('二充→三充转化率(%)',          calc.secondToThirdRate,   sys.secondToThirdRate)}`);
-    lines.push(`  ${check('单三充成本',                  calc.costPerThirdRecharge, sys.costPerThirdRecharge)}`);
+    lines.push(`  ${check('首充人数', calc.firstRechargeUsers, sys.firstRechargeUserCount, true)}`);
+    lines.push(`  ${check('注册→首充转化率(%)', calc.registerToFirstRate, sys.registerToFirstRate)}`);
+    lines.push(`  ${check('首充金额', calc.firstRechargeAmt, sys.firstRechargeAmount)}`);
+    lines.push(`  ${check('人均首充', calc.avgFirstRecharge, sys.avgFirstRecharge)}`);
+    lines.push(`  ${check('单首充成本CPFD', calc.cpfd, sys.cpfd)}`);
+    lines.push(`  ${check('二充人数', calc.secondRechargeUsers, sys.secondRechargeUserCount, true)}`);
+    lines.push(`  ${check('二充金额', calc.secondRechargeAmt, sys.secondRechargeAmount)}`);
+    lines.push(`  ${check('首充→二充转化率(%)', calc.firstToSecondRate, sys.firstToSecondRate)}`);
+    lines.push(`  ${check('单二充成本', calc.costPerSecondRecharge, sys.costPerSecondRecharge)}`);
+    lines.push(`  ${check('三充人数', calc.thirdRechargeUsers, sys.thirdRechargeUserCount, true)}`);
+    lines.push(`  ${check('三充金额', calc.thirdRechargeAmt, sys.thirdRechargeAmount)}`);
+    lines.push(`  ${check('二充→三充转化率(%)', calc.secondToThirdRate, sys.secondToThirdRate)}`);
+    lines.push(`  ${check('单三充成本', calc.costPerThirdRecharge, sys.costPerThirdRecharge)}`);
 
     lines.push(`\n  ── 投注 ──────────────────────────────────────────────────────────`);
-    lines.push(`  ${check('活跃投注人数',               calc.betUsers,         sys.betUserCount,     true)}`);
-    lines.push(`  ${check('注册→投注转化率(%)',          calc.registerToBetRate, sys.registerToBetRate)}`);
-    lines.push(`  ${check('总投注金额(打码量)',          calc.totalBet,         sys.betAmount)}`);
-    lines.push(`  ${check('人均投注金额',               calc.avgBetAmount,     sys.avgBetAmount)}`);
-    lines.push(`  ${check('单活跃用户成本',             calc.costPerBetUser,   sys.costPerBetUser)}`);
+    lines.push(`  ${check('活跃投注人数', calc.betUsers, sys.betUserCount, true)}`);
+    lines.push(`  ${check('注册→投注转化率(%)', calc.registerToBetRate, sys.registerToBetRate)}`);
+    lines.push(`  ${check('总投注金额(打码量)', calc.totalBet, sys.betAmount)}`);
+    lines.push(`  ${check('人均投注金额', calc.avgBetAmount, sys.avgBetAmount)}`);
+    lines.push(`  ${check('单活跃用户成本', calc.costPerBetUser, sys.costPerBetUser)}`);
 
     lines.push(`\n  ── 资金 ──────────────────────────────────────────────────────────`);
-    lines.push(`  ${check('总充值',                     calc.totalRecharge,    sys.rechargeAmountTotal)}`);
-    lines.push(`  ${check('总提现',                     calc.totalWithdraw,    sys.withdrawAmountTotal)}`);
-    lines.push(`  ${check('充提差额(净存款)',            calc.netDeposit,       sys.netDeposit)}`);
-    lines.push(`  ${check('平台盈亏(投注-派奖)',         calc.platWinLose,      sys.platWinLoseAmount)}`);
-    lines.push(`  ${check('活动发放金额',               calc.activityAmount,   sys.activityAmount)}`);
-    lines.push(`  ${check('平台净利润',                 calc.platNetProfit,    sys.platNetProfit)}`);
+    lines.push(`  ${check('总充值', calc.totalRecharge, sys.rechargeAmountTotal)}`);
+    lines.push(`  ${check('总提现', calc.totalWithdraw, sys.withdrawAmountTotal)}`);
+    lines.push(`  ${check('充提差额(净存款)', calc.netDeposit, sys.netDeposit)}`);
+    lines.push(`  ${check('平台盈亏(投注-派奖)', calc.platWinLose, sys.platWinLoseAmount)}`);
+    lines.push(`  ${check('活动发放金额', calc.activityAmount, sys.activityAmount)}`);
+    lines.push(`  ${check('平台净利润', calc.platNetProfit, sys.platNetProfit)}`);
 
     lines.push(`\n  ── ROI 指标 ──────────────────────────────────────────────────────`);
-    lines.push(`  ${check('充值ROAS',                   calc.roasRecharge,     sys.roasRecharge)}`);
-    lines.push(`  ${check('盈亏ROAS',                   calc.roasWinLose,      sys.roasWinLose)}`);
-    lines.push(`  ${check('净利润ROAS',                 calc.roasNetProfit,    sys.roasNetProfit)}`);
-    lines.push(`  ${check('ROI',                         calc.roi,              sys.roi)}`);
-    lines.push(`  ${check('单用户LTV',                  calc.userLtv,          sys.userLtv)}`);
-    lines.push(`  ${check('首充用户LTV',                calc.firstRechargeUserLtv, sys.firstRechargeUserLtv)}`);
-    lines.push(`  ${check('LTV/CAC比值',                calc.ltvCacRatio,      sys.ltvCacRatio)}`);
+    lines.push(`  ${check('充值ROAS', calc.roasRecharge, sys.roasRecharge)}`);
+    lines.push(`  ${check('盈亏ROAS', calc.roasWinLose, sys.roasWinLose)}`);
+    lines.push(`  ${check('净利润ROAS', calc.roasNetProfit, sys.roasNetProfit)}`);
+    lines.push(`  ${check('ROI', calc.roi, sys.roi)}`);
+    lines.push(`  ${check('单用户LTV', calc.userLtv, sys.userLtv)}`);
+    lines.push(`  ${check('首充用户LTV', calc.firstRechargeUserLtv, sys.firstRechargeUserLtv)}`);
+    lines.push(`  ${check('LTV/CAC比值', calc.ltvCacRatio, sys.ltvCacRatio)}`);
 
     lines.push(`\n  ── 仅展示（无法本地验证）────────────────────────────────────────`);
     lines.push(`  ℹ️  次日留存率(retentionRate_2)  : ${sys.retentionRate_2}`);
@@ -479,22 +485,22 @@ function printSummaryCard(needSummary, label, calcResults) {
 
     // 累加所有报表的数值
     const sum = calcResults.reduce((acc, r) => {
-        acc.spendAmount          += r.spendAmount          || 0;
-        acc.impressions          += r.impressions          || 0;
-        acc.clicks               += r.clicks               || 0;
-        acc.registerCount        += r.registerCount        || 0;
-        acc.firstRechargeUsers   += r.firstRechargeUsers   || 0;
-        acc.firstRechargeAmt     += r.firstRechargeAmt     || 0;
-        acc.secondRechargeUsers  += r.secondRechargeUsers  || 0;
-        acc.secondRechargeAmt    += r.secondRechargeAmt    || 0;
-        acc.thirdRechargeUsers   += r.thirdRechargeUsers   || 0;
-        acc.thirdRechargeAmt     += r.thirdRechargeAmt     || 0;
-        acc.betUsers             += r.betUsers             || 0;
-        acc.totalBet             += r.totalBet             || 0;
-        acc.totalWin             += r.totalWin             || 0;
-        acc.totalRecharge        += r.totalRecharge        || 0;
-        acc.totalWithdraw        += r.totalWithdraw        || 0;
-        acc.activityAmount       += r.activityAmount       || 0;
+        acc.spendAmount += r.spendAmount || 0;
+        acc.impressions += r.impressions || 0;
+        acc.clicks += r.clicks || 0;
+        acc.registerCount += r.registerCount || 0;
+        acc.firstRechargeUsers += r.firstRechargeUsers || 0;
+        acc.firstRechargeAmt += r.firstRechargeAmt || 0;
+        acc.secondRechargeUsers += r.secondRechargeUsers || 0;
+        acc.secondRechargeAmt += r.secondRechargeAmt || 0;
+        acc.thirdRechargeUsers += r.thirdRechargeUsers || 0;
+        acc.thirdRechargeAmt += r.thirdRechargeAmt || 0;
+        acc.betUsers += r.betUsers || 0;
+        acc.totalBet += r.totalBet || 0;
+        acc.totalWin += r.totalWin || 0;
+        acc.totalRecharge += r.totalRecharge || 0;
+        acc.totalWithdraw += r.totalWithdraw || 0;
+        acc.activityAmount += r.activityAmount || 0;
         return acc;
     }, {
         spendAmount: 0, impressions: 0, clicks: 0,
@@ -507,9 +513,9 @@ function printSummaryCard(needSummary, label, calcResults) {
     });
 
     const safe = (n, d) => d === 0 ? 0 : n / d;
-    const platWinLose   = sum.totalBet - sum.totalWin;
+    const platWinLose = sum.totalBet - sum.totalWin;
     const platNetProfit = platWinLose - sum.activityAmount;
-    const netDeposit    = sum.totalRecharge - sum.totalWithdraw;
+    const netDeposit = sum.totalRecharge - sum.totalWithdraw;
     const f = n => (typeof n === 'number' ? n.toFixed(4) : String(n));
 
     console.log(`\n${'='.repeat(75)}`);
@@ -542,6 +548,19 @@ function printSummaryCard(needSummary, label, calcResults) {
     console.log(`${'='.repeat(75)}\n`);
 }
 
+export function setup() {
+    console.log(`\n${'='.repeat(75)}`);
+    console.log(`[Setup] 开始管理员登录 | 租户: ${TENANT_ID}`);
+    const adminToken = tenantAdminLogin(TENANT_ID);
+    if (!adminToken) {
+        console.error('[Setup] ❌ 管理员登录失败');
+        throw new Error('管理员登录失败');
+    }
+    console.log('[Setup] ✅ 登录成功');
+    console.log(`${'='.repeat(75)}\n`);
+    return { adminToken };
+}
+
 export default function (data) {
     const { adminToken } = data;
     const [startDate, endDate] = parseDateRange(DATE_RANGE);
@@ -549,18 +568,18 @@ export default function (data) {
 
     // 整个日期范围的时间戳（IST）
     const rangeStartTs = dateToIstStartTs(startDate);
-    const rangeEndTs   = dateToIstEndTs(endDate);
+    const rangeEndTs = dateToIstEndTs(endDate);
 
-    const isMultiDay      = dates.length > 1;
-    const isMultiPackage  = PACKAGE_IDS.length > 1;
-    const needSummary     = isMultiDay || isMultiPackage;
+    const isMultiDay = dates.length > 1;
+    const isMultiPackage = PACKAGE_IDS.length > 1;
+    const needSummary = isMultiDay || isMultiPackage;
 
     console.log(`\n${'='.repeat(75)}`);
     console.log(`🔍 渠道漏斗验证  租户=${TENANT_ID}  日期=${startDate}~${endDate}(${dates.length}天)  渠道包=${PACKAGE_IDS.join(',')}(${PACKAGE_IDS.length}个)`);
     console.log(`${'='.repeat(75)}\n`);
 
     const allCalcResults = [];
-    const finalReports   = [];
+    const finalReports = [];
 
     // ── 外层：按渠道包循环，每个渠道包查整个日期范围 ──────────────
     PACKAGE_IDS.forEach((packageId, pkgIdx) => {

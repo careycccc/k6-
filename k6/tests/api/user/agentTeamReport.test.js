@@ -6,7 +6,7 @@
  *   总充值、总提现、总打码量、代理佣金、佣金贡献比、活跃会员、活跃率
  *
  * 运行示例：
- *   k6 run -e TENANT_ID=3007 -e ROOT_UIDS=137861 -e DATE_RANGE=2026-05-04~2026-05-05 -e AGENT_TYPE=L6 -e REBATE_LEVEL=L0 agentTeamReport.test.js
+ *   k6 run -e TENANT_ID=3101 -e ROOT_UIDS=112529,112513 -e DATE_RANGE=2026-05-04~2026-05-05 -e AGENT_TYPE=L6 -e REBATE_LEVEL=L0 agentTeamReport.test.js
  *
  * 
  * 
