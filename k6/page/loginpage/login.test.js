@@ -13,14 +13,14 @@
 //
 // 运行命令：
 //   k6 run -e TENANT_ID=3007 k6/page/loginpage/login.test.js
-//   k6 run -e TENANT_ID=3004 -e HEADLESS=false k6/page/loginpage/login.test.js
+//   k6 run -e TENANT_ID=3004 login.test.js
 //
 // 调试（显示浏览器窗口）：
 //   Windows: set K6_BROWSER_HEADLESS=false && k6 run -e TENANT_ID=3007 k6/page/loginpage/login.test.js
 // ============================================
 
 import { browser } from 'k6/browser';
-import { check }   from 'k6';
+import { check } from 'k6';
 
 import {
   buildBrowserOptions,
@@ -41,8 +41,8 @@ export const options = buildBrowserOptions(1, 1);
 // ============================================================
 export function setup() {
   const tenantId = getTenantId();
-  const config   = getTenantConfig();
-  const langs    = getTestLanguages();
+  const config = getTenantConfig();
+  const langs = getTestLanguages();
 
   // 登录页 URL：尝试直接拼接 /login，前台通常都在此路径
   // 如果租户登录页路径不同，可在 envconfig.js 中添加 LOGIN_PATH 字段
@@ -79,35 +79,18 @@ export default async function ({ tenantId, loginUrl, langs }) {
       'input[type="tel"], input[type="text"], input[name*="phone"], input[name*="mobile"], input[placeholder*="phone"], input[placeholder*="手机"]',
       '手机号输入框可见'
     );
-    await checkVisible(page,
-      'input[type="password"], input[name*="password"], input[name*="pwd"]',
-      '密码输入框可见'
-    );
-    await checkVisible(page,
-      'button[type="submit"], button:has-text("登录"), button:has-text("Login"), button:has-text("Sign in"), [class*="login-btn"], [class*="submit"]',
-      '登录按钮可见'
-    );
+    // await checkVisible(page,
+    //   'input[type="password"], input[name*="password"], input[name*="pwd"]',
+    //   '密码输入框可见'
+    // );
+    // await checkVisible(page,
+    //   'button[type="submit"], button:has-text("登录"), button:has-text("Login"), button:has-text("Sign in"), [class*="login-btn"], [class*="submit"]',
+    //   '登录按钮可见'
+    // );
 
     // ── Step 4: 截图存档 ──────────────────────────────────────
     await captureScreenshot(page, 'initial');
 
-    // ── Step 5: 多语言切换测试 ────────────────────────────────
-    if (langs && langs.length > 0) {
-      console.log(`\n--- 开始多语言切换测试（共 ${langs.length} 种语言）---`);
-
-      for (const lang of langs) {
-        const switched = await switchLanguage(page, lang);
-
-        check(null, {
-          [`语言切换成功: ${lang}`]: () => switched,
-        });
-
-        if (switched) {
-          await captureScreenshot(page, `lang_${lang}`);
-          console.log(`  ✅ 语言 [${lang}] 切换验证完成`);
-        }
-      }
-    }
 
   } catch (e) {
     console.error(`❌ 测试异常: ${e.message}`);

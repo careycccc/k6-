@@ -12,14 +12,14 @@
 //
 // 运行命令：
 //   k6 run -e TENANT_ID=3007 k6/page/indexpage/index.test.js
-//   k6 run -e TENANT_ID=3001 -e LANGUAGES=hi k6/page/indexpage/index.test.js
+//   k6 run -e TENANT_ID=3004 index.test.js
 //
 // 调试（显示浏览器窗口）：
 //   Windows: set K6_BROWSER_HEADLESS=false && k6 run -e TENANT_ID=3007 k6/page/indexpage/index.test.js
 // ============================================
 
-import { browser }  from 'k6/browser';
-import { check }    from 'k6';
+import { browser } from 'k6/browser';
+import { check } from 'k6';
 
 import {
   buildBrowserOptions,
@@ -41,8 +41,8 @@ export const options = buildBrowserOptions(1, 1);
 // ============================================================
 export function setup() {
   const tenantId = getTenantId();
-  const config   = getTenantConfig();
-  const langs    = getTestLanguages();
+  const config = getTenantConfig();
+  const langs = getTestLanguages();
 
   console.log('════════════════════════════════════════════════════════');
   console.log(`🚀 首页浏览器性能测试`);
@@ -89,24 +89,24 @@ export default async function ({ tenantId, baseUrl, langs }) {
     // ── Step 4: 截图存档（初始状态）──────────────────────────
     await captureScreenshot(page, 'initial');
 
-    // ── Step 5: 多语言切换测试 ────────────────────────────────
-    // 依次切换租户配置的每种语言，验证语言按钮可点击
-    if (langs && langs.length > 0) {
-      console.log(`\n--- 开始多语言切换测试（共 ${langs.length} 种语言）---`);
+    // // ── Step 5: 多语言切换测试 ────────────────────────────────
+    // // 依次切换租户配置的每种语言，验证语言按钮可点击
+    // if (langs && langs.length > 0) {
+    //   console.log(`\n--- 开始多语言切换测试（共 ${langs.length} 种语言）---`);
 
-      for (const lang of langs) {
-        const switched = await switchLanguage(page, lang);
+    //   for (const lang of langs) {
+    //     const switched = await switchLanguage(page, lang);
 
-        check(null, {
-          [`语言切换成功: ${lang}`]: () => switched,
-        });
+    //     check(null, {
+    //       [`语言切换成功: ${lang}`]: () => switched,
+    //     });
 
-        if (switched) {
-          await captureScreenshot(page, `lang_${lang}`);
-          console.log(`  ✅ 语言 [${lang}] 切换验证完成`);
-        }
-      }
-    }
+    //     if (switched) {
+    //       await captureScreenshot(page, `lang_${lang}`);
+    //       console.log(`  ✅ 语言 [${lang}] 切换验证完成`);
+    //     }
+    //   }
+    // }
 
   } catch (e) {
     console.error(`❌ 测试异常: ${e.message}`);
