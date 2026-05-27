@@ -11,13 +11,17 @@
  * ════════════════════════════════════════════════════════════
  *
  *   # 默认分层（20% 不活跃 / 20% 只充值 / 60% 充值+投注）
- *   k6 run -e TENANT_ID=3004 -e TARGET_UID=137529 runTeamRechargeAndBetV2.test.js
+ *   k6 run -e TENANT_ID=3006 -e TARGET_UID=110313 runTeamRechargeAndBetV2.test.js
  *
  *   # 自定义分层比例
  *   k6 run -e TENANT_ID=3004 -e TARGET_UID=137529 \
  *     -e INACTIVE_RATE=0.3 -e RECHARGE_ONLY_RATE=0.1 \
  *     runTeamRechargeAndBetV2.test.js
  *
+ * 
+ * # 只针对于L3团队的方式进行整个团队的充值投注
+ * k6 run -e TENANT_ID=3006 -e TARGET_UID=110313 -e IS_L3=true runTeamRechargeAndBetV2.test.js
+
  * ════════════════════════════════════════════════════════════
  * 环境变量
  * ════════════════════════════════════════════════════════════
@@ -26,6 +30,7 @@
  *   INACTIVE_RATE      不活跃比例 0~1             默认: 0.2
  *   RECHARGE_ONLY_RATE 只充值比例 0~1             默认: 0.2
  *   REBATE_CHANCE      返佣设置几率 0~1           默认: 0.2
+ *   IS_L3              是否为L3代理(true/false)   默认: false
  */
 
 import { AdminLogin } from '../login/adminlogin.test.js';
@@ -72,6 +77,7 @@ export default function (data) {
     const inactiveRate     = parseFloat(__ENV.INACTIVE_RATE      || '0.2');
     const rechargeOnlyRate = parseFloat(__ENV.RECHARGE_ONLY_RATE || '0.2');
     const rebateChance     = parseFloat(__ENV.REBATE_CHANCE      || '0.2');
+    const isL3             = (__ENV.IS_L3 || '').toLowerCase() === 'true';
 
     // 校验比例之和不超过1
     if (inactiveRate + rechargeOnlyRate > 1) {
@@ -94,6 +100,7 @@ export default function (data) {
         inactiveRate,
         rechargeOnlyRate,
         rebateChance,
-        delayMs: 1000
+        delayMs: 1000,
+        isL3
     });
 }

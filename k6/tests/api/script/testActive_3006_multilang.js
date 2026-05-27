@@ -196,3 +196,6 @@ export default function (data) {
     logger.info(`[VU] 成功: ${totalSuccess}, 失败: ${totalFailed}`);
     logger.info(`========================================`);
 }
+
+// 创建指定的活动
+// k6 run -e ACTIVITIES=champion testActive_3006_multilang.js

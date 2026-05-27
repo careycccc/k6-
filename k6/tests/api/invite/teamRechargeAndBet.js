@@ -4,7 +4,7 @@
  */
 
 import { sleep } from 'k6';
-import { getAllRelatedUserIds, updateUserAgentRebateMode } from './agentApi.js';
+import { getAllRelatedUserIds, getL3AllRelatedUserIds, updateUserAgentRebateMode } from './agentApi.js';
 import { batchGetUserAccounts, autoLoginByAccount } from '../user/userAccountApi.js';
 import { hybridRecharge, getConfigRechargeAmount } from '../recharge/rechargeService.js';
 import { betRun } from '../runbet/betRun.js';
@@ -338,7 +338,8 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
         inactiveRate     = 0.2,   // 不充值不投注
         rechargeOnlyRate = 0.2,   // 只充值不投注
         rebateChance     = 0.2,
-        delayMs          = 1000
+        delayMs          = 1000,
+        isL3             = false  // 是否为L3级代理
     } = options;
 
     // 活跃比例 = 剩余
@@ -350,11 +351,17 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
     console.log(`不活跃比例  : ${(inactiveRate * 100).toFixed(0)}%  → 不充值，不投注`);
     console.log(`半活跃比例  : ${(rechargeOnlyRate * 100).toFixed(0)}%  → 只充值，不投注`);
     console.log(`活跃比例    : ${(activeRate * 100).toFixed(0)}%  → 充值 + 投注`);
+    if (isL3) console.log(`代理级别    : L3代理 (专属接口)`);
     console.log(`${'='.repeat(60)}\n`);
 
     // 步骤1: 查询所有上下级
-    console.log(`📋 步骤1: 查询所有上下级...`);
-    const userIds = getAllRelatedUserIds(adminData.token, targetUserId);
+    console.log(`📋 步骤1: 查询所有${isL3 ? '下级' : '上下级'}...`);
+    let userIds = [];
+    if (isL3) {
+        userIds = getL3AllRelatedUserIds(adminData.token, targetUserId);
+    } else {
+        userIds = getAllRelatedUserIds(adminData.token, targetUserId);
+    }
 
     if (userIds.length === 0) {
         console.error(`❌ 未找到任何相关用户`);
@@ -381,20 +388,24 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
     console.log(`  半活跃: ${groups.rechargeOnly.length} 人`);
     console.log(`  活跃  : ${groups.active.length} 人\n`);
 
-    // 步骤3: 设置返佣（仅对半活跃+活跃用户）
+    // 步骤3: 设置返佣（仅对半活跃+活跃用户，L3代理不设置）
     const eligibleForRebate = [...groups.rechargeOnly, ...groups.active];
     let rebateUpdatedCount = 0;
-    console.log(`📋 步骤3: 设置返佣模式（${(rebateChance * 100).toFixed(0)}% 几率）...`);
-    for (const uid of eligibleForRebate) {
-        if (Math.random() < rebateChance) {
-            const rebateMode  = Math.floor(Math.random() * 2) + 1;
-            const rebateLevel = Math.floor(Math.random() * 6) + 1;
-            const success = updateUserAgentRebateMode(adminData.token, uid, rebateMode, rebateLevel);
-            if (success) rebateUpdatedCount++;
-            sleep(0.5);
+    if (isL3) {
+        console.log(`📋 步骤3: L3代理跳过返佣模式设置...`);
+    } else {
+        console.log(`📋 步骤3: 设置返佣模式（${(rebateChance * 100).toFixed(0)}% 几率）...`);
+        for (const uid of eligibleForRebate) {
+            if (Math.random() < rebateChance) {
+                const rebateMode  = Math.floor(Math.random() * 2) + 1;
+                const rebateLevel = Math.floor(Math.random() * 6) + 1;
+                const success = updateUserAgentRebateMode(adminData.token, uid, rebateMode, rebateLevel);
+                if (success) rebateUpdatedCount++;
+                sleep(0.5);
+            }
         }
+        console.log(`✅ 返佣设置完成: ${rebateUpdatedCount} 个用户\n`);
     }
-    console.log(`✅ 返佣设置完成: ${rebateUpdatedCount} 个用户\n`);
 
     // 步骤4: 批量查询账号（只查半活跃+活跃）
     console.log(`📋 步骤4: 批量查询用户账号...`);

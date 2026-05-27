@@ -129,3 +129,82 @@ export function updateUserAgentRebateMode(adminToken, userId, rebateMode, rebate
     console.log(`[AgentApi] ✅ 更新返佣模式成功: 用户 ${userId}`);
     return true;
 }
+
+/**
+ * 获取 L3 级代理的下级列表
+ * @param {string} adminToken - 管理员token
+ * @param {number} agentId - L3代理的ID
+ * @param {object} options - 可选参数
+ * @returns {Array} 代理列表
+ */
+export function getL3AgentInvitedList(adminToken, agentId, options = {}) {
+    const {
+        pageSize = 500
+    } = options;
+
+    const api = '/api/AgentL3/GetPageListInvitedList';
+    // 随机数，语言，签名，时间戳在 request.js 中可能会自动补充，如果没有，此处手动补充必要的
+    const payload = {
+        agentId: agentId,
+        pageNo: 1,
+        pageSize: pageSize,
+        orderBy: "Desc"
+    };
+
+    console.log(`[AgentApi] ========== 开始查询 L3 代理下级列表 ==========`);
+
+    const result = sendRequest(payload, api, tag, false, adminToken);
+
+    if (!result) {
+        console.error(`[AgentApi] 请求失败，返回空`);
+        return [];
+    }
+
+    let list = [];
+    let totalCount = 0;
+
+    if (Array.isArray(result)) {
+        list = result;
+        totalCount = result.length;
+    } else if (result.list) {
+        list = result.list;
+        totalCount = result.totalCount || result.list.length;
+    } else if (result.data && result.data.list) {
+        list = result.data.list;
+        totalCount = result.data.totalCount || result.data.list.length;
+    } else {
+        console.error(`[AgentApi] 未知响应格式`);
+    }
+
+    console.log(`[AgentApi] 解析结果: ${list.length} 个用户 (总数: ${totalCount})`);
+    console.log(`[AgentApi] ========== 查询完成 ==========`);
+
+    if (list.length === 0) {
+        console.warn(`[AgentApi] 未获取到任何用户数据`);
+        return [];
+    }
+
+    return list;
+}
+
+/**
+ * 获取 L3 代理的所有下级 userId 列表
+ * @param {string} adminToken - 管理员token
+ * @param {number} agentId - L3代理ID
+ * @returns {Array<number>} userId 列表
+ */
+export function getL3AllRelatedUserIds(adminToken, agentId) {
+    console.log(`[AgentApi] 查询 L3 代理 ${agentId} 的所有下级...`);
+
+    const agentList = getL3AgentInvitedList(adminToken, agentId);
+
+    if (!agentList || agentList.length === 0) {
+        console.warn(`[AgentApi] 未找到 L3 代理 ${agentId} 的下级关系`);
+        return [];
+    }
+
+    const userIds = agentList.map(agent => agent.userId).filter(id => id);
+    console.log(`[AgentApi] 找到 ${userIds.length} 个相关用户`);
+
+    return userIds;
+}

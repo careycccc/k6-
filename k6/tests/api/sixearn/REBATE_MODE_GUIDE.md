@@ -89,7 +89,7 @@ k6 run -e TENANT_ID=3007 -e REBATE_MODE=mode9 -e INVITE_CODE_MODE=mix multiLevel
 验证：A的历史充投记录在成员换组后，B的新充投返佣归属是否正确。
 
 ```bash
-k6 run -e TENANT_ID=3007 -e TEAM1_TOTAL=1 -e TEAM1_LEVELS=0 -e TEAM2_TOTAL=0 -e TEAM2_LEVELS=0  multiLevelRebate.test.js
+k6 run -e TENANT_ID=3006 -e TEAM1_TOTAL=65 -e TEAM1_LEVELS=9 -e TEAM2_TOTAL=0 -e TEAM2_LEVELS=0  multiLevelRebate.test.js
 ```
 
 ---
@@ -213,7 +213,7 @@ k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
 验证：随机行为下换人，返佣结算是否稳定。
 
 ```bash
-k6 run -e TENANT_ID=3007 -e TEAM1_TOTAL=45 -e TEAM1_LEVELS=8 -e TEAM2_TOTAL=25 -e TEAM2_LEVELS=5 -e REBATE_MODE=mode9 -e INACTIVE_RATE=0.2 -e RECHARGE_ONLY_RATE=0.2 multiLevelRebate.test.js
+k6 run -e TENANT_ID=3006 -e TEAM1_TOTAL=45 -e TEAM1_LEVELS=8 -e TEAM2_TOTAL=25 -e TEAM2_LEVELS=5 -e REBATE_MODE=mode9 -e INACTIVE_RATE=0.2 -e RECHARGE_ONLY_RATE=0.2 multiLevelRebate.test.js
 ```
 
 ---
@@ -388,4 +388,30 @@ V2 模式将团队成员按概率随机分为三组：
 
 ```bash
 k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 -e REBATE_MODE=mode17 multiLevelRebate.test.js
+```
+
+---
+
+## 额外新增模式：多团队全随机无转线测试 (multiTeamRandomRebate.test.js)
+
+针对不需要团队间 `swap` 转线，但需要 **多团队并发**、且保留 **随机充值/投注/提现** 完整生命周期的测试需求，新增了独立的测试脚本。
+
+**核心特性：**
+1. **多团队支持**：可灵活配置 `TEAM_COUNT` 个团队，各自生成独立总代和层级结构。
+2. **全程无转线**：成员归属在整个测试过程中保持不变。
+3. **三段式全随机**：成员按 `INACTIVE_RATE` 和 `RECHARGE_ONLY_RATE` 划分为不活跃、只充值、充投三组。
+4. **全链路提现**：对满足条件的成员自动执行绑定钱包、设置提现密码、获取余额、过滤通道、提交申请并触发后台自动审核出款。
+5. **精简报表**：最终仅输出各下级成员的 UID、所属层级、充值总额、投注总额及提现总额。
+
+**使用示例：**
+```bash
+# 默认 3 个团队，随机分配 V2 行为
+k6 run multiTeamRandomRebate.test.js
+
+# 自定义团队数量和具体团队的规模，以及调整不活跃用户比例
+k6 run -e TEAM_COUNT=2 \
+  -e TEAM1_TOTAL=10 -e TEAM1_LEVELS=3 \
+  -e TEAM2_TOTAL=15 -e TEAM2_LEVELS=4 \
+  -e INACTIVE_RATE=0.1 -e RECHARGE_ONLY_RATE=0.3 \
+  multiTeamRandomRebate.test.js
 ```
