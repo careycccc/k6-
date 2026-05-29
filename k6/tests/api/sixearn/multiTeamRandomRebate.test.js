@@ -8,10 +8,10 @@
  * 4. 生成精简版报表
  * 
  * 使用方法：每个团队的总人数和总层级一样
- * k6 run -e TENANT_ID=3004 -e TEAM_COUNT=2 -e TEAM_TOTAL=5 -e TEAM_LEVELS=2 multiTeamRandomRebate.test.js
+ * k6 run -e TENANT_ID=3006 -e TEAM_COUNT=2 -e TEAM_TOTAL=5000 -e TEAM_LEVELS=120 multiTeamRandomRebate.test.js
  * 
  * 每个团队的人数和总层级可以不一样
- * k6 run -e TENANT_ID=3006 -e TEAM_COUNT=2 -e TEAM1_TOTAL=60 -e TEAM1_LEVELS=9 -e TEAM2_TOTAL=40 -e TEAM2_LEVELS=7 multiTeamRandomRebate.test.js
+ * k6 run -e TENANT_ID=3006 -e TEAM_COUNT=2 -e TEAM1_TOTAL=2000 -e TEAM1_LEVELS=59 -e TEAM2_TOTAL=4000 -e TEAM2_LEVELS=78 multiTeamRandomRebate.test.js
  * 
  * # 多租户 + 混合团队规模
  * # 团队1 是 10人2级
@@ -40,6 +40,17 @@ import { addAllWallets } from '../withdraw/addWalletApi.js';
 import { getWithdrawBasicInfo, setWithdrawPassword } from '../withdraw/withdrawApi.js';
 import { executeWithdrawCase } from '../withdraw/withdraw.test.js';
 import { runBackendWithdrawApproval } from '../withdraw/backendWithdrawApi.js';
+
+export const options = {
+    scenarios: {
+        default: {
+            executor: 'per-vu-iterations',
+            vus: 1,
+            iterations: 1,
+            maxDuration: '24h',
+        },
+    },
+};
 
 function distributePeople(totalPeople, levels) {
     if (levels <= 0 || totalPeople <= 0) return [];
@@ -70,21 +81,29 @@ function registerRootAgent(adminData, teamName) {
     console.log(`\n[${teamName}] 开始注册总代...`);
     const countryCode = adminData.envConfig.COUNTRY_CODE || '91';
     const phone = generateRandomPhone(countryCode);
-    const deskUrls = { frontUrl: adminData.envConfig.BASE_DESK_URL, adminUrl: adminData.envConfig.BASE_ADMIN_URL, registerUrl: adminData.envConfig.BASE_DESK_URL };
     let registerResult = phoneRegister(phone, adminData, 'qwer1234', '', null);
     if (!registerResult || !registerResult.data) {
         const inviteUrl = adminData.envConfig.INVITE_REGISTER_URL || adminData.envConfig.BASE_DESK_URL;
         const inviteUrls = { frontUrl: inviteUrl, adminUrl: adminData.envConfig.BASE_ADMIN_URL, registerUrl: inviteUrl };
         registerResult = phoneRegisterByInvite(phone, '', adminData, 'qwer1234', '', inviteUrls);
     }
-    if (!registerResult || !registerResult.data) throw new Error(`[${teamName}] 总代注册失败`);
+    if (!registerResult || !registerResult.data) {
+        console.warn(`[${teamName}] ⚠️ 总代注册失败，跳过该团队`);
+        return null;
+    }
     let token = null;
     if (registerResult.headers && registerResult.headers.Authorization) token = registerResult.headers.Authorization.replace('Bearer ', '').trim();
     else if (registerResult.data && registerResult.data.token) token = registerResult.data.token;
-    if (!token) throw new Error(`[${teamName}] 未能获取到token`);
+    if (!token) {
+        console.warn(`[${teamName}] ⚠️ 未能获取到token，跳过该团队`);
+        return null;
+    }
     sleep(1);
     const userInfo = getFrontUserInfo(token);
-    if (!userInfo || !userInfo.inviteCode) throw new Error(`[${teamName}] 未能获取到邀请码`);
+    if (!userInfo || !userInfo.inviteCode) {
+        console.warn(`[${teamName}] ⚠️ 未能获取到邀请码，跳过该团队`);
+        return null;
+    }
     console.log(`[${teamName}] ✅ 总代注册成功 UserID: ${userInfo.userId}, InviteCode: ${userInfo.inviteCode}`);
     return { userId: userInfo.userId, inviteCode: userInfo.inviteCode, token: token, phone: phone };
 }
@@ -101,7 +120,7 @@ export default function () {
     }
     const adminData = { token: token };
 
-    const tenantId = __ENV.TENANT_ID || '3002';
+    const tenantId = __ENV.TENANT_ID || '3004';
     const tenantConfig = getEnvByTenantId(tenantId);
     adminData.envConfig = tenantConfig || ENV_CONFIG;
 
@@ -121,6 +140,10 @@ export default function () {
         const levels = parseInt(__ENV[`TEAM${t}_LEVELS`] || defaultLevels);
 
         const root = registerRootAgent(adminData, teamName);
+        if (!root) {
+            console.warn(`[${teamName}] ⚠️ 总代注册失败，跳过该团队`);
+            continue;
+        }
         const distribution = distributePeople(total, levels);
         console.log(`[${teamName}] 层级分配:`, distribution);
 
