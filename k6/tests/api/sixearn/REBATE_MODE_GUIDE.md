@@ -89,7 +89,8 @@ k6 run -e TENANT_ID=3007 -e REBATE_MODE=mode9 -e INVITE_CODE_MODE=mix multiLevel
 验证：A的历史充投记录在成员换组后，B的新充投返佣归属是否正确。
 
 ```bash
-k6 run -e TENANT_ID=3006 -e TEAM1_TOTAL=65 -e TEAM1_LEVELS=9 -e TEAM2_TOTAL=0 -e TEAM2_LEVELS=0  multiLevelRebate.test.js
+k6 run -e TENANT_ID=3006 -e TEAM1_TOTAL=5 -e TEAM1_LEVELS=1 -e TEAM2_TOTAL=0 -e TEAM2_LEVELS=0  multiLevelRebate.test.js
+
 ```
 
 ---
