@@ -9,6 +9,10 @@ import { batchGetUserAccounts, autoLoginByAccount } from '../user/userAccountApi
 import { hybridRecharge, getConfigRechargeAmount } from '../recharge/rechargeService.js';
 import { betRun } from '../runbet/betRun.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
+import { addAllWallets } from '../withdraw/addWalletApi.js';
+import { getWithdrawBasicInfo, setWithdrawPassword } from '../withdraw/withdrawApi.js';
+import { getAccountBalance } from '../balance/balance.test.js';
+import { executeWithdrawCase } from '../withdraw/withdraw.test.js';
 
 /**
  * 登录用户（自动识别手机号/邮箱，调用对应登录方式）
@@ -310,6 +314,53 @@ function processUserRechargeOnly(userInfo, adminToken) {
 }
 
 /**
+ * 处理单个用户的提现逻辑
+ * @param {object} userInfo  - { token, userId, account }
+ * @param {string} adminToken
+ * @returns {boolean}
+ */
+function processUserWithdraw(userInfo, adminToken) {
+    console.log(`[Process] 准备为用户 ${userInfo.account} 申请提现...`);
+
+    // 1. 添加所有类型的钱包
+    const walletsAdded = addAllWallets(adminToken, userInfo.userId);
+    if (!walletsAdded) {
+        console.warn(`[Process] ⚠️ 部分钱包添加失败，尝试继续提现流程`);
+    }
+
+    sleep(1);
+
+    // 2. 获取提现基础信息
+    const allWithdrawInfo = getWithdrawBasicInfo(userInfo.token);
+    if (!allWithdrawInfo) {
+        console.error(`[Process] ❌ 获取提现基础信息失败`);
+        return false;
+    }
+
+    // 3. 获取余额
+    const balanceInfo = getAccountBalance(userInfo.token);
+    const money = balanceInfo ? balanceInfo.balance : 0.0;
+    if (money <= 0) {
+        console.warn(`[Process] ⚠️ 用户余额为0，无法提现`);
+        return false;
+    }
+
+    // 4. 设置提现密码
+    setWithdrawPassword(userInfo.token);
+
+    // 5. 执行核心提现逻辑
+    const withdrawResult = executeWithdrawCase(userInfo.token, money, allWithdrawInfo);
+
+    if (!withdrawResult) {
+        console.error(`[Process] ❌ 提现申请失败: ${userInfo.account}`);
+        return false;
+    }
+
+    console.log(`[Process] ✅ 提现申请成功: ${userInfo.account}, 金额: ${withdrawResult.withDrawaAmont}, 渠道: ${withdrawResult.withDrawaType}`);
+    return true;
+}
+
+/**
  * 执行团队充值和投注 V2（三段式行为分层）
  *
  * 将团队用户按概率分为三组：
@@ -338,6 +389,7 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
         inactiveRate     = 0.2,   // 不充值不投注
         rechargeOnlyRate = 0.2,   // 只充值不投注
         rebateChance     = 0.2,
+        withdrawChance   = 0,     // 提现触发几率
         delayMs          = 1000,
         isL3             = false  // 是否为L3级代理
     } = options;
@@ -430,7 +482,9 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
         rechargeSuccess: 0,
         rechargeFailed : 0,
         betSuccess     : 0,
-        betFailed      : 0
+        betFailed      : 0,
+        withdrawSuccess: 0,
+        withdrawFailed : 0
     };
 
     // 步骤5: 登录 → 按分组执行充值/投注
@@ -465,6 +519,12 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
             const r = processUserRechargeOnly(loginInfo, adminData.token);
             if (r.recharged) stats.rechargeSuccess++;
             else stats.rechargeFailed++;
+
+            if (r.recharged && withdrawChance > 0 && Math.random() < withdrawChance) {
+                const wSuccess = processUserWithdraw(loginInfo, adminData.token);
+                if (wSuccess) stats.withdrawSuccess++;
+                else stats.withdrawFailed++;
+            }
         } else {
             // 活跃：充值 + 投注（复用现有函数）
             const r = processUserRechargeAndBet(loginInfo, adminData.token);
@@ -472,6 +532,12 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
             else stats.rechargeFailed++;
             if (r.betted) stats.betSuccess++;
             else if (r.recharged) stats.betFailed++;
+
+            if (r.recharged && withdrawChance > 0 && Math.random() < withdrawChance) {
+                const wSuccess = processUserWithdraw(loginInfo, adminData.token);
+                if (wSuccess) stats.withdrawSuccess++;
+                else stats.withdrawFailed++;
+            }
         }
 
         sleep(2);
@@ -489,6 +555,7 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
     console.log(`登录成功    : ${stats.loginSuccess} / 失败: ${stats.loginFailed}`);
     console.log(`充值成功    : ${stats.rechargeSuccess} / 失败: ${stats.rechargeFailed}`);
     console.log(`投注成功    : ${stats.betSuccess} / 失败: ${stats.betFailed}`);
+    console.log(`提现成功    : ${stats.withdrawSuccess} / 失败: ${stats.withdrawFailed}`);
     console.log(`${'='.repeat(60)}\n`);
 
     return stats;

@@ -2,9 +2,9 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 
 const tenantId = process.env.TENANT_ID || '3006';
-const team1Total = process.env.TEAM1_TOTAL || '10';   // 团队1总人数
-const team1Levels = process.env.TEAM1_LEVELS || '3';    // 团队1总层级
-const team2Total = process.env.TEAM2_TOTAL || '10';   // 团队2总人数
+const team1Total = process.env.TEAM1_TOTAL || '5';   // 团队1总人数
+const team1Levels = process.env.TEAM1_LEVELS || '2';    // 团队1总层级
+const team2Total = process.env.TEAM2_TOTAL || '6';   // 团队2总人数
 const team2Levels = process.env.TEAM2_LEVELS || '3';    // 团队2总层级
 const rebateMode = process.env.REBATE_MODE || 'mode9';  // 返佣模式
 
@@ -41,7 +41,19 @@ function runK6(script, envs) {
 
 // 阶段 1：并发建树
 function buildTeam(teamName, total, levels) {
-    const output = runK6('step1_register.js', { TEAM_NAME: teamName, TOTAL_USERS: total, LEVELS: levels, VUS: Math.min(total, 50) });
+    // 团队总人数包含 1 个 Root 节点，因此子节点数为 total - 1
+    const subUsers = Math.max(1, parseInt(total) - 1);
+    
+    // 限制最大 VUs 数量，确保每个 VU 分配到的节点数大于等于层级数，否则会导致建树由于被过度拆分而变平
+    const maxVus = Math.max(1, Math.floor(subUsers / parseInt(levels)));
+    const vus = Math.min(maxVus, 50);
+
+    const output = runK6('step1_register.js', { 
+        TEAM_NAME: teamName, 
+        TOTAL_USERS: subUsers, 
+        LEVELS: levels, 
+        VUS: vus 
+    });
     // 从 K6 的输出中提取 Root 信息
     const match = output.match(/\[ROOT_INFO\]:\s*(\{.*?\})/);
     if (match) {
