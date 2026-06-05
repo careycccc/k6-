@@ -471,7 +471,7 @@ function createFaqQuestions(data, moduleIds) {
  * 中文到全语言的翻译映射表
  * 新增语言只需在此处添加对应翻译，无需修改其他代码
  */
-const TRANSLATIONS = {
+export const TRANSLATIONS = {
     '外部链接-已登陆': {
         zh: '外部链接-已登陆',
         en: 'External Link - Logged In',

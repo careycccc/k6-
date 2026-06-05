@@ -2,6 +2,8 @@ export const orderSystemConfig = [
     {
         name: '外部链接-已登陆',
         oderby: 1,
+        isLoginForm: 1,
+        queryId: 1,
         img: '1.png',
         type: 1,
         fields: []
@@ -9,6 +11,8 @@ export const orderSystemConfig = [
     {
         name: '外部链接-未登陆',
         oderby: 2,
+        isLoginForm: 0,
+        queryId: 1,
         img: '2.png',
         type: 1,
         fields: []
@@ -16,6 +20,8 @@ export const orderSystemConfig = [
     {
         name: '一对一客服-已登陆',
         oderby: 3,
+        isLoginForm: 1,
+        queryId: 2,
         img: '3.png',
         type: 2,
         fields: [
@@ -25,6 +31,8 @@ export const orderSystemConfig = [
     {
         name: '一对一客服-未登陆',
         oderby: 4,
+        queryId: 2,
+        isLoginForm: 0,
         img: '4.png',
         type: 2,
         fields: [
@@ -35,6 +43,8 @@ export const orderSystemConfig = [
     {
         name: '存款未到账自动化',
         oderby: 5,
+        isLoginForm: 1,
+        queryId: 4,
         img: '5.png',
         type: 4,
         fields: [
@@ -45,6 +55,8 @@ export const orderSystemConfig = [
     {
         name: '取款未到账',
         oderby: 6,
+        isLoginForm: 1,
+        queryId: 5,
         img: '6.png',
         type: 5,
         fields: [
@@ -55,6 +67,8 @@ export const orderSystemConfig = [
     {
         name: '修改真实姓名半自动',
         oderby: 7,
+        queryId: 7,
+        isLoginForm: 1,
         img: '7.png',
         type: 7,
         fields: [
@@ -64,6 +78,8 @@ export const orderSystemConfig = [
     {
         name: '修改登录密码半自动-已登陆',
         oderby: 8,
+        queryId: 8,
+        isLoginForm: 1,
         img: '8.png',
         type: 8,
         fields: [
@@ -73,6 +89,8 @@ export const orderSystemConfig = [
     {
         name: '修改登录密码半自动-未登陆',
         oderby: 9,
+        queryId: 8,
+        isLoginForm: 0,
         img: '9.png',
         type: 8,
         fields: [
@@ -83,24 +101,29 @@ export const orderSystemConfig = [
     {
         name: '忘记会员账号',
         oderby: 10,
+        queryId: 9,
+        isLoginForm: 0,
         img: '10.png',
         type: 9,
         fields: [
             { type: 'UserName', nameEn: 'User Name', nameEs: 'Nombre de usuario', nameBn: 'ব্যবহারকারীর নাম' }
         ]
     },
-    {
-        name: '忘记登录密码',
-        oderby: 11,
-        img: '11.png',
-        type: 10,
-        fields: [
-            { type: 'UserName', nameEn: 'User Name', nameEs: 'Nombre de usuario', nameBn: 'ব্যবহারকারীর নাম' }
-        ]
-    },
+    // {
+    //     name: '',
+    //     oderby: 11,
+    //     isLoginForm: 0,
+    //     img: '11.png',
+    //     type: 10,
+    //     fields: [
+    //         { type: 'UserName', nameEn: 'User Name', nameEs: 'Nombre de usuario', nameBn: 'ব্যবহারকারীর নাম' }
+    //     ]
+    // },
     {
         name: '会员账号解冻半自动',
         oderby: 12,
+        isLoginForm: 0,
+        queryId: 10,
         img: '12.png',
         type: 10,
         fields: [
@@ -110,6 +133,8 @@ export const orderSystemConfig = [
     {
         name: '修改IFSC自动化',
         oderby: 13,
+        queryId: 11,
+        isLoginForm: 1,
         img: '13.png',
         type: 11,
         fields: [
@@ -121,6 +146,8 @@ export const orderSystemConfig = [
     {
         name: '修改银行名称自动化',
         oderby: 14,
+        queryId: 12,
+        isLoginForm: 1,
         img: '14.png',
         type: 12,
         fields: [
@@ -132,6 +159,8 @@ export const orderSystemConfig = [
     {
         name: '删除USDT半自动',
         oderby: 15,
+        queryId: 13,
+        isLoginForm: 1,
         img: '15.png',
         type: 13,
         fields: [
@@ -141,6 +170,8 @@ export const orderSystemConfig = [
     {
         name: '删除银行卡半自动',
         oderby: 16,
+        queryId: 14,
+        isLoginForm: 1,
         img: '16.png',
         type: 14,
         fields: [
@@ -149,6 +180,8 @@ export const orderSystemConfig = [
     },
     {
         name: '删除PIX自动化',
+        isLoginForm: 1,
+        queryId: 15,
         oderby: 17,
         img: '17.png',
         type: 15,
@@ -160,6 +193,8 @@ export const orderSystemConfig = [
     },
     {
         name: '删除电子钱包半自动',
+        isLoginForm: 1,
+        queryId: 16,
         oderby: 18,
         img: '18.png',
         type: 16,
@@ -170,6 +205,8 @@ export const orderSystemConfig = [
     {
         name: '新增USDT半自动',
         oderby: 19,
+        queryId: 17,
+        isLoginForm: 1,
         img: '19.png',
         type: 17,
         fields: [
@@ -179,6 +216,8 @@ export const orderSystemConfig = [
     {
         name: '删除银行卡自动化',
         oderby: 20,
+        queryId: 18,
+        isLoginForm: 1,
         img: '20.png',
         type: 18,
         fields: [
@@ -189,6 +228,8 @@ export const orderSystemConfig = [
     {
         name: '删除USDT自动化',
         oderby: 21,
+        queryId: 19,
+        isLoginForm: 1,
         img: '21.png',
         type: 19,
         fields: [
@@ -199,6 +240,8 @@ export const orderSystemConfig = [
     {
         name: '删除电子钱包自动化',
         oderby: 22,
+        queryId: 20,
+        isLoginForm: 1,
         img: '22.png',
         type: 16,
         fields: [
@@ -208,6 +251,8 @@ export const orderSystemConfig = [
     {
         name: '修改提现密码自动化',
         oderby: 23,
+        queryId: 21,
+        isLoginForm: 1,
         img: '23.png',
         type: 21,
         fields: [
@@ -218,6 +263,8 @@ export const orderSystemConfig = [
     {
         name: '修改提现密码半自动化',
         oderby: 24,
+        queryId: 22,
+        isLoginForm: 1,
         img: '24.png',
         type: 22,
         fields: [
@@ -227,6 +274,8 @@ export const orderSystemConfig = [
     {
         name: '其他问题',
         oderby: 25,
+        queryId: 3,
+        isLoginForm: 1,
         img: '25.png',
         type: 3,
         fields: [

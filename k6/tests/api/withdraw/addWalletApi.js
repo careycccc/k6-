@@ -150,7 +150,7 @@ function calculateLuhnCheckDigit(partialCard) {
  * 生成IFSC代码
  * @returns {string}
  */
-function generateIFSC() {
+export function generateIFSC() {
     const bankCodes = [
         "SBIN", "HDFC", "ICIC", "AXIS", "KKBK",
         "BARB", "CANB", "INDB", "KARB", "CNRB",
@@ -175,7 +175,7 @@ function generateIFSC() {
  * 生成TRON USDT地址
  * @returns {string}
  */
-function generateTRONAddress() {
+export function generateTRONAddress() {
     const base58Alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
     const length = 34;
 
