@@ -98,7 +98,7 @@ export function simpleHandler(order, adminToken, tenantId, env, isMainAdmin = tr
             logger.error(`[${TAG}] 工单锁定失败，跳过`);
             return;
         }
-        sleep(0.5);
+        sleep(1.5); // 锁定后等待，避免立即提交触发限流
     }
 
     // Step 2: 执行前置接口（如有）
@@ -112,7 +112,7 @@ export function simpleHandler(order, adminToken, tenantId, env, isMainAdmin = tr
         sleep(0.3);
     }
 
-    // Step 3: 70% 通过 / 30% 拒绝
+    // Step 3: 70% 通过 / 30% 拒绝（含限流重试）
     const isApprove = Math.random() < APPROVE_RATE;
     const state     = isApprove ? 4 : 3;
     const remark    = isApprove ? `${kefuPrefix}:over` : `${kefuPrefix}:Refuse`;
@@ -120,13 +120,18 @@ export function simpleHandler(order, adminToken, tenantId, env, isMainAdmin = tr
 
     logger.info(`[${TAG}] 决策: ${action} (state=${state}, remark=${remark})`);
 
-    const res = signAndPost(
-        { workOrderId, state, remark },
-        '/api/WorkOrder/Submit',
-        false,
-        adminToken,
-        TAG
-    );
+    const submitPayload = { workOrderId, state, remark };
+    let res = signAndPost(submitPayload, '/api/WorkOrder/Submit', false, adminToken, TAG);
+
+    // 限流重试：最多重试 3 次，每次等待递增
+    let retries = 0;
+    while (res && res.msgCode === 13 && retries < 3) {
+        retries++;
+        const waitSec = retries * 2; // 2s, 4s, 6s
+        logger.warn(`[${TAG}] 限流 (msgCode=13)，等待 ${waitSec}s 后重试 (${retries}/3)...`);
+        sleep(waitSec);
+        res = signAndPost(submitPayload, '/api/WorkOrder/Submit', false, adminToken, TAG);
+    }
 
     if (res && (res.code === 0 || res.msgCode === 0)) {
         logger.info(`[${TAG}] ${action} 成功: ${workOrderId}`);
@@ -134,5 +139,5 @@ export function simpleHandler(order, adminToken, tenantId, env, isMainAdmin = tr
         logger.error(`[${TAG}] ${action} 失败: ${workOrderId} → ${JSON.stringify(res)}`);
     }
 
-    sleep(1);
+    sleep(2); // 工单处理间隔，避免连续请求触发限流
 }

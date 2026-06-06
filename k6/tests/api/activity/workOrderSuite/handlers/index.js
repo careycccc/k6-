@@ -44,10 +44,16 @@ const SIMPLE_TYPE_IDS = [
 
 /**
  * 根据工单 workOrderTypeId 分发到对应处理器
- * GetPageListByPending 返回的工单可能没有 workOrderTypeId 字段，
- * 此时从工单详情接口 /api/WorkOrder/Get 补全。
+ *
+ * @param {object}  order
+ * @param {string}  adminToken           - 客服A token
+ * @param {string}  tenantId
+ * @param {object}  env
+ * @param {boolean} isMainAdmin
+ * @param {string}  [workOrderRoleToken] - 客服B token（可选）
+ * @param {number}  [orderIndex]         - 工单序号（0-based），用于奇偶交替
  */
-export function dispatchHandler(order, adminToken, tenantId, env, isMainAdmin = true) {
+export function dispatchHandler(order, adminToken, tenantId, env, isMainAdmin = true, workOrderRoleToken = null, orderIndex = 0, workOrderRoleName = null) {
     let typeId   = order.workOrderTypeId;
     const typeName = order.workOrderTypeName || order.displayName || '';
 
@@ -69,18 +75,21 @@ export function dispatchHandler(order, adminToken, tenantId, env, isMainAdmin = 
         }
     }
 
-    // 把补全后的 typeId 写回 order，供 handler 直接使用
     order.workOrderTypeId = typeId;
 
     if (DIALOG_TYPE_IDS.includes(typeId)) {
         logger.info(`[${TAG}] 路由 → csDialogHandler (${typeName}, typeId=${typeId})`);
-        csDialogHandler(order, adminToken, tenantId, env, isMainAdmin);
+        csDialogHandler(order, adminToken, tenantId, env, isMainAdmin, workOrderRoleToken, workOrderRoleName);
         return;
     }
 
     if (SIMPLE_TYPE_IDS.includes(typeId)) {
-        logger.info(`[${TAG}] 路由 → simpleHandler (${typeName}, typeId=${typeId})`);
-        simpleHandler(order, adminToken, tenantId, env, isMainAdmin);
+        // 奇偶交替：偶数序号用客服B，奇数序号用客服A
+        const useRoleToken = workOrderRoleToken && (orderIndex % 2 === 1);
+        const activeToken  = useRoleToken ? workOrderRoleToken : adminToken;
+        const activeName   = useRoleToken ? 'carey' : 'systemkefu';
+        logger.info(`[${TAG}] 路由 → simpleHandler (${typeName}, typeId=${typeId}, 客服=${activeName})`);
+        simpleHandler(order, activeToken, tenantId, env, isMainAdmin);
         return;
     }
 

@@ -46,7 +46,7 @@ export function getPendingOrders(adminToken, userId) {
         sortField:           'submissionTime',
         orderBy:             'Desc',
         pageNo:              1,
-        pageSize:            200,
+        pageSize:            500,
     };
 
     if (userId) payload.account = String(userId);
@@ -89,7 +89,7 @@ export function getProcessingOrders(adminToken, userId) {
         submissionTimeBegin: begin,
         submissionTimeEnd:   end,
         pageNo:              1,
-        pageSize:            200,
+        pageSize:            500,
         orderBy:             'Desc',
         sortField:           'submissionTime',
     };
@@ -239,6 +239,51 @@ export function lockOrder(workOrderId, adminToken) {
     }
 
     logger.error(`[${TAG}] ❌ 工单 ${workOrderId} 锁定失败: ${JSON.stringify(res)}`);
+    return false;
+}
+
+// ============================================================
+// 解锁工单（仅对处理中 state=2 的工单有效）
+// ============================================================
+
+/**
+ * 解锁指定工单
+ *
+ * @param {string} workOrderId
+ * @param {string} adminToken
+ * @returns {boolean}
+ */
+export function unlockOrder(workOrderId, adminToken) {
+    const res = sendRequest(
+        { workOrderId, isLockWorkOrder: 0 },
+        '/api/WorkOrder/UpdateWordOrderState',
+        TAG,
+        false,
+        adminToken
+    );
+
+    if (res && res.msgCode === 0) {
+        logger.info(`[${TAG}] ✅ 工单 ${workOrderId} 解锁成功`);
+        return true;
+    }
+
+    if (res && res.msgCode === 13) {
+        logger.warn(`[${TAG}] 解锁过快，1s 后重试...`);
+        sleep(1);
+        const retry = sendRequest(
+            { workOrderId, isLockWorkOrder: 0 },
+            '/api/WorkOrder/UpdateWordOrderState',
+            TAG,
+            false,
+            adminToken
+        );
+        if (retry && retry.msgCode === 0) {
+            logger.info(`[${TAG}] ✅ 工单 ${workOrderId} 重试解锁成功`);
+            return true;
+        }
+    }
+
+    logger.error(`[${TAG}] ❌ 工单 ${workOrderId} 解锁失败: ${JSON.stringify(res)}`);
     return false;
 }
 
