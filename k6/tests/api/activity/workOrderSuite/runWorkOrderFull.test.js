@@ -28,13 +28,12 @@
 
 import { sleep } from 'k6';
 import exec from 'k6/execution';
-import { SharedArray } from 'k6/data';
 import { logger } from '../../../../libs/utils/logger.js';
 import { AdminLogin } from '../../login/adminlogin.test.js';
 import { sendRequest, sendQueryRequest } from '../../common/request.js';
 import { ENV_CONFIG, getEnvByTenantId } from '../../../../config/envconfig.js';
 import { getActiveLangs } from '../../../../config/languageConfig.js';
-import { getUserAccount } from '../../user/userAccountApi.js';
+import { getUserAccount, autoLoginByAccount } from '../../user/userAccountApi.js';
 import { tenantRequest } from '../../../../libs/http/tenantRequest.js';
 
 import { orderSystemConfig } from '../orderSystem/oderyconfig.js';
@@ -190,17 +189,34 @@ export function setup() {
         logger.warn(`[${TAG}] 未配置 WorkOrderRole，将使用单客服模式`);
     }
 
-    // ---- 4. 环境巡检 ----
+    // ---- 4. 预登录所有会员账号，建立 userId → memberToken 映射表 ----
+    // 只登录一次，多轮复用，避免每轮重复发验证码
+    logger.info(`[${TAG}] ---- 预登录会员账号（建立 token 映射表）----`);
+    const memberTokenMap = {}; // { userId: memberToken }
+    for (const info of accountInfoList) {
+        logger.info(`[${TAG}] 预登录: ${info.account} (userId=${info.userId})`);
+        const memberToken = autoLoginByAccount(info.account, adminToken);
+        if (memberToken) {
+            memberTokenMap[info.userId] = memberToken;
+            logger.info(`[${TAG}] ✅ 预登录成功: ${info.account}`);
+        } else {
+            logger.warn(`[${TAG}] ⚠️ 预登录失败: ${info.account}，已登录工单将跳过`);
+        }
+        sleep(0.5);
+    }
+    logger.info(`[${TAG}] token 映射表建立完成，成功 ${Object.keys(memberTokenMap).length}/${accountInfoList.length} 个`);
+
+    // ---- 5. 环境巡检 ----
     _runInspection(adminToken);
 
-    return { adminToken, accountsByVu, tenantId, workOrderRoleToken, workOrderRoleName: envConfig.WorkOrderRole || null };
+    return { adminToken, accountsByVu, tenantId, workOrderRoleToken, workOrderRoleName: envConfig.WorkOrderRole || null, memberTokenMap };
 }
 
 // ============================================================
 // default：多轮触发 + 处理
 // ============================================================
 export default function (data) {
-    const { adminToken, accountsByVu, tenantId, workOrderRoleToken } = data;
+    const { adminToken, accountsByVu, tenantId, workOrderRoleToken, workOrderRoleName, memberTokenMap } = data;
     const env = getCurrentEnv();
     const isMainAdmin = (__ENV.IS_MAIN_ADMIN || 'true') !== 'false';
     const triggerMode = (__ENV.TRIGGER_MODE || 'all').toLowerCase();
@@ -243,7 +259,7 @@ export default function (data) {
 
         if (runLogin) {
             logger.info(`[${TAG}] [已登录] 触发...`);
-            triggerLoginForAccount(adminToken, tenantId, accountInfo.account, accountInfo.userId, env);
+            triggerLoginForAccount(adminToken, tenantId, accountInfo.account, accountInfo.userId, env, memberTokenMap);
         }
 
         sleep(1);
@@ -253,7 +269,7 @@ export default function (data) {
     logger.info(`\n[${TAG}] ---- 阶段 B：客服处理工单 ----`);
     sleep(2); // 等待工单落库
 
-    _processOrders(adminToken, tenantId, env, isMainAdmin, myUserIds, workOrderRoleToken);
+    _processOrders(adminToken, tenantId, env, isMainAdmin, myUserIds, workOrderRoleToken, workOrderRoleName);
 
     // ---- 阶段 C：等待所有工单清空（多轮时才需要等）----
     if (ITERATIONS > 1) {
@@ -268,7 +284,7 @@ export default function (data) {
 // ============================================================
 // 内部：处理待处理（state=1）和处理中（state=2）工单
 // ============================================================
-function _processOrders(adminToken, tenantId, env, isMainAdmin, userIds, workOrderRoleToken = null) {
+function _processOrders(adminToken, tenantId, env, isMainAdmin, userIds, workOrderRoleToken = null, workOrderRoleName = null) {
     // 合并 state=1 和 state=2 的工单
     const allOrders = [];
 
@@ -296,7 +312,15 @@ function _processOrders(adminToken, tenantId, env, isMainAdmin, userIds, workOrd
     for (let i = 0; i < unique.length; i++) {
         const order = unique[i];
         logger.info(`[${TAG}] [${i + 1}/${unique.length}] ${order.workOrderTypeName} (${order.id}) state=${order.state}`);
-        dispatchHandler(order, adminToken, tenantId, env, isMainAdmin, workOrderRoleToken, i);
+
+        // state=2 处理中工单不参与奇偶分配，优先用 adminToken（主客服有最高权限）
+        // state=1 待处理工单按奇偶交替分配客服
+        const isProcessing = order.state === 2;
+        dispatchHandler(order, adminToken, tenantId, env, isMainAdmin,
+            isProcessing ? null : workOrderRoleToken,  // 处理中工单不用第二客服
+            i,
+            workOrderRoleName
+        );
     }
 }
 

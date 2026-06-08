@@ -108,6 +108,12 @@ function submitWorkOrder(formId, workOrderTypeId, fields, account, memberToken, 
         return true;
     }
 
+    // 同类型工单进行中，跳过（不算失败）
+    if (res && res.msgCode === 14013) {
+        logger.warn(`[${TAG}] ⏭️ 同类型工单进行中，跳过 formId=${formId}`);
+        return null; // null 表示跳过，不计入失败
+    }
+
     logger.error(`[${TAG}] ❌ 工单提交失败: formId=${formId} → ${JSON.stringify(res)}`);
     return false;
 }
@@ -139,17 +145,11 @@ export function triggerAllForAccount(adminToken, tenantId, account, userId) {
         return;
     }
 
-    // 只有白名单中存在已登录工单时才需要登录
+    // 只有白名单中存在已登录工单时才需要登录（当前白名单全是未登录工单，此分支不会触发）
     let memberToken = null;
     const hasLoginForms = enabledConfigs.some((c) => c.isLoginForm === 1);
     if (hasLoginForms) {
-        logger.info(`[${TAG}] 获取会员前台 token (验证码登录): ${memberAccount}`);
-        memberToken = autoLoginByAccount(memberAccount, adminToken);
-        if (!memberToken) {
-            logger.warn(`[${TAG}] 会员 ${memberAccount} 登录失败，已登录工单将被跳过`);
-        } else {
-            logger.info(`[${TAG}] ✅ 会员 ${memberAccount} 登录成功`);
-        }
+        logger.warn(`[${TAG}] 白名单中存在已登录工单，但 triggerAll.js 只处理未登录工单，请检查配置`);
     }
 
     let successCount = 0;
@@ -202,8 +202,10 @@ export function triggerAllForAccount(adminToken, tenantId, account, userId) {
             config.isLoginForm
         );
 
-        if (ok) {
+        if (ok === true) {
             successCount++;
+        } else if (ok === null) {
+            skipCount++; // 同类型工单进行中，跳过
         } else {
             failCount++;
         }
