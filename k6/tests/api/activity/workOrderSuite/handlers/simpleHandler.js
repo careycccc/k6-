@@ -21,7 +21,7 @@
 import { sleep } from 'k6';
 import { logger } from '../../../../../libs/utils/logger.js';
 import { signAndPost } from '../lib/submitHelper.js';
-import { lockOrder } from '../lib/pendingHelper.js';
+import { lockOrder, unlockOrder } from '../lib/pendingHelper.js';
 import { buildKefuPrefix } from '../lib/userIdHelper.js';
 import { sendRequest } from '../../../common/request.js';
 
@@ -92,14 +92,23 @@ export function simpleHandler(order, adminToken, tenantId, env, isMainAdmin = tr
         sleep(0.3);
     }
 
-    // Step 1: 锁定工单（处理中的已被锁定，跳过）
-    if (order.state !== 2) {
+    // Step 1: 锁定工单
+    // state=2 处理中的工单需要重新锁定（先解锁再锁定，确保当前客服持有锁）
+    if (order.state === 2) {
+        // 先解锁（清除旧锁），再重新锁定
+        unlockOrder(workOrderId, adminToken);
+        sleep(1);
+    }
+    if (!lockOrder(workOrderId, adminToken)) {
+        // 限流重试
+        logger.warn(`[${TAG}] 锁定失败，2s 后重试...`);
+        sleep(2);
         if (!lockOrder(workOrderId, adminToken)) {
             logger.error(`[${TAG}] 工单锁定失败，跳过`);
             return;
         }
-        sleep(1.5); // 锁定后等待，避免立即提交触发限流
     }
+    sleep(1.5);
 
     // Step 2: 执行前置接口（如有）
     const preAction = PRE_SUBMIT_ACTIONS[workOrderTypeId];

@@ -7,16 +7,17 @@
  *   k6 run -e TENANT_ID=3004 -e ACCOUNT_COUNT=1 -e VUS=1 -e ITERATIONS=1 -e TRIGGER_MODE=login runWorkOrderFull.test.js
  *
  *   # 多线程多轮
- *   k6 run -e TENANT_ID=3004 -e ACCOUNT_COUNT=10 -e VUS=2 -e ITERATIONS=2 runWorkOrderFull.test.js
+ *   k6 run -e TENANT_ID=3004 -e ACCOUNT_COUNT=2 -e VUS=4 -e ITERATIONS=2 runWorkOrderFull.test.js
  *
  *   # 只触发已登录工单（调试）
  *   k6 run -e TENANT_ID=3004 -e ACCOUNT_COUNT=1 -e VUS=1 -e ITERATIONS=1 -e TRIGGER_MODE=login runWorkOrderFull.test.js
  *
  * 参数说明：
+ *  注意后台的工单的总条数 = 总账号数 * 25 * ITERATIONS
  *   TENANT_ID      租户 ID
  *   ACCOUNT_COUNT  总账号数，setup 阶段从后台查询，按 VUS 均分给各 VU
  *   VUS            并发线程数（默认 1）
- *   ITERATIONS     每个 VU 的迭代轮数（默认 1）
+ *   ITERATIONS     每个 VU 的迭代轮数（默认 1，每个工单需要触发几次）
  *   IS_MAIN_ADMIN  true=主账号客服 systemkefu, false=普通客服 kefu（默认 true）
  *   TRIGGER_MODE   login=只触发已登录, nologin=只触发未登录, 不传=全部（默认 all）
  *
@@ -70,12 +71,13 @@ const VUS = parseInt(__ENV.VUS || '1', 10);
 const ITERATIONS = parseInt(__ENV.ITERATIONS || '1', 10);
 
 export const options = {
+    setupTimeout: '10m', // 预登录账号 + 巡检工单需要较长时间
     scenarios: {
         work_order_full: {
-            executor: 'per-vu-iterations',
-            vus: VUS,
-            iterations: ITERATIONS,
-            maxDuration: '120m',
+            executor:    'per-vu-iterations',
+            vus:         VUS,
+            iterations:  ITERATIONS,
+            maxDuration: '8h',
         },
     },
 };
@@ -176,7 +178,7 @@ export function setup() {
         logger.info(`[${TAG}] 登录第二客服: ${envConfig.WorkOrderRole}`);
         const roleRes = tenantRequest('/api/Login/Login', {
             userName: envConfig.WorkOrderRole,
-            pwd:      envConfig.WorkOrderRolePasswrod,
+            pwd: envConfig.WorkOrderRolePasswrod,
         }, { isDesk: false });
 
         if (roleRes && roleRes.msgCode === 0 && roleRes.data && roleRes.data.token) {
@@ -274,8 +276,19 @@ export default function (data) {
     // ---- 阶段 C：等待所有工单清空（多轮时才需要等）----
     if (ITERATIONS > 1) {
         logger.info(`\n[${TAG}] ---- 阶段 C：等待工单清空（准备下一轮）----`);
-        // 最多等 3 分钟，超时强制进入下一轮
-        waitUntilAllClear(adminToken, myUserIds, 10, 180);
+        // 等待 30s 后如果还有工单，主动再处理一次卡住的工单，再继续等
+        sleep(30);
+        const stillPending = myUserIds.some((uid) => {
+            const p = getPendingOrders(adminToken, uid);
+            const q = getProcessingOrders(adminToken, uid);
+            return p.length > 0 || q.length > 0;
+        });
+        if (stillPending) {
+            logger.info(`[${TAG}] 仍有未完成工单，再处理一次...`);
+            _processOrders(adminToken, tenantId, env, isMainAdmin, myUserIds, workOrderRoleToken, workOrderRoleName);
+        }
+        // 最多再等 2 分钟
+        waitUntilAllClear(adminToken, myUserIds, 10, 120);
     }
 
     logger.info(`\n[${TAG}] ===== VU${vuId} 第 ${iter + 1} 轮完成 =====`);

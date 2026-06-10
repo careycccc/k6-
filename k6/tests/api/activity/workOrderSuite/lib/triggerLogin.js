@@ -345,9 +345,7 @@ export function triggerLoginForAccount(adminToken, tenantId, account, userId, en
     } else {
         logger.info(`[${TAG}] 映射表无 token，重新登录: ${account}`);
         memberToken = autoLoginByAccount(account, adminToken);
-        if (memberToken && memberTokenMap) {
-            memberTokenMap[userId] = memberToken; // 缓存
-        }
+        // 注意：不写回 memberTokenMap，VU 间数据互相独立
     }
     if (!memberToken) { logger.error(`[${TAG}] 登录失败，跳过`); return; }
     logger.info(`[${TAG}] ✅ token 就绪`);

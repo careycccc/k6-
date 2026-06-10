@@ -240,7 +240,7 @@ export function getEnvByTenantId(tenantId) {
 // 后台：3006-tenantadmin.ar666999.club
 // 注册：3006.zc-arplatsaassit.com
 
-// 3107 deepOrange
+// 3007 deepOrange
 // 前台：3007.arplatsaassit4.club
 // 后台：3007-tenantadmin.ar666999.club
 // 注册：3007.zc-arplatsaassit.com
