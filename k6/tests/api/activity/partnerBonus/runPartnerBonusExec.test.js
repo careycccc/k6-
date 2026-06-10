@@ -13,7 +13,7 @@
  *      （绑定提现信息 = 满足活动「下级绑定提现信息」前置条件）
  *
  * 使用方法：
- *   k6 run -e TENANT_ID=3007 -e ROOT_INVITE_CODE=CA2SD3N -e TOTAL_USERS=100 -e LEVELS=7 -e VUS=6 runPartnerBonusExec.test.js
+ *   k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=P7TYR2N -e TOTAL_USERS=1 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
  *
  * 环境变量：
  *   TENANT_ID          租户ID（默认 3004）
