@@ -1,42 +1,326 @@
-import { sendRequest } from '../common/request.js';
 import { sendToGetVerCode } from './SendVerifiyCode.test.js';
 import { httpClient } from '../../../libs/http/client.js';
 import { getTimeRandom, generateCryptoRandomString } from '../../utils/utils.js';
 import { ENV_CONFIG } from '../../../config/envconfig.js';
 
+// ============================================================
+// 无验证码版本（主流程）
+// 后端已支持直接注册，无需预先发送验证码，code 字段传空字符串即可
+// ============================================================
+
 /**
- * 手机号注册 - 前台总代注册方式
+ * 手机号注册 - 前台总代注册方式（无验证码）
  * 对应 Golang 的 NewGeneralAgentRegister
  * @param {string} userName - 手机号
- * @param {object} data - setup 返回的数据对象，包含 adminToken
+ * @param {object} data - setup 返回的数据对象（兼容保留，不再用 token）
  * @param {string} password - 密码，默认为 'qwer1234'
  * @param {string} inviteCode - 邀请码，默认为空字符串（前台总代注册时为空）
  * @param {string} captchaId - 验证码ID，默认为 null
  * @returns {object} 返回包含 headers 和 data 的响应对象
  */
 export function phoneRegister(userName, data, password = 'qwer1234', inviteCode = '', captchaId = null) {
-    console.log(`[PhoneRegister] ========== 开始手机号注册流程 ==========`);
+    console.log(`[PhoneRegister] ========== 开始手机号注册流程（无验证码）==========`);
     console.log(`[PhoneRegister] 用户名: ${userName}`);
     console.log(`[PhoneRegister] 密码: ${password}`);
     console.log(`[PhoneRegister] 邀请码: ${inviteCode || '(空)'}`);
-    console.log(`[PhoneRegister] 环境配置: ${JSON.stringify(data.envConfig)}`);
 
-    // 1. 发送并获取验证码
-    // 参数对照：VerifyCodeType = 1, codeType = 1 (1是手机前台注册验证)
-    console.log(`[PhoneRegister] 准备发送验证码: verifyCodeType=1, codeType=1`);
+    const api = "/api/Home/Register";
+    const browserId = generateCryptoRandomString(32);
+    const timeData = getTimeRandom();
+
+    const payload = {
+        loginType: "Mobile",
+        userName: userName,
+        password: password,
+        inviteCode: inviteCode,
+        code: "",
+        captchaId: captchaId,
+        deviceId: "",
+        browserId: browserId,
+        packageName: "",
+        language: timeData.language,
+        random: timeData.random,
+        signature: "",
+        timestamp: timeData.timestamp
+    };
+
+    console.log(`[PhoneRegister] 注册 payload:`, JSON.stringify(payload, null, 2));
+
+    const httpResponse = httpClient.post(api, payload, {}, true);
+
+    console.log(`[PhoneRegister] ========== 注册响应 ==========`);
+    console.log(`[PhoneRegister] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
+    console.log(`[PhoneRegister] 响应体: ${httpResponse ? httpResponse.body : 'N/A'}`);
+
+    return handleRegisterResponse(httpResponse, userName);
+}
+
+/**
+ * 手机号注册 - 邀请注册方式（无验证码）
+ * @param {string} userName - 手机号
+ * @param {string} inviteCode - 邀请码（邀请注册必须提供）
+ * @param {object} data - setup 返回的数据对象（兼容保留，不再用 token）
+ * @param {string} password - 密码，默认为 'qwer1234'
+ * @param {string} turnstileToken - Turnstile 验证令牌，默认为空字符串
+ * @param {object} customUrls - 自定义URL配置（可选，用于多租户）
+ *   - registerUrl: 注册域名
+ * @returns {object} 返回包含 headers 和 data 的响应对象
+ */
+export function phoneRegisterByInvite(userName, inviteCode, data, password = 'qwer1234', turnstileToken = '', customUrls = null) {
+    console.log(`[PhoneRegisterByInvite] ========== 开始手机号邀请注册流程（无验证码）==========`);
+    console.log(`[PhoneRegisterByInvite] 用户名: ${userName}`);
+    console.log(`[PhoneRegisterByInvite] 邀请码: ${inviteCode}`);
+    console.log(`[PhoneRegisterByInvite] 密码: ${password}`);
+
+    const customRegisterUrl = customUrls && customUrls.registerUrl ? customUrls.registerUrl : null;
+    const api = "/api/Home/Register";
+    const timeData = getTimeRandom();
+
+    const payload = {
+        userName: userName,
+        inviteCode: inviteCode,
+        loginType: "Mobile",
+        turnstileToken: turnstileToken,
+        password: password,
+        code: "",
+        language: timeData.language,
+        random: timeData.random,
+        signature: '',
+        timestamp: timeData.timestamp
+    };
+
+    console.log(`[PhoneRegisterByInvite] 注册 payload:`, JSON.stringify(payload, null, 2));
+    console.log(`[PhoneRegisterByInvite] ⚠️  当前 ENV_CONFIG.BASE_DESK_URL = ${ENV_CONFIG.BASE_DESK_URL}`);
+
+    let httpResponse;
+    if (customRegisterUrl) {
+        const fullUrl = customRegisterUrl + api;
+        console.log(`[PhoneRegisterByInvite] 使用自定义注册URL: ${fullUrl}`);
+        httpResponse = httpClient.post(api, payload, { fullUrl: fullUrl }, true);
+    } else {
+        console.log(`[PhoneRegisterByInvite] 使用默认注册URL: ${ENV_CONFIG.BASE_DESK_URL}${api}`);
+        httpResponse = httpClient.post(api, payload, {}, true);
+    }
+
+    console.log(`[PhoneRegisterByInvite] ========== 注册响应 ==========`);
+    console.log(`[PhoneRegisterByInvite] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
+    console.log(`[PhoneRegisterByInvite] 响应体: ${httpResponse ? httpResponse.body : 'N/A'}`);
+
+    return handleRegisterResponseWithToken(httpResponse, userName);
+}
+
+/**
+ * 邮箱注册 - 前台总代注册方式（无验证码）
+ * 对应 Golang 的 EmailRegisterApi
+ * @param {string} email - 邮箱地址
+ * @param {object} data - setup 返回的数据对象（兼容保留，不再用 token）
+ * @param {string} password - 密码，默认为 'qwer1234'
+ * @param {string} inviteCode - 邀请码，默认为空字符串（前台总代注册时为空）
+ * @param {string} captchaId - 验证码ID，默认为 null
+ * @returns {object} 返回包含 headers 和 data 的响应对象
+ */
+export function emailRegister(email, data, password = 'qwer1234', inviteCode = '', captchaId = null) {
+    console.log(`[EmailRegister] ========== 开始邮箱注册流程（无验证码）==========`);
+    console.log(`[EmailRegister] 邮箱: ${email}`);
+    console.log(`[EmailRegister] 密码: ${password}`);
+    console.log(`[EmailRegister] 邀请码: ${inviteCode || '(空)'}`);
+
+    const api = "/api/Home/Register";
+    const browserId = generateCryptoRandomString(32);
+    const timeData = getTimeRandom();
+
+    const payload = {
+        loginType: "Email",
+        userName: email,
+        password: password,
+        inviteCode: inviteCode,
+        code: "",
+        captchaId: null,
+        deviceId: "",
+        browserId: browserId,
+        packageName: "",
+        language: timeData.language,
+        random: timeData.random,
+        signature: "",
+        timestamp: timeData.timestamp
+    };
+
+    console.log(`[EmailRegister] 注册 payload:`, JSON.stringify(payload, null, 2));
+
+    const httpResponse = httpClient.post(api, payload, {}, true);
+
+    console.log(`[EmailRegister] ========== 注册响应 ==========`);
+    console.log(`[EmailRegister] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
+    console.log(`[EmailRegister] 响应体: ${httpResponse ? httpResponse.body : 'N/A'}`);
+
+    return handleRegisterResponse(httpResponse, email);
+}
+
+/**
+ * 邮箱注册 - 邀请注册方式（无验证码）
+ * @param {string} email - 邮箱地址
+ * @param {string} inviteCode - 邀请码（邀请注册必须提供）
+ * @param {object} data - setup 返回的数据对象（兼容保留，不再用 token）
+ * @param {string} password - 密码，默认为 'qwer1234'
+ * @param {string} turnstileToken - Turnstile 验证令牌，默认为空字符串
+ * @param {object} customUrls - 自定义URL配置（可选，用于多租户）
+ *   - registerUrl: 注册域名
+ * @returns {object} 返回包含 headers 和 data 的响应对象
+ */
+export function emailRegisterByInvite(email, inviteCode, data, password = 'qwer1234', turnstileToken = '', customUrls = null) {
+    console.log(`[EmailRegisterByInvite] ========== 开始邮箱邀请注册流程（无验证码）==========`);
+    console.log(`[EmailRegisterByInvite] 邮箱: ${email}`);
+    console.log(`[EmailRegisterByInvite] 邀请码: ${inviteCode}`);
+    console.log(`[EmailRegisterByInvite] 密码: ${password}`);
+
+    const customRegisterUrl = customUrls && customUrls.registerUrl ? customUrls.registerUrl : null;
+    const api = "/api/Home/Register";
+    const timeData = getTimeRandom();
+
+    const payload = {
+        userName: email,
+        inviteCode: inviteCode,
+        loginType: "Email",
+        turnstileToken: turnstileToken,
+        password: password,
+        code: "",
+        language: timeData.language,
+        random: timeData.random,
+        signature: '',
+        timestamp: timeData.timestamp
+    };
+
+    console.log(`[EmailRegisterByInvite] 注册 payload:`, JSON.stringify(payload, null, 2));
+    console.log(`[EmailRegisterByInvite] ⚠️  当前 ENV_CONFIG.BASE_DESK_URL = ${ENV_CONFIG.BASE_DESK_URL}`);
+
+    let httpResponse;
+    if (customRegisterUrl) {
+        const fullUrl = customRegisterUrl + api;
+        console.log(`[EmailRegisterByInvite] 使用自定义注册URL: ${fullUrl}`);
+        httpResponse = httpClient.post(api, payload, { fullUrl: fullUrl }, true);
+    } else {
+        console.log(`[EmailRegisterByInvite] 使用默认注册URL: ${ENV_CONFIG.BASE_DESK_URL}${api}`);
+        httpResponse = httpClient.post(api, payload, {}, true);
+    }
+
+    console.log(`[EmailRegisterByInvite] ========== 注册响应 ==========`);
+    console.log(`[EmailRegisterByInvite] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
+    console.log(`[EmailRegisterByInvite] 响应体: ${httpResponse ? httpResponse.body : 'N/A'}`);
+
+    return handleRegisterResponseWithToken(httpResponse, email);
+}
+
+/**
+ * 通用埋点注册方式（无验证码）(Event Identity Register)
+ * 支持通过 options 切换不同的埋点配置 (如 ID 21 或 22)
+ * @param {string} userName - 手机号 (包含区号)
+ * @param {object} data - 包含 envConfig 的 setup 对象（兼容保留，不再用 token）
+ * @param {object} options - 额外参数
+ *   - password: 密码 (默认 qwer1234)
+ *   - pixelId: Pixel ID (默认 D7GEL23C77U0PCJMRE8G)
+ *   - eventConfigId: 事件配置ID (默认 22)
+ *   - eventType: 事件类型 (默认 6)
+ *   - packageName: 包名 (默认 com.ar3004.fb.app)
+ *   - inviteCode: 邀请码 (默认空)
+ *   - registerUrl: 自定义注册域名 (可选)
+ * @returns {object} 注册结果
+ */
+export function eventIdentityRegister(userName, data, options = {}) {
+    const {
+        password = 'qwer1234',
+        pixelId = 'D7GEL23C77U0PCJMRE8G',
+        eventConfigId = 22,
+        eventType = 6,
+        packageName = 'com.ar3004.fb.app',
+        registerUrl = null,
+        inviteCode = ""
+    } = options;
+
+    console.log(`[EventRegister] ========== 开始埋点注册流程（无验证码，ID: ${eventConfigId}）==========`);
+
+    const timeData = getTimeRandom();
+    const deviceId = generateCryptoRandomString(16);
+    const browserId = generateCryptoRandomString(32);
+    const api = "/api/Home/Register";
+
+    const eventIdentityInfo = JSON.stringify({
+        PixelId: pixelId,
+        Fbp: "",
+        Fbc: "",
+        AdjustDeviceId: deviceId
+    });
+
+    const payload = {
+        loginType: "Mobile",
+        userName: userName,
+        password: password,
+        inviteCode: inviteCode,
+        code: "",
+        captchaId: null,
+        deviceId: deviceId,
+        browserId: browserId,
+        packageName: packageName,
+        eventIdentity: [
+            {
+                eventConfigId: eventConfigId,
+                eventType: eventType,
+                eventIdentityInfo: eventIdentityInfo
+            }
+        ],
+        language: "en",
+        random: timeData.random,
+        signature: "",
+        timestamp: timeData.timestamp
+    };
+
+    // 签名 payload
+    const signPayload = {
+        loginType: "Mobile",
+        userName: userName,
+        password: password,
+        inviteCode: inviteCode,
+        code: "",
+        captchaId: null,
+        deviceId: deviceId,
+        browserId: browserId,
+        packageName: packageName,
+        language: "en",
+        random: timeData.random
+    };
+
+    const signClient = new httpClient.constructor();
+    const signedParams = signClient.signData(signPayload);
+    payload.signature = signedParams.signature;
+    payload.timestamp = signedParams.timestamp;
+
+    const httpResponse = registerUrl
+        ? httpClient.post(api, payload, { fullUrl: registerUrl + api, sign: false }, true)
+        : httpClient.post(api, payload, { sign: false }, true);
+
+    return handleRegisterResponse(httpResponse, userName, deviceId);
+}
+
+
+// ============================================================
+// 带验证码版本（保留备用，后缀 WithCode）
+// ============================================================
+
+/**
+ * 手机号注册 - 前台总代注册方式（发送验证码）
+ */
+export function phoneRegisterWithCode(userName, data, password = 'qwer1234', inviteCode = '', captchaId = null) {
+    console.log(`[PhoneRegisterWithCode] ========== 开始手机号注册流程（发送验证码）==========`);
+    console.log(`[PhoneRegisterWithCode] 用户名: ${userName}`);
+
     const verifyCode = sendToGetVerCode(1, 1, userName, data.token);
-
     if (!verifyCode) {
-        console.error('[PhoneRegister] 手机号注册失败：未能获取到验证码');
+        console.error('[PhoneRegisterWithCode] 手机号注册失败：未能获取到验证码');
         return null;
     }
 
-    // 确保验证码是字符串类型
     const codeStr = String(verifyCode).trim();
-    console.log(`[PhoneRegister] 准备注册: ${userName}`);
-    console.log(`[PhoneRegister] 验证码: "${codeStr}" (长度: ${codeStr.length})`);
+    console.log(`[PhoneRegisterWithCode] 验证码: "${codeStr}"`);
 
-    // 2. 组装注册请求负载
     const api = "/api/Home/Register";
     const browserId = generateCryptoRandomString(32);
     const timeData = getTimeRandom();
@@ -57,97 +341,36 @@ export function phoneRegister(userName, data, password = 'qwer1234', inviteCode 
         timestamp: timeData.timestamp
     };
 
-    console.log(`[PhoneRegister] 注册 payload:`, JSON.stringify(payload, null, 2));
-    console.log(`[PhoneRegister] 请求API: ${api}`);
-    console.log(`[PhoneRegister] 请求URL: ${data.envConfig.BASE_DESK_URL}${api}`);
+    console.log(`[PhoneRegisterWithCode] 注册 payload:`, JSON.stringify(payload, null, 2));
 
-    // 3. 直接使用 httpClient 发起请求，获取完整响应（包含 headers）
     const httpResponse = httpClient.post(api, payload, {}, true);
 
-    console.log(`[PhoneRegister] ========== 注册响应 ==========`);
-    console.log(`[PhoneRegister] 响应状态码: ${httpResponse.status}`);
-    console.log(`[PhoneRegister] 响应体: ${httpResponse.body}`);
-    console.log(`[PhoneRegister] 响应Headers: ${JSON.stringify(httpResponse.headers)}`);
+    console.log(`[PhoneRegisterWithCode] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
+    console.log(`[PhoneRegisterWithCode] 响应体: ${httpResponse ? httpResponse.body : 'N/A'}`);
 
-    if (!httpResponse) {
-        console.error(`[PhoneRegister] ❌ 注册失败：响应为空`);
-        return null;
-    }
-
-    // 解析响应体
-    let parsedBody = null;
-    if (httpResponse.body) {
-        try {
-            parsedBody = typeof httpResponse.body === 'string' ? JSON.parse(httpResponse.body) : httpResponse.body;
-        } catch (e) {
-            console.error(`[PhoneRegister] ❌ 响应体解析失败: ${e.message}`);
-            return null;
-        }
-    }
-
-    //console.log(`[PhoneRegister] 解析后的响应: ${JSON.stringify(parsedBody, null, 2)}`);
-
-    // 检查注册结果
-    const statusCode = parsedBody ? (parsedBody.code !== undefined ? parsedBody.code : parsedBody.msgCode) : null;
-
-    if (statusCode === 0) {
-        console.log(`[PhoneRegister] ✅ 注册成功: ${userName}`);
-
-        // 返回包含 headers 和 data 的对象
-        return {
-            headers: httpResponse.headers,
-            data: parsedBody.data,
-            code: statusCode,
-            msg: parsedBody.msg
-        };
-    } else {
-        console.error(`[PhoneRegister] ❌ 注册失败: ${userName}`);
-        console.error(`[PhoneRegister] 错误详情: code=${statusCode}, msg=${parsedBody ? parsedBody.msg : 'N/A'}`);
-        console.error(`[PhoneRegister] 使用的验证码: ${codeStr}`);
-        console.error(`[PhoneRegister] 完整错误响应: ${JSON.stringify(parsedBody, null, 2)}`);
-        return null;
-    }
+    return handleRegisterResponse(httpResponse, userName);
 }
 
-
 /**
- * 手机号注册 - 邀请注册方式
- * @param {string} userName - 手机号
- * @param {string} inviteCode - 邀请码（邀请注册必须提供）
- * @param {object} data - setup 返回的数据对象，包含 adminToken
- * @param {string} password - 密码，默认为 'qwer1234'
- * @param {string} turnstileToken - Turnstile 验证令牌，默认为空字符串
- * @param {object} customUrls - 自定义URL配置（可选，用于多租户）
- *   - frontUrl: 前台域名（用于发送验证码）
- *   - adminUrl: 后台域名（用于查询验证码）
- *   - registerUrl: 注册域名（用于注册请求）
- * @returns {object} 返回包含 headers 和 data 的响应对象
+ * 手机号注册 - 邀请注册方式（发送验证码）
  */
-export function phoneRegisterByInvite(userName, inviteCode, data, password = 'qwer1234', turnstileToken = '', customUrls = null) {
-    console.log(`[PhoneRegisterByInvite] ========== 开始手机号邀请注册流程 ==========`);
-    console.log(`[PhoneRegisterByInvite] 用户名: ${userName}`);
-    console.log(`[PhoneRegisterByInvite] 邀请码: ${inviteCode}`);
-    console.log(`[PhoneRegisterByInvite] 密码: ${password}`);
+export function phoneRegisterByInviteWithCode(userName, inviteCode, data, password = 'qwer1234', turnstileToken = '', customUrls = null) {
+    console.log(`[PhoneRegisterByInviteWithCode] ========== 开始手机号邀请注册流程（发送验证码）==========`);
+    console.log(`[PhoneRegisterByInviteWithCode] 用户名: ${userName}`);
 
-    // 1. 发送并获取验证码
     const customFrontUrl = customUrls && customUrls.frontUrl ? customUrls.frontUrl : null;
     const customAdminUrl = customUrls && customUrls.adminUrl ? customUrls.adminUrl : null;
     const customRegisterUrl = customUrls && customUrls.registerUrl ? customUrls.registerUrl : null;
 
-    console.log(`[PhoneRegisterByInvite] 准备发送验证码: verifyCodeType=1, codeType=19`);
     const verifyCode = sendToGetVerCode(1, 19, userName, data.token, customFrontUrl, customAdminUrl);
-
     if (!verifyCode) {
-        console.error('[PhoneRegisterByInvite] 邀请注册失败：未能获取到验证码');
+        console.error('[PhoneRegisterByInviteWithCode] 邀请注册失败：未能获取到验证码');
         return null;
     }
 
     const codeStr = String(verifyCode).trim();
-    console.log(`[PhoneRegisterByInvite] 准备注册: ${userName}`);
-    console.log(`[PhoneRegisterByInvite] 验证码: "${codeStr}"`);
-    console.log(`[PhoneRegisterByInvite] 邀请码: ${inviteCode}`);
+    console.log(`[PhoneRegisterByInviteWithCode] 验证码: "${codeStr}"`);
 
-    // 2. 组装payload
     const api = "/api/Home/Register";
     const timeData = getTimeRandom();
 
@@ -164,101 +387,38 @@ export function phoneRegisterByInvite(userName, inviteCode, data, password = 'qw
         timestamp: timeData.timestamp
     };
 
-    console.log(`[PhoneRegisterByInvite] 注册 payload:`, JSON.stringify(payload, null, 2));
+    console.log(`[PhoneRegisterByInviteWithCode] 注册 payload:`, JSON.stringify(payload, null, 2));
 
-    // 3. 发送请求
     let httpResponse;
-    console.log(`[PhoneRegisterByInvite] ===============================================`);
-    console.log(`[PhoneRegisterByInvite] ⚠️  当前 ENV_CONFIG.BASE_DESK_URL = ${ENV_CONFIG.BASE_DESK_URL}`);
-    console.log(`[PhoneRegisterByInvite] ===============================================`);
     if (customRegisterUrl) {
-        // 使用自定义注册URL（多租户）
         const fullUrl = customRegisterUrl + api;
-        console.log(`[PhoneRegisterByInvite] 使用自定义注册API: ${fullUrl}`);
-        console.log(`[PhoneRegisterByInvite] 完整请求URL: ${fullUrl}`);
-        console.log(`[PhoneRegisterByInvite] 完整请求Payload: ${JSON.stringify(payload)}`);
         httpResponse = httpClient.post(api, payload, { fullUrl: fullUrl }, true);
     } else {
-        // 使用默认URL
-        console.log(`[PhoneRegisterByInvite] 使用默认注册API: ${api}`);
-        console.log(`[PhoneRegisterByInvite] 完整请求URL: ${ENV_CONFIG.BASE_DESK_URL}${api}`);
-        console.log(`[PhoneRegisterByInvite] 完整请求Payload: ${JSON.stringify(payload)}`);
         httpResponse = httpClient.post(api, payload, {}, true);
     }
 
-    // 4. 打印响应结果
-    console.log(`[PhoneRegisterByInvite] ========== 注册响应 ==========`);
-    console.log(`[PhoneRegisterByInvite] 响应状态码: ${httpResponse.status}`);
-    console.log(`[PhoneRegisterByInvite] 响应体: ${httpResponse.body}`);
-    console.log(`[PhoneRegisterByInvite] 响应Headers: ${JSON.stringify(httpResponse.headers)}`);
+    console.log(`[PhoneRegisterByInviteWithCode] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
+    console.log(`[PhoneRegisterByInviteWithCode] 响应体: ${httpResponse ? httpResponse.body : 'N/A'}`);
 
-    if (!httpResponse || !httpResponse.body) {
-        console.error(`[PhoneRegisterByInvite] ❌ 注册失败：响应为空`);
-        return null;
-    }
-
-    // 4. 解析响应
-    let parsedBody;
-    try {
-        parsedBody = typeof httpResponse.body === 'string' ? JSON.parse(httpResponse.body) : httpResponse.body;
-    } catch (e) {
-        console.error(`[PhoneRegisterByInvite] ❌ 响应解析失败: ${e.message}`);
-        return null;
-    }
-
-    console.log(`[PhoneRegisterByInvite] 解析后的响应: ${JSON.stringify(parsedBody, null, 2)}`);
-
-    const statusCode = parsedBody ? (parsedBody.code !== undefined ? parsedBody.code : parsedBody.msgCode) : null;
-
-    if (statusCode === 0) {
-        console.log(`[PhoneRegisterByInvite] ✅ 注册成功: ${userName}`);
-        const token = parsedBody.data && parsedBody.data.token ? parsedBody.data.token : null;
-        return {
-            headers: token ? { 'Authorization': `Bearer ${token}` } : httpResponse.headers,
-            data: parsedBody.data,
-            code: statusCode,
-            msg: parsedBody.msg
-        };
-    } else {
-        console.error(`[PhoneRegisterByInvite] ❌ 注册失败: ${userName}`);
-        console.error(`[PhoneRegisterByInvite] 错误: code=${statusCode}, msg=${parsedBody.msg}`);
-        console.error(`[PhoneRegisterByInvite] 完整错误响应: ${JSON.stringify(parsedBody, null, 2)}`);
-        return null;
-    }
+    return handleRegisterResponseWithToken(httpResponse, userName);
 }
 
 /**
- * 邮箱注册 - 前台总代注册方式
- * 对应 Golang 的 EmailRegisterApi
- * @param {string} email - 邮箱地址
- * @param {object} data - setup 返回的数据对象，包含 adminToken
- * @param {string} password - 密码，默认为 'qwer1234'
- * @param {string} inviteCode - 邀请码，默认为空字符串（前台总代注册时为空）
- * @param {string} captchaId - 验证码ID，默认为 null
- * @returns {object} 返回包含 headers 和 data 的响应对象
+ * 邮箱注册 - 前台总代注册方式（发送验证码）
  */
-export function emailRegister(email, data, password = 'qwer1234', inviteCode = '', captchaId = null) {
-    console.log(`[EmailRegister] ========== 开始邮箱注册流程 ==========`);
-    console.log(`[EmailRegister] 邮箱: ${email}`);
-    console.log(`[EmailRegister] 密码: ${password}`);
-    console.log(`[EmailRegister] 邀请码: ${inviteCode || '(空)'}`);
+export function emailRegisterWithCode(email, data, password = 'qwer1234', inviteCode = '', captchaId = null) {
+    console.log(`[EmailRegisterWithCode] ========== 开始邮箱注册流程（发送验证码）==========`);
+    console.log(`[EmailRegisterWithCode] 邮箱: ${email}`);
 
-    // 1. 发送并获取验证码
-    // 参数对照：VerifyCodeType = 2, codeType = 2 (2是邮箱前台注册验证)
-    console.log(`[EmailRegister] 准备发送验证码: verifyCodeType=2, codeType=2`);
     const verifyCode = sendToGetVerCode(2, 2, email, data.token);
-
     if (!verifyCode) {
-        console.error('[EmailRegister] 邮箱注册失败：未能获取到验证码');
+        console.error('[EmailRegisterWithCode] 邮箱注册失败：未能获取到验证码');
         return null;
     }
 
-    // 确保验证码是字符串类型
     const codeStr = String(verifyCode).trim();
-    console.log(`[EmailRegister] 准备注册: ${email}`);
-    console.log(`[EmailRegister] 验证码: "${codeStr}" (长度: ${codeStr.length})`);
+    console.log(`[EmailRegisterWithCode] 验证码: "${codeStr}"`);
 
-    // 2. 组装注册请求负载
     const api = "/api/Home/Register";
     const browserId = generateCryptoRandomString(32);
     const timeData = getTimeRandom();
@@ -279,95 +439,38 @@ export function emailRegister(email, data, password = 'qwer1234', inviteCode = '
         timestamp: timeData.timestamp
     };
 
-    console.log(`[EmailRegister] 注册 payload:`, JSON.stringify(payload, null, 2));
-    console.log(`[EmailRegister] 请求API: ${api}`);
-    console.log(`[EmailRegister] 请求URL: ${data.envConfig.BASE_DESK_URL}${api}`);
+    console.log(`[EmailRegisterWithCode] 注册 payload:`, JSON.stringify(payload, null, 2));
 
-    // 3. 直接使用 httpClient 发起请求，获取完整响应（包含 headers）
     const httpResponse = httpClient.post(api, payload, {}, true);
 
-    console.log(`[EmailRegister] ========== 注册响应 ==========`);
-    console.log(`[EmailRegister] 响应状态码: ${httpResponse.status}`);
-    console.log(`[EmailRegister] 响应体: ${httpResponse.body}`);
-    console.log(`[EmailRegister] 响应Headers: ${JSON.stringify(httpResponse.headers)}`);
+    console.log(`[EmailRegisterWithCode] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
+    console.log(`[EmailRegisterWithCode] 响应体: ${httpResponse ? httpResponse.body : 'N/A'}`);
 
-    if (!httpResponse) {
-        console.error(`[EmailRegister] ❌ 注册失败：响应为空`);
-        return null;
-    }
-
-    // 解析响应体
-    let parsedBody = null;
-    if (httpResponse.body) {
-        try {
-            parsedBody = typeof httpResponse.body === 'string' ? JSON.parse(httpResponse.body) : httpResponse.body;
-        } catch (e) {
-            console.error(`[EmailRegister] ❌ 响应体解析失败: ${e.message}`);
-            return null;
-        }
-    }
-
-    console.log(`[EmailRegister] 解析后的响应: ${JSON.stringify(parsedBody, null, 2)}`);
-
-    // 检查注册结果
-    const statusCode = parsedBody ? (parsedBody.code !== undefined ? parsedBody.code : parsedBody.msgCode) : null;
-
-    if (statusCode === 0) {
-        console.log(`[EmailRegister] ✅ 注册成功: ${email}`);
-
-        // 返回包含 headers 和 data 的对象
-        return {
-            headers: httpResponse.headers,
-            data: parsedBody.data,
-            code: statusCode,
-            msg: parsedBody.msg
-        };
-    } else {
-        console.error(`[EmailRegister] ❌ 注册失败: ${email}`);
-        console.error(`[EmailRegister] 错误详情: code=${statusCode}, msg=${parsedBody ? parsedBody.msg : 'N/A'}`);
-        console.error(`[EmailRegister] 使用的验证码: ${codeStr}`);
-        console.error(`[EmailRegister] 完整错误响应: ${JSON.stringify(parsedBody, null, 2)}`);
-        return null;
-    }
+    return handleRegisterResponse(httpResponse, email);
 }
 
-
 /**
- * 邮箱注册 - 邀请注册方式
- * @param {string} email - 邮箱地址
- * @param {string} inviteCode - 邀请码（邀请注册必须提供）
- * @param {object} data - setup 返回的数据对象，包含 adminToken
- * @param {string} password - 密码，默认为 'qwer1234'
- * @param {string} turnstileToken - Turnstile 验证令牌，默认为空字符串
- * @param {object} customUrls - 自定义URL配置（可选，用于多租户）
- * @returns {object} 返回包含 headers 和 data 的响应对象
+ * 邮箱注册 - 邀请注册方式（发送验证码）
+ * 修复了原版本中 httpResponse 先打印后发请求的 bug
  */
-export function emailRegisterByInvite(email, inviteCode, data, password = 'qwer1234', turnstileToken = '', customUrls = null) {
-    console.log(`[EmailRegisterByInvite] ========== 开始邮箱邀请注册流程 ==========`);
-    console.log(`[EmailRegisterByInvite] 邮箱: ${email}`);
-    console.log(`[EmailRegisterByInvite] 邀请码: ${inviteCode}`);
-    console.log(`[EmailRegisterByInvite] 密码: ${password}`);
+export function emailRegisterByInviteWithCode(email, inviteCode, data, password = 'qwer1234', turnstileToken = '', customUrls = null) {
+    console.log(`[EmailRegisterByInviteWithCode] ========== 开始邮箱邀请注册流程（发送验证码）==========`);
+    console.log(`[EmailRegisterByInviteWithCode] 邮箱: ${email}`);
+    console.log(`[EmailRegisterByInviteWithCode] 邀请码: ${inviteCode}`);
 
-    // 1. 发送并获取验证码
     const customFrontUrl = customUrls && customUrls.frontUrl ? customUrls.frontUrl : null;
     const customAdminUrl = customUrls && customUrls.adminUrl ? customUrls.adminUrl : null;
     const customRegisterUrl = customUrls && customUrls.registerUrl ? customUrls.registerUrl : null;
 
-    console.log(`[EmailRegisterByInvite] 准备发送验证码: verifyCodeType=2, codeType=20`);
     const verifyCode = sendToGetVerCode(2, 20, email, data.token, customFrontUrl, customAdminUrl);
-
     if (!verifyCode) {
-        console.error('[EmailRegisterByInvite] 邮箱邀请注册失败：未能获取到验证码');
+        console.error('[EmailRegisterByInviteWithCode] 邮箱邀请注册失败：未能获取到验证码');
         return null;
     }
 
-    // 确保验证码是字符串类型
     const codeStr = String(verifyCode).trim();
-    console.log(`[EmailRegisterByInvite] 准备注册: ${email}`);
-    console.log(`[EmailRegisterByInvite] 验证码: "${codeStr}" (长度: ${codeStr.length})`);
-    console.log(`[EmailRegisterByInvite] 邀请码: ${inviteCode}`);
+    console.log(`[EmailRegisterByInviteWithCode] 验证码: "${codeStr}"`);
 
-    // 2. 组装注册请求负载（匹配成功的payload结构）
     const api = "/api/Home/Register";
     const timeData = getTimeRandom();
 
@@ -384,71 +487,29 @@ export function emailRegisterByInvite(email, inviteCode, data, password = 'qwer1
         timestamp: timeData.timestamp
     };
 
-    console.log(`[EmailRegisterByInvite] 注册 payload:`, JSON.stringify(payload, null, 2));
+    console.log(`[EmailRegisterByInviteWithCode] 注册 payload:`, JSON.stringify(payload, null, 2));
+    console.log(`[EmailRegisterByInviteWithCode] ⚠️  当前 ENV_CONFIG.BASE_DESK_URL = ${ENV_CONFIG.BASE_DESK_URL}`);
 
-    // 3. 发送请求
     let httpResponse;
-    console.log(`[EmailRegisterByInvite] ===============================================`);
-    console.log(`[EmailRegisterByInvite] ⚠️  当前 ENV_CONFIG.BASE_DESK_URL = ${ENV_CONFIG.BASE_DESK_URL}`);
-    console.log(`[EmailRegisterByInvite] ===============================================`);
-    // 4. 打印响应结果
-    console.log(`[EmailRegisterByInvite] ========== 注册响应 ==========`);
-    console.log(`[EmailRegisterByInvite] 响应状态码: ${httpResponse.status}`);
-    console.log(`[EmailRegisterByInvite] 响应体: ${httpResponse.body}`);
-    console.log(`[EmailRegisterByInvite] 响应Headers: ${JSON.stringify(httpResponse.headers)}`);
-
-    if (!httpResponse || !httpResponse.body) {
-        console.error(`[EmailRegisterByInvite] ❌ 注册失败：响应为空`);
-        return null;
-    }
-
-    // 4. 解析响应
-    let parsedBody;
-    try {
-        parsedBody = typeof httpResponse.body === 'string' ? JSON.parse(httpResponse.body) : httpResponse.body;
-    } catch (e) {
-        console.error(`[EmailRegisterByInvite] ❌ 响应解析失败: ${e.message}`);
-        return null;
-    }
-
-    console.log(`[EmailRegisterByInvite] 解析后的响应: ${JSON.stringify(parsedBody, null, 2)}`);
-
-    const statusCode = parsedBody ? (parsedBody.code !== undefined ? parsedBody.code : parsedBody.msgCode) : null;
-
-    if (statusCode === 0) {
-        console.log(`[EmailRegisterByInvite] ✅ 注册成功: ${email}`);
-        const token = parsedBody.data && parsedBody.data.token ? parsedBody.data.token : null;
-        return {
-            headers: token ? { 'Authorization': `Bearer ${token}` } : httpResponse.headers,
-            data: parsedBody.data,
-            code: statusCode,
-            msg: parsedBody.msg
-        };
+    if (customRegisterUrl) {
+        const fullUrl = customRegisterUrl + api;
+        console.log(`[EmailRegisterByInviteWithCode] 使用自定义注册URL: ${fullUrl}`);
+        httpResponse = httpClient.post(api, payload, { fullUrl: fullUrl }, true);
     } else {
-        console.error(`[EmailRegisterByInvite] ❌ 注册失败: ${email}`);
-        errorLog(`错误: code=${statusCode}, msg=${parsedBody.msg}`);
-        errorLog(`完整错误响应: ${JSON.stringify(parsedBody, null, 2)}`);
-        return null;
+        console.log(`[EmailRegisterByInviteWithCode] 使用默认注册URL: ${ENV_CONFIG.BASE_DESK_URL}${api}`);
+        httpResponse = httpClient.post(api, payload, {}, true);
     }
+
+    console.log(`[EmailRegisterByInviteWithCode] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
+    console.log(`[EmailRegisterByInviteWithCode] 响应体: ${httpResponse ? httpResponse.body : 'N/A'}`);
+
+    return handleRegisterResponseWithToken(httpResponse, email);
 }
 
 /**
- * 通用埋点注册方式 (Event Identity Register)
- * 支持通过 options 切换不同的埋点配置 (如 ID 21 或 22)
- * @param {string} userName - 手机号 (包含区号)
- * @param {object} data - 包含 token 和 envConfig 的 setup 对象
- * @param {object} options - 额外参数
- *   - password: 密码 (默认 qwer1234)
- *   - pixelId: Pixel ID (默认 D7GEL23C77U0PCJMRE8G)
- *   - eventConfigId: 事件配置ID (默认 22)
- *   - eventType: 事件类型 (默认 6)
- *   - packageName: 包名 (默认 com.ar3004.fb.app)
- *   - inviteCode: 邀请码 (默认空)
- *   - registerUrl: 自定义注册域名 (可选)
- *   - customFrontUrl: 自定义前台域名 (可选，用于发送验证码)
- * @returns {object} 注册结果
+ * 通用埋点注册方式（发送验证码）(Event Identity Register)
  */
-export function eventIdentityRegister(userName, data, options = {}) {
+export function eventIdentityRegisterWithCode(userName, data, options = {}) {
     const {
         password = 'qwer1234',
         pixelId = 'D7GEL23C77U0PCJMRE8G',
@@ -460,7 +521,8 @@ export function eventIdentityRegister(userName, data, options = {}) {
         inviteCode = ""
     } = options;
 
-    console.log(`[EventRegister] ========== 开始埋点注册流程 (ID: ${eventConfigId}) ==========`);
+    console.log(`[EventRegisterWithCode] ========== 开始埋点注册流程（发送验证码，ID: ${eventConfigId}）==========`);
+
     const verifyCode = sendToGetVerCode(1, 1, userName, data.token, customFrontUrl);
     if (!verifyCode) return null;
 
@@ -470,7 +532,6 @@ export function eventIdentityRegister(userName, data, options = {}) {
     const browserId = generateCryptoRandomString(32);
     const api = "/api/Home/Register";
 
-    // 组装内层埋点信息 (CamelCase)
     const eventIdentityInfo = JSON.stringify({
         PixelId: pixelId,
         Fbp: "",
@@ -501,7 +562,6 @@ export function eventIdentityRegister(userName, data, options = {}) {
         timestamp: timeData.timestamp
     };
 
-    // 签名 Payload (需包含 packageName)
     const signPayload = {
         loginType: "Mobile",
         userName: userName,
@@ -521,18 +581,24 @@ export function eventIdentityRegister(userName, data, options = {}) {
     payload.signature = signedParams.signature;
     payload.timestamp = signedParams.timestamp;
 
-    const httpResponse = registerUrl 
+    const httpResponse = registerUrl
         ? httpClient.post(api, payload, { fullUrl: registerUrl + api, sign: false }, true)
         : httpClient.post(api, payload, { sign: false }, true);
 
     return handleRegisterResponse(httpResponse, userName, deviceId);
 }
 
+
+// ============================================================
+// 内部辅助函数
+// ============================================================
+
 /**
- * 内部响应处理辅助函数
+ * 通用响应处理（返回 headers 直接来自响应）
  */
-function handleRegisterResponse(httpResponse, userName, deviceId) {
+function handleRegisterResponse(httpResponse, userName, deviceId = null) {
     console.log(`[RegisterResponse] 状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
+
     if (!httpResponse || !httpResponse.body) {
         console.error(`[RegisterResponse] ❌ 接口无响应`);
         return null;
@@ -547,6 +613,7 @@ function handleRegisterResponse(httpResponse, userName, deviceId) {
     }
 
     const statusCode = parsedBody.code !== undefined ? parsedBody.code : parsedBody.msgCode;
+
     if (statusCode === 0) {
         console.log(`[RegisterResponse] ✅ 注册成功: ${userName}`);
         return {
@@ -554,10 +621,50 @@ function handleRegisterResponse(httpResponse, userName, deviceId) {
             data: parsedBody.data,
             code: statusCode,
             msg: parsedBody.msg,
-            deviceId: deviceId
+            ...(deviceId !== null && { deviceId })
         };
     } else {
         console.error(`[RegisterResponse] ❌ 注册失败: code=${statusCode}, msg=${parsedBody.msg}`);
+        console.error(`[RegisterResponse] 完整错误响应: ${JSON.stringify(parsedBody, null, 2)}`);
+        return null;
+    }
+}
+
+/**
+ * 带 token 提取的响应处理（邀请注册类优先用响应 data.token 构造 Authorization header）
+ */
+function handleRegisterResponseWithToken(httpResponse, userName) {
+    console.log(`[RegisterResponse] 状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
+
+    if (!httpResponse || !httpResponse.body) {
+        console.error(`[RegisterResponse] ❌ 接口无响应`);
+        return null;
+    }
+
+    let parsedBody;
+    try {
+        parsedBody = typeof httpResponse.body === 'string' ? JSON.parse(httpResponse.body) : httpResponse.body;
+    } catch (e) {
+        console.error(`[RegisterResponse] ❌ 解析响应体失败: ${e.message}`);
+        return null;
+    }
+
+    console.log(`[RegisterResponse] 解析后的响应: ${JSON.stringify(parsedBody, null, 2)}`);
+
+    const statusCode = parsedBody.code !== undefined ? parsedBody.code : parsedBody.msgCode;
+
+    if (statusCode === 0) {
+        console.log(`[RegisterResponse] ✅ 注册成功: ${userName}`);
+        const token = parsedBody.data && parsedBody.data.token ? parsedBody.data.token : null;
+        return {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : httpResponse.headers,
+            data: parsedBody.data,
+            code: statusCode,
+            msg: parsedBody.msg
+        };
+    } else {
+        console.error(`[RegisterResponse] ❌ 注册失败: code=${statusCode}, msg=${parsedBody.msg}`);
+        console.error(`[RegisterResponse] 完整错误响应: ${JSON.stringify(parsedBody, null, 2)}`);
         return null;
     }
 }
