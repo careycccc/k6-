@@ -7,7 +7,7 @@
  *   parentInviteCode - 上级邀请码；无上级时为空串 ""
  *
  * 用法：
- *   k6 run -e TENANT_ID=3004 -e USERNAME=915564162732 getUserInfo.test.js
+ *   k6 run -e TENANT_ID=3004 -e USERNAME=916043957059 getUserInfo.test.js
  *
  * 环境变量：
  *   TENANT_ID  租户ID（默认 3004）

@@ -27,13 +27,13 @@ import { sendToGetVerCode } from '../login/SendVerifiyCode.test.js';
  */
 export function adjustIdentityRegister(userName, data, options = {}) {
     const {
-        password       = 'qwer1234',
-        pixelId        = 'uyyiyutewe',
-        eventConfigId  = 200015,
-        eventType      = 2,
-        packageName    = 'com.ar3004.adcarey_adjust_001.app',
-        inviteCode     = '',
-        registerUrl    = null,
+        password = 'qwer1234',
+        pixelId = 'uyyiyutewe',
+        eventConfigId = 200015,
+        eventType = 2,
+        packageName = 'com.ar3004.adcarey_adjust_001.app',
+        inviteCode = '',
+        registerUrl = null,
         customFrontUrl = null
     } = options;
 
@@ -47,66 +47,66 @@ export function adjustIdentityRegister(userName, data, options = {}) {
         return null;
     }
 
-    const codeStr   = String(verifyCode).trim();
-    const timeData  = getTimeRandom();
-    const deviceId  = generateCryptoRandomString(16);
+    const codeStr = String(verifyCode).trim();
+    const timeData = getTimeRandom();
+    const deviceId = generateCryptoRandomString(16);
     const browserId = generateCryptoRandomString(32);
-    const api       = '/api/Home/Register';
+    const api = '/api/Home/Register';
 
     // 2. 组装 Adjust 专属的 eventIdentityInfo
     //    与 TikTok 的区别：多了 Ttclid / Ttcsid 字段
     const eventIdentityInfo = JSON.stringify({
-        PixelId:        pixelId,
-        Fbp:            '',
-        Fbc:            '',
-        Ttclid:         '',
-        Ttcsid:         '',
+        PixelId: pixelId,
+        Fbp: '',
+        Fbc: '',
+        Ttclid: '',
+        Ttcsid: '',
         AdjustDeviceId: ''
     });
 
     // 3. 组装完整 payload
     const payload = {
-        loginType:     'Mobile',
-        userName:      userName,
-        password:      password,
-        inviteCode:    inviteCode,
-        code:          codeStr,
-        captchaId:     null,
-        deviceId:      deviceId,
-        browserId:     browserId,
-        packageName:   packageName,
+        loginType: 'Mobile',
+        userName: userName,
+        password: password,
+        inviteCode: inviteCode,
+        code: codeStr,
+        captchaId: null,
+        deviceId: deviceId,
+        browserId: browserId,
+        packageName: packageName,
         eventIdentity: [
             {
                 eventConfigId: eventConfigId,
-                eventType:     eventType,
+                eventType: eventType,
                 eventIdentityInfo: eventIdentityInfo
             }
         ],
-        language:  'en',
-        random:    timeData.random,
+        language: 'en',
+        random: timeData.random,
         signature: '',
         timestamp: timeData.timestamp
     };
 
     // 4. 签名（与 TikTok 保持一致，只对基础字段签名）
     const signPayload = {
-        loginType:   'Mobile',
-        userName:    userName,
-        password:    password,
-        inviteCode:  inviteCode,
-        code:        codeStr,
-        captchaId:   null,
-        deviceId:    deviceId,
-        browserId:   browserId,
+        loginType: 'Mobile',
+        userName: userName,
+        password: password,
+        inviteCode: inviteCode,
+        code: codeStr,
+        captchaId: null,
+        deviceId: deviceId,
+        browserId: browserId,
         packageName: packageName,
-        language:    'en',
-        random:      timeData.random
+        language: 'en',
+        random: timeData.random
     };
 
-    const signClient  = new httpClient.constructor();
+    const signClient = new httpClient.constructor();
     const signedParams = signClient.signData(signPayload);
-    payload.signature  = signedParams.signature;
-    payload.timestamp  = signedParams.timestamp;
+    payload.signature = signedParams.signature;
+    payload.timestamp = signedParams.timestamp;
 
     console.log(`[AdjustRegister] eventIdentityInfo: ${eventIdentityInfo}`);
 
@@ -134,12 +134,12 @@ export function adjustIdentityRegister(userName, data, options = {}) {
 
     const statusCode = parsedBody.code !== undefined ? parsedBody.code : parsedBody.msgCode;
     if (statusCode === 0) {
-        console.log(`[AdjustRegister] ✅ 注册成功: ${userName}`);
+        //console.log(`[AdjustRegister] ✅ 注册成功: ${userName}`);
         return {
-            headers:  httpResponse.headers,
-            data:     parsedBody.data,
-            code:     statusCode,
-            msg:      parsedBody.msg,
+            headers: httpResponse.headers,
+            data: parsedBody.data,
+            code: statusCode,
+            msg: parsedBody.msg,
             deviceId: deviceId
         };
     } else {

@@ -144,16 +144,16 @@ export class HttpClient extends SignedHttpClient {
    @returns — 响应对象
    * **/
   post(endpoint, data = {}, config = {}, isDesk = true) {
-    console.log(`[HttpClient.post] ========== POST请求 ==========`);
-    console.log(`[HttpClient.post] endpoint: ${endpoint}`);
-    console.log(`[HttpClient.post] isDesk: ${isDesk}`);
-    console.log(`[HttpClient.post] data: ${JSON.stringify(data, null, 2)}`);
-    console.log(`[HttpClient.post] config: ${JSON.stringify(config, null, 2)}`);
+    // console.log(`[HttpClient.post] ========== POST请求 ==========`);
+    // console.log(`[HttpClient.post] endpoint: ${endpoint}`);
+    // console.log(`[HttpClient.post] isDesk: ${isDesk}`);
+    // console.log(`[HttpClient.post] data: ${JSON.stringify(data, null, 2)}`);
+    // console.log(`[HttpClient.post] config: ${JSON.stringify(config, null, 2)}`);
 
     const response = this.request('POST', endpoint, data, config, isDesk);
 
-    console.log(`[HttpClient.post] ========== POST响应 ==========`);
-    console.log(`[HttpClient.post] 响应状态: ${response.status}`);
+    //console.log(`[HttpClient.post] ========== POST响应 ==========`);
+    //console.log(`[HttpClient.post] 响应状态: ${response.status}`);
     //console.log(`[HttpClient.post] 响应体: ${response.body}`);
     //console.log(`[HttpClient.post] 响应Headers: ${JSON.stringify(response.headers, null, 2)}`);
 

@@ -53,7 +53,7 @@ export function getTimeRandom() {
   const timestamp = Math.floor(Date.now() / 1000);
   const random = randomTwelveK6();
 
-  console.log(`[TimeRandom] 生成参数: timestamp=${timestamp}, random=${random}, language=${LANGUAGE}`);
+  //console.log(`[TimeRandom] 生成参数: timestamp=${timestamp}, random=${random}, language=${LANGUAGE}`);
 
   return {
     timestamp,

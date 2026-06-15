@@ -64,21 +64,21 @@ import { getFrontUserInfo } from '../user/userManagement.js';
 // ============================================================
 // 自定义指标
 // ============================================================
-const regSuccessCounter      = new Counter('fb_reg_success');
-const firstRechargeCounter   = new Counter('fb_first_recharge_total');
-const doubleRechargeCounter  = new Counter('fb_double_recharge_users');
-const betSuccessCounter      = new Counter('fb_bet_success');
+const regSuccessCounter = new Counter('fb_reg_success');
+const firstRechargeCounter = new Counter('fb_first_recharge_total');
+const doubleRechargeCounter = new Counter('fb_double_recharge_users');
+const betSuccessCounter = new Counter('fb_bet_success');
 const withdrawSuccessCounter = new Counter('fb_withdraw_success');
 
-const tag         = 'batchFacebookRegister';
+const tag = 'batchFacebookRegister';
 const packageType = __ENV.PACKAGE_TYPE || '';
 
 // ============================================================
 // 提现金额计算（根据余额区间）
 // ============================================================
 function calcWithdrawAmount(balance) {
-    if (balance <= 300)   return 0;
-    if (balance <= 1000)  return Math.floor(balance * 0.3);
+    if (balance <= 300) return 0;
+    if (balance <= 1000) return Math.floor(balance * 0.3);
     if (balance <= 10000) return Math.floor(balance * 0.1);
     return Math.floor(200 + Math.random() * 4800);
 }
@@ -123,9 +123,9 @@ function runWithdraw(userToken, userId, adminToken, enableBackendApproval) {
     const categoryList = (withdrawInfo.withdrawCategoryList || []).filter(c => c.withdrawType !== 'UPI');
     if (categoryList.length === 0) { console.warn('[FbBatch] 无可用提现通道'); return false; }
 
-    const category     = categoryList[Math.floor(Math.random() * categoryList.length)];
+    const category = categoryList[Math.floor(Math.random() * categoryList.length)];
     const withdrawType = category.withdrawType;
-    const withdrawId   = category.id;
+    const withdrawId = category.id;
     console.log(`[FbBatch] 选择提现通道: ${withdrawType} (ID: ${withdrawId})`);
 
     const walletId = getUserWithdrawWallet(userToken, withdrawType);
@@ -149,11 +149,11 @@ function runWithdraw(userToken, userId, adminToken, enableBackendApproval) {
 // 动态构建 options
 // ============================================================
 function buildOptions() {
-    const userCount  = __ENV.USER_COUNT ? parseInt(__ENV.USER_COUNT) : 1;
+    const userCount = __ENV.USER_COUNT ? parseInt(__ENV.USER_COUNT) : 1;
     const tenantsStr = __ENV.TENANTS || __ENV.TENANT_ID || '3004';
-    const tenants    = tenantsStr.split(',').map(t => t.trim());
-    const teamMode   = (__ENV.TEAM_MODE || '').toLowerCase() === 'true';
-    const scenarios  = {};
+    const tenants = tenantsStr.split(',').map(t => t.trim());
+    const teamMode = (__ENV.TEAM_MODE || '').toLowerCase() === 'true';
+    const scenarios = {};
 
     if (tenants.length === 1) {
         if (teamMode) {
@@ -191,14 +191,14 @@ export const options = buildOptions();
 export function setup() {
     console.log('[FbBatch] ========== 开始测试准备阶段 ==========');
     const tenantsStr = __ENV.TENANTS || __ENV.TENANT_ID || '3004';
-    const tenants    = tenantsStr.split(',').map(t => t.trim());
+    const tenants = tenantsStr.split(',').map(t => t.trim());
     const adminTokens = {}, envConfigs = {};
 
     for (const tenantId of tenants) {
         const adminToken = tenantAdminLogin(tenantId);
         if (!adminToken) throw new Error(`[Setup] ❌ 租户 ${tenantId} 管理员登录失败`);
         adminTokens[tenantId] = adminToken;
-        envConfigs[tenantId]  = getEnvByTenantId(tenantId);
+        envConfigs[tenantId] = getEnvByTenantId(tenantId);
         console.log(`[Setup] ✅ 租户 ${tenantId} 登录成功 | 前台: ${envConfigs[tenantId].BASE_DESK_URL}`);
     }
 
@@ -209,9 +209,9 @@ export function setup() {
 // 主函数
 // ============================================================
 export default function (data) {
-    const tenantId   = __ENV.TENANT_ID || '3004';
+    const tenantId = __ENV.TENANT_ID || '3004';
     const adminToken = data.adminTokens[tenantId];
-    const envConfig  = data.envConfigs[tenantId];
+    const envConfig = data.envConfigs[tenantId];
 
     if (!adminToken || !envConfig) {
         console.error(`[FbBatch] ❌ 未找到租户 ${tenantId} 的配置`);
@@ -224,11 +224,11 @@ export default function (data) {
         return;
     }
 
-    const registerOnly          = (__ENV.REGISTER_ONLY          || '').toLowerCase() === 'true';
-    const enableRecharge        = (__ENV.ENABLE_RECHARGE        || 'true').toLowerCase() !== 'false';
-    const enableBet             = (__ENV.ENABLE_BET             || '').toLowerCase() === 'true';
-    const enableWithdraw        = (__ENV.ENABLE_WITHDRAW        || '').toLowerCase() === 'true';
-    const enableBackendApproval = (__ENV.ENABLE_BACKEND_APPROVAL|| '').toLowerCase() === 'true';
+    const registerOnly = (__ENV.REGISTER_ONLY || '').toLowerCase() === 'true';
+    const enableRecharge = (__ENV.ENABLE_RECHARGE || 'true').toLowerCase() !== 'false';
+    const enableBet = (__ENV.ENABLE_BET || '').toLowerCase() === 'true';
+    const enableWithdraw = (__ENV.ENABLE_WITHDRAW || '').toLowerCase() === 'true';
+    const enableBackendApproval = (__ENV.ENABLE_BACKEND_APPROVAL || '').toLowerCase() === 'true';
 
     if (__ITER === 0) {
         const staggerTime = (__VU - 1) * 10;
@@ -236,11 +236,11 @@ export default function (data) {
         sleep(staggerTime);
     }
 
-    const countryCode     = envConfig.COUNTRY_CODE || '91';
-    const userName        = generateRandomPhone(countryCode);
-    const fbCfg           = getFbConfig(tenantId, packageType);
+    const countryCode = envConfig.COUNTRY_CODE || '91';
+    const userName = generateRandomPhone(countryCode);
+    const fbCfg = getFbConfig(tenantId, packageType);
     const finalInviteCode = __ENV.INVITE_CODE || fbCfg.inviteCode;
-    const fbDomain        = __ENV.FB_DOMAIN || fbCfg.registerDomain || envConfig.BASE_DESK_URL;
+    const fbDomain = __ENV.FB_DOMAIN || fbCfg.registerDomain || envConfig.BASE_DESK_URL;
 
     group('Facebook 埋点批量注册', function () {
         console.log(`[FbBatch] [VU${__VU}][租户${tenantId}] 注册: ${userName} | ${fbCfg.desc}`);
@@ -250,12 +250,12 @@ export default function (data) {
 
         // ── 注册 ──────────────────────────────────────────────
         const registerResult = facebookIdentityRegister(userName, { token: adminToken, envConfig }, {
-            pixelId:        fbCfg.pixelId,
-            eventConfigId:  fbCfg.id,
-            eventType:      fbCfg.eventType,
-            packageName:    fbCfg.packageName,
-            inviteCode:     finalInviteCode,
-            registerUrl:    fbDomain,
+            pixelId: fbCfg.pixelId,
+            eventConfigId: fbCfg.id,
+            eventType: fbCfg.eventType,
+            packageName: fbCfg.packageName,
+            inviteCode: finalInviteCode,
+            registerUrl: fbDomain,
             customFrontUrl: fbDomain
         });
 
@@ -264,7 +264,7 @@ export default function (data) {
             return;
         }
 
-        console.log(`[FbBatch] [VU${__VU}][租户${tenantId}] ✅ 注册成功: ${userName}`);
+        //console.log(`[FbBatch] [VU${__VU}][租户${tenantId}] ✅ 注册成功: ${userName}`);
         regSuccessCounter.add(1, { tenant: tenantId });
 
         if (registerOnly || !enableRecharge) {
@@ -273,7 +273,7 @@ export default function (data) {
         }
 
         const userToken = registerResult.data.token;
-        const userId    = registerResult.data.userId;
+        const userId = registerResult.data.userId;
 
         // ── 充值（随机双充逻辑）────────────────────────────────
         const isDoubleRecharger = Math.random() < 0.4;
@@ -342,18 +342,18 @@ export default function (data) {
 // ============================================================
 export function handleSummary(data) {
     const tenantsStr = __ENV.TENANTS || __ENV.TENANT_ID || '3004';
-    const tenants    = tenantsStr.split(',').map(t => t.trim());
-    const reportCfg  = getFbConfig(tenants[0], packageType);
+    const tenants = tenantsStr.split(',').map(t => t.trim());
+    const reportCfg = getFbConfig(tenants[0], packageType);
     const reportInviteCode = __ENV.INVITE_CODE || reportCfg.inviteCode || '(无)';
 
-    const totalReg      = data.metrics.fb_reg_success?.values?.count || 0;
-    const totalFirst    = data.metrics.fb_first_recharge_total?.values?.count || 0;
-    const totalDouble   = data.metrics.fb_double_recharge_users?.values?.count || 0;
-    const totalBet      = data.metrics.fb_bet_success?.values?.count || 0;
+    const totalReg = data.metrics.fb_reg_success?.values?.count || 0;
+    const totalFirst = data.metrics.fb_first_recharge_total?.values?.count || 0;
+    const totalDouble = data.metrics.fb_double_recharge_users?.values?.count || 0;
+    const totalBet = data.metrics.fb_bet_success?.values?.count || 0;
     const totalWithdraw = data.metrics.fb_withdraw_success?.values?.count || 0;
 
-    const registerOnly   = (__ENV.REGISTER_ONLY   || '').toLowerCase() === 'true';
-    const enableBet      = (__ENV.ENABLE_BET      || '').toLowerCase() === 'true';
+    const registerOnly = (__ENV.REGISTER_ONLY || '').toLowerCase() === 'true';
+    const enableBet = (__ENV.ENABLE_BET || '').toLowerCase() === 'true';
     const enableWithdraw = (__ENV.ENABLE_WITHDRAW || '').toLowerCase() === 'true';
 
     const modeLabel = registerOnly
@@ -366,7 +366,7 @@ export function handleSummary(data) {
 ┃ 💳 实际充值总人数                ┃ ${String(totalFirst + totalDouble).padEnd(25)} ┃
 ┃ 📈 双充转化率                    ┃ ${((totalDouble / (totalReg || 1)) * 100).toFixed(2)}%                  ┃`;
 
-    const betRow      = enableBet      ? `\n┃ 🎲 投注成功次数                  ┃ ${String(totalBet).padEnd(25)} ┃` : '';
+    const betRow = enableBet ? `\n┃ 🎲 投注成功次数                  ┃ ${String(totalBet).padEnd(25)} ┃` : '';
     const withdrawRow = enableWithdraw ? `\n┃ 💸 提现成功人数                  ┃ ${String(totalWithdraw).padEnd(25)} ┃` : '';
 
     const table = `
@@ -407,10 +407,10 @@ export function teardown() {
  *          batchFacebookRegister.test.js
  */
 function runWithTeam(data, tenantId, adminToken, envConfig) {
-    const fbCfg           = getFbConfig(tenantId, packageType);
+    const fbCfg = getFbConfig(tenantId, packageType);
     const finalInviteCode = __ENV.INVITE_CODE || fbCfg.inviteCode;
-    const fbDomain        = __ENV.FB_DOMAIN || fbCfg.registerDomain || envConfig.BASE_DESK_URL;
-    const countryCode     = envConfig.COUNTRY_CODE || '91';
+    const fbDomain = __ENV.FB_DOMAIN || fbCfg.registerDomain || envConfig.BASE_DESK_URL;
+    const countryCode = envConfig.COUNTRY_CODE || '91';
     const enableBackendApproval = (__ENV.ENABLE_BACKEND_APPROVAL || '').toLowerCase() === 'true';
 
     console.log(`\n[FbTeam] ========== Facebook 团队模式 ==========`);
@@ -421,12 +421,12 @@ function runWithTeam(data, tenantId, adminToken, envConfig) {
     console.log(`[FbTeam] 注册总代: ${rootPhone}`);
 
     const rootResult = facebookIdentityRegister(rootPhone, { token: adminToken, envConfig }, {
-        pixelId:        fbCfg.pixelId,
-        eventConfigId:  fbCfg.id,
-        eventType:      fbCfg.eventType,
-        packageName:    fbCfg.packageName,
-        inviteCode:     finalInviteCode,
-        registerUrl:    fbDomain,
+        pixelId: fbCfg.pixelId,
+        eventConfigId: fbCfg.id,
+        eventType: fbCfg.eventType,
+        packageName: fbCfg.packageName,
+        inviteCode: finalInviteCode,
+        registerUrl: fbDomain,
         customFrontUrl: fbDomain
     });
 
@@ -439,31 +439,31 @@ function runWithTeam(data, tenantId, adminToken, envConfig) {
     regSuccessCounter.add(1, { tenant: tenantId });
 
     sleep(1);
-    const rootFrontInfo  = getFrontUserInfo(rootResult.data.token);
+    const rootFrontInfo = getFrontUserInfo(rootResult.data.token);
     const rootInviteCode = rootFrontInfo ? rootFrontInfo.inviteCode : String(rootResult.data.userId);
 
     const rootInfo = {
-        token:      rootResult.data.token,
-        userId:     rootResult.data.userId,
+        token: rootResult.data.token,
+        userId: rootResult.data.userId,
         inviteCode: rootInviteCode,
-        account:    rootPhone
+        account: rootPhone
     };
 
     // 2. 构建团队
     const embedOptions = {
-        pixelId:       fbCfg.pixelId,
+        pixelId: fbCfg.pixelId,
         eventConfigId: fbCfg.id,
-        eventType:     fbCfg.eventType,
-        packageName:   fbCfg.packageName
+        eventType: fbCfg.eventType,
+        packageName: fbCfg.packageName
     };
 
     const teamReport = buildChannelTeam(rootInfo, { token: adminToken }, embedOptions, envConfig, {
-        totalPeople:          parseInt(__ENV.TEAM_TOTAL  || '50', 10),
-        levels:               parseInt(__ENV.TEAM_LEVELS || '4',  10),
-        embedRate:            parseFloat(__ENV.EMBED_RATE    || '0.6'),
-        rechargeRate:         parseFloat(__ENV.RECHARGE_RATE || '0.9'),
-        betRate:              parseFloat(__ENV.BET_RATE      || '0.8'),
-        withdrawRate:         parseFloat(__ENV.WITHDRAW_RATE || '0.6'),
+        totalPeople: parseInt(__ENV.TEAM_TOTAL || '50', 10),
+        levels: parseInt(__ENV.TEAM_LEVELS || '4', 10),
+        embedRate: parseFloat(__ENV.EMBED_RATE || '0.6'),
+        rechargeRate: parseFloat(__ENV.RECHARGE_RATE || '0.9'),
+        betRate: parseFloat(__ENV.BET_RATE || '0.8'),
+        withdrawRate: parseFloat(__ENV.WITHDRAW_RATE || '0.6'),
         enableBackendApproval
     });
 

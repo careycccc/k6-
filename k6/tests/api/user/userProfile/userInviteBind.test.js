@@ -3,7 +3,7 @@
  * POST api/User/UserInviteBind
  *
  * 用法：
- *   k6 run -e TENANT_ID=3004 -e USERNAME=912026060900 -e INVITE_CODE=7K2VFCN userInviteBind.test.js
+ *   k6 run -e TENANT_ID=3101 -e USERNAME=916042866035 -e INVITE_CODE=KSMGPHN userInviteBind.test.js
  *
  * 环境变量：
  *   TENANT_ID   租户ID（默认 3004）

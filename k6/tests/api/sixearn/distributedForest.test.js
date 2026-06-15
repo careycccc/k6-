@@ -113,7 +113,7 @@ function localEmailRegisterByInvite(email, inviteCode, adminData, password = 'qw
     const statusCode = parsedBody.code !== undefined ? parsedBody.code : parsedBody.msgCode;
     if (statusCode === 0) {
         const token = parsedBody.data && parsedBody.data.token ? parsedBody.data.token : null;
-        console.log(`[LocalEmailByInvite] ✅ 注册成功: ${email}`);
+        //console.log(`[LocalEmailByInvite] ✅ 注册成功: ${email}`);
         return {
             headers: token ? { 'Authorization': `Bearer ${token}` } : httpResponse.headers,
             data: parsedBody.data,

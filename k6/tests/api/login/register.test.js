@@ -300,6 +300,88 @@ export function eventIdentityRegister(userName, data, options = {}) {
     return handleRegisterResponse(httpResponse, userName, deviceId);
 }
 
+/**
+ * 游客注册/登录 (AutoLogin)
+ * @param {object} options - 额外参数
+ *   - packageName: 包名 (必需，如 'com.ar3007.fb.app')
+ *   - inviteCode: 邀请码 (默认空)
+ *   - registerDevice: 设备号 (如果不传，将自动随机生成)
+ *   - eventConfigId: 事件配置ID (默认 100061)
+ *   - eventType: 事件类型 (默认 99)
+ * @returns {object} 返回包含 token 和响应数据的对象
+ */
+export function guestRegister(options = {}) {
+    const {
+        packageName,
+        inviteCode = "",
+        registerDevice = generateCryptoRandomString(16),
+        eventConfigId = 100061,
+        eventType = 99
+    } = options;
+
+    // console.log(`[GuestRegister] ========== 开始游客注册/登录流程 ==========`);
+    // console.log(`[GuestRegister] packageName: ${packageName}`);
+    // console.log(`[GuestRegister] registerDevice: ${registerDevice}`);
+    // console.log(`[GuestRegister] inviteCode: ${inviteCode || '(空)'}`);
+
+    if (!packageName) {
+        console.error(`[GuestRegister] ❌ 缺少必填参数 packageName`);
+        return null;
+    }
+
+    const api = "/api/Home/AutoLogin";
+    const timeData = getTimeRandom();
+    const lang = timeData.language || ENV_CONFIG.LANGUAGE || "ur";
+
+    // 实际发送的完整 payload
+    const payload = {
+        registerDevice: registerDevice,
+        registerFingerprint: "",
+        inviteCode: inviteCode,
+        packageName: packageName,
+        eventIdentity: [
+            {
+                eventConfigId: eventConfigId,
+                eventType: eventType,
+                eventIdentityInfo: JSON.stringify({
+                    PixelId: "0",
+                    Fbp: "",
+                    Fbc: "",
+                    Ttcsid: "",
+                    AdjustDeviceId: ""
+                })
+            }
+        ],
+        language: lang,
+        random: timeData.random,
+        signature: "",
+        timestamp: timeData.timestamp
+    };
+
+    // 因为 eventIdentity 是数组对象，可能导致后端验签规则不一致
+    // 参照本项目其他包含 eventIdentity 的注册接口，需要将其从签名参数中剔除
+    const signPayload = {
+        registerDevice: registerDevice,
+        registerFingerprint: "",
+        inviteCode: inviteCode,
+        packageName: packageName,
+        language: lang,
+        random: timeData.random
+    };
+
+    const signClient = new httpClient.constructor();
+    const signedParams = signClient.signData(signPayload);
+    payload.signature = signedParams.signature;
+    payload.timestamp = signedParams.timestamp;
+
+    //console.log(`[GuestRegister] 请求 payload:`, JSON.stringify(payload, null, 2));
+
+    // 使用 sign: false 避免底层重复签名
+    const httpResponse = httpClient.post(api, payload, { sign: false }, true);
+
+    return handleRegisterResponseWithToken(httpResponse, "Guest_" + registerDevice);
+}
+
 
 // ============================================================
 // 带验证码版本（保留备用，后缀 WithCode）
@@ -615,7 +697,7 @@ function handleRegisterResponse(httpResponse, userName, deviceId = null) {
     const statusCode = parsedBody.code !== undefined ? parsedBody.code : parsedBody.msgCode;
 
     if (statusCode === 0) {
-        console.log(`[RegisterResponse] ✅ 注册成功: ${userName}`);
+        //console.log(`[RegisterResponse] ✅ 注册成功: ${userName}`);
         return {
             headers: httpResponse.headers,
             data: parsedBody.data,
@@ -649,12 +731,12 @@ function handleRegisterResponseWithToken(httpResponse, userName) {
         return null;
     }
 
-    console.log(`[RegisterResponse] 解析后的响应: ${JSON.stringify(parsedBody, null, 2)}`);
+    //console.log(`[RegisterResponse] 解析后的响应: ${JSON.stringify(parsedBody, null, 2)}`);
 
     const statusCode = parsedBody.code !== undefined ? parsedBody.code : parsedBody.msgCode;
 
     if (statusCode === 0) {
-        console.log(`[RegisterResponse] ✅ 注册成功: ${userName}`);
+        //console.log(`[RegisterResponse] ✅ 注册成功: ${userName}`);
         const token = parsedBody.data && parsedBody.data.token ? parsedBody.data.token : null;
         return {
             headers: token ? { 'Authorization': `Bearer ${token}` } : httpResponse.headers,

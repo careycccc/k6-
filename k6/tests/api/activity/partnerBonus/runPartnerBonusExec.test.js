@@ -13,14 +13,26 @@
  *      （绑定提现信息 = 满足活动「下级绑定提现信息」前置条件）
  *
  * 使用方法：
- *   k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=P7TYR2N -e TOTAL_USERS=1 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
- *
+ *   k6 run -e TENANT_ID=3101 -e ROOT_INVITE_CODE=QF8X97N -e TOTAL_USERS=1 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+ 
+* 场景一：要求下级注册指纹与上级完全相同
+k6 run -e TENANT_ID=3004 -e ROOT_USER_ID=139055 -e MATCH_MODE=FINGERPRINT -e TOTAL_USERS=1 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+ 
+* 场景二：要求下级注册设备与上级完全相同
+* k6 run -e TENANT_ID=3004 -e ROOT_USER_ID=139177 -e MATCH_MODE=DEVICE -e TOTAL_USERS=1 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+
+* 场景三：要求下级注册指纹与设备都与上级完全相同
+* k6 run -e TENANT_ID=3004 -e ROOT_USER_ID=137440 -e MATCH_MODE=BOTH -e TOTAL_USERS=1 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+ * 
+ * 
+ * 
+ * 
  * 环境变量：
- *   TENANT_ID          租户ID（默认 3004）
- *   ROOT_INVITE_CODE   邀请人的邀请码（不填则自动创建根节点）
- *   TOTAL_USERS        团队总人数（默认 20）
- *   LEVELS             邀请层级（默认 2，合伙人奖励只计算直属下级，但支持多层结构）
- *   VUS                并发线程数（默认自动计算）
+ * TENANT_ID          租户ID（默认 3004）
+ * ROOT_INVITE_CODE   邀请人的邀请码（不填则自动创建根节点）
+ * TOTAL_USERS        团队总人数（默认 20）
+ * LEVELS             邀请层级（默认 2，合伙人奖励只计算直属下级，但支持多层结构）
+ * VUS                并发线程数（默认自动计算）
  */
 
 import { sleep } from 'k6';
@@ -36,25 +48,26 @@ import { getWithdrawBasicInfo, setWithdrawPassword } from '../../withdraw/withdr
 import { executeWithdrawCase } from '../../withdraw/withdraw.test.js';
 import { runBackendWithdrawApproval } from '../../withdraw/backendWithdrawApi.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../../config/envconfig.js';
+import { phoneRegisterBySource, validateAndGetSuperiorSource } from '../../invite/inviteBySource.js';
 
 // ================================================================
 // 全局参数
 // ================================================================
 
 const totalUsers = parseInt(__ENV.TOTAL_USERS || '20', 10);
-const levels     = parseInt(__ENV.LEVELS     || '2',  10);
+const levels = parseInt(__ENV.LEVELS || '2', 10);
 
-const subUsers   = Math.max(1, totalUsers - 1);
-const maxVus     = Math.max(1, Math.floor(subUsers / levels));
-let computedVus  = Math.min(maxVus, 50);
+const subUsers = Math.max(1, totalUsers - 1);
+const maxVus = Math.max(1, Math.floor(subUsers / levels));
+let computedVus = Math.min(maxVus, 50);
 if (__ENV.VUS) computedVus = parseInt(__ENV.VUS, 10);
 
 export const options = {
     scenarios: {
         partner_bonus_exec: {
-            executor:    'per-vu-iterations',
-            vus:         computedVus,
-            iterations:  1,
+            executor: 'per-vu-iterations',
+            vus: computedVus,
+            iterations: 1,
             maxDuration: '4h',
         },
     },
@@ -165,17 +178,26 @@ export function setup() {
 
     let rootInviteCode = __ENV.ROOT_INVITE_CODE || '';
 
-    // 没有提供根邀请码 → 自动注册一个根节点（邀请人）
-    if (!rootInviteCode) {
+    const matchMode = __ENV.MATCH_MODE ? __ENV.MATCH_MODE.toUpperCase() : '';
+    const rootUserId = __ENV.ROOT_USER_ID || '';
+    let requiredFingerprint = '';
+    let requiredDevice = '';
+
+    if (matchMode === 'FINGERPRINT' || matchMode === 'DEVICE' || matchMode === 'BOTH') {
+        const sourceData = validateAndGetSuperiorSource(adminToken, rootUserId, matchMode);
+        requiredFingerprint = sourceData.requiredFingerprint;
+        requiredDevice = sourceData.requiredDevice;
+        rootInviteCode = rootUserId;
+    } else if (!rootInviteCode) {
         console.log('[Setup] 未提供 ROOT_INVITE_CODE，自动创建邀请人根节点...');
-        const phone    = generateRandomPhone(ENV_CONFIG.COUNTRY_CODE || '91');
+        const phone = generateRandomPhone(ENV_CONFIG.COUNTRY_CODE || '91');
         const adminData = { token: adminToken, envConfig: ENV_CONFIG };
-        const urls     = {
-            frontUrl:    ENV_CONFIG.INVITE_REGISTER_URL || ENV_CONFIG.BASE_DESK_URL,
-            adminUrl:    ENV_CONFIG.BASE_ADMIN_URL,
-            registerUrl: ENV_CONFIG.INVITE_REGISTER_URL || ENV_CONFIG.BASE_DESK_URL,
+        const urls = {
+            frontUrl: ENV_CONFIG.BASE_DESK_URL,
+            adminUrl: ENV_CONFIG.BASE_ADMIN_URL,
+            registerUrl: ENV_CONFIG.BASE_DESK_URL,
         };
-        const res   = phoneRegisterByInvite(phone, '', adminData, 'qwer1234', '', urls);
+        const res = phoneRegisterByInvite(phone, '', adminData, 'qwer1234', '', urls);
         const token = extractToken(res);
         sleep(1);
         const userInfo = getFrontUserInfo(token);
@@ -189,9 +211,12 @@ export function setup() {
 
     return {
         adminToken,
-        envConfig:      ENV_CONFIG,
+        envConfig: ENV_CONFIG,
         rootInviteCode,
         tenantId,
+        matchMode,
+        requiredFingerprint,
+        requiredDevice
     };
 }
 
@@ -200,7 +225,7 @@ export function setup() {
 // ================================================================
 
 export default function (data) {
-    const { adminToken, envConfig, rootInviteCode, tenantId } = data;
+    const { adminToken, envConfig, rootInviteCode, tenantId, matchMode, requiredFingerprint, requiredDevice } = data;
     const vuId = exec.vu.idInInstance;
 
     if (tenantId !== '3004') Object.assign(ENV_CONFIG, envConfig);
@@ -216,9 +241,9 @@ export default function (data) {
     console.log(`\n[VU ${vuId}] 负责 ${myUsers} 人，层级分布: ${JSON.stringify(levelDist)}`);
 
     const customUrls = {
-        frontUrl:    envConfig.INVITE_REGISTER_URL || envConfig.BASE_DESK_URL,
-        adminUrl:    envConfig.BASE_ADMIN_URL,
-        registerUrl: envConfig.INVITE_REGISTER_URL || envConfig.BASE_DESK_URL,
+        frontUrl: envConfig.BASE_DESK_URL,
+        adminUrl: envConfig.BASE_ADMIN_URL,
+        registerUrl: envConfig.BASE_DESK_URL,
     };
 
     /** @type {Array<PartnerBonusReport>} */
@@ -236,25 +261,30 @@ export default function (data) {
 
             /** @type {PartnerBonusReport} */
             const report = {
-                level:            lv + 1,
+                level: lv + 1,
                 parentInviteCode: parentCode,
-                account:          phone,
-                userId:           null,
-                inviteCode:       '',
-                rechargeCount:    0,
-                rechargeAmounts:  [],   // 每次充值金额，index 0=首充，1=二充...
-                betCount:         0,
-                betAmounts:       [],
-                totalBetAmount:   0,
-                didWithdraw:      false,
-                withdrawAmount:   0,
-                withdrawType:     '',
-                failReason:       '',
-                registerOk:       false,
+                account: phone,
+                userId: null,
+                inviteCode: '',
+                rechargeCount: 0,
+                rechargeAmounts: [],   // 每次充值金额，index 0=首充，1=二充...
+                betCount: 0,
+                betAmounts: [],
+                totalBetAmount: 0,
+                didWithdraw: false,
+                withdrawAmount: 0,
+                withdrawType: '',
+                failReason: '',
+                registerOk: false,
             };
 
             // ── 1. 注册 ──────────────────────────────────────────
-            const res   = phoneRegisterByInvite(phone, parentCode, adminData, 'qwer1234', '', customUrls);
+            let res;
+            if (matchMode) {
+                res = phoneRegisterBySource(phone, parentCode, 'qwer1234', customUrls, requiredDevice, requiredFingerprint);
+            } else {
+                res = phoneRegisterByInvite(phone, parentCode, adminData, 'qwer1234', '', customUrls);
+            }
             const token = extractToken(res);
 
             if (!token) {
@@ -271,12 +301,12 @@ export default function (data) {
                 continue;
             }
 
-            report.registerOk  = true;
-            report.userId      = userInfo.userId;
-            report.inviteCode  = userInfo.inviteCode || '';
+            report.registerOk = true;
+            report.userId = userInfo.userId;
+            report.inviteCode = userInfo.inviteCode || '';
             codesByLevel[lv].push(userInfo.inviteCode);
 
-            console.log(`[VU ${vuId}] ✅ 注册成功 | L${lv + 1} | 账号: ${phone} | UID: ${userInfo.userId} | 邀请码: ${userInfo.inviteCode}`);
+            //console.log(`[VU ${vuId}] ✅ 注册成功 | L${lv + 1} | 账号: ${phone} | UID: ${userInfo.userId} | 邀请码: ${userInfo.inviteCode}`);
             sleep(1);
 
             // ── 2. 充值（首充 / 二充 / 三充 / 四充） ────────────
@@ -294,17 +324,17 @@ export default function (data) {
             for (let slot = 0; slot < rechargeCount; slot++) {
                 if (slot > 0) sleep(2);
                 const amount = getConfigRechargeAmount();
-                const label  = slotLabels[slot];
+                const label = slotLabels[slot];
 
                 console.log(`[VU ${vuId}] 💰 ${label} | ${phone} | 金额: ${amount}`);
 
                 const result = hybridRecharge({
-                    userToken:     token,
-                    adminToken:    adminToken,
-                    userId:        userInfo.userId,
-                    amount:        amount,
+                    userToken: token,
+                    adminToken: adminToken,
+                    userId: userInfo.userId,
+                    amount: amount,
                     frontendFirst: true,
-                    remark:        `PartnerBonus-${label}`,
+                    remark: `PartnerBonus-${label}`,
                 });
 
                 if (result.success) {
@@ -369,9 +399,9 @@ export default function (data) {
                 if (withdrawInfo && withdrawInfo.balance > 0) {
                     const wRes = executeWithdrawCase(token, withdrawInfo.balance, withdrawInfo);
                     if (wRes && wRes.withDrawaAmont) {
-                        report.didWithdraw    = true;
+                        report.didWithdraw = true;
                         report.withdrawAmount = wRes.withDrawaAmont;
-                        report.withdrawType   = wRes.withDrawaType || '';
+                        report.withdrawType = wRes.withDrawaType || '';
                         console.log(`[VU ${vuId}] ✅ 提现申请成功 | ${phone} | 金额: ${wRes.withDrawaAmont}`);
 
                         // 4d. 后台自动审核（机审）
@@ -508,14 +538,14 @@ function printVuReport(reports, rootInviteCode, vuId) {
     console.log(table);
 
     // 汇总统计
-    const totalUsers      = reports.length;
-    const regOk           = reports.filter(r => r.registerOk).length;
-    const recharged       = reports.filter(r => r.rechargeAmounts.length > 0).length;
-    const totalRecharge   = reports.reduce((s, r) => s + r.rechargeAmounts.reduce((a, v) => a + v, 0), 0);
-    const bettors         = reports.filter(r => r.betCount > 0).length;
-    const totalBet        = reports.reduce((s, r) => s + r.totalBetAmount, 0);
-    const withdrawers     = reports.filter(r => r.didWithdraw).length;
-    const totalWithdraw   = reports.reduce((s, r) => s + r.withdrawAmount, 0);
+    const totalUsers = reports.length;
+    const regOk = reports.filter(r => r.registerOk).length;
+    const recharged = reports.filter(r => r.rechargeAmounts.length > 0).length;
+    const totalRecharge = reports.reduce((s, r) => s + r.rechargeAmounts.reduce((a, v) => a + v, 0), 0);
+    const bettors = reports.filter(r => r.betCount > 0).length;
+    const totalBet = reports.reduce((s, r) => s + r.totalBetAmount, 0);
+    const withdrawers = reports.filter(r => r.didWithdraw).length;
+    const totalWithdraw = reports.reduce((s, r) => s + r.withdrawAmount, 0);
 
     // 充值档分布
     const rechargeSlotCounts = [0, 0, 0, 0];

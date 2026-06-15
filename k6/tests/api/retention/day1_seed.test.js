@@ -21,16 +21,16 @@ import { eventIdentityRegister } from '../login/register.test.js';
 import { generateRandomPhone } from '../../utils/accountGenerator.js';
 import { hybridRecharge } from '../recharge/rechargeService.js';
 
-const regSuccessCounter   = new Counter('seed_reg_success');
-const rechargeCounter     = new Counter('seed_recharge_success');
+const regSuccessCounter = new Counter('seed_reg_success');
+const rechargeCounter = new Counter('seed_recharge_success');
 const doubleRechargeCounter = new Counter('seed_double_recharge');
 const tripleRechargeCounter = new Counter('seed_triple_recharge');
 
-const tenantId    = __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID);
-const userCount   = __ENV.USER_COUNT ? parseInt(__ENV.USER_COUNT) : 10;
+const tenantId = __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID);
+const userCount = __ENV.USER_COUNT ? parseInt(__ENV.USER_COUNT) : 10;
 const packageType = __ENV.PACKAGE_TYPE || '';
 
-const scenarioConfig  = getEventConfig(tenantId, packageType);
+const scenarioConfig = getEventConfig(tenantId, packageType);
 const finalInviteCode = __ENV.INVITE_CODE || scenarioConfig.inviteCode;
 
 export const options = {
@@ -83,11 +83,11 @@ export default function (data) {
 
     // 1. 注册
     const registerResult = eventIdentityRegister(userName, data, {
-        pixelId:       scenarioConfig.pixelId,
+        pixelId: scenarioConfig.pixelId,
         eventConfigId: scenarioConfig.id,
-        packageName:   scenarioConfig.packageName,
-        inviteCode:    finalInviteCode,
-        registerUrl:   tiktokDomain,
+        packageName: scenarioConfig.packageName,
+        inviteCode: finalInviteCode,
+        registerUrl: tiktokDomain,
         customFrontUrl: tiktokDomain
     });
 
@@ -96,12 +96,12 @@ export default function (data) {
         return;
     }
 
-    console.log(`[Seed] [VU${__VU}] ✅ 注册成功: ${userName}`);
+    //console.log(`[Seed] [VU${__VU}] ✅ 注册成功: ${userName}`);
     regSuccessCounter.add(1);
     _stats.regSuccess++;
 
-    const userToken  = registerResult.data.token;
-    const userId     = registerResult.data.userId;
+    const userToken = registerResult.data.token;
+    const userId = registerResult.data.userId;
     const adminToken = data.token;
 
     // 级联充值逻辑：

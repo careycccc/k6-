@@ -17,7 +17,7 @@ import { sendToGetVerCode } from '../login/SendVerifiyCode.test.js';
  * 参考：https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/fbp-and-fbc
  */
 function generateFbp() {
-    const ts   = Date.now();
+    const ts = Date.now();
     const rand = Math.floor(Math.random() * 1e18);
     return `fb.1.${ts}.${rand}`;
 }
@@ -40,13 +40,13 @@ function generateFbp() {
  */
 export function facebookIdentityRegister(userName, data, options = {}) {
     const {
-        password       = 'qwer1234',
-        pixelId        = '2010850729480687',
-        eventConfigId  = 200018,
-        eventType      = 1,
-        packageName    = 'com.ar3004.fb.app',
-        inviteCode     = '',
-        registerUrl    = null,
+        password = 'qwer1234',
+        pixelId = '2010850729480687',
+        eventConfigId = 200018,
+        eventType = 1,
+        packageName = 'com.ar3004.fb.app',
+        inviteCode = '',
+        registerUrl = null,
         customFrontUrl = null
     } = options;
 
@@ -60,11 +60,11 @@ export function facebookIdentityRegister(userName, data, options = {}) {
         return null;
     }
 
-    const codeStr   = String(verifyCode).trim();
-    const timeData  = getTimeRandom();
-    const deviceId  = generateCryptoRandomString(16);
+    const codeStr = String(verifyCode).trim();
+    const timeData = getTimeRandom();
+    const deviceId = generateCryptoRandomString(16);
     const browserId = generateCryptoRandomString(32);
-    const api       = '/api/Home/Register';
+    const api = '/api/Home/Register';
 
     // 2. 动态生成 Fbp
     const fbp = generateFbp();
@@ -73,57 +73,57 @@ export function facebookIdentityRegister(userName, data, options = {}) {
     // 3. 组装 Facebook 专属的 eventIdentityInfo
     //    与 Adjust 的区别：Fbp 有动态值，eventType=1
     const eventIdentityInfo = JSON.stringify({
-        PixelId:        pixelId,
-        Fbp:            fbp,
-        Fbc:            '',
-        Ttclid:         '',
-        Ttcsid:         '',
+        PixelId: pixelId,
+        Fbp: fbp,
+        Fbc: '',
+        Ttclid: '',
+        Ttcsid: '',
         AdjustDeviceId: ''
     });
 
     // 4. 组装完整 payload
     const payload = {
-        loginType:     'Mobile',
-        userName:      userName,
-        password:      password,
-        inviteCode:    inviteCode,
-        code:          codeStr,
-        captchaId:     null,
-        deviceId:      deviceId,
-        browserId:     browserId,
-        packageName:   packageName,
+        loginType: 'Mobile',
+        userName: userName,
+        password: password,
+        inviteCode: inviteCode,
+        code: codeStr,
+        captchaId: null,
+        deviceId: deviceId,
+        browserId: browserId,
+        packageName: packageName,
         eventIdentity: [
             {
                 eventConfigId: eventConfigId,
-                eventType:     eventType,
+                eventType: eventType,
                 eventIdentityInfo: eventIdentityInfo
             }
         ],
-        language:  'en',
-        random:    timeData.random,
+        language: 'en',
+        random: timeData.random,
         signature: '',
         timestamp: timeData.timestamp
     };
 
     // 5. 签名
     const signPayload = {
-        loginType:   'Mobile',
-        userName:    userName,
-        password:    password,
-        inviteCode:  inviteCode,
-        code:        codeStr,
-        captchaId:   null,
-        deviceId:    deviceId,
-        browserId:   browserId,
+        loginType: 'Mobile',
+        userName: userName,
+        password: password,
+        inviteCode: inviteCode,
+        code: codeStr,
+        captchaId: null,
+        deviceId: deviceId,
+        browserId: browserId,
         packageName: packageName,
-        language:    'en',
-        random:      timeData.random
+        language: 'en',
+        random: timeData.random
     };
 
-    const signClient   = new httpClient.constructor();
+    const signClient = new httpClient.constructor();
     const signedParams = signClient.signData(signPayload);
-    payload.signature  = signedParams.signature;
-    payload.timestamp  = signedParams.timestamp;
+    payload.signature = signedParams.signature;
+    payload.timestamp = signedParams.timestamp;
 
     console.log(`[FbRegister] eventIdentityInfo: ${eventIdentityInfo}`);
 
@@ -151,12 +151,12 @@ export function facebookIdentityRegister(userName, data, options = {}) {
 
     const statusCode = parsedBody.code !== undefined ? parsedBody.code : parsedBody.msgCode;
     if (statusCode === 0) {
-        console.log(`[FbRegister] ✅ 注册成功: ${userName}`);
+        //console.log(`[FbRegister] ✅ 注册成功: ${userName}`);
         return {
-            headers:  httpResponse.headers,
-            data:     parsedBody.data,
-            code:     statusCode,
-            msg:      parsedBody.msg,
+            headers: httpResponse.headers,
+            data: parsedBody.data,
+            code: statusCode,
+            msg: parsedBody.msg,
             deviceId: deviceId
         };
     } else {

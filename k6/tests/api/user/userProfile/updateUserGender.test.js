@@ -3,7 +3,7 @@
  * POST api/User/UpdateUserGender
  *
  * 用法：
- *   k6 run -e TENANT_ID=3004 -e USERNAME=915564162732 -e GENDER=1 updateUserGender.test.js
+ *   k6 run -e TENANT_ID=3101 -e USERNAME=916043957059 -e GENDER=0 updateUserGender.test.js
  *
  * 环境变量：
  *   TENANT_ID  租户ID（默认 3004）

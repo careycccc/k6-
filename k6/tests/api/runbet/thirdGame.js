@@ -49,8 +49,8 @@ export function getThirdGameUrl(token, gameCode) {
         'Domainurl': baseUrl
     };
 
-    console.log('[ThirdGame] 请求 URL:', baseUrl + api);
-    console.log('[ThirdGame] 请求 payload:', JSON.stringify(signedData));
+    //console.log('[ThirdGame] 请求 URL:', baseUrl + api);
+    //console.log('[ThirdGame] 请求 payload:', JSON.stringify(signedData));
 
     // 在 GetGameUrl 之前增加 CheckCanBet 请求
     const checkApi = '/api/Home/CheckCanBet';
@@ -63,7 +63,7 @@ export function getThirdGameUrl(token, gameCode) {
     const signedCheckData = signClient.signData(checkPayload);
     const checkResponse = http.post(baseUrl + checkApi, JSON.stringify(signedCheckData), { headers });
     console.log('[ThirdGame] CheckCanBet响应状态:', checkResponse.status);
-    
+
     if (checkResponse.status === 200 && checkResponse.body) {
         try {
             const checkResult = JSON.parse(checkResponse.body);
