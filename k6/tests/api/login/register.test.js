@@ -16,16 +16,19 @@ import { ENV_CONFIG } from '../../../config/envconfig.js';
  * @param {string} password - 密码，默认为 'qwer1234'
  * @param {string} inviteCode - 邀请码，默认为空字符串（前台总代注册时为空）
  * @param {string} captchaId - 验证码ID，默认为 null
+ * @param {string} deviceOverride - 强制指定 deviceId（可选，不传则为空字符串）
+ * @param {string} browserOverride - 强制指定 browserId（可选，不传则每次随机生成）
  * @returns {object} 返回包含 headers 和 data 的响应对象
  */
-export function phoneRegister(userName, data, password = 'qwer1234', inviteCode = '', captchaId = null) {
+export function phoneRegister(userName, data, password = 'qwer1234', inviteCode = '', captchaId = null, deviceOverride = '', browserOverride = '') {
     console.log(`[PhoneRegister] ========== 开始手机号注册流程（无验证码）==========`);
     console.log(`[PhoneRegister] 用户名: ${userName}`);
     console.log(`[PhoneRegister] 密码: ${password}`);
     console.log(`[PhoneRegister] 邀请码: ${inviteCode || '(空)'}`);
 
     const api = "/api/Home/Register";
-    const browserId = generateCryptoRandomString(32);
+    const deviceId = deviceOverride || '';
+    const browserId = browserOverride || generateCryptoRandomString(32);
     const timeData = getTimeRandom();
 
     const payload = {
@@ -35,7 +38,7 @@ export function phoneRegister(userName, data, password = 'qwer1234', inviteCode 
         inviteCode: inviteCode,
         code: "",
         captchaId: captchaId,
-        deviceId: "",
+        deviceId: deviceId,
         browserId: browserId,
         packageName: "",
         language: timeData.language,
@@ -64,9 +67,11 @@ export function phoneRegister(userName, data, password = 'qwer1234', inviteCode 
  * @param {string} turnstileToken - Turnstile 验证令牌，默认为空字符串
  * @param {object} customUrls - 自定义URL配置（可选，用于多租户）
  *   - registerUrl: 注册域名
+ * @param {string} deviceOverride - 强制指定 deviceId（可选，不传则每次随机生成）
+ * @param {string} browserOverride - 强制指定 browserId（可选，不传则每次随机生成）
  * @returns {object} 返回包含 headers 和 data 的响应对象
  */
-export function phoneRegisterByInvite(userName, inviteCode, data, password = 'qwer1234', turnstileToken = '', customUrls = null) {
+export function phoneRegisterByInvite(userName, inviteCode, data, password = 'qwer1234', turnstileToken = '', customUrls = null, deviceOverride = '', browserOverride = '') {
     console.log(`[PhoneRegisterByInvite] ========== 开始手机号邀请注册流程（无验证码）==========`);
     console.log(`[PhoneRegisterByInvite] 用户名: ${userName}`);
     console.log(`[PhoneRegisterByInvite] 邀请码: ${inviteCode}`);
@@ -75,6 +80,8 @@ export function phoneRegisterByInvite(userName, inviteCode, data, password = 'qw
     const customRegisterUrl = customUrls && customUrls.registerUrl ? customUrls.registerUrl : null;
     const api = "/api/Home/Register";
     const timeData = getTimeRandom();
+    const deviceId = deviceOverride || generateCryptoRandomString(16);
+    const browserId = browserOverride || generateCryptoRandomString(32);
 
     const payload = {
         userName: userName,
@@ -83,6 +90,8 @@ export function phoneRegisterByInvite(userName, inviteCode, data, password = 'qw
         turnstileToken: turnstileToken,
         password: password,
         code: "",
+        deviceId: deviceId,
+        browserId: browserId,
         language: timeData.language,
         random: timeData.random,
         signature: '',
@@ -176,6 +185,8 @@ export function emailRegisterByInvite(email, inviteCode, data, password = 'qwer1
     const customRegisterUrl = customUrls && customUrls.registerUrl ? customUrls.registerUrl : null;
     const api = "/api/Home/Register";
     const timeData = getTimeRandom();
+    const deviceId = generateCryptoRandomString(16);
+    const browserId = generateCryptoRandomString(32);
 
     const payload = {
         userName: email,
@@ -184,6 +195,8 @@ export function emailRegisterByInvite(email, inviteCode, data, password = 'qwer1
         turnstileToken: turnstileToken,
         password: password,
         code: "",
+        deviceId: deviceId,
+        browserId: browserId,
         language: timeData.language,
         random: timeData.random,
         signature: '',

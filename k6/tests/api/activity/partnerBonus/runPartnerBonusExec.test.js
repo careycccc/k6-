@@ -13,32 +13,59 @@
  *      （绑定提现信息 = 满足活动「下级绑定提现信息」前置条件）
  *
  * 使用方法：
- *   k6 run -e TENANT_ID=3101 -e ROOT_INVITE_CODE=QF8X97N -e TOTAL_USERS=1 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+ *   k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=42VWG8N -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
  
 * 场景一：要求下级注册指纹与上级完全相同
-k6 run -e TENANT_ID=3004 -e ROOT_USER_ID=139055 -e MATCH_MODE=FINGERPRINT -e TOTAL_USERS=1 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+  k6 run -e TENANT_ID=3004 -e ROOT_USER_ID=139265 -e MATCH_MODE=FINGERPRINT -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
  
 * 场景二：要求下级注册设备与上级完全相同
-* k6 run -e TENANT_ID=3004 -e ROOT_USER_ID=139177 -e MATCH_MODE=DEVICE -e TOTAL_USERS=1 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+* k6 run -e TENANT_ID=3004 -e ROOT_USER_ID=139099 -e MATCH_MODE=DEVICE -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
 
 * 场景三：要求下级注册指纹与设备都与上级完全相同
-* k6 run -e TENANT_ID=3004 -e ROOT_USER_ID=137440 -e MATCH_MODE=BOTH -e TOTAL_USERS=1 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+* k6 run -e TENANT_ID=3004 -e ROOT_USER_ID=139236 -e MATCH_MODE=BOTH -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
  * 
  * 
+ * 
+ * 场景四：所有直属下级共享相同 deviceId（随机生成，每次跑不同）
+ * k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=CZZNQ8N -e MATCH_MODE=vanwioxzlw39hbca -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+ *
+ * 场景五：所有直属下级共享相同 browserId（浏览器指纹）
+ * k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=QAVEXPN -e MATCH_MODE=zvetxex3tk16lkdxv1uuvhixe3ts2lc1 -e TOTAL_USERS=2 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+ *
+ * 场景六：所有直属下级共享相同 deviceId 和 browserId
+ * k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=RVWM9RN -e MATCH_MODE=SAME_BOTH -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
  * 
  * 
  * 环境变量：
  * TENANT_ID          租户ID（默认 3004）
  * ROOT_INVITE_CODE   邀请人的邀请码（不填则自动创建根节点）
- * TOTAL_USERS        团队总人数（默认 20）
+ * TOTAL_USERS        团队总人数（默认 20，不含上级）
  * LEVELS             邀请层级（默认 2，合伙人奖励只计算直属下级，但支持多层结构）
  * VUS                并发线程数（默认自动计算）
+ *
+ * 模式三专用（显式传入设备/指纹）：
+ * ROOT_DEVICE        上级注册时的 deviceId（不传则随机；传了会自动注册一个新上级）
+ * ROOT_FINGERPRINT   上级注册时的 browserId（不传则随机；传了会自动注册一个新上级）
+ * SUB_DEVICE         所有直属下级注册时的 deviceId（不传则各自随机）
+ * SUB_FINGERPRINT    所有直属下级注册时的 browserId（不传则各自随机）
+ *
+ * 场景七：上级用指定设备号注册，下级各自随机
+ * k6 run -e TENANT_ID=3004 -e ROOT_DEVICE=UE1A.230829.050 -e TOTAL_USERS=1 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+ *
+ * 场景八：上级用指定指纹注册，下级共享指定设备号
+ * k6 run -e TENANT_ID=3004 -e ROOT_FINGERPRINT=vn3m43ws1rwxre7ifn7871nbc6dc41mf -e SUB_DEVICE=vanwioxzlw39hbcb -e TOTAL_USERS=2 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+ *
+ * 场景九：上级用指定设备号+指纹，下级共享指定设备号+指纹
+ * k6 run -e TENANT_ID=3004 -e ROOT_DEVICE=rootDev16chars -e ROOT_FINGERPRINT=rootFingerprint32c -e SUB_DEVICE=subDev16chars -e SUB_FINGERPRINT=subFingerprint32ch -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=2 runPartnerBonusExec.test.js
+ *
+ * 场景十：只传下级设备号（不创建新上级，用已有邀请码），下级共享设备号
+ * k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=RVWM9RN -e SUB_DEVICE=subDev16chars -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=2 runPartnerBonusExec.test.js
  */
 
 import { sleep } from 'k6';
 import exec from 'k6/execution';
 import { AdminLogin } from '../../login/adminlogin.test.js';
-import { phoneRegisterByInvite } from '../../login/register.test.js';
+import { phoneRegisterByInvite, phoneRegister } from '../../login/register.test.js';
 import { generateRandomPhone } from '../../../utils/accountGenerator.js';
 import { getFrontUserInfo } from '../../user/userManagement.js';
 import { hybridRecharge, getConfigRechargeAmount } from '../../recharge/rechargeService.js';
@@ -49,6 +76,7 @@ import { executeWithdrawCase } from '../../withdraw/withdraw.test.js';
 import { runBackendWithdrawApproval } from '../../withdraw/backendWithdrawApi.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../../config/envconfig.js';
 import { phoneRegisterBySource, validateAndGetSuperiorSource } from '../../invite/inviteBySource.js';
+import { generateCryptoRandomString } from '../../../utils/utils.js';
 
 // ================================================================
 // 全局参数
@@ -57,7 +85,15 @@ import { phoneRegisterBySource, validateAndGetSuperiorSource } from '../../invit
 const totalUsers = parseInt(__ENV.TOTAL_USERS || '20', 10);
 const levels = parseInt(__ENV.LEVELS || '2', 10);
 
-const subUsers = Math.max(1, totalUsers - 1);
+// 如果提供了 ROOT_INVITE_CODE、ROOT_USER_ID、ROOT_DEVICE 或 ROOT_FINGERPRINT，
+// 说明上级已存在或会在 setup 里新建，TOTAL_USERS 直接等于下级总数，不需要再减 1
+const hasExternalRoot = !!(
+    __ENV.ROOT_INVITE_CODE ||
+    __ENV.ROOT_USER_ID     ||
+    __ENV.ROOT_DEVICE      ||
+    __ENV.ROOT_FINGERPRINT
+);
+const subUsers = hasExternalRoot ? totalUsers : Math.max(1, totalUsers - 1);
 const maxVus = Math.max(1, Math.floor(subUsers / levels));
 let computedVus = Math.min(maxVus, 50);
 if (__ENV.VUS) computedVus = parseInt(__ENV.VUS, 10);
@@ -121,21 +157,22 @@ function randomPick(pool) {
 /**
  * 根据合伙人奖励的随机规则决定充值次数
  *
- * 规则：
- *   - 10% 用户：0 次充值（完全不活跃）
- *   - 其余 90% 用户：
- *       首充（第1次）：100%
- *       二充（第2次）：首充基础上 80%
- *       三充（第3次）：二充基础上 70%
- *       四充（第4次）：三充基础上 40%
+ * 小团队模式（subUsers < 5）：
+ *   - 所有人必定充值，至少 1 次，无不活跃概率
+ *   - 二充/三充/四充仍按概率随机，保留充值档次的多样性
  *
+ * 大团队模式（subUsers >= 5）：
+ *   - 10% 用户：0 次充值（完全不活跃）
+ *   - 其余 90% 用户按概率递减充值
+ *
+ * @param {boolean} smallTeam - 是否小团队模式
  * @returns {number} 0 ~ 4
  */
-function decideRechargeCount() {
-    // 10% 概率完全不活跃
-    if (Math.random() < 0.10) return 0;
+function decideRechargeCount(smallTeam = false) {
+    // 小团队：跳过不活跃逻辑，所有人都充值
+    if (!smallTeam && Math.random() < 0.10) return 0;
 
-    let count = 1;                              // 首充
+    let count = 1;                              // 首充（必定发生）
     if (Math.random() < 0.80) {
         count = 2;                              // 二充
         if (Math.random() < 0.70) {
@@ -150,10 +187,15 @@ function decideRechargeCount() {
 
 /**
  * 决定投注次数（只有充值用户才会投注）
- * 均匀随机 0-3 次（0 = 充了钱但不打码）
+ *
+ * 小团队模式（subUsers < 5）：至少投注 1 次
+ * 大团队模式（subUsers >= 5）：随机 0-3 次（0 = 充了钱但不打码）
+ *
+ * @param {boolean} smallTeam - 是否小团队模式
  * @returns {number} 0 ~ 3
  */
-function decideBetCount() {
+function decideBetCount(smallTeam = false) {
+    if (smallTeam) return Math.floor(Math.random() * 3) + 1; // 1, 2, 3
     return Math.floor(Math.random() * 4); // 0, 1, 2, 3
 }
 
@@ -183,29 +225,82 @@ export function setup() {
     let requiredFingerprint = '';
     let requiredDevice = '';
 
+    // ── 模式一：复制上级的设备/指纹（FINGERPRINT / DEVICE / BOTH） ──
     if (matchMode === 'FINGERPRINT' || matchMode === 'DEVICE' || matchMode === 'BOTH') {
         const sourceData = validateAndGetSuperiorSource(adminToken, rootUserId, matchMode);
         requiredFingerprint = sourceData.requiredFingerprint;
         requiredDevice = sourceData.requiredDevice;
         rootInviteCode = rootUserId;
-    } else if (!rootInviteCode) {
-        console.log('[Setup] 未提供 ROOT_INVITE_CODE，自动创建邀请人根节点...');
-        const phone = generateRandomPhone(ENV_CONFIG.COUNTRY_CODE || '91');
-        const adminData = { token: adminToken, envConfig: ENV_CONFIG };
-        const urls = {
-            frontUrl: ENV_CONFIG.BASE_DESK_URL,
-            adminUrl: ENV_CONFIG.BASE_ADMIN_URL,
-            registerUrl: ENV_CONFIG.BASE_DESK_URL,
-        };
-        const res = phoneRegisterByInvite(phone, '', adminData, 'qwer1234', '', urls);
-        const token = extractToken(res);
-        sleep(1);
-        const userInfo = getFrontUserInfo(token);
-        if (userInfo && userInfo.inviteCode) {
-            rootInviteCode = userInfo.inviteCode;
-            console.log(`[Setup] ✅ 邀请人根节点创建成功 | 账号: ${phone} | 邀请码: ${rootInviteCode}`);
-        } else {
-            throw new Error('[Setup] 根节点创建失败，无法获取邀请码');
+
+    // ── 模式二：所有直属下级共享同一套随机设备/指纹（SAME_DEVICE / SAME_FINGERPRINT / SAME_BOTH） ──
+    } else if (matchMode === 'SAME_DEVICE' || matchMode === 'SAME_FINGERPRINT' || matchMode === 'SAME_BOTH') {
+        if (matchMode === 'SAME_DEVICE' || matchMode === 'SAME_BOTH') {
+            requiredDevice = generateCryptoRandomString(16);
+        }
+        if (matchMode === 'SAME_FINGERPRINT' || matchMode === 'SAME_BOTH') {
+            requiredFingerprint = generateCryptoRandomString(32);
+        }
+        console.log(`[Setup] 🔀 直属下级共享模式: ${matchMode}`);
+        console.log(`[Setup]    共享 deviceId  : ${requiredDevice   || '(各自随机)'}`);
+        console.log(`[Setup]    共享 browserId : ${requiredFingerprint || '(各自随机)'}`);
+
+    } else {
+        // ── 模式三：显式传入上级/下级的设备号和指纹（ROOT_DEVICE / ROOT_FINGERPRINT / SUB_DEVICE / SUB_FINGERPRINT） ──
+        // 只要传了 ROOT_DEVICE 或 ROOT_FINGERPRINT，就在此处注册一个新上级（使用指定的设备信息），
+        // 拿到它的邀请码作为 rootInviteCode，TOTAL_USERS 仍然是下级总数
+        const rootDeviceParam       = __ENV.ROOT_DEVICE       || '';
+        const rootFingerprintParam  = __ENV.ROOT_FINGERPRINT  || '';
+        const subDeviceParam        = __ENV.SUB_DEVICE        || '';
+        const subFingerprintParam   = __ENV.SUB_FINGERPRINT   || '';
+
+        // 下级的共享设备/指纹（传了就全部直属下级用同一个，不传则各自随机）
+        requiredDevice      = subDeviceParam;
+        requiredFingerprint = subFingerprintParam;
+
+        if (rootDeviceParam || rootFingerprintParam) {
+            // 需要注册一个指定设备/指纹的上级
+            console.log(`[Setup] 🆕 模式三：注册指定设备/指纹的上级节点`);
+            console.log(`[Setup]    上级 deviceId  : ${rootDeviceParam      || '(随机)'}`);
+            console.log(`[Setup]    上级 browserId : ${rootFingerprintParam || '(随机)'}`);
+            console.log(`[Setup]    下级 deviceId  : ${subDeviceParam       || '(各自随机)'}`);
+            console.log(`[Setup]    下级 browserId : ${subFingerprintParam  || '(各自随机)'}`);
+
+            const rootPhone   = generateRandomPhone(ENV_CONFIG.COUNTRY_CODE || '91');
+            const adminData   = { token: adminToken, envConfig: ENV_CONFIG };
+            // 上级用前台总代注册（无邀请码），携带指定的设备/指纹
+            const rootRes     = phoneRegister(rootPhone, adminData, 'qwer1234', '', null, rootDeviceParam, rootFingerprintParam);
+            const rootToken   = extractToken(rootRes);
+            if (!rootToken) {
+                throw new Error(`[Setup] ❌ 上级节点注册失败 | 账号: ${rootPhone}`);
+            }
+            sleep(1);
+            const rootUserInfo = getFrontUserInfo(rootToken);
+            if (!rootUserInfo || !rootUserInfo.inviteCode) {
+                throw new Error(`[Setup] ❌ 上级节点注册成功但获取邀请码失败 | 账号: ${rootPhone}`);
+            }
+            rootInviteCode = rootUserInfo.inviteCode;
+            console.log(`[Setup] ✅ 上级节点注册成功 | 账号: ${rootPhone} | userId: ${rootUserInfo.userId} | 邀请码: ${rootInviteCode}`);
+
+        } else if (!rootInviteCode) {
+            // 既没有传设备参数，也没有提供邀请码 → 走普通随机上级注册
+            console.log('[Setup] 未提供 ROOT_INVITE_CODE，自动创建邀请人根节点...');
+            const phone     = generateRandomPhone(ENV_CONFIG.COUNTRY_CODE || '91');
+            const adminData = { token: adminToken, envConfig: ENV_CONFIG };
+            const urls = {
+                frontUrl:    ENV_CONFIG.BASE_DESK_URL,
+                adminUrl:    ENV_CONFIG.BASE_ADMIN_URL,
+                registerUrl: ENV_CONFIG.BASE_DESK_URL,
+            };
+            const res   = phoneRegisterByInvite(phone, '', adminData, 'qwer1234', '', urls);
+            const token = extractToken(res);
+            sleep(1);
+            const userInfo = getFrontUserInfo(token);
+            if (userInfo && userInfo.inviteCode) {
+                rootInviteCode = userInfo.inviteCode;
+                console.log(`[Setup] ✅ 邀请人根节点创建成功 | 账号: ${phone} | 邀请码: ${rootInviteCode}`);
+            } else {
+                throw new Error('[Setup] 根节点创建失败，无法获取邀请码');
+            }
         }
     }
 
@@ -239,6 +334,9 @@ export default function (data) {
     const codesByLevel = Array.from({ length: levels }, () => []);
 
     console.log(`\n[VU ${vuId}] 负责 ${myUsers} 人，层级分布: ${JSON.stringify(levelDist)}`);
+
+    // 团队总人数 < 5 时进入小团队模式：所有人必须充值+投注，无不活跃
+    const smallTeam = subUsers < 5;
 
     const customUrls = {
         frontUrl: envConfig.BASE_DESK_URL,
@@ -279,10 +377,23 @@ export default function (data) {
             };
 
             // ── 1. 注册 ──────────────────────────────────────────
+            // 复制上级模式（FINGERPRINT/DEVICE/BOTH）：所有层级都用 requiredDevice/requiredFingerprint
+            // 共享模式（SAME_DEVICE/SAME_FINGERPRINT/SAME_BOTH）：只有直属下级（lv===0）共享，其余层随机
+            // 模式三（ROOT_*/SUB_*）：直属下级（lv===0）用 requiredDevice/requiredFingerprint，其余层随机
             let res;
-            if (matchMode) {
+            const isSameMode = matchMode === 'SAME_DEVICE' || matchMode === 'SAME_FINGERPRINT' || matchMode === 'SAME_BOTH';
+            const isCopyMode = matchMode === 'FINGERPRINT' || matchMode === 'DEVICE' || matchMode === 'BOTH';
+            // 模式三没有 matchMode，但 requiredDevice/requiredFingerprint 可能非空（来自 SUB_DEVICE/SUB_FINGERPRINT）
+            const hasSubOverride = !matchMode && (requiredDevice || requiredFingerprint);
+
+            if (isCopyMode) {
+                // 复制上级模式：全层级使用上级的设备/指纹
                 res = phoneRegisterBySource(phone, parentCode, 'qwer1234', customUrls, requiredDevice, requiredFingerprint);
+            } else if ((isSameMode || hasSubOverride) && lv === 0) {
+                // 共享/模式三：仅直属下级（lv=0）使用共享的设备/指纹，有值就用，没值就在函数内随机
+                res = phoneRegisterByInvite(phone, parentCode, adminData, 'qwer1234', '', customUrls, requiredDevice, requiredFingerprint);
             } else {
+                // 普通模式或非直属下级：各自随机设备/指纹
                 res = phoneRegisterByInvite(phone, parentCode, adminData, 'qwer1234', '', customUrls);
             }
             const token = extractToken(res);
@@ -310,7 +421,7 @@ export default function (data) {
             sleep(1);
 
             // ── 2. 充值（首充 / 二充 / 三充 / 四充） ────────────
-            const rechargeCount = decideRechargeCount();
+            const rechargeCount = decideRechargeCount(smallTeam);
             report.rechargeCount = rechargeCount;
 
             if (rechargeCount === 0) {
@@ -356,8 +467,8 @@ export default function (data) {
 
             sleep(1);
 
-            // ── 3. 投注（0-3次，随机） ────────────────────────────
-            const betCount = decideBetCount();
+            // ── 3. 投注（小团队必投1次以上，大团队随机0-3次） ───
+            const betCount = decideBetCount(smallTeam);
             report.betCount = betCount;
 
             if (betCount > 0) {
