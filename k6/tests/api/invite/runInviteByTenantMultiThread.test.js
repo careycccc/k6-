@@ -2,9 +2,9 @@
  * 多租户多层级邀请测试脚本 (多线程分布式森林版)
  * 
  * 使用方法：
- * k6 run -e TENANT_ID=3006 -e ROOT_INVITE_CODE=24JMMSN -e TOTAL_USERS=20 -e LEVELS=3 -e VUS=3 runInviteByTenantMultiThread.test.js
+ * k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=QH32GHN -e TOTAL_USERS=5 -e LEVELS=2 -e VUS=1 runInviteByTenantMultiThread.test.js
 
-k6 run -e TOTAL_USERS=200 -e LEVELS=5 -e VUS=15 k6/tests/api/invite/runInviteMultiThread.test.js
+   k6 run -e TOTAL_USERS=200 -e LEVELS=5 -e VUS=15 k6/tests/api/invite/runInviteMultiThread.test.js
 
 */
 

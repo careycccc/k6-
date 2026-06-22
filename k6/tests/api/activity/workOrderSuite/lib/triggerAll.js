@@ -11,6 +11,7 @@ import { orderSystemConfig } from '../../orderSystem/oderyconfig.js';
 import { sendRequest, sendQueryRequest } from '../../../common/request.js';
 import { signAndPost } from './submitHelper.js';
 import { logger } from '../../../../../libs/utils/logger.js';
+import { PERF_METRICS, ERROR_COUNTERS } from '../../../../../libs/monitor/perfMetrics.js';
 
 const TAG = 'TriggerAll';
 
@@ -100,7 +101,11 @@ function submitWorkOrder(formId, workOrderTypeId, fields, account, memberToken, 
         '/api/WorkOrder/Submit',
         true,   // isDesk（前台接口）
         token,
-        TAG
+        TAG,
+        {
+            trendObj: PERF_METRICS.WORK_ORDER_CREATE,
+            errorCounter: ERROR_COUNTERS.WORK_ORDER_SUBMIT_FAIL,
+        }
     );
 
     if (res && res.code === 0) {
@@ -111,6 +116,7 @@ function submitWorkOrder(formId, workOrderTypeId, fields, account, memberToken, 
     // 同类型工单进行中，跳过（不算失败）
     if (res && res.msgCode === 14013) {
         logger.warn(`[${TAG}] ⏭️ 同类型工单进行中，跳过 formId=${formId}`);
+        ERROR_COUNTERS.INVENTORY_FAIL.add(1);
         return null; // null 表示跳过，不计入失败
     }
 

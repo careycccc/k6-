@@ -42,10 +42,20 @@ import { triggerAllForAccount }   from './lib/triggerAll.js';
 import { triggerLoginForAccount } from './lib/triggerLogin.js';
 
 // ============================================================
+// 性能监控系统
+// ============================================================
+import { PERF_METRICS, ERROR_COUNTERS, GAUGES, buildThresholdsByPreset } from '../../../../libs/monitor/perfMetrics.js';
+import { measure, recordResponse, diagnoseTiming } from '../../../../libs/monitor/perfWrapper.js';
+import { buildHandleSummary } from '../../../../libs/monitor/perfSummary.js';
+
+// ============================================================
 // K6 Options
 // ============================================================
 const VUS        = parseInt(__ENV.VUS        || '1', 10);
 const ITERATIONS = parseInt(__ENV.ITERATIONS || '1', 10);
+
+// 性能阈值预设：strict（生产红线）/ normal（日常回归）/ relaxed（开发调试）
+const PERF_PRESET = (__ENV.PERF_PRESET || 'normal').toLowerCase();
 
 export const options = {
     setupTimeout: '10m',
@@ -57,6 +67,11 @@ export const options = {
             maxDuration: '4h',
         },
     },
+    // 熔断阈值：超标自动停止压测
+    thresholds: buildThresholdsByPreset(PERF_PRESET, {
+        'trend_work_order_submit':   [{ threshold: 'p(95)<3000' }],  // 触发工单允许 3s（含表单构建）
+        'trend_create_work_order':   [{ threshold: 'p(95)<1000' }],  // 纯后端交互允许 1s
+    }),
 };
 
 const TAG = 'WorkOrderSubmitOnly';
@@ -194,4 +209,14 @@ export default function (data) {
     }
 
     logger.info(`\n[${TAG}] ===== VU${vuId} 第 ${iter + 1} 轮完成（仅触发，无审核）=====`);
+}
+
+// ============================================================
+// handleSummary：增强版性能分析报告
+// ============================================================
+export function handleSummary(data) {
+    return buildHandleSummary(data, {
+        testName:    'WorkOrderSubmitOnly',
+        environment: __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID),
+    });
 }

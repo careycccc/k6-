@@ -1,4 +1,4 @@
-﻿/**
+/**
  * workOrderSuite/lib/triggerLogin.js
  * 已登录状态下触发工单的核心实现
  *
@@ -23,6 +23,7 @@ import { getFrontUserInfo } from '../../../user/userManagement.js';
 import { addUserBank, generateIFSC, generateTRONAddress } from '../../../withdraw/addWalletApi.js';
 import { sendToGetVerCode } from '../../../login/SendVerifiyCode.test.js';
 import { logger } from '../../../../../libs/utils/logger.js';
+import { PERF_METRICS, ERROR_COUNTERS } from '../../../../../libs/monitor/perfMetrics.js';
 
 const TAG = 'TriggerLogin';
 
@@ -31,10 +32,14 @@ const TAG = 'TriggerLogin';
 // 返回 true=成功, null=跳过(14013), false=失败
 // ============================================================
 function submitOrder(payload, memberToken, tag) {
-    const res = signAndPost(payload, '/api/WorkOrder/Submit', true, memberToken, tag || TAG);
+    const res = signAndPost(payload, '/api/WorkOrder/Submit', true, memberToken, tag || TAG, {
+        trendObj: PERF_METRICS.WORK_ORDER_CREATE,
+        errorCounter: ERROR_COUNTERS.WORK_ORDER_SUBMIT_FAIL,
+    });
     if (res && res.code === 0) return true;
     if (res && res.msgCode === 14013) {
         logger.warn(`[${tag || TAG}] ⏭️ 同类型工单进行中，跳过 formId=${payload.formId}`);
+        ERROR_COUNTERS.INVENTORY_FAIL.add(1);
         return null;
     }
     logger.error(`[${tag || TAG}] ❌ 工单提交失败: ${JSON.stringify(res)}`);

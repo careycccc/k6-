@@ -15,6 +15,7 @@ import { httpClient } from '../../../../../libs/http/client.js';
 import { SignatureUtil } from '../../../../../libs/utils/signature.js';
 import { getTimeRandom } from '../../../../utils/utils.js';
 import { logger } from '../../../../../libs/utils/logger.js';
+import { probeResponse } from '../../../../../libs/monitor/perfIntegration.js';
 
 /**
  * 需要被剥离出签名计算的数组/复杂字段列表
@@ -30,9 +31,10 @@ const ARRAY_FIELDS = ['formFields'];
  * @param {boolean} isDesk    - true=前台, false=后台
  * @param {string} adminToken - 如果是后台请求，传入 adminToken；前台传 ''
  * @param {string} tag        - 日志标签
+ * @param {object} [monOpts]  - 监控选项（如 trendObj, errorCounter）
  * @returns {object|null}     - 解析后的响应体，失败返回 null
  */
-export function signAndPost(payload, endpoint, isDesk, adminToken, tag) {
+export function signAndPost(payload, endpoint, isDesk, adminToken, tag, monOpts = {}) {
     // 1. 分离数组字段
     const arrayParts = {};
     const simplePayload = {};
@@ -66,21 +68,22 @@ export function signAndPost(payload, endpoint, isDesk, adminToken, tag) {
     }
 
     // 5. 发送请求（禁用 httpClient 的再次自动签名）
-    let result = _post(signedData, endpoint, isDesk, tag);
+    let result = _post(signedData, endpoint, isDesk, tag, monOpts);
 
     // 6. 限流重试（msgCode: 13）
     if (result && result.msgCode === 13) {
         logger.warn(`[${tag}] 请求过快 (msgCode 13)，1s 后重试: ${endpoint}`);
         sleep(1);
-        result = _post(signedData, endpoint, isDesk, tag);
+        result = _post(signedData, endpoint, isDesk, tag, monOpts);
     }
 
     return result;
 }
 
-function _post(signedData, endpoint, isDesk, tag) {
+function _post(signedData, endpoint, isDesk, tag, monOpts) {
+    let response;
     try {
-        const response = httpClient.post(
+        response = httpClient.post(
             endpoint,
             signedData,
             {
@@ -89,13 +92,11 @@ function _post(signedData, endpoint, isDesk, tag) {
             },
             isDesk
         );
-        if (response && response.status === 200) {
-            return JSON.parse(response.body);
-        }
-        logger.error(`[${tag}] HTTP 异常状态: ${response ? response.status : 'no response'}`);
-        return null;
     } catch (e) {
         logger.error(`[${tag}] 请求异常: ${e.message}`);
         return null;
     }
+
+    const { body } = probeResponse(response, tag, monOpts);
+    return body;
 }

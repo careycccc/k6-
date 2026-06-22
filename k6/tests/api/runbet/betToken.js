@@ -113,7 +113,7 @@ export function getGameToken(loginToken, gameCode) {
     if (response.status === 200 && response.body) {
         try {
             const result = JSON.parse(response.body);
-            console.log('[BetToken] GetGameUrl完整响应:', response.body);
+            //console.log('[BetToken] GetGameUrl完整响应:', response.body);
             if (result.msgCode === 0 && result.data && result.data.url) {
                 const url = result.data.url;
                 //console.log('[BetToken] 游戏URL:', url);

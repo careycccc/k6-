@@ -25,7 +25,7 @@ export function getAccountBalance(token) {
 
     const tenantIdStr = __ENV.TENANT || __ENV.TENANT_ID || '3004';
     const currentEnv = getEnvByTenantId(tenantIdStr);
-    
+
     const api = '/api/ThirdGame/RecoverSaasBalance';
     const fullUrl = currentEnv.BASE_DESK_URL + api;
 
@@ -49,7 +49,7 @@ export function getAccountBalance(token) {
         const signedData = signClient.signData(requestData);
         //console.log('[Balance] 签名生成成功:', JSON.stringify(signedData));
 
-        console.log('[Balance] 请求 URL:', fullUrl);
+        //console.log('[Balance] 请求 URL:', fullUrl);
 
         const response = http.post(fullUrl, JSON.stringify(signedData), {
             headers: {

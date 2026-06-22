@@ -2,6 +2,8 @@ import { sendToGetVerCode } from './SendVerifiyCode.test.js';
 import { httpClient } from '../../../libs/http/client.js';
 import { getTimeRandom, generateCryptoRandomString } from '../../utils/utils.js';
 import { ENV_CONFIG } from '../../../config/envconfig.js';
+import { probeResponse } from '../../../libs/monitor/perfIntegration.js';
+import { PERF_METRICS, ERROR_COUNTERS } from '../../../libs/monitor/perfMetrics.js';
 
 // ============================================================
 // 无验证码版本（主流程）
@@ -694,6 +696,12 @@ export function eventIdentityRegisterWithCode(userName, data, options = {}) {
 function handleRegisterResponse(httpResponse, userName, deviceId = null) {
     console.log(`[RegisterResponse] 状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
 
+    probeResponse(httpResponse, 'Register', {
+        trendObj: PERF_METRICS.REGISTER,
+        errorCounter: ERROR_COUNTERS.REGISTER_FAIL,
+        successCheck: (r) => r && (r.code === 0 || r.msgCode === 0)
+    });
+
     if (!httpResponse || !httpResponse.body) {
         console.error(`[RegisterResponse] ❌ 接口无响应`);
         return null;
@@ -730,6 +738,12 @@ function handleRegisterResponse(httpResponse, userName, deviceId = null) {
  */
 function handleRegisterResponseWithToken(httpResponse, userName) {
     console.log(`[RegisterResponse] 状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
+
+    probeResponse(httpResponse, 'Register', {
+        trendObj: PERF_METRICS.REGISTER,
+        errorCounter: ERROR_COUNTERS.REGISTER_FAIL,
+        successCheck: (r) => r && (r.code === 0 || r.msgCode === 0)
+    });
 
     if (!httpResponse || !httpResponse.body) {
         console.error(`[RegisterResponse] ❌ 接口无响应`);

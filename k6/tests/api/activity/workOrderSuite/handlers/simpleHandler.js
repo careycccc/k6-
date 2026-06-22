@@ -24,6 +24,7 @@ import { signAndPost } from '../lib/submitHelper.js';
 import { lockOrder, unlockOrder } from '../lib/pendingHelper.js';
 import { buildKefuPrefix } from '../lib/userIdHelper.js';
 import { sendRequest } from '../../../common/request.js';
+import { PERF_METRICS, ERROR_COUNTERS } from '../../../../../libs/monitor/perfMetrics.js';
 
 const TAG = 'SimpleHandler';
 
@@ -130,7 +131,10 @@ export function simpleHandler(order, adminToken, tenantId, env, isMainAdmin = tr
     logger.info(`[${TAG}] 决策: ${action} (state=${state}, remark=${remark})`);
 
     const submitPayload = { workOrderId, state, remark };
-    let res = signAndPost(submitPayload, '/api/WorkOrder/Submit', false, adminToken, TAG);
+    let res = signAndPost(submitPayload, '/api/WorkOrder/Submit', false, adminToken, TAG, {
+        trendObj: PERF_METRICS.WORK_ORDER_APPROVE,
+        errorCounter: ERROR_COUNTERS.WORK_ORDER_APPROVE_FAIL,
+    });
 
     // 限流重试：最多重试 3 次，每次等待递增
     let retries = 0;
@@ -139,7 +143,10 @@ export function simpleHandler(order, adminToken, tenantId, env, isMainAdmin = tr
         const waitSec = retries * 2; // 2s, 4s, 6s
         logger.warn(`[${TAG}] 限流 (msgCode=13)，等待 ${waitSec}s 后重试 (${retries}/3)...`);
         sleep(waitSec);
-        res = signAndPost(submitPayload, '/api/WorkOrder/Submit', false, adminToken, TAG);
+        res = signAndPost(submitPayload, '/api/WorkOrder/Submit', false, adminToken, TAG, {
+            trendObj: PERF_METRICS.WORK_ORDER_APPROVE,
+            errorCounter: ERROR_COUNTERS.WORK_ORDER_APPROVE_FAIL,
+        });
     }
 
     if (res && (res.code === 0 || res.msgCode === 0)) {

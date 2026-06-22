@@ -4,7 +4,7 @@
  *
  * 运行示例：
  *   # 单线程单轮（开发调试）
- *   k6 run -e TENANT_ID=3101 -e ACCOUNT_COUNT=1 -e VUS=1 -e ITERATIONS=1 -e TRIGGER_MODE=login runWorkOrderFull.test.js
+ *   k6 run -e TENANT_ID=3004 -e ACCOUNT_COUNT=1 -e VUS=1 -e ITERATIONS=1 -e TRIGGER_MODE=login runWorkOrderFull.test.js
  *
  *   # 多线程多轮
  *   k6 run -e TENANT_ID=3004 -e ACCOUNT_COUNT=2 -e VUS=4 -e ITERATIONS=2 runWorkOrderFull.test.js
@@ -20,6 +20,7 @@
  *   ITERATIONS     每个 VU 的迭代轮数（默认 1，每个工单需要触发几次）
  *   IS_MAIN_ADMIN  true=主账号客服 systemkefu, false=普通客服 kefu（默认 true）
  *   TRIGGER_MODE   login=只触发已登录, nologin=只触发未登录, 不传=全部（默认 all）
+ *   PERF_PRESET    strict/normal/relaxed 三档阈值预设（默认 normal）
  *
  * 多轮逻辑：
  *   - 每轮：触发工单 → 客服处理 → 等待所有工单清空 → 下一轮
@@ -52,6 +53,13 @@ import { triggerLoginForAccount } from './lib/triggerLogin.js';
 import { addAllWallets } from '../../withdraw/addWalletApi.js';
 
 // ============================================================
+// 性能监控系统
+// ============================================================
+import { PERF_METRICS, ERROR_COUNTERS, GAUGES, buildThresholdsByPreset } from '../../../../libs/monitor/perfMetrics.js';
+import { measure, recordResponse, diagnoseTiming } from '../../../../libs/monitor/perfWrapper.js';
+import { buildHandleSummary } from '../../../../libs/monitor/perfSummary.js';
+
+// ============================================================
 // 图片预加载（setup 阶段创建工单时用）
 // ============================================================
 const orderImageUploaders = {};
@@ -70,16 +78,29 @@ for (const config of orderSystemConfig) {
 const VUS = parseInt(__ENV.VUS || '1', 10);
 const ITERATIONS = parseInt(__ENV.ITERATIONS || '1', 10);
 
+// 性能阈值预设：strict（生产红线）/ normal（日常回归）/ relaxed（开发调试）
+const PERF_PRESET = (__ENV.PERF_PRESET || 'normal').toLowerCase();
+
 export const options = {
     setupTimeout: '10m', // 预登录账号 + 巡检工单需要较长时间
     scenarios: {
         work_order_full: {
-            executor:    'per-vu-iterations',
-            vus:         VUS,
-            iterations:  ITERATIONS,
+            executor: 'per-vu-iterations',
+            vus: VUS,
+            iterations: ITERATIONS,
             maxDuration: '8h',
         },
     },
+    // 熔断阈值：超标自动停止压测
+    thresholds: buildThresholdsByPreset(PERF_PRESET, {
+        // 工单系统专项阈值（可在这里覆盖全局默认值）
+        'trend_work_order_submit': [{ threshold: 'p(95)<3000' }],  // 触发工单整体允许 3s（含表单构建）
+        'trend_create_work_order': [{ threshold: 'p(95)<1000' }],  // 创建工单单次网络交互允许 1s
+        'trend_approve_work_order': [{ threshold: 'p(95)<2000' }],  // 审批/关闭工单单次网络交互允许 2s
+        'trend_work_order_dispatch': [{ threshold: 'p(95)<2000' }],  // 派发 2s
+        'trend_work_order_reply': [{ threshold: 'p(95)<2000' }],  // 回复 2s
+        'trend_work_order_query': [{ threshold: 'p(95)<1000' }],  // 查询 1s
+    }),
 };
 
 const TAG = 'WorkOrderFull';
@@ -102,6 +123,13 @@ function getTenantId() {
 export function setup() {
     logger.info(`[${TAG}] ========== Setup：环境巡检 + 账号预分配 ==========`);
 
+    // ── 监控：管理员登录耗时 ──────────────────────────────────────────────────
+    const { ok: loginOk, body: loginBody, raw: loginRaw } = measure(
+        PERF_METRICS.ADMIN_LOGIN,
+        () => AdminLogin.__raw ? AdminLogin.__raw() : null,
+        { label: `${TAG}:AdminLogin`, errorCounter: ERROR_COUNTERS.BUSINESS_ERROR, silent: true }
+    );
+    // AdminLogin() 返回的是 token 字符串（非 k6 response），用普通调用即可
     const adminToken = AdminLogin();
     if (!adminToken) throw new Error(`[${TAG}] 管理员登录失败，终止测试`);
 
@@ -452,7 +480,13 @@ function _createWorkOrderType(config, adminToken) {
         fieldIdsToRemove: [],
     };
 
-    let createRes = sendRequest(createPayload, '/api/TenantForm/Create', TAG, false, adminToken);
+    // ── 监控：工单类型创建耗时（归入 FILE_UPLOAD 类型，属于 setup 操作） ────
+    let createRes = measure(
+        PERF_METRICS.FILE_UPLOAD,
+        () => sendRequest(createPayload, '/api/TenantForm/Create', TAG, false, adminToken),
+        { label: `${TAG}:CreateOrderType`, successCheck: (b) => b && (b.code === 0 || b.msgCode === 0) }
+    ).body;
+
     if (createRes && createRes.msgCode === 13) {
         sleep(1);
         createRes = sendRequest(createPayload, '/api/TenantForm/Create', TAG, false, adminToken);
@@ -464,4 +498,14 @@ function _createWorkOrderType(config, adminToken) {
         logger.error(`[${TAG}] ❌ "${config.name}" 创建失败: ${createRes ? createRes.msg : '无响应'}`);
     }
     sleep(1);
+}
+
+// ============================================================
+// handleSummary：增强版性能分析报告
+// ============================================================
+export function handleSummary(data) {
+    return buildHandleSummary(data, {
+        testName: 'WorkOrderFull',
+        environment: __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID),
+    });
 }

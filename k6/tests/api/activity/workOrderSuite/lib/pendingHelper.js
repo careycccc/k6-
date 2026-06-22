@@ -12,6 +12,8 @@
 import { sleep } from 'k6';
 import { sendRequest, sendQueryRequest } from '../../../common/request.js';
 import { logger } from '../../../../../libs/utils/logger.js';
+import { monitoredQueryRequest, monitoredSendRequest } from '../../../../../libs/monitor/perfIntegration.js';
+import { PERF_METRICS } from '../../../../../libs/monitor/perfMetrics.js';
 
 const TAG = 'PendingHelper';
 
@@ -51,7 +53,9 @@ export function getPendingOrders(adminToken, userId) {
 
     if (userId) payload.account = String(userId);
 
-    const res = sendQueryRequest(payload, '/api/WorkOrder/GetPageListByPending', TAG, false, adminToken);
+    const res = monitoredQueryRequest(payload, '/api/WorkOrder/GetPageListByPending', TAG, false, adminToken, {
+        trendObj: PERF_METRICS.WORK_ORDER_QUERY
+    });
 
     if (!res || !res.list) {
         logger.warn(`[${TAG}] 获取待处理工单失败或列表为空${userId ? ` (userId=${userId})` : ''}`);
@@ -94,7 +98,9 @@ export function getProcessingOrders(adminToken, userId) {
         sortField:           'submissionTime',
     };
 
-    const res = sendQueryRequest(payload, '/api/WorkOrder/GetPageList', TAG, false, adminToken);
+    const res = monitoredQueryRequest(payload, '/api/WorkOrder/GetPageList', TAG, false, adminToken, {
+        trendObj: PERF_METRICS.WORK_ORDER_QUERY
+    });
 
     if (!res || !res.list) {
         logger.warn(`[${TAG}] 获取处理中工单失败或列表为空${userId ? ` (userId=${userId})` : ''}`);
@@ -179,12 +185,13 @@ export function resolveUserIds(accounts, adminToken) {
         }
 
         // 手机号/邮箱 → 后台查询
-        const res = sendQueryRequest(
+        const res = monitoredQueryRequest(
             { account: trimmed, pageNo: 1, pageSize: 5 },
             '/api/Users/GetPageList',
             TAG,
             false,
-            adminToken
+            adminToken,
+            { trendObj: PERF_METRICS.WORK_ORDER_QUERY }
         );
 
         if (res && res.list && res.list.length > 0) {
@@ -209,12 +216,13 @@ export function resolveUserIds(accounts, adminToken) {
  * 锁定指定工单（防止多客服并发抢单）
  */
 export function lockOrder(workOrderId, adminToken) {
-    const res = sendRequest(
+    const res = monitoredSendRequest(
         { workOrderId, isLockWorkOrder: 1 },
         '/api/WorkOrder/UpdateWordOrderState',
         TAG,
         false,
-        adminToken
+        adminToken,
+        { trendObj: PERF_METRICS.WORK_ORDER_DISPATCH }
     );
 
     if (res && res.msgCode === 0) {
@@ -225,12 +233,13 @@ export function lockOrder(workOrderId, adminToken) {
     if (res && res.msgCode === 13) {
         logger.warn(`[${TAG}] 锁定过快，1s 后重试...`);
         sleep(1);
-        const retry = sendRequest(
+        const retry = monitoredSendRequest(
             { workOrderId, isLockWorkOrder: 1 },
             '/api/WorkOrder/UpdateWordOrderState',
             TAG,
             false,
-            adminToken
+            adminToken,
+            { trendObj: PERF_METRICS.WORK_ORDER_DISPATCH }
         );
         if (retry && retry.msgCode === 0) {
             logger.info(`[${TAG}] ✅ 工单 ${workOrderId} 重试锁定成功`);
@@ -254,12 +263,13 @@ export function lockOrder(workOrderId, adminToken) {
  * @returns {boolean}
  */
 export function unlockOrder(workOrderId, adminToken) {
-    const res = sendRequest(
+    const res = monitoredSendRequest(
         { workOrderId, isLockWorkOrder: 0 },
         '/api/WorkOrder/UpdateWordOrderState',
         TAG,
         false,
-        adminToken
+        adminToken,
+        { trendObj: PERF_METRICS.WORK_ORDER_DISPATCH }
     );
 
     if (res && res.msgCode === 0) {
@@ -270,12 +280,13 @@ export function unlockOrder(workOrderId, adminToken) {
     if (res && res.msgCode === 13) {
         logger.warn(`[${TAG}] 解锁过快，1s 后重试...`);
         sleep(1);
-        const retry = sendRequest(
+        const retry = monitoredSendRequest(
             { workOrderId, isLockWorkOrder: 0 },
             '/api/WorkOrder/UpdateWordOrderState',
             TAG,
             false,
-            adminToken
+            adminToken,
+            { trendObj: PERF_METRICS.WORK_ORDER_DISPATCH }
         );
         if (retry && retry.msgCode === 0) {
             logger.info(`[${TAG}] ✅ 工单 ${workOrderId} 重试解锁成功`);

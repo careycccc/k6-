@@ -44,9 +44,9 @@ export function getRechargeCategoryList(token) {
         console.log('[Recharge] 开始生成签名...');
 
         const signedData = signClient.signData(requestData);
-        console.log('[Recharge] 签名生成成功:', JSON.stringify(signedData));
+        //console.log('[Recharge] 签名生成成功:', JSON.stringify(signedData));
 
-        console.log('[Recharge] 请求 URL:', fullUrl);
+        //console.log('[Recharge] 请求 URL:', fullUrl);
 
         const response = http.post(fullUrl, JSON.stringify(signedData), {
             headers: {

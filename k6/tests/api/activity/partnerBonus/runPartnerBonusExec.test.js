@@ -79,6 +79,13 @@ import { phoneRegisterBySource, validateAndGetSuperiorSource } from '../../invit
 import { generateCryptoRandomString } from '../../../utils/utils.js';
 
 // ================================================================
+// 性能监控系统
+// ================================================================
+import { PERF_METRICS, ERROR_COUNTERS, SUCCESS_RATES, buildThresholdsByPreset } from '../../../../libs/monitor/perfMetrics.js';
+import { measure } from '../../../../libs/monitor/perfWrapper.js';
+import { buildHandleSummary } from '../../../../libs/monitor/perfSummary.js';
+
+// ================================================================
 // 全局参数
 // ================================================================
 
@@ -98,6 +105,9 @@ const maxVus = Math.max(1, Math.floor(subUsers / levels));
 let computedVus = Math.min(maxVus, 50);
 if (__ENV.VUS) computedVus = parseInt(__ENV.VUS, 10);
 
+// 性能阈值预设
+const PERF_PRESET = (__ENV.PERF_PRESET || 'relaxed').toLowerCase();
+
 export const options = {
     scenarios: {
         partner_bonus_exec: {
@@ -107,6 +117,14 @@ export const options = {
             maxDuration: '4h',
         },
     },
+    // 熔断阈值：合伙人奖励属于练数测试，默认宽松模式防止过早熔断
+    thresholds: buildThresholdsByPreset(PERF_PRESET, {
+        // 根据合伙人奖励业务特点，允许较高的单步耗时
+        'trend_register':  [{ threshold: 'p(95)<5000' }],  // 注册包含指纹设备签名，5s内
+        'trend_recharge':  [{ threshold: 'p(95)<3000' }],  // 充値包含后台审核
+        'trend_bet':       [{ threshold: 'p(95)<3000' }],
+        'trend_withdraw':  [{ threshold: 'p(95)<5000' }],
+    }),
 };
 
 // ================================================================
@@ -381,6 +399,7 @@ export default function (data) {
             // 共享模式（SAME_DEVICE/SAME_FINGERPRINT/SAME_BOTH）：只有直属下级（lv===0）共享，其余层随机
             // 模式三（ROOT_*/SUB_*）：直属下级（lv===0）用 requiredDevice/requiredFingerprint，其余层随机
             let res;
+            const t0 = Date.now();
             const isSameMode = matchMode === 'SAME_DEVICE' || matchMode === 'SAME_FINGERPRINT' || matchMode === 'SAME_BOTH';
             const isCopyMode = matchMode === 'FINGERPRINT' || matchMode === 'DEVICE' || matchMode === 'BOTH';
             // 模式三没有 matchMode，但 requiredDevice/requiredFingerprint 可能非空（来自 SUB_DEVICE/SUB_FINGERPRINT）
@@ -396,11 +415,15 @@ export default function (data) {
                 // 普通模式或非直属下级：各自随机设备/指纹
                 res = phoneRegisterByInvite(phone, parentCode, adminData, 'qwer1234', '', customUrls);
             }
+            // 监控：记录注册耗时（包含完整注册流程）
+            PERF_METRICS.REGISTER.add(Date.now() - t0);
             const token = extractToken(res);
 
             if (!token) {
                 report.failReason = '注册失败';
                 reports.push(report);
+                ERROR_COUNTERS.REGISTER_FAIL.add(1);  // 监控：注册失败计数
+                SUCCESS_RATES.REGISTER.add(false);
                 continue;
             }
 
@@ -416,6 +439,7 @@ export default function (data) {
             report.userId = userInfo.userId;
             report.inviteCode = userInfo.inviteCode || '';
             codesByLevel[lv].push(userInfo.inviteCode);
+            SUCCESS_RATES.REGISTER.add(true);  // 监控：注册成功
 
             //console.log(`[VU ${vuId}] ✅ 注册成功 | L${lv + 1} | 账号: ${phone} | UID: ${userInfo.userId} | 邀请码: ${userInfo.inviteCode}`);
             sleep(1);
@@ -439,6 +463,7 @@ export default function (data) {
 
                 console.log(`[VU ${vuId}] 💰 ${label} | ${phone} | 金额: ${amount}`);
 
+                const t1 = Date.now();
                 const result = hybridRecharge({
                     userToken: token,
                     adminToken: adminToken,
@@ -447,6 +472,8 @@ export default function (data) {
                     frontendFirst: true,
                     remark: `PartnerBonus-${label}`,
                 });
+                // 监控：充値耗时
+                PERF_METRICS.RECHARGE.add(Date.now() - t1);
 
                 if (result.success) {
                     report.rechargeAmounts.push(result.amount);
@@ -475,13 +502,16 @@ export default function (data) {
                 for (let b = 0; b < betCount; b++) {
                     if (b > 0) sleep(1);
                     console.log(`[VU ${vuId}] 🎲 投注 ${b + 1}/${betCount} | ${phone}`);
+                    const t2 = Date.now();
                     const betRes = betRun(token, phone);
+                    PERF_METRICS.BET.add(Date.now() - t2);  // 监控：投注耗时
                     if (betRes) {
                         const betAmt = (typeof betRes === 'object' && betRes.amount) ? betRes.amount : 0;
                         report.betAmounts.push(betAmt);
                         report.totalBetAmount += betAmt;
                         console.log(`[VU ${vuId}] ✅ 投注成功 | ${phone} | 金额: ${betAmt}`);
                     } else {
+                        ERROR_COUNTERS.BET_FAIL.add(1);  // 监控：投注失败
                         console.warn(`[VU ${vuId}] ❌ 投注失败 | ${phone}`);
                     }
                 }
@@ -508,7 +538,9 @@ export default function (data) {
                 // 4c. 获取提现信息并发起提现
                 const withdrawInfo = getWithdrawBasicInfo(token);
                 if (withdrawInfo && withdrawInfo.balance > 0) {
+                    const t3 = Date.now();
                     const wRes = executeWithdrawCase(token, withdrawInfo.balance, withdrawInfo);
+                    PERF_METRICS.WITHDRAW.add(Date.now() - t3);  // 监控：提现耗时
                     if (wRes && wRes.withDrawaAmont) {
                         report.didWithdraw = true;
                         report.withdrawAmount = wRes.withDrawaAmont;
@@ -517,8 +549,11 @@ export default function (data) {
 
                         // 4d. 后台自动审核（机审）
                         sleep(2);
+                        const t4 = Date.now();
                         runBackendWithdrawApproval(adminToken, userInfo.userId, wRes.withDrawaType, wRes.withDrawaAmont);
+                        PERF_METRICS.WITHDRAW_APPROVAL.add(Date.now() - t4);  // 监控：审核耗时
                     } else {
+                        ERROR_COUNTERS.WITHDRAW_FAIL.add(1);  // 监控：提现失败
                         console.warn(`[VU ${vuId}] ⚠️  提现未通过条件检查 | ${phone}`);
                     }
                 } else {
@@ -676,4 +711,14 @@ function printVuReport(reports, rootInviteCode, vuId) {
     console.log(`   绑定提现并提现 : ${withdrawers}`);
     console.log(`   提现总额       : ${totalWithdraw}`);
     console.log(`${sep}\n`);
+}
+
+// ================================================================
+// handleSummary：增强版性能分析报告
+// ================================================================
+export function handleSummary(data) {
+    return buildHandleSummary(data, {
+        testName:    'PartnerBonusExec',
+        environment: __ENV.TENANT_ID || '3004',
+    });
 }

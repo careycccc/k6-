@@ -22,6 +22,7 @@ import { signAndPost } from '../lib/submitHelper.js';
 import { maybeUpload } from '../lib/upload.js';
 import { lockOrder, unlockOrder } from '../lib/pendingHelper.js';
 import { buildKefuPrefix, buildLongUserId } from '../lib/userIdHelper.js';
+import { PERF_METRICS, ERROR_COUNTERS } from '../../../../../libs/monitor/perfMetrics.js';
 
 const TAG = 'CsDialog';
 
@@ -55,11 +56,17 @@ function adminReply(workOrderId, remark, token, env, tag) {
         payload.attachmentName = attachmentName;
         payload.attachmentPath = attachmentPath;
     }
-    let res = signAndPost(payload, '/api/WorkOrder/Submit', false, token, tag);
+    let res = signAndPost(payload, '/api/WorkOrder/Submit', false, token, tag, {
+        trendObj: PERF_METRICS.WORK_ORDER_REPLY,
+        errorCounter: ERROR_COUNTERS.WORK_ORDER_PROCESS_FAIL,
+    });
     if (res && res.msgCode === 13) {
         logger.warn(`[${tag}] 客服回复限流，2s 后重试...`);
         sleep(2);
-        res = signAndPost(payload, '/api/WorkOrder/Submit', false, token, tag);
+        res = signAndPost(payload, '/api/WorkOrder/Submit', false, token, tag, {
+            trendObj: PERF_METRICS.WORK_ORDER_REPLY,
+            errorCounter: ERROR_COUNTERS.WORK_ORDER_PROCESS_FAIL,
+        });
     }
     if (res && (res.code === 0 || res.msgCode === 0)) {
         logger.info(`[${tag}] ✅ 客服回复: ${remark}${attachmentName ? ' [含图]' : ''}`);
@@ -102,7 +109,10 @@ function adminCloseOrder(workOrderId, kefuPrefix, token, env, tag) {
         payload.attachmentName = attachmentName;
         payload.attachmentPath = attachmentPath;
     }
-    const res = signAndPost(payload, '/api/WorkOrder/Submit', false, token, tag);
+    const res = signAndPost(payload, '/api/WorkOrder/Submit', false, token, tag, {
+        trendObj: PERF_METRICS.WORK_ORDER_APPROVE,
+        errorCounter: ERROR_COUNTERS.WORK_ORDER_APPROVE_FAIL,
+    });
     if (res && (res.code === 0 || res.msgCode === 0)) {
         logger.info(`[${tag}] ✅ 工单关闭成功 (${kefuPrefix})${attachmentName ? ' [含图]' : ''}`);
     } else {

@@ -60,11 +60,11 @@ export function betWingo(gameCode, amount, betMultiple, betContent, issueNumber,
     };
 
     //console.log('[Bet] 投注请求 URL:', lotteryBaseUrl + api);
-    console.log('[Bet] 投注参数:', JSON.stringify(signedData));
+    //console.log('[Bet] 投注参数:', JSON.stringify(signedData));
 
     const response = http.post(lotteryBaseUrl + api, JSON.stringify(signedData), { headers });
 
-    console.log('[Bet] 投注响应状态:', response.status);
+    //console.log('[Bet] 投注响应状态:', response.status);
     //console.log('[Bet] 投注响应体:', response.body);
 
     if (response.status === 200 && response.body) {
