@@ -13,7 +13,7 @@
  *      （绑定提现信息 = 满足活动「下级绑定提现信息」前置条件）
  *
  * 使用方法：
- *   k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=42VWG8N -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+ *   k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=EM2V2AN -e TOTAL_USERS=2 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
  
 * 场景一：要求下级注册指纹与上级完全相同
   k6 run -e TENANT_ID=3004 -e ROOT_USER_ID=139265 -e MATCH_MODE=FINGERPRINT -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
@@ -50,7 +50,7 @@
  * SUB_FINGERPRINT    所有直属下级注册时的 browserId（不传则各自随机）
  *
  * 场景七：上级用指定设备号注册，下级各自随机
- * k6 run -e TENANT_ID=3004 -e ROOT_DEVICE=UE1A.230829.050 -e TOTAL_USERS=1 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+ * k6 run -e TENANT_ID=3004 -e ROOT_DEVICE=pv0cihr7acnkl0hm -e TOTAL_USERS=1 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
  *
  * 场景八：上级用指定指纹注册，下级共享指定设备号
  * k6 run -e TENANT_ID=3004 -e ROOT_FINGERPRINT=vn3m43ws1rwxre7ifn7871nbc6dc41mf -e SUB_DEVICE=vanwioxzlw39hbcb -e TOTAL_USERS=2 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js

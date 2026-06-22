@@ -133,7 +133,7 @@ export function facebookIdentityRegister(userName, data, options = {}) {
         : httpClient.post(api, payload, { sign: false }, true);
 
     // 7. 处理响应
-    console.log(`[FbRegister] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
+    //console.log(`[FbRegister] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
     if (!httpResponse || !httpResponse.body) {
         console.error('[FbRegister] ❌ 接口无响应');
         return null;

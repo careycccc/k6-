@@ -7,7 +7,7 @@
  *   k6 run -e TENANT_ID=3101 -e ACCOUNT_COUNT=1 -e VUS=1 -e ITERATIONS=1 -e TRIGGER_MODE=login runWorkOrderFull.test.js
  *
  *   # 多线程多轮
- *   k6 run -e TENANT_ID=3101 -e ACCOUNT_COUNT=2 -e VUS=4 -e ITERATIONS=2 runWorkOrderFull.test.js
+ *   k6 run -e TENANT_ID=3004 -e ACCOUNT_COUNT=2 -e VUS=4 -e ITERATIONS=2 runWorkOrderFull.test.js
  *
  *   # 只触发已登录工单（调试）
  *   k6 run -e TENANT_ID=3004 -e ACCOUNT_COUNT=1 -e VUS=1 -e ITERATIONS=1 -e TRIGGER_MODE=login runWorkOrderFull.test.js

@@ -116,7 +116,7 @@ export function adjustIdentityRegister(userName, data, options = {}) {
         : httpClient.post(api, payload, { sign: false }, true);
 
     // 6. 处理响应
-    console.log(`[AdjustRegister] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
+    //console.log(`[AdjustRegister] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
     if (!httpResponse || !httpResponse.body) {
         console.error('[AdjustRegister] ❌ 接口无响应');
         return null;

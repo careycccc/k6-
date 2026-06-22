@@ -237,10 +237,10 @@ export function addUserBank(adminToken, userId) {
 
     const response = tenantRequest(api, payload, { token: adminToken, isDesk: false });
 
-    console.log(`[${tag}] 响应状态码: ${response.status}`);
-    console.log(`[${tag}] 响应msgCode: ${response.msgCode}`);
-    console.log(`[${tag}] 响应msg: ${response.msg}`);
-    console.log(`[${tag}] 完整响应:`, JSON.stringify(response, null, 2));
+    // console.log(`[${tag}] 响应状态码: ${response.status}`);
+    // console.log(`[${tag}] 响应msgCode: ${response.msgCode}`);
+    // console.log(`[${tag}] 响应msg: ${response.msg}`);
+    // console.log(`[${tag}] 完整响应:`, JSON.stringify(response, null, 2));
 
     if (!response || response.msgCode !== 0) {
         console.error(`[${tag}] ❌ 添加银行卡失败`);

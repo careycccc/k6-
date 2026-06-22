@@ -51,9 +51,9 @@ export function phoneRegister(userName, data, password = 'qwer1234', inviteCode 
 
     const httpResponse = httpClient.post(api, payload, {}, true);
 
-    console.log(`[PhoneRegister] ========== 注册响应 ==========`);
-    console.log(`[PhoneRegister] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
-    console.log(`[PhoneRegister] 响应体: ${httpResponse ? httpResponse.body : 'N/A'}`);
+    // console.log(`[PhoneRegister] ========== 注册响应 ==========`);
+    // console.log(`[PhoneRegister] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
+    // console.log(`[PhoneRegister] 响应体: ${httpResponse ? httpResponse.body : 'N/A'}`);
 
     return handleRegisterResponse(httpResponse, userName);
 }
@@ -158,9 +158,9 @@ export function emailRegister(email, data, password = 'qwer1234', inviteCode = '
 
     const httpResponse = httpClient.post(api, payload, {}, true);
 
-    console.log(`[EmailRegister] ========== 注册响应 ==========`);
-    console.log(`[EmailRegister] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
-    console.log(`[EmailRegister] 响应体: ${httpResponse ? httpResponse.body : 'N/A'}`);
+    // console.log(`[EmailRegister] ========== 注册响应 ==========`);
+    // console.log(`[EmailRegister] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
+    // console.log(`[EmailRegister] 响应体: ${httpResponse ? httpResponse.body : 'N/A'}`);
 
     return handleRegisterResponse(httpResponse, email);
 }
