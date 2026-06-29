@@ -422,7 +422,7 @@ export default function (data) {
 // k6 run -e TENANT=3004 -e TARGET_USER=918048050116 withdraw.test.js
 
 // # 多账号多线程（每个账号独占一个 VU 并发执行）
-// k6 run -e TENANT=3004 -e TARGET_USERS=912026061566,916154156993,916155199273,912026061507,912026061500 withdraw.test.js
+// k6 run -e TENANT=3004 -e TARGET_USERS=916250721844,916256164851 withdraw.test.js
 
 // # 多账号 + 自动后台审核
 // k6 run -e TENANT=3004 -e TARGET_USERS=918048050116,918048050117 -e ENABLE_BACKEND_APPROVAL=true withdraw.test.js

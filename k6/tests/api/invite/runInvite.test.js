@@ -61,7 +61,9 @@ export default async function (data) {
         await runMultiLevelInvite(rootInviteCode, subordinates, data);
         console.log('\n✅ 多层级邀请测试成功完成！');
     } catch (error) {
+        // @ts-ignore
         console.error('\n❌ 多层级邀请测试失败:', error.message);
+        // @ts-ignore
         console.error('错误堆栈:', error.stack);
         throw error;
     }
@@ -72,6 +74,7 @@ export default async function (data) {
 /**
  * Teardown 阶段：清理数据
  */
+// @ts-ignore
 export function teardown(data) {
     console.log('[Teardown] 清理测试数据...');
     clearInviteData();

@@ -1,0 +1,5 @@
+2026/06/29-13:46:09.857 dd60 Creating DB D:\project\k6-\k6\playwrith\.browser_profiles\profile_6164643829\Default\Local Storage\leveldb since it was missing.
+2026/06/29-13:46:09.922 dd60 Reusing MANIFEST D:\project\k6-\k6\playwrith\.browser_profiles\profile_6164643829\Default\Local Storage\leveldb/MANIFEST-000001
+2026/06/29-13:47:09.958 b50 Level-0 table #5: started
+2026/06/29-13:47:09.969 b50 Level-0 table #5: 82030 bytes OK
+2026/06/29-13:47:09.974 b50 Delete type=0 #3

@@ -1,0 +1,13 @@
+docker pull mysql:latest     下载mysql
+
+docker run --name mysql-container -e MYSQL_ROOT_PASSWORD=123456 -p 3306:3306 -d mysql:latest
+
+--name mysql-container: 给容器起个名字，方便管理。
+
+-e MYSQL_ROOT_PASSWORD=...: 设置 root 用户的初始密码（必填）。
+
+-p 3306:3306: 将容器内的 3306 端口映射到宿主机的 3306 端口。
+
+-d: 后台运行容器。
+
+powershell执行 连接sql server 命令：docker exec -it mysql-container mysql -u root -p

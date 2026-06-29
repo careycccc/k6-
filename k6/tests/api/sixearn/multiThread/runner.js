@@ -1,4 +1,5 @@
 const { execSync } = require('child_process');
+// @ts-ignore
 const fs = require('fs');
 
 const tenantId = process.env.TENANT_ID || '3006';
@@ -15,9 +16,11 @@ console.log(`\n🚀 开始运行多线程返佣模式测试: ${rebateMode} (租�
 
 const roots = {};
 
+// @ts-ignore
 function runK6(script, envs) {
     const envVars = Object.keys(envs).map(k => `-e ${k}=${envs[k]}`).join(' ');
     // 强制禁用 K6 的自带进度条，避免污染 stdout 输出
+    // @ts-ignore
     const cmd = `k6 run --summary-mode=disabled -q ${envVars} -e TENANT_ID=${tenantId} ${script} 2>&1`;
     // 上面是拼写 cmd，真正执行用下面的：
     const actualCmd = `k6 run --summary-mode=disabled -q ${envVars} -e TENANT_ID=${tenantId} ${script} 2>&1`;
@@ -30,6 +33,7 @@ function runK6(script, envs) {
         console.log(output);
         return output;
     } catch (err) {
+        // @ts-ignore
         console.error(`❌ 执行报错:\n${err.stdout}\n${err.stderr}`);
         throw err;
     }
@@ -40,6 +44,7 @@ function runK6(script, envs) {
 // ========================
 
 // 阶段 1：并发建树
+// @ts-ignore
 function buildTeam(teamName, total, levels) {
     // 团队总人数包含 1 个 Root 节点，因此子节点数为 total - 1
     const subUsers = Math.max(1, parseInt(total) - 1);
@@ -60,7 +65,9 @@ function buildTeam(teamName, total, levels) {
         let jsonStr = match[1];
         // K6 日志会转义双引号，这里需要反转义
         jsonStr = jsonStr.replace(/\\"/g, '"');
+        // @ts-ignore
         roots[teamName] = JSON.parse(jsonStr);
+        // @ts-ignore
         console.log(`✅ [调度器] ${teamName} 根节点信息已保存:`, roots[teamName]);
     } else {
         throw new Error(`[调度器] 无法从 step1_register 的输出中解析出 ${teamName} 的根节点信息`);
@@ -68,14 +75,19 @@ function buildTeam(teamName, total, levels) {
 }
 
 // 阶段 2：单线程转线 Swap
+// @ts-ignore
 function runSwap(fromTeam, toTeam) {
+    // @ts-ignore
     const fromId = roots[fromTeam].rootId;
+    // @ts-ignore
     const toInvite = roots[toTeam].rootInvite;
     runK6('step2_swap.js', { FROM_ROOT_ID: fromId, TO_ROOT_INVITE: toInvite, FROM_TEAM: fromTeam, TO_TEAM: toTeam });
 }
 
 // 阶段 3：多线程并发充投
+// @ts-ignore
 function runAction(teamName, options) {
+    // @ts-ignore
     const rootId = roots[teamName].rootId;
     runK6('step3_action.js', {
         TEAM_NAME: teamName,
@@ -90,6 +102,7 @@ function runAction(teamName, options) {
 const full = { inactiveRate: 0, rechargeOnlyRate: 0 };
 const recharge = { inactiveRate: 0, rechargeOnlyRate: 1 };
 const v2Mode = { inactiveRate: globalInactive, rechargeOnlyRate: globalRechargeOnly };
+// @ts-ignore
 const none = null;
 
 // 执行 17 种模式的流水线时序编排

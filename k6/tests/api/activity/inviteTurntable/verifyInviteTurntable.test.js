@@ -22,6 +22,9 @@
  * - SUB_CONCURRENT: 下级并发数（默认3）
  * - MIN_MONEY: 最小充值金额（默认1000）
  * - MAX_MONEY: 最大充值金额（默认5000）
+ * 
+ * k6 run verifyInviteTurntable.test.js -e TENANT_ID=3004
+ * k6 run verifyInviteTurntable.test.js -e TENANT_ID=3004 -e SUB_MIN_NUMBER=10 -e SUB_MAX_NUMBER=20
  */
 
 import { sleep } from 'k6';

@@ -1,0 +1,10 @@
+2026/06/29-13:46:21.173 11fac Creating DB D:\project\k6-\k6\playwrith\.browser_profiles\profile_6166001235\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb since it was missing.
+2026/06/29-13:46:21.193 11fac Reusing MANIFEST D:\project\k6-\k6\playwrith\.browser_profiles\profile_6166001235\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/MANIFEST-000001
+2026/06/29-13:46:30.632 f6b4 Level-0 table #5: started
+2026/06/29-13:46:30.656 f6b4 Level-0 table #5: 2643 bytes OK
+2026/06/29-13:46:30.665 f6b4 Delete type=0 #3
+2026/06/29-13:46:30.666 11fac Manual compaction at level-0 from '\x00\x02\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x03\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/06/29-13:46:31.142 136b8 Level-0 table #7: started
+2026/06/29-13:46:31.146 136b8 Level-0 table #7: 1660 bytes OK
+2026/06/29-13:46:31.150 136b8 Delete type=0 #4
+2026/06/29-13:46:31.151 136b8 Manual compaction at level-0 from '\x00\x04\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x05\x00\x00\x00' @ 0 : 0; will stop at (end)

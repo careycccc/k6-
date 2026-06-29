@@ -56,6 +56,9 @@ export const options = {
     },
 };
 
+/**
+ * @param {object} data
+ */
 export default function (data) {
     const targetUid = __ENV.TARGET_UID;
 
@@ -67,7 +70,9 @@ export default function (data) {
     const rechargeChance = __ENV.RECHARGE_CHANCE ? parseFloat(__ENV.RECHARGE_CHANCE) : 0.5;
 
     // 切换租户环境（VU中需要重新切换）
+    // @ts-ignore
     if (data.tenantId !== '3004') {
+        // @ts-ignore
         const targetEnv = getEnvByTenantId(data.tenantId);
         if (targetEnv) {
             Object.assign(ENV_CONFIG, targetEnv);
