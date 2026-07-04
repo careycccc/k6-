@@ -2,11 +2,11 @@ const { execSync } = require('child_process');
 // @ts-ignore
 const fs = require('fs');
 
-const tenantId = process.env.TENANT_ID || '3006';
-const team1Total = process.env.TEAM1_TOTAL || '5';   // 团队1总人数
-const team1Levels = process.env.TEAM1_LEVELS || '2';    // 团队1总层级
-const team2Total = process.env.TEAM2_TOTAL || '6';   // 团队2总人数
-const team2Levels = process.env.TEAM2_LEVELS || '3';    // 团队2总层级
+const tenantId = process.env.TENANT_ID || '3007';
+const team1Total = process.env.TEAM1_TOTAL || '70';   // 团队1总人数
+const team1Levels = process.env.TEAM1_LEVELS || '7';    // 团队1总层级
+const team2Total = process.env.TEAM2_TOTAL || '60';   // 团队2总人数
+const team2Levels = process.env.TEAM2_LEVELS || '8';    // 团队2总层级
 const rebateMode = process.env.REBATE_MODE || 'mode9';  // 返佣模式
 
 const globalInactive = parseFloat(process.env.INACTIVE_RATE || '0.1');    // V2 不活跃比例（全局）
@@ -48,16 +48,18 @@ function runK6(script, envs) {
 function buildTeam(teamName, total, levels) {
     // 团队总人数包含 1 个 Root 节点，因此子节点数为 total - 1
     const subUsers = Math.max(1, parseInt(total) - 1);
-    
-    // 限制最大 VUs 数量，确保每个 VU 分配到的节点数大于等于层级数，否则会导致建树由于被过度拆分而变平
-    const maxVus = Math.max(1, Math.floor(subUsers / parseInt(levels)));
+
+    // 确保每个 VU 至少分配到 levels*2 个节点，否则 distributePeople 会退化为每层1人
+    // 举例：subUsers=69, levels=7 → 每VU至少处理14人 → maxVus=floor(69/14)=4
+    const minUsersPerVu = parseInt(levels) * 2;
+    const maxVus = Math.max(1, Math.floor(subUsers / minUsersPerVu));
     const vus = Math.min(maxVus, 50);
 
-    const output = runK6('step1_register.js', { 
-        TEAM_NAME: teamName, 
-        TOTAL_USERS: subUsers, 
-        LEVELS: levels, 
-        VUS: vus 
+    const output = runK6('step1_register.js', {
+        TEAM_NAME: teamName,
+        TOTAL_USERS: subUsers,
+        LEVELS: levels,
+        VUS: vus
     });
     // 从 K6 的输出中提取 Root 信息
     const match = output.match(/\[ROOT_INFO\]:\s*(\{.*?\})/);

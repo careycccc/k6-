@@ -14,7 +14,7 @@
  *   -e LEVELS=5            每VU内部树的层级数（默认5）
  *
  * 运行示例：
- *   k6 run -e TENANT_ID=3101 -e VUS=5 -e TOTAL_USERS=20 -e LEVELS=4  distributedForest.test.js
+ *   k6 run -e TENANT_ID=3007 -e VUS=2 -e TOTAL_USERS=5 -e LEVELS=2  distributedForest.test.js
  *
  * ============================================================
  * 设计原则（只读 + 增量）：
@@ -382,6 +382,10 @@ export function setup() {
 export default function (data) {
     const { adminToken, envConfig, rootInviteCode } = data;
     const vuId = exec.vu.idInInstance;
+
+    // 为避免所有 VU 在同一瞬间发起高并发注册触发后台频率限制 (Too frequent access)，加入随机错峰延迟
+    // 延迟时间与 VU ID 相关，同时加入一定的随机性
+    sleep((vuId * 0.1) + Math.random() * 0.5);
 
     // ── VU 阶段重新绑定租户环境（k6 VU 会重新加载模块，ENV_CONFIG 会还原默认值）────
     const tenantId = __ENV.TENANT_ID || __ENV.TENANT || '3004';

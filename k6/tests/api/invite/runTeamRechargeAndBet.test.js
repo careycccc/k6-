@@ -14,7 +14,7 @@
 // k6 run -e TENANT_ID=3101 -e TARGET_UID=112556 runTeamRechargeAndBet.test.js
 
 // # 自定义充值几率（70%）
-// k6 run -e TENANT_ID=3002 -e TARGET_UID=5945146 -e RECHARGE_CHANCE=0.7 k6/tests/api/invite/runTeamRechargeAndBet.test.js
+// k6 run -e TENANT_ID=3004 -e TARGET_UID=139785 -e RECHARGE_CHANCE=0.9 runTeamRechargeAndBet.test.js
 
 
 import { AdminLogin } from '../login/adminlogin.test.js';

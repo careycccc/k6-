@@ -2,7 +2,7 @@
  * 提现流程逻辑 - 多租户 + 多账号多线程版本
  *
  * 单账号（原有用法）:
- *   k6 run -e TENANT=3004 -e TARGET_USER=918048050116 withdraw.test.js
+ *   k6 run -e TENANT=3004 -e TARGET_USER=915155160460 withdraw.test.js
  *
  * 多账号多线程（每个账号独立 VU 并发执行）:
  *   k6 run -e TENANT=3004 -e TARGET_USERS=918048050116,918048050117,918048050118 withdraw.test.js
@@ -61,16 +61,16 @@ function parseTargetUsers(envConfig) {
 // ==================== K6 选项（动态 VU 数）==================
 // ============================================================
 
-const _tenantId   = __ENV.TENANT || __ENV.TENANT_ID || '3004';
-const _envConfig  = getEnvByTenantId(_tenantId);
-const _userList   = parseTargetUsers(_envConfig);
-const _vuCount    = _userList.length;
+const _tenantId = __ENV.TENANT || __ENV.TENANT_ID || '3004';
+const _envConfig = getEnvByTenantId(_tenantId);
+const _userList = parseTargetUsers(_envConfig);
+const _vuCount = _userList.length;
 
 export const options = {
     scenarios: {
         withdraw_multi: {
-            executor:   'per-vu-iterations',
-            vus:        _vuCount,   // VU 数 = 账号数，每个账号独占一个 VU
+            executor: 'per-vu-iterations',
+            vus: _vuCount,   // VU 数 = 账号数，每个账号独占一个 VU
             iterations: 1,          // 每个 VU 执行一次提现
             maxDuration: '30m'
         }
@@ -266,8 +266,8 @@ export function executeWithdrawCase(token, balance, allWithdraw) {
  * setup 阶段：后台登录一次，把 adminToken 和账号列表传给所有 VU
  */
 export function setup() {
-    const tenantId  = _tenantId;
-    const userList  = _userList;
+    const tenantId = _tenantId;
+    const userList = _userList;
 
     console.log(`[${tag}] ========== Setup 开始 ==========`);
     console.log(`[${tag}] 租户ID: ${tenantId}`);
@@ -297,9 +297,9 @@ export function setup() {
  * @param {string} adminToken  后台管理员 token（由 setup 传入）
  */
 export function RunWithDrawCase(targetUser, tenantId, adminToken) {
-    const envConfig   = getEnvByTenantId(tenantId);
-    const isRegister  = __ENV.IS_REGISTER === 'true';
-    const vuLabel     = `VU${__VU}`;
+    const envConfig = getEnvByTenantId(tenantId);
+    const isRegister = __ENV.IS_REGISTER === 'true';
+    const vuLabel = `VU${__VU}`;
 
     console.log(`[${tag}][${vuLabel}] ========== 提现流程开始 ==========`);
     console.log(`[${tag}][${vuLabel}] 租户ID: ${tenantId}`);
@@ -313,7 +313,7 @@ export function RunWithDrawCase(targetUser, tenantId, adminToken) {
         return;
     }
 
-    const token  = session.userToken;
+    const token = session.userToken;
     const userId = session.userId;
     console.log(`[${tag}][${vuLabel}] ✅ 会话建立成功: UserId=${userId}, UserName=${session.userName}`);
 
@@ -407,7 +407,7 @@ export default function (data) {
     const { tenantId, userList, adminToken } = data;
 
     // __VU 从 1 开始，转为 0-based 索引取对应账号
-    const vuIndex    = __VU - 1;
+    const vuIndex = __VU - 1;
     const targetUser = userList[vuIndex % userList.length];
 
     RunWithDrawCase(targetUser, tenantId, adminToken);

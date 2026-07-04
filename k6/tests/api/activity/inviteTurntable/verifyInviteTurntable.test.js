@@ -24,7 +24,7 @@
  * - MAX_MONEY: 最大充值金额（默认5000）
  * 
  * k6 run verifyInviteTurntable.test.js -e TENANT_ID=3004
- * k6 run verifyInviteTurntable.test.js -e TENANT_ID=3004 -e SUB_MIN_NUMBER=10 -e SUB_MAX_NUMBER=20
+ * k6 run verifyInviteTurntable.test.js -e TENANT_ID=3004 -e SUB_MIN_NUMBER=15 -e SUB_MAX_NUMBER=20
  */
 
 import { sleep } from 'k6';

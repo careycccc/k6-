@@ -12,7 +12,7 @@
  * 7. 注意只有团队2进行充值投注的时候才会有一定的几率把成员加入到特殊/固定的返佣中
  * 
  * 使用方法：
- * k6 run -e TENANT_ID=3010 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=2 multiLevelRebate.test.js
+ * k6 run -e TENANT_ID=3007 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=2 multiLevelRebate.test.js
 
 # 默认模式（不变）
 k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=2 multiLevelRebate.test.js
@@ -172,7 +172,7 @@ function registerRootAgent(adminData, teamName) {
     // @ts-ignore
     token = registerResult.headers.Authorization.replace('Bearer ', '').trim();
     console.log(`[${teamName}] Token来源: headers.Authorization`);
-  // @ts-ignore
+    // @ts-ignore
   } else if (registerResult.data && registerResult.data.token) {
     // @ts-ignore
     token = registerResult.data.token;
@@ -296,7 +296,7 @@ function selectRandomSubordinate(adminToken, rootUserId) {
   const memberWithSubordinates = eligibleMembers.map((member) => {
     const subordinateCount = agentList.filter((m) =>
       m.hierarchy > member.hierarchy &&
-            m.userId !== member.userId
+      m.userId !== member.userId
     ).length;
     return {
       ...member,
@@ -652,183 +652,183 @@ export default async function (data) {
 
   switch (rebateMode) {
 
-  // ── mode1（现有逻辑）A充投 → swap → B充投 ──────────────────────────
-  case 'mode1':
-    printMode('A充投 | 无 → A→B, B→A → 无 | B充投');
-    rootA = await buildTeam('团队A', team1Distribution, full);
-    rootB = await buildTeam('团队B', team2Distribution, none);
-    snapshotBeforeSwap();
-    executeSwaps();
-    doAction(rootB, '团队B', full);
-    break;
+    // ── mode1（现有逻辑）A充投 → swap → B充投 ──────────────────────────
+    case 'mode1':
+      printMode('A充投 | 无 → A→B, B→A → 无 | B充投');
+      rootA = await buildTeam('团队A', team1Distribution, full);
+      rootB = await buildTeam('团队B', team2Distribution, none);
+      snapshotBeforeSwap();
+      executeSwaps();
+      doAction(rootB, '团队B', full);
+      break;
 
     // ── mode2 双方充投后互换 ────────────────────────────────────────────
-  case 'mode2':
-    printMode('A充投 | B充投 → A→B, B→A → 无 | 无');
-    rootA = await buildTeam('团队A', team1Distribution, full);
-    rootB = await buildTeam('团队B', team2Distribution, full);
-    snapshotBeforeSwap();
-    executeSwaps();
-    break;
+    case 'mode2':
+      printMode('A充投 | B充投 → A→B, B→A → 无 | 无');
+      rootA = await buildTeam('团队A', team1Distribution, full);
+      rootB = await buildTeam('团队B', team2Distribution, full);
+      snapshotBeforeSwap();
+      executeSwaps();
+      break;
 
     // ── mode3 A只充值，换人后B充投 ─────────────────────────────────────
-  case 'mode3':
-    printMode('A只充值 | 无 → A→B, B→A → 无 | B充投');
-    rootA = await buildTeam('团队A', team1Distribution, recharge);
-    rootB = await buildTeam('团队B', team2Distribution, none);
-    snapshotBeforeSwap();
-    executeSwaps();
-    doAction(rootB, '团队B', full);
-    break;
+    case 'mode3':
+      printMode('A只充值 | 无 → A→B, B→A → 无 | B充投');
+      rootA = await buildTeam('团队A', team1Distribution, recharge);
+      rootB = await buildTeam('团队B', team2Distribution, none);
+      snapshotBeforeSwap();
+      executeSwaps();
+      doAction(rootB, '团队B', full);
+      break;
 
     // ── mode4 先换人再双方充投 ──────────────────────────────────────────
-  case 'mode4':
-    printMode('无 | 无 → A→B, B→A → A充投 | B充投');
-    rootA = await buildTeam('团队A', team1Distribution, none);
-    rootB = await buildTeam('团队B', team2Distribution, none);
-    snapshotBeforeSwap();
-    executeSwaps();
-    doAction(rootA, '团队A', full);
-    doAction(rootB, '团队B', full);
-    break;
+    case 'mode4':
+      printMode('无 | 无 → A→B, B→A → A充投 | B充投');
+      rootA = await buildTeam('团队A', team1Distribution, none);
+      rootB = await buildTeam('团队B', team2Distribution, none);
+      snapshotBeforeSwap();
+      executeSwaps();
+      doAction(rootA, '团队A', full);
+      doAction(rootB, '团队B', full);
+      break;
 
     // ── mode5 换人前后A持续充投，B换人后充投 ───────────────────────────
-  case 'mode5':
-    printMode('A充投 | 无 → A→B, B→A → A充投 | B充投');
-    rootA = await buildTeam('团队A', team1Distribution, full);
-    rootB = await buildTeam('团队B', team2Distribution, none);
-    snapshotBeforeSwap();
-    executeSwaps();
-    doAction(rootA, '团队A', full);
-    doAction(rootB, '团队B', full);
-    break;
+    case 'mode5':
+      printMode('A充投 | 无 → A→B, B→A → A充投 | B充投');
+      rootA = await buildTeam('团队A', team1Distribution, full);
+      rootB = await buildTeam('团队B', team2Distribution, none);
+      snapshotBeforeSwap();
+      executeSwaps();
+      doAction(rootA, '团队A', full);
+      doAction(rootB, '团队B', full);
+      break;
 
     // ── mode6 换人前只充值，换人后补投注 ───────────────────────────────
-  case 'mode6':
-    printMode('A只充值 | B只充值 → A→B, B→A → A充投 | B充投');
-    rootA = await buildTeam('团队A', team1Distribution, recharge);
-    rootB = await buildTeam('团队B', team2Distribution, recharge);
-    snapshotBeforeSwap();
-    executeSwaps();
-    doAction(rootA, '团队A', full);
-    doAction(rootB, '团队B', full);
-    break;
+    case 'mode6':
+      printMode('A只充值 | B只充值 → A→B, B→A → A充投 | B充投');
+      rootA = await buildTeam('团队A', team1Distribution, recharge);
+      rootB = await buildTeam('团队B', team2Distribution, recharge);
+      snapshotBeforeSwap();
+      executeSwaps();
+      doAction(rootA, '团队A', full);
+      doAction(rootB, '团队B', full);
+      break;
 
     // ── mode7 A充投B只充，换人后B补完 ──────────────────────────────────
-  case 'mode7':
-    printMode('A充投 | B只充值 → A→B, B→A → 无 | B充投');
-    rootA = await buildTeam('团队A', team1Distribution, full);
-    rootB = await buildTeam('团队B', team2Distribution, recharge);
-    snapshotBeforeSwap();
-    executeSwaps();
-    doAction(rootB, '团队B', full);
-    break;
+    case 'mode7':
+      printMode('A充投 | B只充值 → A→B, B→A → 无 | B充投');
+      rootA = await buildTeam('团队A', team1Distribution, full);
+      rootB = await buildTeam('团队B', team2Distribution, recharge);
+      snapshotBeforeSwap();
+      executeSwaps();
+      doAction(rootB, '团队B', full);
+      break;
 
     // ── mode8 B先充投，换人后A充投（对称） ─────────────────────────────
-  case 'mode8':
-    printMode('无 | B充投 → A→B, B→A → A充投 | 无');
-    rootA = await buildTeam('团队A', team1Distribution, none);
-    rootB = await buildTeam('团队B', team2Distribution, full);
-    snapshotBeforeSwap();
-    executeSwaps();
-    doAction(rootA, '团队A', full);
-    break;
+    case 'mode8':
+      printMode('无 | B充投 → A→B, B→A → A充投 | 无');
+      rootA = await buildTeam('团队A', team1Distribution, none);
+      rootB = await buildTeam('团队B', team2Distribution, full);
+      snapshotBeforeSwap();
+      executeSwaps();
+      doAction(rootA, '团队A', full);
+      break;
 
     // ── mode9 A随机分层，换人后B随机分层 ───────────────────────────────
-  case 'mode9':
-    printMode('A(V2) | 无 → A→B, B→A → 无 | B(V2)');
-    rootA = await buildTeam('团队A', team1Distribution, v2A);
-    rootB = await buildTeam('团队B', team2Distribution, none);
-    snapshotBeforeSwap();
-    executeSwaps();
-    doAction(rootB, '团队B', v2B);
-    break;
+    case 'mode9':
+      printMode('A(V2) | 无 → A→B, B→A → 无 | B(V2)');
+      rootA = await buildTeam('团队A', team1Distribution, v2A);
+      rootB = await buildTeam('团队B', team2Distribution, none);
+      snapshotBeforeSwap();
+      executeSwaps();
+      doAction(rootB, '团队B', v2B);
+      break;
 
     // ── mode10 双方随机分层后互换 ───────────────────────────────────────
-  case 'mode10':
-    printMode('A(V2) | B(V2) → A→B, B→A → 无 | 无');
-    rootA = await buildTeam('团队A', team1Distribution, v2A);
-    rootB = await buildTeam('团队B', team2Distribution, v2B);
-    snapshotBeforeSwap();
-    executeSwaps();
-    break;
+    case 'mode10':
+      printMode('A(V2) | B(V2) → A→B, B→A → 无 | 无');
+      rootA = await buildTeam('团队A', team1Distribution, v2A);
+      rootB = await buildTeam('团队B', team2Distribution, v2B);
+      snapshotBeforeSwap();
+      executeSwaps();
+      break;
 
     // ── mode11 换人后双方随机分层 ───────────────────────────────────────
-  case 'mode11':
-    printMode('A充投 | 无 → A→B, B→A → A(V2) | B(V2)');
-    rootA = await buildTeam('团队A', team1Distribution, full);
-    rootB = await buildTeam('团队B', team2Distribution, none);
-    snapshotBeforeSwap();
-    executeSwaps();
-    doAction(rootA, '团队A', v2A);
-    doAction(rootB, '团队B', v2B);
-    break;
+    case 'mode11':
+      printMode('A充投 | 无 → A→B, B→A → A(V2) | B(V2)');
+      rootA = await buildTeam('团队A', team1Distribution, full);
+      rootB = await buildTeam('团队B', team2Distribution, none);
+      snapshotBeforeSwap();
+      executeSwaps();
+      doAction(rootA, '团队A', v2A);
+      doAction(rootB, '团队B', v2B);
+      break;
 
     // ── mode12 A随机B只充，换人后B补完 ─────────────────────────────────
-  case 'mode12':
-    printMode('A(V2) | B只充值 → A→B, B→A → 无 | B充投');
-    rootA = await buildTeam('团队A', team1Distribution, v2A);
-    rootB = await buildTeam('团队B', team2Distribution, recharge);
-    snapshotBeforeSwap();
-    executeSwaps();
-    doAction(rootB, '团队B', full);
-    break;
+    case 'mode12':
+      printMode('A(V2) | B只充值 → A→B, B→A → 无 | B充投');
+      rootA = await buildTeam('团队A', team1Distribution, v2A);
+      rootB = await buildTeam('团队B', team2Distribution, recharge);
+      snapshotBeforeSwap();
+      executeSwaps();
+      doAction(rootB, '团队B', full);
+      break;
 
     // ── mode13 A只充B随机，换人后A补完 ─────────────────────────────────
-  case 'mode13':
-    printMode('A只充值 | B(V2) → A→B, B→A → A充投 | 无');
-    rootA = await buildTeam('团队A', team1Distribution, recharge);
-    rootB = await buildTeam('团队B', team2Distribution, v2B);
-    snapshotBeforeSwap();
-    executeSwaps();
-    doAction(rootA, '团队A', full);
-    break;
+    case 'mode13':
+      printMode('A只充值 | B(V2) → A→B, B→A → A充投 | 无');
+      rootA = await buildTeam('团队A', team1Distribution, recharge);
+      rootB = await buildTeam('团队B', team2Distribution, v2B);
+      snapshotBeforeSwap();
+      executeSwaps();
+      doAction(rootA, '团队A', full);
+      break;
 
     // ── mode14 全程随机，最大不确定性 ───────────────────────────────────
-  case 'mode14':
-    printMode('A(V2) | B(V2) → A→B, B→A → A(V2) | B(V2)');
-    rootA = await buildTeam('团队A', team1Distribution, v2A);
-    rootB = await buildTeam('团队B', team2Distribution, v2B);
-    snapshotBeforeSwap();
-    executeSwaps();
-    doAction(rootA, '团队A', v2A);
-    doAction(rootB, '团队B', v2B);
-    break;
+    case 'mode14':
+      printMode('A(V2) | B(V2) → A→B, B→A → A(V2) | B(V2)');
+      rootA = await buildTeam('团队A', team1Distribution, v2A);
+      rootB = await buildTeam('团队B', team2Distribution, v2B);
+      snapshotBeforeSwap();
+      executeSwaps();
+      doAction(rootA, '团队A', v2A);
+      doAction(rootB, '团队B', v2B);
+      break;
 
     // ── mode15 A确定B随机交叉 ───────────────────────────────────────────
-  case 'mode15':
-    printMode('A充投 | B(V2) → A→B, B→A → A(V2) | B充投');
-    rootA = await buildTeam('团队A', team1Distribution, full);
-    rootB = await buildTeam('团队B', team2Distribution, v2B);
-    snapshotBeforeSwap();
-    executeSwaps();
-    doAction(rootA, '团队A', v2A);
-    doAction(rootB, '团队B', full);
-    break;
+    case 'mode15':
+      printMode('A充投 | B(V2) → A→B, B→A → A(V2) | B充投');
+      rootA = await buildTeam('团队A', team1Distribution, full);
+      rootB = await buildTeam('团队B', team2Distribution, v2B);
+      snapshotBeforeSwap();
+      executeSwaps();
+      doAction(rootA, '团队A', v2A);
+      doAction(rootB, '团队B', full);
+      break;
 
     // ── mode16 与 mode15 对称 ────────────────────────────────────────────
-  case 'mode16':
-    printMode('A(V2) | B充投 → A→B, B→A → A充投 | B(V2)');
-    rootA = await buildTeam('团队A', team1Distribution, v2A);
-    rootB = await buildTeam('团队B', team2Distribution, full);
-    snapshotBeforeSwap();
-    executeSwaps();
-    doAction(rootA, '团队A', full);
-    doAction(rootB, '团队B', v2B);
-    break;
+    case 'mode16':
+      printMode('A(V2) | B充投 → A→B, B→A → A充投 | B(V2)');
+      rootA = await buildTeam('团队A', team1Distribution, v2A);
+      rootB = await buildTeam('团队B', team2Distribution, full);
+      snapshotBeforeSwap();
+      executeSwaps();
+      doAction(rootA, '团队A', full);
+      doAction(rootB, '团队B', v2B);
+      break;
 
     // ── mode17 A充投，B无操作，互换后双方都不操作 ───────────────────────
-  case 'mode17':
-    printMode('A充投 | 无 → A→B, B→A → 无 | 无');
-    rootA = await buildTeam('团队A', team1Distribution, full);
-    rootB = await buildTeam('团队B', team2Distribution, none);
-    snapshotBeforeSwap();
-    executeSwaps();
-    break;
+    case 'mode17':
+      printMode('A充投 | 无 → A→B, B→A → 无 | 无');
+      rootA = await buildTeam('团队A', team1Distribution, full);
+      rootB = await buildTeam('团队B', team2Distribution, none);
+      snapshotBeforeSwap();
+      executeSwaps();
+      break;
 
-  default:
-    console.error(`❌ 未知 REBATE_MODE: ${rebateMode}，支持 mode1~mode17`);
-    return;
+    default:
+      console.error(`❌ 未知 REBATE_MODE: ${rebateMode}，支持 mode1~mode17`);
+      return;
   }
 
   // ========== 完成摘要 ==========

@@ -96,8 +96,11 @@ export default function (data) {
     if (tenantId !== '3004') Object.assign(ENV_CONFIG, envConfig);
     const adminData = { token: adminToken, envConfig };
     
-    let myTotalUsers = Math.floor(totalTarget / totalVUs);
-    if (vuId === totalVUs) myTotalUsers += (totalTarget % totalVUs);
+    // 平均分片：前 (totalTarget % totalVUs) 个 VU 各多处理1人，确保总和严格等于 totalTarget
+    const base = Math.floor(totalTarget / totalVUs);
+    const extra = totalTarget % totalVUs;
+    // vuId 从 1 开始，前 extra 个 VU 多得 1 人
+    const myTotalUsers = vuId <= extra ? base + 1 : base;
     
     const levelDistribution = distributePeople(myTotalUsers, levels);
     const inviteCodesByLevel = Array.from({ length: levels }, () => []);

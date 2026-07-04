@@ -232,8 +232,8 @@ function tryRegister(account, accountType, parentInviteCode, adminData) {
         const countryCode = ENV_CONFIG.COUNTRY_CODE || '91';
 
         if (accountType === 'phone') {
-            // 尝试手机号注册（传递区号）
-            response = phoneRegisterByInvite(account, parentInviteCode, adminData, 'qwer1234', '', customUrls, countryCode);
+            // 尝试手机号注册（不再传递区号作为 deviceOverride）
+            response = phoneRegisterByInvite(account, parentInviteCode, adminData, 'qwer1234', '', customUrls);
         } else {
             // 尝试邮箱注册
             response = emailRegisterByInvite(account, parentInviteCode, adminData, 'qwer1234', '', customUrls);

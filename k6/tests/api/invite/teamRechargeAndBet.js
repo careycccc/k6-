@@ -391,7 +391,10 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
         rebateChance     = 0.2,
         withdrawChance   = 0,     // 提现触发几率
         delayMs          = 1000,
-        isL3             = false  // 是否为L3级代理
+        isL3             = false, // 是否为L3级代理
+        vuId             = 1,     // 当前VU ID
+        vuCount          = 1,     // 启用的VU总数
+        prefetchedUserIds = null  // 在 setup 阶段预取的 userId 列表
     } = options;
 
     // 活跃比例 = 剩余
@@ -407,19 +410,40 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
     console.log(`${'='.repeat(60)}\n`);
 
     // 步骤1: 查询所有上下级
-    console.log(`📋 步骤1: 查询所有${isL3 ? '下级' : '上下级'}...`);
     let userIds = [];
-    if (isL3) {
-        userIds = getL3AllRelatedUserIds(adminData.token, targetUserId);
+    if (prefetchedUserIds && prefetchedUserIds.length > 0) {
+        console.log(`📋 步骤1: 使用多线程预加载的${isL3 ? '下级' : '上下级'}数据...`);
+        userIds = prefetchedUserIds;
     } else {
-        userIds = getAllRelatedUserIds(adminData.token, targetUserId);
+        console.log(`📋 步骤1: 查询所有${isL3 ? '下级' : '上下级'}...`);
+        if (isL3) {
+            userIds = getL3AllRelatedUserIds(adminData.token, targetUserId);
+        } else {
+            userIds = getAllRelatedUserIds(adminData.token, targetUserId);
+        }
     }
 
     if (userIds.length === 0) {
         console.error(`❌ 未找到任何相关用户`);
         return { total: 0, inactive: 0, rechargeOnly: 0, active: 0, rechargeSuccess: 0, betSuccess: 0 };
     }
-    console.log(`✅ 找到 ${userIds.length} 个相关用户\n`);
+    console.log(`✅ 找到总计 ${userIds.length} 个相关用户\n`);
+
+    // 多线程分配任务
+    if (vuCount > 1) {
+        const total = userIds.length;
+        const chunkSize = Math.ceil(total / vuCount);
+        const startIndex = (vuId - 1) * chunkSize;
+        const endIndex = startIndex + chunkSize;
+        userIds = userIds.slice(startIndex, endIndex);
+        
+        console.log(`[VU ${vuId}/${vuCount}] 多线程分发: 本线程分配到 ${userIds.length} 个用户 (从第 ${startIndex + 1} 个到第 ${Math.min(endIndex, total)} 个)`);
+        
+        if (userIds.length === 0) {
+            console.log(`[VU ${vuId}/${vuCount}] ⚠️ 本线程未分配到任何用户，提前结束。\n`);
+            return { total: 0, inactive: 0, rechargeOnly: 0, active: 0, rechargeSuccess: 0, betSuccess: 0 };
+        }
+    }
 
     // 步骤2: 按概率分组
     console.log(`📋 步骤2: 按概率分组...`);
