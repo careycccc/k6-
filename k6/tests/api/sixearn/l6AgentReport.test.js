@@ -6,7 +6,7 @@ import { AdminLogin } from '../login/adminlogin.test.js';
 import { sleep } from 'k6';
 
 /***
- * k6 run -e TENANT_ID=3007 -e UID=111922 l6AgentReport.test.js
+ * k6 run -e TENANT_ID=3007 -e UID=112066 l6AgentReport.test.js
  */
 
 // ============================================================
@@ -20,7 +20,8 @@ const REBATE_BASE = 'valid';
 
 // 获取目标日期范围
 function getTargetDateRange() {
-    const envDate = __ENV.START_DATE; // e.g., "2026-07-03"
+    const envDate = __ENV.START_DATE; // e.g., "2026-07-03"   
+    //const envDate = "2026-07-05";  // 这个是手动的指定日期，记住这里的日期，如果你要查询7.4的返佣就要输入7.5
     let targetDate;
     if (envDate) {
         const parts = envDate.split('-');
