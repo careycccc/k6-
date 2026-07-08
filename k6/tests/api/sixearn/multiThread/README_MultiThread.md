@@ -52,6 +52,10 @@ node runner.js
 | `TEAM1_LEVELS`| 团队A 的最大层级深度 | `3` |
 | `TEAM2_TOTAL` | 团队B 的总生成人数 | `10` |
 | `TEAM2_LEVELS`| 团队B 的最大层级深度 | `3` |
+| `INACTIVE_RATE` | V2模式：不活跃人群比例（啥都不干） | `0.1` |
+| `RECHARGE_ONLY_RATE` | V2模式：只充值人群比例（不投注） | `0.1` |
+
+> V2 模式充投(充值+投注)人群 = 1 − `INACTIVE_RATE` − `RECHARGE_ONLY_RATE`（剩余项，默认 80%），无独立配置项。
 
 ---
 
@@ -87,7 +91,9 @@ case 'my_custom_mode':
 - `runAction(teamName, mode)`: 触发多线程并行充投。其中 mode 可以是：
   - `full` : 全员必充值且投注
   - `recharge` : 全员只充值，不投注
-  - `v2Mode` : 开启三段式随机（20%不活跃，20%只充值，60%充投）
+  - `v2Mode` : 三段式随机人群划分，比例由 `INACTIVE_RATE` / `RECHARGE_ONLY_RATE` 控制。
+    **充投(充值+投注)是剩余项** = 1 − 不活跃 − 只充值。
+    代码默认 `0.1 / 0.1` → **10%不活跃 + 10%只充值 + 80%充投**（如需 60%充投则设两者均为 0.2）
   - `none` : 内部逻辑直接跳过不执行
 
 ---

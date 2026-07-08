@@ -10,7 +10,7 @@
  *   5. 打印转正的手机号，供人工核验
  *
  * 运行方式：
- *   k6 run -e TENANT=3004 guestToMember.test.js
+ *   k6 run -e TENANT=3101 guestToMember.test.js
  *
  * 参数说明：
  *   TENANT   租户 ID（默认 3004）
@@ -30,9 +30,15 @@ const TENANT_ID = __ENV.TENANT || __ENV.TENANT_ID || '3004';
 
 // 3004 的游客注册参数（与 3007 不同）
 const GUEST_CONFIG_3004 = {
-    packageName:   'com.ar3004.fb.app',
+    packageName: 'com.ar3004.fb.app',
     eventConfigId: 100064,
-    eventType:     99
+    eventType: 99
+};
+
+const GUEST_CONFIG_3101 = {
+    packageName: 'com.ar3101.fb.app',
+    eventConfigId: 100064,
+    eventType: 99
 };
 
 const TAG = 'GuestToMember';
@@ -44,9 +50,9 @@ const TAG = 'GuestToMember';
 export const options = {
     scenarios: {
         guest_to_member: {
-            executor:    'per-vu-iterations',
-            vus:         1,
-            iterations:  1,
+            executor: 'per-vu-iterations',
+            vus: 1,
+            iterations: 1,
             maxDuration: '5m'
         }
     }
@@ -63,6 +69,9 @@ export const options = {
 function getGuestConfig(tenantId) {
     if (String(tenantId) === '3004') {
         return GUEST_CONFIG_3004;
+    }
+    if (String(tenantId) === '3101') {
+        return GUEST_CONFIG_3101;
     }
     // 其他租户使用 guestRegister 自身的默认参数（3007）
     return {};
@@ -90,7 +99,7 @@ function randomPhone(tenantId) {
  */
 function frontRequest(api, payload, guestToken) {
     return tenantRequest(api, payload, {
-        token:  guestToken,
+        token: guestToken,
         isDesk: true
     });
 }
@@ -177,8 +186,8 @@ export default function (data) {
 
     const bindRes = frontRequest('/api/User/BindPhone', {
         phoneOrEmail: phone,
-        code:         verifyCode,
-        password:     ''
+        code: verifyCode,
+        password: ''
     }, guestToken);
 
     if (!bindRes || bindRes.msgCode !== 0) {

@@ -10,7 +10,14 @@ const team2Levels = process.env.TEAM2_LEVELS || '8';    // 团队2总层级
 const rebateMode = process.env.REBATE_MODE || 'mode9';  // 返佣模式
 
 const globalInactive = parseFloat(process.env.INACTIVE_RATE || '0.1');    // V2 不活跃比例（全局）
-const globalRechargeOnly = parseFloat(process.env.RECHARGE_ONLY_RATE || '0.1'); //  V2 只充值比例（全局
+const globalRechargeOnly = parseFloat(process.env.RECHARGE_ONLY_RATE || '0.1'); //  V2 只充值比例（全局）
+// 注意：这两个是"少数派"比例；充投(充值+投注)= 剩余项 = 1 - 不活跃 - 只充值。
+// 默认 0.1/0.1 → 10%不活跃 + 10%只充值 + 80%充投。想多充投就把这两个调小(都设0=全员充投)。
+
+// 充投(step3)并发 VU 数：登录+充值+投注每人一长串接口，后端限流(msgCode13)极敏感。
+// 并发过高(原来最高50)会把登录/充值/投注大面积打回 → 大多数人卡住、"充投"不成(只剩~10%)。
+// rate limit 按 IP 全局，调高并不提速、反而更多失败，所以默认压到 4。
+const actionVus = parseInt(process.env.ACTION_VUS || '4');
 
 console.log(`\n🚀 开始运行多线程返佣模式测试: ${rebateMode} (租户: ${tenantId})`);
 
@@ -91,10 +98,12 @@ function runSwap(fromTeam, toTeam) {
 function runAction(teamName, options) {
     // @ts-ignore
     const rootId = roots[teamName].rootId;
+    // 修复：按队伍取对应总人数（原来两队都误用 team1Total）
+    const teamTotal = teamName === 'TeamB' ? team2Total : team1Total;
     runK6('step3_action.js', {
         TEAM_NAME: teamName,
         ROOT_ID: rootId,
-        VUS: Math.min(parseInt(team1Total), 50),
+        VUS: Math.min(parseInt(teamTotal), actionVus), // 降并发，避免限流导致充投不成
         INACTIVE_RATE: options.inactiveRate || 0,
         RECHARGE_ONLY_RATE: options.rechargeOnlyRate || 0
     });
@@ -178,6 +187,7 @@ async function main() {
 
 main();
 
-
-
-// 这个脚本还有问题，需要新的ai进行改进，邀请下级的人数和层级不对
+// 【已修复 2026-07-08】"人数/层级不对(如130只建出60)"的根因：注册接口有 msgCode=13 "Too frequent"
+// 限流，step1 原实现失败即丢人且不重试(成功日志还被注释)，并发下大量注册被静默丢弃，同时压平层级。
+// 修复：step1_register.js 对根/下级注册与取邀请码均加限流退避重试，按名额重试直到建成，
+// 并打印 [BUILD_RESULT] 目标 vs 实建 对账。若仍见"丢失>0"，调大 -e MAX_REG_ATTEMPTS 或降低 VUS。

@@ -6,7 +6,7 @@ import { AdminLogin } from '../login/adminlogin.test.js';
 import { sleep } from 'k6';
 
 /***
- * k6 run -e TENANT_ID=3007 -e UID=112066 l6AgentReport.test.js
+ * k6 run -e TENANT_ID=3101 -e UID=112675 l6AgentReport.test.js
  */
 
 // ============================================================
@@ -189,12 +189,12 @@ function computeNormalEarnLevel(stats, rebateLevelList) {
     const sorted = [...rebateLevelList].sort((a, b) => b.rebateLevel - a.rebateLevel);
     for (const cfg of sorted) {
         if (
-            stats.teamRechargeCount    >= cfg.childrenRechargeCount &&
-            stats.teamRechargeAmount   >= cfg.childrenRechargeAmount &&
-            stats.teamValidBet         >= cfg.childrenLotteryAmount &&
-            stats.directRechargeCount  >= cfg.directChildrenRechargeCount &&
+            stats.teamRechargeCount >= cfg.childrenRechargeCount &&
+            stats.teamRechargeAmount >= cfg.childrenRechargeAmount &&
+            stats.teamValidBet >= cfg.childrenLotteryAmount &&
+            stats.directRechargeCount >= cfg.directChildrenRechargeCount &&
             stats.directRechargeAmount >= cfg.directChildrenRechargeAmount &&
-            stats.directValidBet       >= cfg.directChildrenValidAmount
+            stats.directValidBet >= cfg.directChildrenValidAmount
         ) {
             return cfg.rebateLevel;
         }

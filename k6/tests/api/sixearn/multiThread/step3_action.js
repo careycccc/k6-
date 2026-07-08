@@ -71,6 +71,10 @@ export default function (data) {
         }
     }
     
+    // 人群三段式划分对账：不活跃 / 只充值 / 充投(充值+投注)。充投=剩余项。
+    const inactiveCount = myIds.length - rechargeOnlyIds.length - activeIds.length;
+    console.log(`[VU-${vuId+1}] ${__ENV.TEAM_NAME} 人群划分(本VU ${myIds.length}人): 不活跃=${inactiveCount} | 只充值=${rechargeOnlyIds.length} | 充投=${activeIds.length}  (配置比例 不活跃=${inactiveRate}/只充值=${rechargeOnlyRate}/充投=${(1 - inactiveRate - rechargeOnlyRate).toFixed(2)})`);
+
     const processIds = [...rechargeOnlyIds, ...activeIds];
     if (processIds.length === 0) {
         console.log(`[VU-${vuId+1}] 所有用户都是不活跃，跳过`);
@@ -79,23 +83,24 @@ export default function (data) {
     
     // 步骤2：批量获取账号并自动登录充投
     // 每次查 50 个避免批量查接口卡死
+    let loginFail = 0, rechargeOk = 0, rechargeFail = 0, betOk = 0, betFail = 0;
     for (let j = 0; j < processIds.length; j += 50) {
         const batchIds = processIds.slice(j, j + 50);
         const accounts = batchGetUserAccounts(adminData.token, batchIds, 500);
-        
+
         const rechargeOnlySet = new Set(rechargeOnlyIds.map(String));
-        
+
         for (const acc of accounts) {
             const token = autoLoginByAccount(acc.account, adminData.token);
-            if (!token) continue;
-            
+            if (!token) { loginFail++; continue; }
+
             const isRechargeOnly = rechargeOnlySet.has(String(acc.userId));
-            
+
             // 充值 (模拟随机双充)
             const randCount = Math.random();
             const rc = randCount < 0.6 ? 1 : randCount < 0.9 ? 2 : 3;
             let success = false;
-            
+
             for (let i = 0; i < rc; i++) {
                 if (i > 0) sleep(1);
                 const amt = getConfigRechargeAmount();
@@ -104,14 +109,17 @@ export default function (data) {
                 });
                 if (res.success) success = true;
             }
-            
-            // 投注
-            if (success && !isRechargeOnly) {
+            if (success) { rechargeOk++; } else { rechargeFail++; continue; } // 充值都失败就没法投注
+
+            // 投注（充投人群才投）
+            if (!isRechargeOnly) {
                 sleep(1);
-                betRun(token, acc.account);
+                const betRes = betRun(token, acc.account);
+                if (betRes) betOk++; else betFail++;
             }
         }
     }
-    
-    console.log(`[VU-${vuId+1}] 处理完毕`);
+
+    // 处理结果对账：能看出"充投"用户到底卡在 登录/充值/投注 哪一步
+    console.log(`[VU-${vuId+1}] ${__ENV.TEAM_NAME} 处理结果: 登录失败=${loginFail} | 充值成功=${rechargeOk}(失败${rechargeFail}) | 投注成功=${betOk}(失败${betFail}) | 本VU充投目标=${activeIds.length}`);
 }

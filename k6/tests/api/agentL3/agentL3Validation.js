@@ -11,6 +11,10 @@ export const agentL3Tag = 'agentL3Validation';
 // 灵活配置：计算团队总人数和团队总投注时，是否包含总代自身？
 const INCLUDE_SELF = true;
 
+// 说明：后台 RebateList 里没有独立的"首存返佣"字段，首存返佣金额已直接并入 totalCommission。
+// 因此核对首存返佣时用「totalCommission 反推」：
+//   隐含首存返佣 = totalCommission - 充值返佣(rechargeCommission_L1) - 投注返佣(betCommission_L1+L2+L3)
+
 // ============================================================
 // ============ 日期时间工具 ==================================
 // ============================================================
@@ -88,6 +92,29 @@ function getRechargeAmount(data, userId, startTs, endTs) {
         });
     }
     return totalAmt;
+}
+
+/**
+ * 查询用户在指定日期(dateStr, 格式 YYYY-MM-DD)内的"首存(首充)"金额。
+ * 复用平台既有口径：/api/RptUserInfo/GetUserRptRechargePageList 里 rechargeType==='R1' 即首充，
+ * 金额取 actualAmount。若该用户人生第一笔充值不在此窗口内，则窗口内无 R1 记录，返回 0。
+ * @returns {number} 首存金额；无首存返回 0
+ */
+function getFirstRechargeAmount(data, userId, dateStr) {
+    const api = '/api/RptUserInfo/GetUserRptRechargePageList';
+    const payload = {
+        memberIdType: 1,
+        memberId: userId,
+        startTime: `${dateStr} 00:00:00`,
+        endTime: `${dateStr} 23:59:59`
+    };
+    let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token);
+    if (typeof result !== 'object') {
+        try { result = JSON.parse(result); } catch (e) { return 0; }
+    }
+    const list = (result && result.list) ? result.list : [];
+    const r1 = list.find(r => r.rechargeType === 'R1');
+    return r1 ? (parseFloat(r1.actualAmount || r1.rechargeAmount || 0) || 0) : 0;
 }
 
 /**
@@ -393,6 +420,7 @@ export function runAgentL3Validation(data, targetUid) {
     }
 
     let finalRechargeRebate = 0;
+    let finalFirstRechargeRebate = 0; // 新增：直属下级(L1)首存返佣
     let finalBetRebateL1 = 0;
     let finalBetRebateL2 = 0;
     let finalBetRebateL3 = 0;
@@ -439,8 +467,22 @@ export function runAgentL3Validation(data, targetUid) {
         // 计算返佣
         const rateRecharge = Number(finalLevelConfig.teamRechargeRewardRate) / 100;
         const rateBet = finalLevelConfig.teamBetRewardRate;
+        // 新增：直属下级首存比例（该等级配置里的 teamFirstTopRechargeRewardRate）
+        const rateFirstRecharge = (Number(finalLevelConfig.teamFirstTopRechargeRewardRate) || 0) / 100;
+
+        // 仅当该等级首存比例 > 0 时才逐个查询 L1 昨日首存(R1)，避免无谓接口调用
+        if (rateFirstRecharge > 0) {
+            console.log(`   ► 该等级直属下级首存比例=${finalLevelConfig.teamFirstTopRechargeRewardRate}%，查询直属下级(L1)昨日首存(R1)...`);
+            enrichedMembers.forEach(m => {
+                if (m.relHier === 1) {
+                    m.firstRechargeYd = getFirstRechargeAmount(data, m.userId, timeRange.yesterday.dateStr);
+                    sleep(0.3);
+                }
+            });
+        }
 
         let totalRechargeRebate = 0;
+        let totalFirstRechargeRebate = 0; // 新增：首存返佣累计
         let totalBetRebate = { L1: 0, L2: 0, L3: 0, electronic: 0, video: 0, sports: 0, lottery: 0, chessCard: 0 };
 
         console.log(`\n   ► 团队成员明细 (昨日数据):`);
@@ -452,11 +494,19 @@ export function runAgentL3Validation(data, targetUid) {
         enrichedMembers.forEach(m => {
             if (m.relHier === 0) return; // 自己不给自己返
 
-            // ============== 充值返佣 (仅 L1) ============== 
+            // ============== 充值返佣 (仅 L1) ==============
             let myRechargeRebate = 0;
             if (m.relHier === 1) {
                 myRechargeRebate = m.yesterday.recharge * rateRecharge;
                 totalRechargeRebate += myRechargeRebate;
+            }
+
+            // ============== 首存返佣 (仅 L1 直属下级) ==============
+            // 直属下级昨日首存(R1)金额 × 该等级首存比例
+            let myFirstRechargeRebate = 0;
+            if (m.relHier === 1 && rateFirstRecharge > 0) {
+                myFirstRechargeRebate = (m.firstRechargeYd || 0) * rateFirstRecharge;
+                totalFirstRechargeRebate += myFirstRechargeRebate;
             }
 
             // 这里恢复按有效投注额计算（最新用户要求）
@@ -513,20 +563,24 @@ export function runAgentL3Validation(data, targetUid) {
         const realSumBet = totalBetRebate.L1 + totalBetRebate.L2 + totalBetRebate.L3;
 
         finalRechargeRebate = totalRechargeRebate;
+        finalFirstRechargeRebate = totalFirstRechargeRebate;
         finalBetRebateL1 = totalBetRebate.L1;
         finalBetRebateL2 = totalBetRebate.L2;
         finalBetRebateL3 = totalBetRebate.L3;
         finalSumBet = realSumBet;
         calculatedTeamLevel = finalLevelConfig.teamLevel;
 
-        console.log(`\n   ► 团队返佣合计: ${(totalRechargeRebate + realSumBet).toFixed(4)} 元`);
-        console.log(`      └─ 首充返佣 (仅L1): ${totalRechargeRebate.toFixed(4)}`);
+        console.log(`\n   ► 团队返佣合计: ${(totalRechargeRebate + realSumBet + totalFirstRechargeRebate).toFixed(4)} 元`);
+        console.log(`      └─ 充值返佣 (仅L1): ${totalRechargeRebate.toFixed(4)}`);
+        if (rateFirstRecharge > 0 || totalFirstRechargeRebate > 0) {
+            console.log(`      └─ 首存返佣 (仅L1直属下级, 首存×${finalLevelConfig.teamFirstTopRechargeRewardRate}%): ${totalFirstRechargeRebate.toFixed(4)}`);
+        }
         console.log(`      └─ 投注返佣 : L1=${totalBetRebate.L1.toFixed(4)}, L2=${totalBetRebate.L2.toFixed(4)}, L3=${totalBetRebate.L3.toFixed(4)}`);
 
-        let totalBonusStr = myInvitedReward > 0 
-            ? "邀请成功奖金+邀请任务奖金+被邀请奖金+团队返佣" 
+        let totalBonusStr = myInvitedReward > 0
+            ? "邀请成功奖金+邀请任务奖金+被邀请奖金+团队返佣"
             : "邀请成功奖金+邀请任务奖金+团队返佣";
-        console.log(`\n   💰 今日最终可领取(${totalBonusStr}) 约: ${(inviteRewardYesterday + inviteRewardToday + taskRewardYesterday + taskRewardToday + totalRechargeRebate + realSumBet + myInvitedReward).toFixed(4)} 元`);
+        console.log(`\n   💰 今日最终可领取(${totalBonusStr}) 约: ${(inviteRewardYesterday + inviteRewardToday + taskRewardYesterday + taskRewardToday + totalRechargeRebate + realSumBet + totalFirstRechargeRebate + myInvitedReward).toFixed(4)} 元`);
         console.log(`${'='.repeat(70)}\n`);
     }
 
@@ -610,12 +664,20 @@ export function runAgentL3Validation(data, targetUid) {
     }
     
     if (rebateRes && rebateRes.list && rebateRes.list.length > 0) {
-        const item = rebateRes.list[0];
-        checkTolerance('首充返佣 (L1)', item.rechargeCommission_L1, finalRechargeRebate);
+        // 取本总代自己的返佣记录（按 userId 匹配，找不到再退回第一条）
+        const item = rebateRes.list.find(r => Number(r.userId) === rootId) || rebateRes.list[0];
+        checkTolerance('充值返佣 (L1)', item.rechargeCommission_L1, finalRechargeRebate);
         checkTolerance('一级投注返佣 (L1)', item.betCommission_L1, finalBetRebateL1);
         checkTolerance('二级投注返佣 (L2)', item.betCommission_L2, finalBetRebateL2);
         checkTolerance('三级投注返佣 (L3)', item.betCommission_L3, finalBetRebateL3);
-        checkTolerance('团队总返佣合计', item.totalCommission, finalRechargeRebate + finalSumBet);
+        // 首存返佣：后台无独立字段，已并入 totalCommission，这里用 totalCommission 反推后单独核对
+        const backendFirstRecharge = Number(item.totalCommission || 0)
+            - Number(item.rechargeCommission_L1 || 0)
+            - Number(item.betCommission_L1 || 0)
+            - Number(item.betCommission_L2 || 0)
+            - Number(item.betCommission_L3 || 0);
+        checkTolerance('首存返佣 (L1, 由totalCommission反推)', backendFirstRecharge, finalFirstRechargeRebate);
+        checkTolerance('团队总返佣合计', item.totalCommission, finalRechargeRebate + finalSumBet + finalFirstRechargeRebate);
     } else {
         console.log(`   ⚠️ 未能查到昨日(${timeRange.yesterday.dateStr}) 的 RebateList 返佣明细记录！`);
     }
@@ -873,7 +935,7 @@ export function runAgentL3ValidationWithOriginalTeam(data, targetUid, originalL1
         }
     }
 
-    let finalRechargeRebate = 0, finalBetRebateL1 = 0, finalBetRebateL2 = 0, finalBetRebateL3 = 0, finalSumBet = 0;
+    let finalRechargeRebate = 0, finalFirstRechargeRebate = 0, finalBetRebateL1 = 0, finalBetRebateL2 = 0, finalBetRebateL3 = 0, finalSumBet = 0;
     let calculatedTeamLevel = 0;
 
     if (!finalLevelConfig) {
@@ -884,7 +946,15 @@ export function runAgentL3ValidationWithOriginalTeam(data, targetUid, originalL1
 
         const rateRecharge = Number(finalLevelConfig.teamRechargeRewardRate) / 100;
         const rateBet      = finalLevelConfig.teamBetRewardRate;
+        const rateFirstRecharge = (Number(finalLevelConfig.teamFirstTopRechargeRewardRate) || 0) / 100;
         const totalBetRebate = { L1: 0, L2: 0, L3: 0 };
+
+        // 仅当该等级首存比例 > 0 时才查 L1 昨日首存(R1)
+        if (rateFirstRecharge > 0) {
+            enrichedMembers.forEach(m => {
+                if (m.relHier === 1) { m.firstRechargeYd = getFirstRechargeAmount(data, m.userId, timeRange.yesterday.dateStr); sleep(0.3); }
+            });
+        }
 
         enrichedMembers.forEach(m => {
             if (m.relHier === 0) return;
@@ -892,6 +962,10 @@ export function runAgentL3ValidationWithOriginalTeam(data, targetUid, originalL1
             if (m.relHier === 1) {
                 myRechargeRebate = m.yesterday.recharge * rateRecharge;
                 finalRechargeRebate += myRechargeRebate;
+            }
+            // 新增：直属下级(L1)首存返佣
+            if (m.relHier === 1 && rateFirstRecharge > 0) {
+                finalFirstRechargeRebate += (m.firstRechargeYd || 0) * rateFirstRecharge;
             }
             const b  = m.yesterday.bet.categories;
             const hl = `teamBetRewardRate_L${m.relHier}`;
@@ -912,12 +986,15 @@ export function runAgentL3ValidationWithOriginalTeam(data, targetUid, originalL1
         finalBetRebateL3 = totalBetRebate.L3;
         finalSumBet      = totalBetRebate.L1 + totalBetRebate.L2 + totalBetRebate.L3;
 
-        console.log(`   ► 团队返佣合计: ${(finalRechargeRebate + finalSumBet).toFixed(4)} 元`);
-        console.log(`      └─ 首充返佣(L1): ${finalRechargeRebate.toFixed(4)}`);
+        console.log(`   ► 团队返佣合计: ${(finalRechargeRebate + finalSumBet + finalFirstRechargeRebate).toFixed(4)} 元`);
+        console.log(`      └─ 充值返佣(L1): ${finalRechargeRebate.toFixed(4)}`);
+        if (rateFirstRecharge > 0 || finalFirstRechargeRebate > 0) {
+            console.log(`      └─ 首存返佣(L1直属下级, 首存×${finalLevelConfig.teamFirstTopRechargeRewardRate}%): ${finalFirstRechargeRebate.toFixed(4)}`);
+        }
         console.log(`      └─ 投注返佣: L1=${finalBetRebateL1.toFixed(4)}, L2=${finalBetRebateL2.toFixed(4)}, L3=${finalBetRebateL3.toFixed(4)}`);
     }
 
-    const grandTotal = totalTaskReward + finalRechargeRebate + finalSumBet;
+    const grandTotal = totalTaskReward + finalRechargeRebate + finalSumBet + finalFirstRechargeRebate;
     console.log(`\n   💰 最终可领取合计: ${grandTotal.toFixed(4)} 元`);
     console.log(`${'='.repeat(70)}\n`);
 
@@ -961,13 +1038,20 @@ export function runAgentL3ValidationWithOriginalTeam(data, targetUid, originalL1
     if (typeof rebateRes !== 'object') { try { rebateRes = JSON.parse(rebateRes); } catch(e) {} }
 
     if (rebateRes && rebateRes.list && rebateRes.list.length > 0) {
-        const item = rebateRes.list[0];
+        const item = rebateRes.list.find(r => Number(r.userId) === rootId) || rebateRes.list[0];
         console.log(`\n   ► 验证昨日 RebateList (${timeRange.yesterday.dateStr}):`);
-        checkTolerance('首充返佣(L1)', item.rechargeCommission_L1, finalRechargeRebate);
+        checkTolerance('充值返佣(L1)', item.rechargeCommission_L1, finalRechargeRebate);
         checkTolerance('一级投注返佣(L1)', item.betCommission_L1, finalBetRebateL1);
         checkTolerance('二级投注返佣(L2)', item.betCommission_L2, finalBetRebateL2);
         checkTolerance('三级投注返佣(L3)', item.betCommission_L3, finalBetRebateL3);
-        checkTolerance('团队总返佣', item.totalCommission, finalRechargeRebate + finalSumBet);
+        // 首存返佣：后台无独立字段，已并入 totalCommission，用 totalCommission 反推核对
+        const backendFirstRecharge = Number(item.totalCommission || 0)
+            - Number(item.rechargeCommission_L1 || 0)
+            - Number(item.betCommission_L1 || 0)
+            - Number(item.betCommission_L2 || 0)
+            - Number(item.betCommission_L3 || 0);
+        checkTolerance('首存返佣(L1, 由totalCommission反推)', backendFirstRecharge, finalFirstRechargeRebate);
+        checkTolerance('团队总返佣', item.totalCommission, finalRechargeRebate + finalSumBet + finalFirstRechargeRebate);
     } else {
         console.log(`   ⚠️ 未能查到昨日 RebateList 数据`);
     }

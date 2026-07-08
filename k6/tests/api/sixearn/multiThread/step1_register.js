@@ -54,6 +54,39 @@ function randomPick(pool) {
     return pool[Math.floor(Math.random() * pool.length)];
 }
 
+// 注册/取邀请码的重试上限（可用 -e 覆盖）
+const MAX_REG_ATTEMPTS = parseInt(__ENV.MAX_REG_ATTEMPTS || '8', 10);
+const MAX_INFO_ATTEMPTS = parseInt(__ENV.MAX_INFO_ATTEMPTS || '4', 10);
+
+/**
+ * 注册单个下级；遇限流(msgCode=13 "Too frequent")或其它失败自动退避重试，直到成功或达上限。
+ * 每次重试换新手机号，避免偶发号码冲突。
+ * 这是修复"130人只建出60人"的核心：原实现失败即丢人且不重试。
+ * @returns {{token: string}|null} 成功返回 token，彻底失败返回 null
+ */
+function registerOneWithRetry(parentCode, adminData, envConfig, customUrls) {
+    for (let attempt = 1; attempt <= MAX_REG_ATTEMPTS; attempt++) {
+        const phone = generateRandomPhone(envConfig.COUNTRY_CODE || '91');
+        const res = phoneRegisterByInvite(phone, parentCode, adminData, 'qwer1234', '', customUrls);
+        const token = extractToken(res);
+        if (res && res.data && token) return { token };
+        // 失败（绝大多数是限流）→ 指数退避 + 抖动，给限流窗口让路
+        const backoff = Math.min(0.8 * Math.pow(1.7, attempt - 1), 10) + Math.random() * 0.6;
+        sleep(backoff);
+    }
+    return null;
+}
+
+/** 取用户邀请码；失败(常因限流)退避重试，避免层级链被压平 */
+function getInviteWithRetry(token) {
+    for (let attempt = 1; attempt <= MAX_INFO_ATTEMPTS; attempt++) {
+        const info = getFrontUserInfo(token);
+        if (info && info.inviteCode) return info;
+        sleep(0.6 + Math.random() * 0.6);
+    }
+    return null;
+}
+
 export function setup() {
     const tenantId = __ENV.TENANT_ID || '3006';
     const teamName = __ENV.TEAM_NAME || 'TeamA';
@@ -63,19 +96,26 @@ export function setup() {
     if (tenantId !== '3004') Object.assign(ENV_CONFIG, envConfig);
 
     const adminData = { token: adminToken, envConfig };
-    const phone = generateRandomPhone(envConfig.COUNTRY_CODE || '91');
-    
+    let phone = generateRandomPhone(envConfig.COUNTRY_CODE || '91');
+
     const urls = { frontUrl: envConfig.BASE_DESK_URL, adminUrl: envConfig.BASE_ADMIN_URL, registerUrl: envConfig.BASE_DESK_URL };
-    
-    let res = phoneRegister(phone, adminData, 'qwer1234', '', null);
-    if (!res || !res.data) {
-        const inviteUrls = { ...urls, frontUrl: envConfig.INVITE_REGISTER_URL || envConfig.BASE_DESK_URL, registerUrl: envConfig.INVITE_REGISTER_URL || envConfig.BASE_DESK_URL };
-        res = phoneRegisterByInvite(phone, '', adminData, 'qwer1234', '', inviteUrls);
+    const inviteUrls = { ...urls, frontUrl: envConfig.INVITE_REGISTER_URL || envConfig.BASE_DESK_URL, registerUrl: envConfig.INVITE_REGISTER_URL || envConfig.BASE_DESK_URL };
+
+    // 根节点注册也带限流退避重试：根建失败会丢掉整支团队，必须稳
+    let token = null;
+    for (let attempt = 1; attempt <= MAX_REG_ATTEMPTS && !token; attempt++) {
+        let res = phoneRegister(phone, adminData, 'qwer1234', '', null);
+        if (!res || !res.data) res = phoneRegisterByInvite(phone, '', adminData, 'qwer1234', '', inviteUrls);
+        token = extractToken(res);
+        if (token) break;
+        phone = generateRandomPhone(envConfig.COUNTRY_CODE || '91'); // 换号后退避重试
+        sleep(Math.min(0.8 * Math.pow(1.7, attempt - 1), 10) + Math.random() * 0.6);
     }
-    
-    const token = extractToken(res);
+    if (!token) throw new Error(`[${teamName}] 根节点注册多次失败（疑似限流），终止本团队`);
+
     sleep(1);
-    const userInfo = getFrontUserInfo(token);
+    const userInfo = getInviteWithRetry(token) || getFrontUserInfo(token);
+    if (!userInfo || !userInfo.userId) throw new Error(`[${teamName}] 根节点用户信息获取失败`);
 
     const rootData = { rootId: userInfo.userId, rootInvite: userInfo.inviteCode };
     
@@ -111,23 +151,26 @@ export default function (data) {
         registerUrl: envConfig.INVITE_REGISTER_URL || envConfig.BASE_DESK_URL
     };
 
+    let created = 0, dropped = 0, noInvite = 0;
     for (let currentLevel = 0; currentLevel < levelDistribution.length; currentLevel++) {
         const levelCount = levelDistribution[currentLevel];
         for (let i = 0; i < levelCount; i++) {
             let parentCode = currentLevel === 0 ? rootInviteCode : randomPick(inviteCodesByLevel[currentLevel - 1]);
-            if (!parentCode && currentLevel > 0) parentCode = rootInviteCode; // 降级兜底
+            if (!parentCode) parentCode = rootInviteCode; // 降级兜底：父级还没建成时先挂到根
 
-            const phone = generateRandomPhone(envConfig.COUNTRY_CODE || '91');
-            const res = phoneRegisterByInvite(phone, parentCode, adminData, 'qwer1234', '', customUrls);
-            const token = extractToken(res);
-            
-            if (token) {
-                sleep(0.5);
-                const userInfo = getFrontUserInfo(token);
-                if (userInfo && userInfo.inviteCode) {
-                    inviteCodesByLevel[currentLevel].push(userInfo.inviteCode);
-                }
-            }
+            // 核心修复：对每个名额带退避重试，直到真正建成，保证实建人数=目标、层级链不断
+            const reg = registerOneWithRetry(parentCode, adminData, envConfig, customUrls);
+            if (!reg) { dropped++; continue; } // 超过重试上限仍失败才记为丢失
+            created++;
+
+            // 取邀请码供下一层挂靠；失败也重试，避免层级被压平
+            const userInfo = getInviteWithRetry(reg.token);
+            if (userInfo && userInfo.inviteCode) inviteCodesByLevel[currentLevel].push(userInfo.inviteCode);
+            else noInvite++;
+
+            sleep(0.3 + Math.random() * 0.4); // 轻微节流，缓解限流
         }
     }
+    // 建树结果对账：目标 vs 实建（丢失>0 说明限流仍偏紧，可调大 MAX_REG_ATTEMPTS 或降低 VUS）
+    console.log(`[BUILD_RESULT] VU=${vuId} team=${__ENV.TEAM_NAME || ''} 目标=${myTotalUsers} 实建=${created} 丢失=${dropped} 无邀请码=${noInvite}`);
 }
