@@ -5,7 +5,7 @@
  *   k6 run -e TENANT=3004 -e TARGET_USER=915155160460 withdraw.test.js
  *
  * 多账号多线程（每个账号独立 VU 并发执行）:
- *   k6 run -e TENANT=3004 -e TARGET_USERS=918048050116,918048050117,918048050118 withdraw.test.js
+ *   k6 run -e TENANT=3004 -e TARGET_USERS=918516050194,915246024319 withdraw.test.js
  *
  * 其他可选参数:
  *   -e IS_REGISTER=true               是否注册新账号（默认 false）
