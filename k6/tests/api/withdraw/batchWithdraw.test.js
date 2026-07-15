@@ -1,18 +1,19 @@
 /**
  * 批量提现测试脚本 (动态获取用户版本)
- * 
- * 提现规则：
- * - 提现1次几率100%
- * - 提现2次50%的概率
- * - 提现3次33%的概率
- * 
+ *
+ * 提现次数与概率可手动传入（WITHDRAW_COUNT_DIST）：
+ *   格式 "次数:权重,次数:权重,..."，权重会自动归一化为概率；次数可为 0 表示"不提现"。
+ *   例：-e WITHDRAW_COUNT_DIST="1:50,2:30,3:20"  → 1次50% / 2次30% / 3次20%
+ *       -e WITHDRAW_COUNT_DIST="0:20,1:80"       → 20% 不提现 / 80% 提现1次
+ *   不传时默认 "1:50,2:17,3:33"（沿用原脚本行为）。
+ *
  * 运行方式：
- * k6 run -e TENANT_ID=3004 -e FETCH_COUNT=10 k6/tests/api/withdraw/batchWithdraw.test.js
- * 
- * k6 run -e TENANT_ID=3004 -e FETCH_COUNT=15 batchWithdraw.test.js
- * 
+ * k6 run -e TENANT_ID=3004 -e FETCH_COUNT=10 batchWithdraw.test.js
+ * k6 run -e TENANT_ID=3004 -e FETCH_COUNT=15 -e WITHDRAW_COUNT_DIST="1:100,2:80,3:50,4:50" batchWithdraw.test.js
+ *
  * 参数说明：
- * FETCH_COUNT: 获取的用户数量，默认10
+ * FETCH_COUNT:          获取的用户数量，默认10
+ * WITHDRAW_COUNT_DIST:  提现次数分布(次数:权重)，默认 "1:50,2:17,3:33"
  */
 
 import { sleep } from 'k6';
@@ -33,6 +34,49 @@ import {
 const FETCH_COUNT = __ENV.FETCH_COUNT ? parseInt(__ENV.FETCH_COUNT) : 10;
 const tenantId = __ENV.TENANT_ID || '3004';
 
+// 提现次数分布：WITHDRAW_COUNT_DIST="次数:权重,..."（权重自动归一化为概率；次数可为0=不提现）
+// 默认 "1:50,2:17,3:33" 沿用原脚本行为（1次50% / 2次17% / 3次33%）
+const WITHDRAW_COUNT_DIST_RAW = __ENV.WITHDRAW_COUNT_DIST || '1:50,2:17,3:33';
+
+/**
+ * 解析 "次数:权重,..." → 累积概率分布 [{count, prob, cum}]
+ */
+function parseWithdrawDist(raw) {
+    const items = [];
+    for (const pair of String(raw).split(',')) {
+        const kv = pair.split(':');
+        const count = parseInt((kv[0] || '').trim(), 10);
+        const weight = parseFloat((kv[1] || '').trim());
+        if (Number.isInteger(count) && count >= 0 && isFinite(weight) && weight > 0) {
+            items.push({ count, weight });
+        }
+    }
+    if (items.length === 0) items.push({ count: 1, weight: 1 }); // 解析失败兜底：全 1 次
+    const total = items.reduce((s, it) => s + it.weight, 0);
+    let acc = 0;
+    return items.map((it) => {
+        const prob = it.weight / total;
+        acc += prob;
+        return { count: it.count, prob, cum: acc };
+    });
+}
+
+const WITHDRAW_DIST = parseWithdrawDist(WITHDRAW_COUNT_DIST_RAW);
+
+/** 按分布加权随机选出本次提现次数 */
+function pickWithdrawCount() {
+    const r = Math.random();
+    for (const it of WITHDRAW_DIST) {
+        if (r <= it.cum) return it.count;
+    }
+    return WITHDRAW_DIST[WITHDRAW_DIST.length - 1].count; // 浮点误差兜底
+}
+
+/** 分布的可读文本，用于日志 */
+function withdrawDistText() {
+    return WITHDRAW_DIST.map((d) => `${d.count}次=${(d.prob * 100).toFixed(1)}%`).join(' | ');
+}
+
 export const options = {
     scenarios: {
         batch_withdraw: {
@@ -49,6 +93,7 @@ export const options = {
  */
 export function setup() {
     console.log(`\n[Setup] 开始准备批量提现用户数据 (目标数量: ${FETCH_COUNT})...`);
+    console.log(`[Setup] 提现次数分布 (WITHDRAW_COUNT_DIST="${WITHDRAW_COUNT_DIST_RAW}"): ${withdrawDistText()}`);
 
     // 1. 管理员登录
     const adminToken = tenantAdminLogin(tenantId);
@@ -110,9 +155,17 @@ export default function (data) {
     const account = userEntry.account;
     const userId = userEntry.userId;
 
+    // 按配置分布随机确定本用户提现次数（0 次则整体跳过，不登录/不充值，省资源）
+    const withdrawCount = pickWithdrawCount();
+
     console.log(`\n===========================================`);
-    console.log(`[BatchWithdraw] 正在处理 [${index + 1}/${accounts.length}]: ${account} (ID: ${userId})`);
+    console.log(`[BatchWithdraw] 正在处理 [${index + 1}/${accounts.length}]: ${account} (ID: ${userId}) | 本次提现 ${withdrawCount} 次（分布 ${withdrawDistText()}）`);
     console.log(`===========================================`);
+
+    if (withdrawCount <= 0) {
+        console.log(`[BatchWithdraw] 用户 ${account} 命中 0 次提现，跳过该用户`);
+        return;
+    }
 
     // 1. 登录会话获取 userToken（自动识别手机号/邮箱，调用对应登录方式）
     console.log(`[BatchWithdraw] 正在执行验证码登录流程: ${account}...`);
@@ -146,18 +199,7 @@ export default function (data) {
     setWithdrawPassword(userToken, '123456');
     sleep(1);
 
-    // 5. 根据概率计算提现次数
-    let withdrawCount = 1;
-    const rand = Math.random();
-    if (rand <= 0.33) {
-        withdrawCount = 3;
-    } else if (rand <= 0.50) {
-        withdrawCount = 2;
-    }
-
-    console.log(`[BatchWithdraw] 用户 ${account} 命中提现概率分配，本次将进行 ${withdrawCount} 次提现`);
-
-    // 6. 循环执行提现
+    // 5. 循环执行提现（次数已在顶部按 WITHDRAW_COUNT_DIST 随机确定）
     for (let i = 0; i < withdrawCount; i++) {
         console.log(`\n[BatchWithdraw] [${account}] --- 第 ${i + 1}/${withdrawCount} 次提现 ---`);
 

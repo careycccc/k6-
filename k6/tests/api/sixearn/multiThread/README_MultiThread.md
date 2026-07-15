@@ -8,10 +8,11 @@
 
 ### 核心组件说明
 
-- 🧠 **`runner.js`**：Node.js 调度器。整个框架的大脑，它负责编排业务的时序（例如你的 17 种模式）。
+- 🧠 **`runner.js`**：Node.js 调度器。整个框架的大脑，它负责编排业务的时序（多种模式，含新版 3 团队复杂场景 `mode_3team`）。
 - 🚀 **`step1_register.js`**：负责并发“**建树**”。内部集成了分布式森林算法，支持几百个 VU 同时挂载用户。注册完毕后会将总代信息交还给调度器。
-- 🎯 **`step2_swap.js`**：负责“**解绑绑定 (Swap)**”。单线程运行，负责拉取全树名单，根据算法随机挑人并完成团队转换。
-- 💸 **`step3_action.js`**：负责“**并发充投**”。每次运行前会实时请求最新树结构（包含刚转线过来的成员），把人员均匀分配给所有 VU，高并发进行充值和投注操作。
+- ➕ **`step_invite.js`**：负责“**中途追加下级**”。拉取团队活树、随机挑现有成员当上级，在其下注册若干新下级（转线前/后各一波）。新下级会被后续 `step3_action` 自动纳入充投提。
+- 🎯 **`step2_swap.js`**：负责“**解绑绑定 (Swap)**”。单线程运行，拉取全树名单，**每次随机搬 `SWAP_MIN`~`SWAP_MAX` 人**（默认 1~3）完成团队转换。
+- 💸 **`step3_action.js`**：负责“**并发充投提**”。每次运行前实时请求最新树结构（含刚转线过来的成员 + 新邀请的下级），把人员均匀分配给所有 VU，高并发进行充值、投注、**以及按概率提现**（`WITHDRAW_RATE`）。
 
 ---
 
@@ -38,6 +39,22 @@ $env:TEAM2_TOTAL="50"
 node runner.js
 ```
 
+**运行新版 3 团队复杂场景 `mode_3team`（默认模式）：**
+```bash
+# 直接 node runner.js 即为该模式（REBATE_MODE 默认 mode_3team）
+$env:TEAM1_TOTAL="20"; $env:TEAM2_TOTAL="20"; $env:TEAM3_TOTAL="20"  # 每队 20 人
+$env:TEAM1_LEVELS="6"; $env:TEAM2_LEVELS="6"; $env:TEAM3_LEVELS="6"  # 6 级
+$env:SWAP_MIN="1"; $env:SWAP_MAX="3"           # 每次转线随机搬 1~3 人
+$env:SWAP_PRE_WAIT="5"; $env:SWAP_POST_WAIT="8" # 转线前/后等待秒数
+$env:INVITE_MIN="2"; $env:INVITE_MAX="5"        # 每队每波邀请 2~5 个新下级
+$env:WITHDRAW_RATE="0.3"                        # 充投人群最终阶段 30% 概率提现
+$env:VERIFY_WAIT_SEC="300"                      # 执行完毕后等待 5 分钟再做层级验证
+node runner.js
+```
+> 流程：建 A/B/C → 各队充投 → 转线前邀请波 → 新人充投 → **6 次相互转线**(A↔B、A↔C、B↔C 各双向，前后等待) → 转线后邀请波 → 最终全员(含转入+新下级)充投 + 按概率提现
+> **→ 等待 5 分钟 → 验证「所有总代」**：3 个队根 + **当天转线遗留的野生总代**（解绑后没绑回团队、卡在 newParentId=0 的漏网之鱼）。用 `agentHierarchy/verifyAllGeneralAgents.test.js`，逐个总代出「层级 + 总代generalAgentId + 转线」报告，有问题精确到具体会员。
+> 想让提现真正出款(走后台审核)：加 `$env:ENABLE_BACKEND_APPROVAL="true"`。想跳过验证：`$env:SKIP_VERIFY="true"`。
+
 *(说明：在 Windows PowerShell 下使用 `$env:` 赋值环境变量；如果你使用 cmd 或 bash，请相应替换为 `set` 或 `export`)*
 
 ---
@@ -46,14 +63,21 @@ node runner.js
 
 | 参数名 | 说明 | 默认值 |
 |--------|------|--------|
-| `TENANT_ID` | 测试租户 ID | `3006` |
-| `REBATE_MODE` | 要运行的测试模式名称（见 runner.js 的 switch 块）| `mode1` |
-| `TEAM1_TOTAL` | 团队A 的总生成人数 | `10` |
-| `TEAM1_LEVELS`| 团队A 的最大层级深度 | `3` |
-| `TEAM2_TOTAL` | 团队B 的总生成人数 | `10` |
-| `TEAM2_LEVELS`| 团队B 的最大层级深度 | `3` |
+| `TENANT_ID` | 测试租户 ID | `3007` |
+| `REBATE_MODE` | 要运行的测试模式名称（见 runner.js 的 switch 块）| `mode_3team` |
+| `TEAM1_TOTAL` / `TEAM1_LEVELS` | 团队A 的总人数 / 最大层级 | `20` / `6` |
+| `TEAM2_TOTAL` / `TEAM2_LEVELS` | 团队B 的总人数 / 最大层级 | `20` / `6` |
+| `TEAM3_TOTAL` / `TEAM3_LEVELS` | 团队C 的总人数 / 最大层级（仅 3 团队模式用） | `20` / `6` |
 | `INACTIVE_RATE` | V2模式：不活跃人群比例（啥都不干） | `0.1` |
 | `RECHARGE_ONLY_RATE` | V2模式：只充值人群比例（不投注） | `0.1` |
+| `ACTION_VUS` | 充投并发 VU 数（限流敏感，勿调高） | `4` |
+| `SWAP_MIN` / `SWAP_MAX` | 每次转线随机搬的人数区间 | `1` / `3` |
+| `SWAP_PRE_WAIT` / `SWAP_POST_WAIT` | 每次转线前 / 后的等待秒数 | `5` / `8` |
+| `INVITE_MIN` / `INVITE_MAX` | 每队每波中途邀请的新下级人数区间 | `2` / `5` |
+| `WITHDRAW_RATE` | 最终阶段充投人群的提现概率 | `0.3` |
+| `ENABLE_BACKEND_APPROVAL` | 提现是否走后台审核出款 | `false` |
+| `VERIFY_WAIT_SEC` | 执行完毕后、层级验证前的等待秒数 | `300` |
+| `SKIP_VERIFY` | 设 `true` 跳过执行后的层级验证 | `false` |
 
 > V2 模式充投(充值+投注)人群 = 1 − `INACTIVE_RATE` − `RECHARGE_ONLY_RATE`（剩余项，默认 80%），无独立配置项。
 
@@ -87,8 +111,11 @@ case 'my_custom_mode':
 
 ### API 积木块说明
 - `buildTeam(teamName, total, levels)`: 使用多线程极速建队。
-- `runSwap(fromTeam, toTeam)`: 触发单线程解绑绑定。
-- `runAction(teamName, mode)`: 触发多线程并行充投。其中 mode 可以是：
+- `runInvite(teamName, count)`: 给团队随机现有成员下追加 `count` 个新下级（转线前/后各来一波）。
+- `runSwap(fromTeam, toTeam)`: 触发单线程解绑绑定，每次随机搬 `SWAP_MIN`~`SWAP_MAX` 人。
+- `runSwapWithWait(fromTeam, toTeam)`: 在 `runSwap` 前后各加 `SWAP_PRE_WAIT`/`SWAP_POST_WAIT` 秒等待（避免转线过快出问题）。
+- `wait(seconds)`: 调度器层的阻塞等待（Node 同步睡眠）。
+- `runAction(teamName, mode)`: 触发多线程并行充投（提）。mode 可加 `withdrawRate` 字段开启提现。其中 mode 可以是：
   - `full` : 全员必充值且投注
   - `recharge` : 全员只充值，不投注
   - `v2Mode` : 三段式随机人群划分，比例由 `INACTIVE_RATE` / `RECHARGE_ONLY_RATE` 控制。

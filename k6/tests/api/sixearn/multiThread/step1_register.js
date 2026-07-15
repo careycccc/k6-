@@ -13,7 +13,7 @@ export const options = {
             executor: 'per-vu-iterations',
             vus: parseInt(__ENV.VUS || '10', 10),
             iterations: 1,
-            maxDuration: '2h',
+            maxDuration: '8h',
         },
     },
 };

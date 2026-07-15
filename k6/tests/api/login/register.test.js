@@ -113,9 +113,9 @@ export function phoneRegisterByInvite(userName, inviteCode, data, password = 'qw
         httpResponse = httpClient.post(api, payload, {}, true);
     }
 
-    console.log(`[PhoneRegisterByInvite] ========== 注册响应 ==========`);
-    console.log(`[PhoneRegisterByInvite] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
-    console.log(`[PhoneRegisterByInvite] 响应体: ${httpResponse ? httpResponse.body : 'N/A'}`);
+    //console.log(`[PhoneRegisterByInvite] ========== 注册响应 ==========`);
+    //console.log(`[PhoneRegisterByInvite] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
+    //console.log(`[PhoneRegisterByInvite] 响应体: ${httpResponse ? httpResponse.body : 'N/A'}`);
 
     return handleRegisterResponseWithToken(httpResponse, userName);
 }
@@ -218,9 +218,9 @@ export function emailRegisterByInvite(email, inviteCode, data, password = 'qwer1
         httpResponse = httpClient.post(api, payload, {}, true);
     }
 
-    console.log(`[EmailRegisterByInvite] ========== 注册响应 ==========`);
-    console.log(`[EmailRegisterByInvite] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
-    console.log(`[EmailRegisterByInvite] 响应体: ${httpResponse ? httpResponse.body : 'N/A'}`);
+    //console.log(`[EmailRegisterByInvite] ========== 注册响应 ==========`);
+    //console.log(`[EmailRegisterByInvite] 响应状态码: ${httpResponse ? httpResponse.status : 'N/A'}`);
+    //console.log(`[EmailRegisterByInvite] 响应体: ${httpResponse ? httpResponse.body : 'N/A'}`);
 
     return handleRegisterResponseWithToken(httpResponse, email);
 }
