@@ -9,10 +9,14 @@
  *
  * 运行方式：
  * k6 run -e TENANT_ID=3004 -e FETCH_COUNT=10 batchWithdraw.test.js
- * k6 run -e TENANT_ID=3004 -e FETCH_COUNT=15 -e WITHDRAW_COUNT_DIST="1:100,2:80,3:50,4:50" batchWithdraw.test.js
+ * k6 run -e TENANT_ID=3101 -e FETCH_COUNT=15 -e WITHDRAW_COUNT_DIST="1:100,2:80,3:50,4:50" batchWithdraw.test.js
  *
  * 参数说明：
- * FETCH_COUNT:          获取的用户数量，默认10
+ * FETCH_COUNT:          要凑够多少个余额达标的用户来提现，默认10（不够会分页继续找）
+ * MIN_BALANCE:          用户余额下限，仅 balance > 此值的用户才参与，默认2000（余额太少无法提现）
+ * PAGE_SIZE:            每页拉取用户数(分页扫描凑够 FETCH_COUNT 个达标用户)，默认 max(FETCH_COUNT*5, 100)
+ * MAX_PAGES:            翻页安全上限，默认100
+ * SKIP_RECHARGE:        true=不充值直接用已有余额提现；默认false(先充值top-up)
  * WITHDRAW_COUNT_DIST:  提现次数分布(次数:权重)，默认 "1:50,2:17,3:33"
  */
 
@@ -33,6 +37,13 @@ import {
 // 获取环境变量
 const FETCH_COUNT = __ENV.FETCH_COUNT ? parseInt(__ENV.FETCH_COUNT) : 10;
 const tenantId = __ENV.TENANT_ID || '3004';
+
+// 只挑选余额 > MIN_BALANCE 的用户（余额太少无法提现）：分页扫描、跳过不达标的，凑够 FETCH_COUNT 个为止
+const MIN_BALANCE = __ENV.MIN_BALANCE ? parseFloat(__ENV.MIN_BALANCE) : 2000;
+const PAGE_SIZE = __ENV.PAGE_SIZE ? parseInt(__ENV.PAGE_SIZE) : Math.max(FETCH_COUNT * 5, 100); // 每页拉取数量
+const MAX_PAGES = __ENV.MAX_PAGES ? parseInt(__ENV.MAX_PAGES) : 100; // 翻页安全上限
+// 是否跳过充值：true=不充值，纯用已有余额提现（配合 MIN_BALANCE 过滤后已保证余额充足）
+const SKIP_RECHARGE = __ENV.SKIP_RECHARGE === 'true';
 
 // 提现次数分布：WITHDRAW_COUNT_DIST="次数:权重,..."（权重自动归一化为概率；次数可为0=不提现）
 // 默认 "1:50,2:17,3:33" 沿用原脚本行为（1次50% / 2次17% / 3次33%）
@@ -101,27 +112,53 @@ export function setup() {
         throw new Error('[Setup] ❌ 管理员登录失败，无法继续');
     }
 
-    // 2. 获取用户列表
+    // 2. 分页扫描用户，跳过余额不达标的，一直找到凑够 FETCH_COUNT 个（余额 > MIN_BALANCE）为止。
+    //    例：第1个余额不够就跳过、看下一个……直到累积满 FETCH_COUNT 个，或翻完所有用户。
     const userPageApi = '/api/Users/GetPageList';
-    const payload = {
-        userType: 0,
-        state: 1,
-        pageNo: 1,
-        pageSize: FETCH_COUNT,
-        orderBy: 'Desc'
-    };
+    const picked = [];
+    let pageNo = 1;
+    let scanned = 0;
 
-    console.log(`[Setup] 正在请求用户列表: ${userPageApi}`);
-    const response = sendRequest(payload, userPageApi, 'GetUserPageList', false, adminToken);
+    while (picked.length < FETCH_COUNT && pageNo <= MAX_PAGES) {
+        const payload = { userType: 0, state: 1, pageNo, pageSize: PAGE_SIZE, orderBy: 'Desc' };
+        const response = sendRequest(payload, userPageApi, 'GetUserPageList', false, adminToken);
 
-    if (!response || !response.list) {
-        console.error(`[Setup] 获取列表失败，响应内容:`, JSON.stringify(response));
-        throw new Error('[Setup] ❌ 获取用户列表失败');
+        if (!response || !response.list) {
+            if (pageNo === 1) {
+                console.error(`[Setup] 获取列表失败，响应内容:`, JSON.stringify(response));
+                throw new Error('[Setup] ❌ 获取用户列表失败');
+            }
+            break; // 后续页拉取失败：用已累积的
+        }
+
+        const pageUsers = response.list;
+        if (pageUsers.length === 0) break; // 没有更多用户
+        scanned += pageUsers.length;
+
+        for (const u of pageUsers) {
+            if (Number(u.balance) > MIN_BALANCE) {
+                picked.push(u);
+                if (picked.length >= FETCH_COUNT) break; // 凑够了
+            }
+        }
+
+        console.log(`[Setup] 第 ${pageNo} 页扫描 ${pageUsers.length} 人，累计达标 ${picked.length}/${FETCH_COUNT}（累计扫描 ${scanned} 人）`);
+
+        if (picked.length >= FETCH_COUNT) break;                       // 已凑够
+        if (pageUsers.length < PAGE_SIZE) break;                       // 不足一页 → 已是最后一页
+        if (response.totalPage && pageNo >= response.totalPage) break; // 翻到最后一页
+        pageNo++;
     }
 
-    const rawUsers = response.list;
-    const userIds = rawUsers.map(u => u.userId);
-    console.log(`[Setup] 成功获取 ${userIds.length} 个用户 ID`);
+    if (picked.length === 0) {
+        throw new Error(`[Setup] ❌ 扫描 ${scanned} 人后仍无余额 > ${MIN_BALANCE} 的用户；降低 -e MIN_BALANCE，或确认租户有高余额用户`);
+    }
+    if (picked.length < FETCH_COUNT) {
+        console.warn(`[Setup] ⚠️ 全部用户已扫完(${scanned}人)，余额达标仅 ${picked.length} 个 < 目标 ${FETCH_COUNT}（可降低 MIN_BALANCE 或先给用户充值）`);
+    }
+
+    const userIds = picked.map((u) => u.userId);
+    console.log(`[Setup] ✅ 凑够 ${userIds.length} 个余额 > ${MIN_BALANCE} 的用户（共扫描 ${scanned} 人）`);
 
     // 3. 将 userId 转换为真实账号
     const userAccounts = batchGetUserAccounts(adminToken, userIds, 500);
@@ -178,16 +215,21 @@ export default function (data) {
 
     console.log(`[BatchWithdraw] ✅ 登录成功，Token 已获取`);
 
-    // 2. 保证提现金额充足
-    const rechargeAmount = getRandomInt(2000, 5000);
-    console.log(`[BatchWithdraw] 正在为用户充值，金额: ${rechargeAmount}...`);
-    const rechargeRes = backendRecharge(adminToken, userId, rechargeAmount, 'Batch Withdraw Recharge');
-    if (!rechargeRes || !rechargeRes.success) {
-        console.error(`[BatchWithdraw] ❌ 用户 ${account} 充值失败`);
-        return;
+    // 2. 充值加码(top-up)。用户已按 balance>MIN_BALANCE 过滤，故充值失败不致命，仍用已有余额提现；
+    //    SKIP_RECHARGE=true 则完全跳过充值，纯用已有余额。
+    if (!SKIP_RECHARGE) {
+        const rechargeAmount = getRandomInt(2000, 5000);
+        console.log(`[BatchWithdraw] 正在为用户充值(top-up)，金额: ${rechargeAmount}...`);
+        const rechargeRes = backendRecharge(adminToken, userId, rechargeAmount, 'Batch Withdraw Recharge');
+        if (!rechargeRes || !rechargeRes.success) {
+            console.warn(`[BatchWithdraw] ⚠️ 用户 ${account} 充值失败，改用已有余额继续提现`);
+        } else {
+            console.log(`[BatchWithdraw] ✅ 用户 ${account} 充值成功: ${rechargeAmount}`);
+        }
+        sleep(1);
+    } else {
+        console.log(`[BatchWithdraw] SKIP_RECHARGE=true，跳过充值，直接用已有余额提现`);
     }
-    console.log(`[BatchWithdraw] ✅ 用户 ${account} 充值成功: ${rechargeAmount}`);
-    sleep(1);
 
     // 3. 绑卡
     console.log(`[BatchWithdraw] 正在尝试绑定钱包 (Admin 操作)...`);
