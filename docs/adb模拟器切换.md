@@ -4,8 +4,3 @@
 MuMu模拟器adb connect 127.0.0.1:7555
 Android Studio 自带 AVD通常自动识别，
 若不识别尝试 adb connect 127.0.0.1:5554
-
-
-
-
-

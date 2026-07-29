@@ -20,7 +20,7 @@
  *   k6 run -e TENANT_ID=3004 -e TARGET_UID=138413 -e INACTIVE_RATE=0 -e RECHARGE_ONLY_RATE=0 runTeamRechargeAndBetV2.test.js
  *
  *   # 自定义提现几率
- *   k6 run -e TENANT_ID=3004 -e TARGET_UID=138413 -e WITHDRAW_CHANCE=0.9 runTeamRechargeAndBetV2.test.js
+ *   k6 run -e TENANT_ID=3004 -e TARGET_UID=163353 -e WITHDRAW_CHANCE=0.9 runTeamRechargeAndBetV2.test.js
  * 
  *   # 只针对于L3团队的方式进行整个团队的充值投注
  *   k6 run -e TENANT_ID=3004 -e TARGET_UID=137861 -e IS_L3=true -e VUS=5 runTeamRechargeAndBetV2.test.js
