@@ -2,8 +2,8 @@ import { Trend, Rate, Counter, Gauge } from 'k6/metrics';
 import { batch } from 'k6/http';
 import { AdminLogin } from '../../tests/api/login/adminlogin.test.js';
 import { logger } from '../utils/logger.js';
-import { htmlReport } from 'https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js';
-import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js';
+import { htmlReport } from '../vendor/k6-reporter.js';
+import { textSummary } from '../vendor/k6-summary-0.0.1.js';
 
 /**
  * 批量操作基类 - 提供通用的批量执行功能

@@ -2,12 +2,12 @@ const { execSync } = require('child_process');
 // @ts-ignore
 const fs = require('fs');
 
-const tenantId = process.env.TENANT_ID || '3004';
-const team1Total = process.env.TEAM1_TOTAL || '60';   // 团队1总人数
-const team1Levels = process.env.TEAM1_LEVELS || '8';    // 团队1总层级
-const team2Total = process.env.TEAM2_TOTAL || '50';   // 团队2总人数
-const team2Levels = process.env.TEAM2_LEVELS || '7';    // 团队2总层级
-const team3Total = process.env.TEAM3_TOTAL || '30';   // 团队3总人数
+const tenantId = process.env.TENANT_ID || '3101';
+const team1Total = process.env.TEAM1_TOTAL || '20';   // 团队1总人数
+const team1Levels = process.env.TEAM1_LEVELS || '4';    // 团队1总层级
+const team2Total = process.env.TEAM2_TOTAL || '15';   // 团队2总人数
+const team2Levels = process.env.TEAM2_LEVELS || '3';    // 团队2总层级
+const team3Total = process.env.TEAM3_TOTAL || '19';   // 团队3总人数
 const team3Levels = process.env.TEAM3_LEVELS || '4';    // 团队3总层级
 const rebateMode = process.env.REBATE_MODE || 'mode_3team';  // 返佣模式（默认新版3团队复杂场景）
 

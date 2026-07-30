@@ -1,4 +1,4 @@
-import { describe, expect } from 'https://jslib.k6.io/k6chaijs/4.5.0.1/index.js';
+import { describe, expect } from '../vendor/k6chaijs.js';
 import { validateResponse } from '../zodValidator.js';
 import { logger } from '../utils/logger.js';
 import { thresholds } from '../../config/thresholds.js';

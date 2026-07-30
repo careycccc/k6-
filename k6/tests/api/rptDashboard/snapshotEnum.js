@@ -10,7 +10,7 @@
 export const SNAPSHOT_MAP = {
     0:  { name: '注册人数',           field: 'registerCount',           kind: 'count'  },
     1:  { name: '登录人数',           field: 'loginCount',              kind: 'count'  },
-    2:  { name: '游戏人数',           field: 'gameCount',               kind: 'count'  },
+    2:  { name: '实时游戏人数',       field: 'gameCount',               kind: 'count'  }, // 瞬时值(gauge)：当前正在玩
     3:  { name: '当前在线',           field: 'onlineCount',             kind: 'count'  },
     4:  { name: '充值金额',           field: 'rechargeAmount',          kind: 'amount' },
     5:  { name: '提款金额',           field: 'withdrawAmount',          kind: 'amount' },
@@ -33,6 +33,7 @@ export const SNAPSHOT_MAP = {
     22: { name: '充提差',             field: null },
     23: { name: '活动参与人数',       field: 'activityUserCount',       kind: 'count'  },
     24: { name: '活动金额',           field: 'activityAmount',          kind: 'amount' },
+    25: { name: '游戏人数',           field: 'gameUserCumulativeCount', kind: 'count'  }, // 累计：全天参与游戏的去重玩家
 };
 
 /** 全部 snapshotType 列表（请求第一步接口用） */

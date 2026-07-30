@@ -13,6 +13,7 @@ import { addAllWallets } from '../withdraw/addWalletApi.js';
 import { getWithdrawBasicInfo, setWithdrawPassword } from '../withdraw/withdrawApi.js';
 import { getAccountBalance } from '../balance/balance.test.js';
 import { executeWithdrawCase } from '../withdraw/withdraw.test.js';
+import { runBackendWithdrawApproval } from '../withdraw/backendWithdrawApi.js';
 
 /**
  * 登录用户（自动识别手机号/邮箱，调用对应登录方式）
@@ -317,9 +318,11 @@ function processUserRechargeOnly(userInfo, adminToken) {
  * 处理单个用户的提现逻辑
  * @param {object} userInfo  - { token, userId, account }
  * @param {string} adminToken
- * @returns {boolean}
+ * @param {boolean} withdrawAudit - 是否执行后台审核（出款）
+ * @returns {{applied:boolean, audited:(boolean|null)}}
+ *          applied: 提现申请是否成功；audited: 后台审核结果（未开启审核时为 null）
  */
-function processUserWithdraw(userInfo, adminToken) {
+function processUserWithdraw(userInfo, adminToken, withdrawAudit = false) {
     console.log(`[Process] 准备为用户 ${userInfo.account} 申请提现...`);
 
     // 1. 添加所有类型的钱包
@@ -334,7 +337,7 @@ function processUserWithdraw(userInfo, adminToken) {
     const allWithdrawInfo = getWithdrawBasicInfo(userInfo.token);
     if (!allWithdrawInfo) {
         console.error(`[Process] ❌ 获取提现基础信息失败`);
-        return false;
+        return { applied: false, audited: null };
     }
 
     // 3. 获取余额
@@ -342,22 +345,37 @@ function processUserWithdraw(userInfo, adminToken) {
     const money = balanceInfo ? balanceInfo.balance : 0.0;
     if (money <= 0) {
         console.warn(`[Process] ⚠️ 用户余额为0，无法提现`);
-        return false;
+        return { applied: false, audited: null };
     }
 
     // 4. 设置提现密码
     setWithdrawPassword(userInfo.token);
 
-    // 5. 执行核心提现逻辑
+    // 5. 执行核心提现逻辑（前台申请）
     const withdrawResult = executeWithdrawCase(userInfo.token, money, allWithdrawInfo);
 
     if (!withdrawResult) {
         console.error(`[Process] ❌ 提现申请失败: ${userInfo.account}`);
-        return false;
+        return { applied: false, audited: null };
     }
 
     console.log(`[Process] ✅ 提现申请成功: ${userInfo.account}, 金额: ${withdrawResult.withDrawaAmont}, 渠道: ${withdrawResult.withDrawaType}`);
-    return true;
+
+    // 6. 后台审核出款（开关控制）
+    let audited = null;
+    if (withdrawAudit) {
+        console.log(`[Process] 🔍 WITHDRAW_AUDIT 已开启，执行后台审核出款...`);
+        sleep(1);
+        audited = runBackendWithdrawApproval(
+            adminToken,
+            userInfo.userId,
+            withdrawResult.withDrawaType,
+            withdrawResult.withDrawaAmont
+        );
+        console.log(`[Process] 后台审核结果: ${audited ? '✅ 出款成功' : '❌ 审核/出款失败'} (${userInfo.account})`);
+    }
+
+    return { applied: true, audited };
 }
 
 /**
@@ -390,6 +408,7 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
         rechargeOnlyRate = 0.2,   // 只充值不投注
         rebateChance     = 0.2,
         withdrawChance   = 0,     // 提现触发几率
+        withdrawAudit    = false, // 是否执行后台审核出款
         delayMs          = 1000,
         isL3             = false, // 是否为L3级代理
         vuId             = 1,     // 当前VU ID
@@ -508,7 +527,9 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
         betSuccess     : 0,
         betFailed      : 0,
         withdrawSuccess: 0,
-        withdrawFailed : 0
+        withdrawFailed : 0,
+        withdrawAuditSuccess: 0,
+        withdrawAuditFailed : 0
     };
 
     // 步骤5: 登录 → 按分组执行充值/投注
@@ -545,9 +566,11 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
             else stats.rechargeFailed++;
 
             if (r.recharged && withdrawChance > 0 && Math.random() < withdrawChance) {
-                const wSuccess = processUserWithdraw(loginInfo, adminData.token);
-                if (wSuccess) stats.withdrawSuccess++;
+                const w = processUserWithdraw(loginInfo, adminData.token, withdrawAudit);
+                if (w.applied) stats.withdrawSuccess++;
                 else stats.withdrawFailed++;
+                if (w.audited === true) stats.withdrawAuditSuccess++;
+                else if (w.audited === false) stats.withdrawAuditFailed++;
             }
         } else {
             // 活跃：充值 + 投注（复用现有函数）
@@ -558,9 +581,11 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
             else if (r.recharged) stats.betFailed++;
 
             if (r.recharged && withdrawChance > 0 && Math.random() < withdrawChance) {
-                const wSuccess = processUserWithdraw(loginInfo, adminData.token);
-                if (wSuccess) stats.withdrawSuccess++;
+                const w = processUserWithdraw(loginInfo, adminData.token, withdrawAudit);
+                if (w.applied) stats.withdrawSuccess++;
                 else stats.withdrawFailed++;
+                if (w.audited === true) stats.withdrawAuditSuccess++;
+                else if (w.audited === false) stats.withdrawAuditFailed++;
             }
         }
 
@@ -579,7 +604,8 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
     console.log(`登录成功    : ${stats.loginSuccess} / 失败: ${stats.loginFailed}`);
     console.log(`充值成功    : ${stats.rechargeSuccess} / 失败: ${stats.rechargeFailed}`);
     console.log(`投注成功    : ${stats.betSuccess} / 失败: ${stats.betFailed}`);
-    console.log(`提现成功    : ${stats.withdrawSuccess} / 失败: ${stats.withdrawFailed}`);
+    console.log(`提现申请成功 : ${stats.withdrawSuccess} / 失败: ${stats.withdrawFailed}`);
+    console.log(`后台审核出款 : ${stats.withdrawAuditSuccess} / 失败: ${stats.withdrawAuditFailed}${(stats.withdrawAuditSuccess + stats.withdrawAuditFailed) === 0 ? '（未开启审核）' : ''}`);
     console.log(`${'='.repeat(60)}\n`);
 
     return stats;

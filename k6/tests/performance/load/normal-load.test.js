@@ -17,8 +17,8 @@
 import http from 'k6/http';
 import { sleep, group, check } from 'k6';
 import { Rate, Trend, Counter } from 'k6/metrics';
-import { htmlReport } from 'https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js';
-import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js';
+import { htmlReport } from '../../../libs/vendor/k6-reporter.js';
+import { textSummary } from '../../../libs/vendor/k6-summary-0.0.1.js';
 
 import { hanlderThresholds } from '../../../config/thresholds.js';
 import { getEnvByTenantId } from '../../../config/envconfig.js';

@@ -37,7 +37,7 @@
 import { sleep } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
 import exec from 'k6/execution';
-import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.2/index.js';
+import { textSummary } from '../../../libs/vendor/k6-summary-0.0.2.js';
 
 // ── 复用已有函数 ──────────────────────────────────────────────
 import { AdminLogin } from '../login/adminlogin.test.js';

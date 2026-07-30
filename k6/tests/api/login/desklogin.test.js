@@ -1,4 +1,4 @@
-// import papaparse from 'https://jslib.k6.io/papaparse/5.1.1/index.js';
+// import papaparse from '../../../libs/vendor/papaparse.js';
 // import { SharedArray } from 'k6/data';
 import http from 'k6/http';
 import { testCommonRequest } from '../common/request.js';

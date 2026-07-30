@@ -33,7 +33,7 @@
 
 import { sleep, check } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
-import { randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
+import { randomIntBetween } from '../../../libs/vendor/k6-utils.js';
 import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
 import { getEnvByTenantId } from '../../../config/envconfig.js';
 import { acquireToken, getPoolSize, closeRedis } from '../../../libs/redis/tokenPool.js';

@@ -259,7 +259,8 @@ export function verifyAllMetrics(token, date, tenantId, tol = 0.01) {
 
     const rows = [
         mk('注册人数',      'registerCount',           reg,               c.registerCount,           'count'),
-        mk('登录人数',      'loginCount',              login,             c.loginCount,              'count'),
+        // 登录人数：源仅有 lastLoginTime，日内 ±1~2 时序噪声，仅展示不判定
+        mk('登录人数',      'loginCount',              login,             c.loginCount,              'info'),
         mk('充值人数',      'rechargeUserCount',       rc.userCount,      c.rechargeUserCount,       'count'),
         mk('充值金额',      'rechargeAmount',          rc.amount,         c.rechargeAmount,          'amount'),
         mk('提现人数',      'withdrawUserCount',       wd.userCount,      c.withdrawUserCount,       'count'),
@@ -273,9 +274,179 @@ export function verifyAllMetrics(token, date, tenantId, tol = 0.01) {
         mk('活动金额',      'activityAmount',          act.amount,        c.activityAmount,          'amount'),
         mk('盈亏金额',      'winLoseAmount',           bet.winLose,       c.winLoseAmount,           'amount'),
         mk('注册充值转化率', 'registerRechargeRate',   regRechargeRate,   c.registerRechargeRate,    'rate'),
-        // gameCount/onlineCount 是实时瞬时值(gauge，"当前在玩/在线")，非累计投注人数，无法源认证，仅展示
-        mk('游戏人数(gauge)', 'gameCount',             bet.players,       c.gameCount,               'info'),
+        // type 25 游戏人数：全天参与游戏的去重玩家（BetRecord 按 betTime 去重 userId）→ 真认证
+        mk('游戏人数',      'gameUserCumulativeCount', bet.players,       c.gameUserCumulativeCount, 'count'),
+        // type 2 实时游戏人数(gameCount) 与 当前在线(onlineCount) 是瞬时值(gauge)，无法源认证，只走两报表交叉对比
     ];
 
     return { timeNode: node.timeNode, rows };
+}
+
+// ============================================================
+// 逐节点认证：当天每个 5 分钟节点都比对
+//   原始数据各拉一次，内存里按时间戳算每个节点的累计值，与报表对应节点逐个比。
+// ============================================================
+
+// 原始拉取：用户列表（byLogin=true 用 loginTime，否则 registerTime；均剔除 userType=1）
+function fetchUsersRaw(token, s, e, byLogin) {
+    const out = []; let page = 1, totalPage = 1;
+    while (page <= totalPage && page <= MAX_PAGES) {
+        const win = byLogin ? { loginBeginTime: s, loginEndTime: e } : { registerBeginTime: s, registerEndTime: e };
+        const r = sendRequest({ ...win, pageNo: page, pageSize: 500, orderBy: 'Desc' }, '/api/Users/GetPageList', TAG, false, token);
+        if (!r) break;
+        (r.list || []).forEach(u => { if (u.userType !== 1) out.push({ t: Number(byLogin ? u.lastLoginTime : u.registerTime) || 0, u: u.userId }); });
+        if (r.totalPage && r.totalPage > totalPage) totalPage = r.totalPage;
+        page++; if (page <= totalPage) sleep(0.15);
+    }
+    return out;
+}
+
+// 原始拉取：订单（充值/提现）→ [{t, u, v}]
+function fetchOrdersRaw(token, api, extra, timeField, amountField) {
+    const out = []; let page = 1, totalPage = 1;
+    while (page <= totalPage && page <= MAX_PAGES) {
+        const r = sendRequest({ ...extra, pageNo: page, pageSize: 500 }, api, TAG, false, token);
+        if (!r) break;
+        (r.list || []).forEach(o => out.push({ t: Number(o[timeField]) || 0, u: o.userId, v: parseFloat(o[amountField] || 0) }));
+        if (r.totalPage && r.totalPage > totalPage) totalPage = r.totalPage;
+        page++; if (page <= totalPage) sleep(0.15);
+    }
+    return out;
+}
+
+// 原始拉取：GetUserRpt* type=R1/R2/W1 → [{t: rechargeTime, v: rechargeAmount}]
+function fetchRptRaw(token, api, type, sStr, eStr) {
+    const out = []; let page = 1, totalPage = 1;
+    while (page <= totalPage && page <= MAX_PAGES) {
+        const r = sendQueryRequest({ type, startTime: sStr, endTime: eStr, pageNo: page, pageSize: 500 }, api, TAG, false, token);
+        if (!r) break;
+        (r.list || []).forEach(x => out.push({ t: Number(x.rechargeTime) || 0, v: parseFloat(x.rechargeAmount || 0) }));
+        if (r.totalPage && r.totalPage > totalPage) totalPage = r.totalPage;
+        page++; if (page <= totalPage) sleep(0.15);
+    }
+    return out;
+}
+
+// 原始拉取：活动账变 Financial → [{t: createTime, u, v: amount}]
+function fetchFinancialRaw(token, s, e) {
+    const out = []; let page = 1, totalPage = 1;
+    while (page <= totalPage && page <= MAX_PAGES) {
+        const r = sendRequest({ searchUserIdType: 1, userTypeList: [0], financialTypeList: ACTIVITY_TYPES, startTime: s, endTime: e, pageNo: page, pageSize: 500, orderBy: 'Desc' }, '/api/Financial/GetPageList', TAG, false, token);
+        if (!r) break;
+        (r.list || []).forEach(x => out.push({ t: Number(x.createTime) || 0, u: x.userId, v: parseFloat(x.amount || 0) }));
+        if (r.totalPage && r.totalPage > totalPage) totalPage = r.totalPage;
+        page++; if (page <= totalPage) sleep(0.15);
+    }
+    return out;
+}
+
+// 原始拉取：投注 BetRecord → [{t: betTime, u, v: winLoseAmount, isTest}]
+function fetchBetRaw(token, s, e) {
+    const out = []; let page = 1, totalPage = 1;
+    while (page <= totalPage && page <= MAX_PAGES) {
+        const r = sendRequest({ queryTimeType: 'BetTime', beginTimeUnix: s, endTimeUnix: e, pageNo: page, pageSize: 500, orderBy: 'Desc', sortField: 'BetTime' }, '/api/ThirdGame/GetBetRecordPageList', TAG, false, token);
+        if (!r) break;
+        (r.list || []).forEach(b => out.push({ t: Number(b.betTime) || 0, u: b.userId, v: parseFloat(b.winLoseAmount || 0), isTest: b.userType === 1 }));
+        if (r.totalPage && r.totalPage > totalPage) totalPage = r.totalPage;
+        page++; if (page <= totalPage) sleep(0.15);
+    }
+    return out;
+}
+
+// 累计工具
+function sortedTimes(arr) { return arr.map(x => x.t).sort((a, b) => a - b); }
+function earliestPerUser(arr) {
+    const m = new Map();
+    arr.forEach(x => { if (x.u != null) { const c = m.get(x.u); if (c === undefined || x.t < c) m.set(x.u, x.t); } });
+    return [...m.values()].sort((a, b) => a - b);
+}
+function countLE(sortedTs, T) { let lo = 0, hi = sortedTs.length; while (lo < hi) { const m = (lo + hi) >> 1; if (sortedTs[m] <= T) lo = m + 1; else hi = m; } return lo; }
+function prepSum(arr) { const a = arr.slice().sort((p, q) => p.t - q.t); const ts = a.map(x => x.t); const pf = [0]; for (let i = 0; i < a.length; i++) pf[i + 1] = pf[i] + (a[i].v || 0); return { ts, pf }; }
+function sumLE(p, T) { return p.pf[countLE(p.ts, T)]; }
+
+/**
+ * 逐节点认证：返回 { nodeCount, fields:[{name,field,kind,total,bad,mismatches:[{timeNode,src,rpt}]}] }
+ */
+export function verifyAllNodes(token, date, tenantId, tol = 0.01) {
+    const report = getRealTimeSnapshotReport(token, date);
+    if (!report || !Array.isArray(report.list)) return null;
+
+    const dayStart = dateToIstStartTs(date, tenantId);
+    const isToday = date === todayStr();
+    const nowTs = Date.now();
+
+    // 组装节点（今天跳过未来节点）
+    const nodes = [];
+    report.list.forEach(n => {
+        const [H, M] = n.timeNode.split(':').map(Number);
+        const ts = dayStart + (H * 60 + M) * 60000;
+        if (isToday && ts > nowTs) return;
+        const cell = (n.cells || []).find(c => c.date === date) || (n.cells || [])[0];
+        if (cell) nodes.push({ timeNode: n.timeNode, ts, cell });
+    });
+    nodes.sort((a, b) => a.ts - b.ts);
+    if (!nodes.length) return null;
+
+    const endTs = nodes[nodes.length - 1].ts;
+    const sStr = `${date} 00:00:00`, eStr = `${date} ${nodes[nodes.length - 1].timeNode}:00`;
+
+    // 原始数据各拉一次
+    const regRows = fetchUsersRaw(token, dayStart, endTs, false);
+    const logRows = fetchUsersRaw(token, dayStart, endTs, true);
+    const rcRows  = fetchOrdersRaw(token, '/api/RechargeOrder/GetRechargeOrderPageList', { rechargeState: 'Payed', startTime: dayStart, endTime: endTs, dateType: 0, orderBy: 'Desc' }, 'rechargeSuccessTime', 'actualAmount');
+    // 提现按「变为 Pass 的时间」计入（lastUpdateTime），而非创建时间——报表口径
+    const wdRows  = fetchOrdersRaw(token, '/api/WithdrawOrder/GetWithdrawOrderPageList', { withdrawState: 'Pass', startTime: dayStart, endTime: endTs, dateType: 1, orderBy: 'Desc', sortField: '' }, 'lastUpdateTime', 'actualAmount');
+    const r1Rows  = fetchRptRaw(token, RPT_RECHARGE, 'R1', sStr, eStr);
+    const r2Rows  = fetchRptRaw(token, RPT_RECHARGE, 'R2', sStr, eStr);
+    const w1Rows  = fetchRptRaw(token, RPT_WITHDRAW, 'W1', sStr, eStr);
+    const actRows = fetchFinancialRaw(token, dayStart, endTs);
+    const betRows = fetchBetRaw(token, dayStart, endTs);
+
+    // 预处理累计结构
+    const regTs = sortedTimes(regRows);
+    const logTs = sortedTimes(logRows);                 // Users 每用户一行，lastLoginTime
+    const rcUserTs = earliestPerUser(rcRows), rcSum = prepSum(rcRows);
+    const wdUserTs = earliestPerUser(wdRows), wdSum = prepSum(wdRows);
+    const r1Ts = sortedTimes(r1Rows), r1Sum = prepSum(r1Rows);
+    const r2Ts = sortedTimes(r2Rows);
+    const w1Ts = sortedTimes(w1Rows), w1Sum = prepSum(w1Rows);
+    const actUserTs = earliestPerUser(actRows), actSum = prepSum(actRows);
+    const betSum = prepSum(betRows);
+    const betPlayerTs = earliestPerUser(betRows.filter(b => !b.isTest)); // 游戏人数：去重玩家(剔测试)按首次投注时间
+
+    // 每个字段：给定节点时刻 T 算源值
+    //   mode: 'check' 逐节点严格判定；'info' 仅展示不计入 PASS/FAIL
+    //   登录人数(源仅 lastLoginTime，无法还原逐节点首登)、活动(报表按特定节点结算/归属) → info
+    const FIELDS = [
+        { name: '注册人数',      field: 'registerCount',           kind: 'count',  mode: 'check', fn: T => countLE(regTs, T) },
+        { name: '登录人数',      field: 'loginCount',              kind: 'count',  mode: 'info',  fn: T => countLE(logTs, T) },
+        { name: '充值人数',      field: 'rechargeUserCount',       kind: 'count',  mode: 'check', fn: T => countLE(rcUserTs, T) },
+        { name: '充值金额',      field: 'rechargeAmount',          kind: 'amount', mode: 'check', fn: T => sumLE(rcSum, T) },
+        { name: '提现人数',      field: 'withdrawUserCount',       kind: 'count',  mode: 'check', fn: T => countLE(wdUserTs, T) },
+        { name: '提现金额',      field: 'withdrawAmount',          kind: 'amount', mode: 'check', fn: T => sumLE(wdSum, T) },
+        { name: '首充人数',      field: 'firstRechargeUserCount',  kind: 'count',  mode: 'check', fn: T => countLE(r1Ts, T) },
+        { name: '首充金额',      field: 'firstRechargeAmount',     kind: 'amount', mode: 'check', fn: T => sumLE(r1Sum, T) },
+        { name: '二充人数',      field: 'secondRechargeUserCount', kind: 'count',  mode: 'check', fn: T => countLE(r2Ts, T) },
+        { name: '首提人数',      field: 'firstWithdrawUserCount',  kind: 'count',  mode: 'check', fn: T => countLE(w1Ts, T) },
+        { name: '首提金额',      field: 'firstWithdrawAmount',     kind: 'amount', mode: 'check', fn: T => sumLE(w1Sum, T) },
+        { name: '活动参与人数',  field: 'activityUserCount',       kind: 'count',  mode: 'info',  fn: T => countLE(actUserTs, T) },
+        { name: '活动金额',      field: 'activityAmount',          kind: 'amount', mode: 'info',  fn: T => sumLE(actSum, T) },
+        { name: '盈亏金额',      field: 'winLoseAmount',           kind: 'amount', mode: 'check', fn: T => sumLE(betSum, T) },
+        { name: '游戏人数',      field: 'gameUserCumulativeCount', kind: 'count',  mode: 'check', fn: T => countLE(betPlayerTs, T) },
+        { name: '注册充值转化率', field: 'registerRechargeRate',   kind: 'amount', mode: 'check', fn: T => { const rg = countLE(regTs, T); return rg === 0 ? 0 : (countLE(r1Ts, T) / rg) * 100; } },
+    ];
+
+    const okAmt = (s, r) => Math.abs(s - r) <= tol || (r !== 0 && Math.abs(s - r) / Math.abs(r) <= 0.001);
+    const results = FIELDS.map(f => {
+        const mismatches = [];
+        nodes.forEach(nd => {
+            const s = f.fn(nd.ts);
+            const r = Number(nd.cell[f.field]) || 0;
+            const ok = f.kind === 'count' ? (Math.round(s) === r) : okAmt(s, r);
+            if (!ok) mismatches.push({ timeNode: nd.timeNode, src: s, rpt: r });
+        });
+        return { name: f.name, field: f.field, kind: f.kind, mode: f.mode, total: nodes.length, bad: mismatches.length, mismatches };
+    });
+
+    return { nodeCount: nodes.length, firstNode: nodes[0].timeNode, lastNode: nodes[nodes.length - 1].timeNode, fields: results };
 }

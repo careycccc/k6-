@@ -1,7 +1,7 @@
 import { sleep } from 'k6';
 import { logger } from '../../libs/utils/logger.js';
-import { htmlReport } from 'https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js';
-import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js';
+import { htmlReport } from '../../libs/vendor/k6-reporter.js';
+import { textSummary } from '../../libs/vendor/k6-summary-0.0.1.js';
 
 // 导入所有测试套件
 import apiSecurityTest from './1-api-security/api-security.test.js';

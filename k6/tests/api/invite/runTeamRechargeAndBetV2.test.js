@@ -21,7 +21,10 @@
  *
  *   # 自定义提现几率
  *   k6 run -e TENANT_ID=3004 -e TARGET_UID=163353 -e WITHDRAW_CHANCE=0.9 runTeamRechargeAndBetV2.test.js
- * 
+ *
+ *   # 提现 + 后台审核出款（默认不审核）,WITHDRAW_AUDIT=true后台要审核
+ *   k6 run -e TENANT_ID=3004 -e TARGET_UID=164320 -e WITHDRAW_CHANCE=0.9 -e WITHDRAW_AUDIT=true runTeamRechargeAndBetV2.test.js
+ *
  *   # 只针对于L3团队的方式进行整个团队的充值投注
  *   k6 run -e TENANT_ID=3004 -e TARGET_UID=137861 -e IS_L3=true -e VUS=5 runTeamRechargeAndBetV2.test.js
  *
@@ -35,6 +38,7 @@
  *   RECHARGE_ONLY_RATE 只充值比例 0~1             默认: 0.2
  *   REBATE_CHANCE      返佣设置几率 0~1           默认: 0.2
  *   WITHDRAW_CHANCE    提现几率 0~1               默认: 0
+ *   WITHDRAW_AUDIT     提现后是否后台审核出款      默认: false（不审核）
  *   IS_L3              是否为L3代理(true/false)   默认: false
  */
 
@@ -138,6 +142,7 @@ export default function (data) {
     const rechargeOnlyRate = parseFloat(__ENV.RECHARGE_ONLY_RATE || '0.2');
     const rebateChance = parseFloat(__ENV.REBATE_CHANCE || '0.2');
     const withdrawChance = parseFloat(__ENV.WITHDRAW_CHANCE || '0');
+    const withdrawAudit = (__ENV.WITHDRAW_AUDIT || '').toLowerCase() === 'true';
     const isL3 = (__ENV.IS_L3 || '').toLowerCase() === 'true';
 
     // 校验比例之和不超过1
@@ -158,7 +163,8 @@ export default function (data) {
         console.log(`不活跃比例    : ${(inactiveRate * 100).toFixed(0)}%`);
         console.log(`只充值比例    : ${(rechargeOnlyRate * 100).toFixed(0)}%`);
         console.log(`充值+投注比例 : ${((1 - inactiveRate - rechargeOnlyRate) * 100).toFixed(0)}%\n`);
-        console.log(`提现触发几率  : ${(withdrawChance * 100).toFixed(0)}%\n`);
+        console.log(`提现触发几率  : ${(withdrawChance * 100).toFixed(0)}%`);
+        console.log(`后台审核出款  : ${withdrawAudit ? '开启' : '关闭'}\n`);
     }
 
     runTeamRechargeAndBetV2(parseInt(targetUid), data, {
@@ -166,6 +172,7 @@ export default function (data) {
         rechargeOnlyRate,
         rebateChance,
         withdrawChance,
+        withdrawAudit,
         delayMs: 1000,
         isL3,
         vuId: vuId,

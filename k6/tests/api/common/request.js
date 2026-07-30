@@ -4,8 +4,8 @@ import { httpClient } from '../../../libs/http/client.js';
 import { getEnvironment } from '../../../config/environment.js';
 import { ApiChecks } from '../../../libs/checks/apiChecks.js';
 import { logger } from '../../../libs/utils/logger.js';
-import { htmlReport } from 'https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js';
-import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js';
+import { htmlReport } from '../../../libs/vendor/k6-reporter.js';
+import { textSummary } from '../../../libs/vendor/k6-summary-0.0.1.js';
 import { getTimeRandom } from '../../utils/utils.js';
 import { ENV_CONFIG } from '../../../config/envconfig.js';
 
