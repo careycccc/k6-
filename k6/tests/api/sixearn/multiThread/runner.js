@@ -1,8 +1,8 @@
-const { execSync } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
 // @ts-ignore
 const fs = require('fs');
 
-const tenantId = process.env.TENANT_ID || '3101';
+const tenantId = process.env.TENANT_ID || '3002';
 const team1Total = process.env.TEAM1_TOTAL || '20';   // 团队1总人数
 const team1Levels = process.env.TEAM1_LEVELS || '4';    // 团队1总层级
 const team2Total = process.env.TEAM2_TOTAL || '15';   // 团队2总人数
@@ -42,7 +42,7 @@ const enableBackendApproval = process.env.ENABLE_BACKEND_APPROVAL || 'false';
 // —— 执行后层级验证（agentHierarchyValidation）——
 // 3 团队执行完毕后，等待 VERIFY_WAIT_SEC 秒（让转线/改挂的层级重算、总代回填等后端异步落地），
 // 再对每个团队逐一做「层级 + 总代 + 转线」验证，有问题可精确定位到具体会员。
-const verifyWaitSec = parseInt(process.env.VERIFY_WAIT_SEC || '300', 10); // 默认 5 分钟
+const verifyWaitSec = parseInt(process.env.VERIFY_WAIT_SEC || '180', 10); // 默认 3 分钟
 const skipVerify = process.env.SKIP_VERIFY === 'true';
 // 验证脚本相对 multiThread 目录的路径
 // - 单总代验证（保留，供单独用）
@@ -59,25 +59,45 @@ const TEAM_LEVELS = { TeamA: team1Levels, TeamB: team2Levels, TeamC: team3Levels
 
 // @ts-ignore
 function runK6(script, envs, capture = false) {
-    const envVars = Object.keys(envs).map(k => `-e ${k}=${envs[k]}`).join(' ');
-    // 强制禁用 K6 的自带进度条，避免污染 stdout 输出
-    const actualCmd = `k6 run --summary-mode=disabled -q ${envVars} -e TENANT_ID=${tenantId} ${script} 2>&1`;
+    const envArgs = Object.keys(envs).flatMap(k => ['-e', `${k}=${envs[k]}`]);
+    const allArgs = ['run', '--summary-mode=disabled', '-q', ...envArgs, '-e', `TENANT_ID=${tenantId}`, script];
 
+    // 构建用于日志展示的命令字符串（仅用于打印）
+    const displayCmd = `k6 run --summary-mode=disabled -q ${Object.keys(envs).map(k => `-e ${k}=${envs[k]}`).join(' ')} -e TENANT_ID=${tenantId} ${script} 2>&1`;
     console.log(`\n▶️ 执行阶段: ${script}`);
-    console.log(`💻 运行命令: ${actualCmd}\n`);
+    console.log(`💻 运行命令: ${displayCmd}\n`);
 
     try {
         if (capture) {
-            // 需要回读输出(如建树解析 ROOT_INFO)：捕获到内存，给足 maxBuffer 防止大输出触发 ENOBUFS
-            // @ts-ignore
-            const output = execSync(actualCmd, { encoding: 'utf-8', stdio: 'pipe', maxBuffer: 512 * 1024 * 1024 });
+            // 【修复 Windows pipe 死锁】
+            // 原实现用 execSync+stdio:pipe，Windows 下管道缓冲区约 64KB，k6 输出稍多即被反压卡死。
+            // spawnSync 内部通过事件循环流式消费 pipe，不会死锁，且无需 maxBuffer 限制。
+            // stderr 单独捕获（不用 2>&1 shell 重定向），stdout+stderr 合并打印即可。
+            const result = spawnSync('k6', allArgs, {
+                encoding: 'utf-8',
+                maxBuffer: 512 * 1024 * 1024,
+                // @ts-ignore
+                windowsHide: true,
+            });
+            const output = (result.stdout || '') + (result.stderr || '');
             console.log(output);
-            return output;
+            if (result.status !== 0) {
+                const err = new Error(`k6 exited with code ${result.status}`);
+                // @ts-ignore
+                err.stdout = result.stdout;
+                // @ts-ignore
+                err.stderr = result.stderr;
+                throw err;
+            }
+            // 返回 stdout+stderr 合并输出供调用方解析 ROOT_INFO。
+            // ⚠️ k6 的 console.log 全部写到 stderr（不是 stdout！stdout 恒为空），
+            //    因此必须带上 stderr，否则 buildTeam 在 stdout 里匹配不到 [ROOT_INFO]，
+            //    会误报「无法从 step1_register 的输出中解析出根节点信息」。
+            return (result.stdout || '') + (result.stderr || '');
         }
         // 不需要回读：直接把子进程输出继承到本进程 stdout，边跑边打印。
-        // 大团队充投提日志可达数 MB，若用默认 pipe 缓冲(1MB)会 ENOBUFS 崩溃，inherit 无此限制。
         // @ts-ignore
-        execSync(actualCmd, { stdio: 'inherit' });
+        execSync(`k6 ${allArgs.join(' ')} 2>&1`, { stdio: 'inherit' });
         return '';
     } catch (err) {
         // @ts-ignore
@@ -312,7 +332,7 @@ async function main() {
             // 7) 最终全员充投 + 按概率提现（含转入成员 + 两波新下级）
             for (const t of teams) runAction(t, v2WithWithdraw);
 
-            // 8) 执行完毕，等待 5 分钟（让转线/改挂的层级重算、总代回填等后端异步处理落地）
+            // 8) 执行完毕，等待 3 分钟（让转线/改挂的层级重算、总代回填等后端异步处理落地）
             //    再对 3 个团队逐一做「层级 + 总代 + 转线」验证，有问题可精确定位到具体会员。
             if (!skipVerify) {
                 console.log(`\n🕒 3 团队执行完毕，等待 ${verifyWaitSec}s 后进行层级验证 ...`);

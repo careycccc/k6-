@@ -6,6 +6,35 @@ import { probeResponse } from '../../../libs/monitor/perfIntegration.js';
 import { PERF_METRICS, ERROR_COUNTERS } from '../../../libs/monitor/perfMetrics.js';
 
 // ============================================================
+// 最近一次注册错误（供调用方按错误类型决定「是否值得重试」的快速失败逻辑）
+// - k6 中每个 VU 是独立 JS 运行时，模块级变量为「每 VU 私有」；同一 VU 内迭代串行执行，
+//   注册函数返回后同步读取本变量即当次结果，无并发竞态。
+// - 注册函数对外返回值保持不变（成功返回对象、失败仍返回 null），完全向后兼容。
+// ============================================================
+let _lastRegisterError = null;
+
+/**
+ * 取最近一次注册失败的错误详情。
+ * @returns {{type:'business'|'network'|'parse', code:number|null, msgCode:number|null, msg:string}|null} 成功时为 null
+ */
+export function getLastRegisterError() {
+    return _lastRegisterError;
+}
+
+/**
+ * 是否为「访问过于频繁」限流错误——全项目统一约定：msgCode===13 / msg 含 "Too frequent access"。
+ * 只有这类（及网络/解析类瞬时错误）才值得退避重试；其它业务错误应快速失败。
+ * @param {object|null} err getLastRegisterError() 的返回值
+ * @returns {boolean}
+ */
+export function isRateLimitError(err) {
+    if (!err) return false;
+    if (err.msgCode === 13 || err.code === 13) return true;
+    const m = (err.msg || '').toLowerCase();
+    return m.includes('too frequent') || m.includes('try again later');
+}
+
+// ============================================================
 // 无验证码版本（主流程）
 // 后端已支持直接注册，无需预先发送验证码，code 字段传空字符串即可
 // ============================================================
@@ -703,6 +732,7 @@ function handleRegisterResponse(httpResponse, userName, deviceId = null) {
     });
 
     if (!httpResponse || !httpResponse.body) {
+        _lastRegisterError = { type: 'network', code: null, msgCode: null, msg: '接口无响应' };
         console.error(`[RegisterResponse] ❌ 接口无响应`);
         return null;
     }
@@ -711,6 +741,7 @@ function handleRegisterResponse(httpResponse, userName, deviceId = null) {
     try {
         parsedBody = typeof httpResponse.body === 'string' ? JSON.parse(httpResponse.body) : httpResponse.body;
     } catch (e) {
+        _lastRegisterError = { type: 'parse', code: null, msgCode: null, msg: e.message };
         console.error(`[RegisterResponse] ❌ 解析响应体失败: ${e.message}`);
         return null;
     }
@@ -718,6 +749,7 @@ function handleRegisterResponse(httpResponse, userName, deviceId = null) {
     const statusCode = parsedBody.code !== undefined ? parsedBody.code : parsedBody.msgCode;
 
     if (statusCode === 0) {
+        _lastRegisterError = null;
         //console.log(`[RegisterResponse] ✅ 注册成功: ${userName}`);
         return {
             headers: httpResponse.headers,
@@ -727,6 +759,7 @@ function handleRegisterResponse(httpResponse, userName, deviceId = null) {
             ...(deviceId !== null && { deviceId })
         };
     } else {
+        _lastRegisterError = { type: 'business', code: parsedBody.code ?? null, msgCode: parsedBody.msgCode ?? null, msg: parsedBody.msg || '' };
         console.error(`[RegisterResponse] ❌ 注册失败: code=${statusCode}, msg=${parsedBody.msg}`);
         console.error(`[RegisterResponse] 完整错误响应: ${JSON.stringify(parsedBody, null, 2)}`);
         return null;
@@ -746,6 +779,7 @@ function handleRegisterResponseWithToken(httpResponse, userName) {
     });
 
     if (!httpResponse || !httpResponse.body) {
+        _lastRegisterError = { type: 'network', code: null, msgCode: null, msg: '接口无响应' };
         console.error(`[RegisterResponse] ❌ 接口无响应`);
         return null;
     }
@@ -754,6 +788,7 @@ function handleRegisterResponseWithToken(httpResponse, userName) {
     try {
         parsedBody = typeof httpResponse.body === 'string' ? JSON.parse(httpResponse.body) : httpResponse.body;
     } catch (e) {
+        _lastRegisterError = { type: 'parse', code: null, msgCode: null, msg: e.message };
         console.error(`[RegisterResponse] ❌ 解析响应体失败: ${e.message}`);
         return null;
     }
@@ -763,6 +798,7 @@ function handleRegisterResponseWithToken(httpResponse, userName) {
     const statusCode = parsedBody.code !== undefined ? parsedBody.code : parsedBody.msgCode;
 
     if (statusCode === 0) {
+        _lastRegisterError = null;
         //console.log(`[RegisterResponse] ✅ 注册成功: ${userName}`);
         const token = parsedBody.data && parsedBody.data.token ? parsedBody.data.token : null;
         return {
@@ -772,6 +808,7 @@ function handleRegisterResponseWithToken(httpResponse, userName) {
             msg: parsedBody.msg
         };
     } else {
+        _lastRegisterError = { type: 'business', code: parsedBody.code ?? null, msgCode: parsedBody.msgCode ?? null, msg: parsedBody.msg || '' };
         console.error(`[RegisterResponse] ❌ 注册失败: code=${statusCode}, msg=${parsedBody.msg}`);
         console.error(`[RegisterResponse] 完整错误响应: ${JSON.stringify(parsedBody, null, 2)}`);
         return null;
