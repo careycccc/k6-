@@ -23,7 +23,7 @@
  *   送达率 = D / R
  *
  * ⚠️ 首次务必先跑「侦察模式」把上报端点/参数摸清（见文件末尾运行说明）：
- *      $env:ACCOUNT="7307287787"; $env:PASSWORD="qwer1234"; $env:DISCOVER="true"; node delivery-verify.js
+ *      $env:ACCOUNT="8487563389"; $env:PASSWORD="qwer1234"; $env:DISCOVER="true"; node delivery-verify.js
  *   把打印出来的「🔎 侦察」请求 URL/body 贴回来，即可把匹配规则和「后台报表接口」补精确。
  *
  * Firebase / 真实浏览器限制（沿用 batch-push-test.js，同样重要）：
@@ -31,25 +31,44 @@
  *   - 必须持久化上下文 + notifications 权限，否则 SW 与 FCM token 丢失。
  *   - 已关闭后台标签节流，保证后台窗口的 SW 通道也能收到推送。
  *
- * 运行：
- *   node k6/playwrith/delivery-verify.js
- *   COUNT=50 node k6/playwrith/delivery-verify.js
- *   DISCOVER=true COUNT=1 node k6/playwrith/delivery-verify.js      # 侦察上报端点
- *   EXPECT_SENT=50 COUNT=50 node k6/playwrith/delivery-verify.js    # 指定后台发送数量做分母
+ * 运行（PowerShell；TENANT 选租户，默认 3004，支持 3001-3007/3101）：
+ *  // 验证单个账号点击推送，推送链接：https://arplatsaassit3.club/wallet/recharge
+ *  $env:TENANT="3005"; $env:ACCOUNT="45773591964"; $env:PASSWORD="qwer1234"; $env:HEADLESS="false"; $env:CLICK="true"; node delivery-verify.js
+ * 
+ * 批量无头运行：$env:TENANT="3005"; $env:COUNT="100"; $env:CLICK="true"; $env:CLICK_RATE="80"; node delivery-verify.js
+ * COUNT=50 表示最多尝试 50 个账号（2.txt 里按行列出，去掉区号，最多 500 个）。
+ * CLICK=true 表示收到送达后自动模拟点击（接口级上报），CLICK_RATE=50 表示约一半点击。
  */
 
 const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 // ============================================================
 // 配置
 // ============================================================
-const BASE_URL      = process.env.BASE_URL || 'https://arplatsaassit4.club'; // 3004 前台
+// ───── 多租户配置（前台地址 + 区号），摘自 k6/config/envconfig.js ─────
+const TENANTS = {
+  '3001': { desk: 'https://arplatsaassit1.club',      code: '91'  },
+  '3002': { desk: 'https://arplatsaassit2.club',      code: '92'  },
+  '3003': { desk: 'https://3003.arplatsaassit3.club', code: '91'  },
+  '3004': { desk: 'https://arplatsaassit4.club',      code: '91'  },
+  '3005': { desk: 'https://arplatsaassit3.club',      code: '52'  },
+  '3006': { desk: 'https://3006.arplatsaassit4.club', code: '880' },
+  '3007': { desk: 'https://3007.arplatsaassit4.club', code: '92'  },
+  '3101': { desk: 'https://arplatsaaspagesuat.club',  code: '91'  },
+};
+const TENANT        = String(process.env.TENANT || process.env.TENANT_ID || '3004');
+const TCFG          = TENANTS[TENANT] || TENANTS['3004'];
+const BASE_URL      = process.env.BASE_URL || TCFG.desk;      // 前台地址（BASE_URL 显式覆盖优先）
 const LOGIN_URL     = `${BASE_URL}/login`;
 const PASSWORD      = process.env.PASSWORD || 'qwer1234';
-const COUNTRY_CODE  = '91';                                  // 要去掉的固定区号
-const ACCOUNTS_FILE = path.join(__dirname, '..', 'tests', 'api', 'activity', 'firebase', '2.txt');
+const COUNTRY_CODE  = process.env.COUNTRY_CODE || TCFG.code;  // loadAccounts 去区号用
+// 账号文件：多租户用 ACCOUNTS_FILE 指定对应租户的 2.txt；默认 firebase/2.txt
+const ACCOUNTS_FILE = process.env.ACCOUNTS_FILE
+  ? path.resolve(process.env.ACCOUNTS_FILE)
+  : path.join(__dirname, '..', 'tests', 'api', 'activity', 'firebase', '2.txt');
 
 // 最多读取/尝试的账号数（测试用 5，正式可改大，上限 500）
 const MAX_ACCOUNTS  = Math.min(parseInt(process.env.COUNT || '5', 10), 500);
@@ -73,6 +92,10 @@ const DISCOVER      = process.env.DISCOVER === 'true';
 const EXPECT_SENT   = process.env.EXPECT_SENT ? parseInt(process.env.EXPECT_SENT, 10) : null;
 // 无人值守：跑满 DURATION 秒后自动输出报表并退出（不设则常驻等 Ctrl+C）
 const DURATION      = process.env.DURATION ? parseInt(process.env.DURATION, 10) : null;
+// 接口级点击模拟：CLICK=true 时，收到送达后自动构造 action=CLICK_ACTION 的 /api/Push/Report 上报（模拟点击）
+const SIMULATE_CLICK = process.env.CLICK === 'true';
+const CLICK_ACTION   = parseInt(process.env.CLICK_ACTION || '2', 10); // 点击的 action 值（推测 2，可配）
+const CLICK_RATE     = process.env.CLICK_RATE !== undefined ? parseFloat(process.env.CLICK_RATE) : 100; // 点击概率(%)：100=全点，50=约一半，用于验证后台点击率
 
 // 埋点事件名（后台报表统计的就是这些上报）
 const EV_RECEIVE = 'mp_notification_receive';  // 送达（本阶段核心）
@@ -91,6 +114,9 @@ const netRecv      = new Map();                   // account -> { count, msgIds:
 const consoleRecv  = new Map();                   // account -> count    console 兜底判定的收到次数
 const netClick     = new Map();                   // account -> { count, msgIds:Set } click 上报次数 / 去重消息集
 const discoverDump = new Map();                   // account -> [{method,url,body}] 侦察样本
+const pushCtx      = new Map();                   // account -> { token, lastReport:{msgId,reportId,language} } 供点击模拟复用凭证
+const clickSim     = new Map();                   // account -> { sent:Set, ok, fail } 接口级点击模拟结果
+const clickDecided = new Map();                   // account -> Set<msgId> 已决策是否点击（防同一消息前台+SW双通道重复决策）
 let   useChrome    = process.env.USE_CHROME !== 'false'; // USE_CHROME=false 强制内置 Chromium（调试用；内置缺 FCM 组件收不到真实推送）
 
 // ============================================================
@@ -174,6 +200,50 @@ function extractGa4EventMsgIds(hay, eventName) {
 }
 
 // ============================================================
+// 接口级点击模拟：复刻 signature.js 签名，构造 action=CLICK_ACTION 的 /api/Push/Report 上报
+//   签名（已用真实送达 body 反算验证 MATCH，含 3004/en 与 3005/hi）：排除 signature/timestamp/track+空值 → key 排序 → JSON.stringify → MD5 大写（secret 空）
+//   凭证在 body 里（reportId 或 token），随 body 参与签名；不走 Authorization 头。
+// ============================================================
+function signPushReport(fields) {
+  const exclude = new Set(['signature', 'timestamp', 'track']);
+  const filtered = {};
+  Object.keys(fields).sort().forEach((k) => {
+    const v = fields[k];
+    if (exclude.has(k) || v === null || v === undefined || v === '') return;
+    filtered[k] = v;
+  });
+  return crypto.createHash('md5').update(JSON.stringify(filtered)).digest('hex').toUpperCase();
+}
+
+async function simulateClick(context, account, msgId) {
+  const lr = (pushCtx.get(account) || {}).lastReport;
+  if (!lr || (!lr.reportId && !lr.bodyToken)) { console.log(`[🖱️ 点击模拟] ${account} 无 reportId/token（送达上报未解析到凭证），跳过`); return; }
+  const language = lr.language || 'en';
+  const random = Math.floor(1e11 + Math.random() * 9e11); // 保证 12 位（后台校验 Random 必须是 12 位数字）
+  const timestamp = Math.floor(Date.now() / 1000);
+  // 凭证在 body 里（非 Authorization 头）：优先 reportId 格式（400743 即此，签名已跨租户/多语言验证）；
+  // 无 reportId 时回退 token 格式（token 进 body，随 body 参与签名）。
+  const fields = lr.reportId
+    ? { action: CLICK_ACTION, language, msgId, random, reportId: lr.reportId }
+    : { action: CLICK_ACTION, language, msgId, random, token: lr.bodyToken };
+  const body = JSON.stringify({ ...fields, timestamp, signature: signPushReport(fields) });
+  try {
+    const resp = await context.request.post(`${BASE_URL}/api/Push/Report`, {
+      headers: { 'Content-Type': 'application/json', 'Domainurl': BASE_URL, 'Referrer': BASE_URL },
+      data: body,
+    });
+    const txt = (await resp.text()).slice(0, 150);
+    const rec = clickSim.get(account) || { sent: new Set(), ok: 0, fail: 0 };
+    rec.sent.add(String(msgId));
+    if (resp.ok()) rec.ok += 1; else rec.fail += 1;
+    clickSim.set(account, rec);
+    console.log(`[🖱️ 点击模拟·发送] ${account} action=${CLICK_ACTION} msgId=${msgId} 用${lr.reportId ? 'reportId' : 'token'} → HTTP ${resp.status()} ${txt}`);
+  } catch (e) {
+    console.log(`[🖱️ 点击模拟·失败] ${account} ${e.message}`);
+  }
+}
+
+// ============================================================
 // 网络拦截（context 级）：抓「前端 + Service Worker」发起的埋点上报
 //   —— 后台报表统计的就是这些上报请求，这是本脚本相较 console 文本的核心升级。
 //   —— context 级能覆盖 page 与 SW 发起的请求（serviceWorkers:'allow'）。
@@ -205,6 +275,35 @@ function attachNetworkListener(context, account) {
         discoverDump.set(account, dl);
         console.log(`[🔎 侦察] ${account} ${req.method()} ${url.slice(0, 140)}`);
         if (post) console.log(`         body: ${post.slice(0, 400)}`);
+      }
+    }
+
+    // ★ 主站上报接口 /api/Push/Report —— 后台「送达/点击」报表的真实数据源（GA4 只是给 Google 的埋点）
+    //   凭证在 body 里（不是 Authorization 头）：① reportId 格式（body 带 reportId，无 token）② token 格式（body 带 token）。
+    //   action=1=送达。点击模拟优先复用 reportId 格式（已跨租户/多语言验证签名）。
+    if (/\/api\/Push\/Report/i.test(url)) {
+      let mid = null, action = null, reportId = null, language = 'en', bodyToken = null;
+      try { const j = JSON.parse(post); mid = (j.msgId !== undefined ? j.msgId : j.msgID); action = j.action; reportId = j.reportId || null; if (j.language) language = j.language; bodyToken = j.token || null; } catch (e) { /* 非 JSON */ }
+      const cred = reportId ? `reportId=${reportId}` : (bodyToken ? '[body-token]' : '[无凭证]');
+      console.log(`[📡 Push/Report·主站上报] ${account} msgId=${mid} action=${action} ${cred}  body=${post.slice(0, 150)}`);
+      // 记录凭证（reportId 优先），供接口级点击模拟复用
+      if (action === 1 && mid != null && (reportId || bodyToken)) {
+        const cur = pushCtx.get(account) || {};
+        cur.lastReport = { msgId: mid, reportId, language, bodyToken };
+        pushCtx.set(account, cur);
+      }
+      // 接口级点击模拟：收到「送达(action=1)」后，按 CLICK_RATE 概率决定是否模拟点击（每 msgId 只决策一次）
+      if (SIMULATE_CLICK && action === 1 && mid != null) {
+        const dec = clickDecided.get(account) || new Set();
+        if (!dec.has(String(mid))) {
+          dec.add(String(mid));
+          clickDecided.set(account, dec);
+          if (Math.random() * 100 < CLICK_RATE) {
+            setTimeout(() => simulateClick(context, account, mid), 1500);
+          } else {
+            console.log(`[🖱️ 跳过点击] ${account} msgId=${mid}（按 CLICK_RATE=${CLICK_RATE}%）`);
+          }
+        }
       }
     }
 
@@ -493,8 +592,18 @@ function printExitReport() {
   if (notDelivered.length) {
     console.log(`  ❌ 就绪但未送达 (${notDelivered.length}): ${notDelivered.slice(0, 30).join(', ')}${notDelivered.length > 30 ? ' ...' : ''}`);
   }
-  if (clkAccounts.length) {
-    console.log(`  🖱️ 顺带观测到点击上报账号: ${clkAccounts.length}（点击验证见第二阶段）`);
+  // ── 点击闭环（接口级模拟 C / 真实观测）──
+  const simOk   = [...clickSim.values()].reduce((s, r) => s + r.ok, 0);
+  const simFail = [...clickSim.values()].reduce((s, r) => s + r.fail, 0);
+  if (SIMULATE_CLICK || simOk || simFail || clkAccounts.length) {
+    const C    = simOk; // 点击真值：接口级模拟成功上报的账号/消息数
+    const ctrD = D > 0 ? ((C / D) * 100).toFixed(2) : 'N/A';
+    const ctrR = R > 0 ? ((C / R) * 100).toFixed(2) : 'N/A';
+    console.log('-'.repeat(60));
+    console.log(`  点击数 C（接口级模拟 action=${CLICK_ACTION} 成功）: ${C}${simFail ? `   失败 ${simFail}` : ''}`);
+    if (clkAccounts.length) console.log(`  真实点击上报(GA4)账号: ${clkAccounts.length}`);
+    console.log(`  ✅ 点击率 = C / D = ${C} / ${D} = ${ctrD}%   （或 C / R = ${ctrR}%）；目标点击概率 CLICK_RATE=${CLICK_RATE}%`);
+    console.log(`  与后台核对：点击数量 应 ≈ ${C}；点击率按其口径 ≈ ${ctrD}%(点击/送达) 或 ${ctrR}%(点击/发送)`);
   }
   console.log('='.repeat(60) + '\n');
 
@@ -528,7 +637,9 @@ async function main() {
   console.log(singleMode
     ? `单账号模式：${accounts[0]}（账号/密码由环境变量指定，跳过 2.txt）`
     : `读取到 ${accounts.length} 个账号（已去掉区号 ${COUNTRY_CODE}）`);
-  console.log(`配置: 爬坡 ${START_VUS}→${MAX_VUS} / ${RAMP_SECONDS}s  错峰=${STAGGER_MIN}~${STAGGER_MAX}ms  无头=${HEADLESS}  侦察=${DISCOVER}`);
+  console.log(`租户: ${TENANT}  前台: ${BASE_URL}  区号: ${COUNTRY_CODE}`);
+  const clickCfg = SIMULATE_CLICK ? `action=${CLICK_ACTION} 概率=${CLICK_RATE}%(开)` : '关（需加 CLICK=true）';
+  console.log(`配置: 爬坡 ${START_VUS}→${MAX_VUS}  无头=${HEADLESS}  侦察=${DISCOVER}  点击模拟=${clickCfg}`);
   if (EXPECT_SENT) console.log(`分母 EXPECT_SENT=${EXPECT_SENT}（后台实际发送数量）`);
   console.log('');
 

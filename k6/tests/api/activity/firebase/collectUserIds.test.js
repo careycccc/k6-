@@ -12,7 +12,7 @@
  *
  * 运行方式（在 k6/tests/api/activity/firebase/ 目录下执行）：
  *   k6 run -e TENANT=3004 collectUserIds.test.js
- *   k6 run -e TENANT=3004 -e TARGET=25000 -e THREADS=5 collectUserIds.test.js
+ *   k6 run -e TENANT=3005 -e TARGET=10 -e THREADS=2 collectUserIds.test.js
  *
  * 参数说明：
  *   TENANT      租户 ID（默认 3004）

@@ -2,7 +2,7 @@
  * 提现流程逻辑 - 多租户 + 多账号多线程版本
  *
  * 单账号（原有用法）:
- *   k6 run -e TENANT=3101 -e TARGET_USER=918005199724 withdraw.test.js
+ *   k6 run -e TENANT=3004 -e TARGET_USER=918522114820 withdraw.test.js
  *
  * 多账号多线程（每个账号独立 VU 并发执行）:
  *   k6 run -e TENANT=3004 -e TARGET_USERS=918516050194,915246024319 withdraw.test.js

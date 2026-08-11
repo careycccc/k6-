@@ -11,3 +11,13 @@ docker run --name mysql-container -e MYSQL_ROOT_PASSWORD=123456 -p 3306:3306 -d 
 -d: 后台运行容器。
 
 powershell执行 连接sql server 命令：docker exec -it mysql-container mysql -u root -p
+
+
+docker 安装 nuclei
+docker pull projectdiscovery/nuclei:latest
+
+更新 nuclei
+docker run --rm -it projectdiscovery/nuclei -ut
+
+扫描
+docker run --rm -it projectdiscovery/nuclei -u https://arplatsaassit4.club
