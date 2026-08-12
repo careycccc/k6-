@@ -33,9 +33,9 @@
  *
  * 运行（PowerShell；TENANT 选租户，默认 3004，支持 3001-3007/3101）：
  *  // 验证单个账号点击推送，推送链接：https://arplatsaassit3.club/wallet/recharge
- *  $env:TENANT="3005"; $env:ACCOUNT="45773591964"; $env:PASSWORD="qwer1234"; $env:HEADLESS="false"; $env:CLICK="true"; node delivery-verify.js
+ *  $env:TENANT="3101"; $env:ACCOUNT="8005199724"; $env:PASSWORD="qwer1234"; $env:HEADLESS="false"; $env:CLICK="true"; node delivery-verify.js
  * 
- * 批量无头运行：$env:TENANT="3005"; $env:COUNT="100"; $env:CLICK="true"; $env:CLICK_RATE="80"; node delivery-verify.js
+ * 批量无头运行：$env:TENANT="3101"; $env:COUNT="30"; $env:CLICK="true"; $env:CLICK_RATE="80"; node delivery-verify.js
  * COUNT=50 表示最多尝试 50 个账号（2.txt 里按行列出，去掉区号，最多 500 个）。
  * CLICK=true 表示收到送达后自动模拟点击（接口级上报），CLICK_RATE=50 表示约一半点击。
  */

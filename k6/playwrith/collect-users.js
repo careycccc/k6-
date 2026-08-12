@@ -9,7 +9,7 @@
  *   2.txt → account 列表（前端登录用，delivery-verify 读）
  *
  * 运行（PowerShell；TENANT 选租户）：
- *   $env:TENANT="3005"; $env:TARGET="50"; node collect-users.js
+ *   $env:TENANT="3101"; $env:TARGET="30"; node collect-users.js
  *   $env:TENANT="3004"; $env:TARGET="200"; node collect-users.js
  *   自定义输出目录：$env:OUT_DIR="D:\\tmp"; node collect-users.js
  *
