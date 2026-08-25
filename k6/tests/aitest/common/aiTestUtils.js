@@ -1,7 +1,8 @@
 import { logger } from '../../../libs/utils/logger.js';
-import { ENV_CONFIG } from '../../../config/envconfig.js';
+import { ENV_CONFIG, getEnvByTenantId } from '../../../config/envconfig.js';
 import { sendRequest } from '../../api/common/request.js';
 import { AdminLogin } from '../../api/login/adminlogin.test.js';
+import { backendLogin } from '../../../libs/http/tenantRequest.js';
 
 /**
  * AI测试通用工具类
@@ -126,28 +127,19 @@ export class AITestUtils {
      * @param {string} password - 密码
      * @returns {string} token
      */
-    static loginWithCredentials(username, password) {
-        const api = '/api/Login/Login';
-        const payload = {
-            userName: username,
-            pwd: password
-        };
-
+    static loginWithCredentials(username, password, tenantId = null) {
         try {
-            const result = sendRequest(
-                payload,
-                api,
-                'login',
-                false  // 后台登录
-            );
-
-            if (result && result.msgCode === 0 && result.data && result.data.token) {
+            // 后台登录统一走 backendLogin（带 vCode）。从用户名推断租户（careyXXXX → XXXX）取对应密钥+后台域。
+            const t = tenantId || (String(username).match(/(\d{4})/) || [])[1] || null;
+            const env = t ? getEnvByTenantId(t) : null;
+            const secret = env ? env.GOOGLE_SECRET : '';
+            const token = backendLogin(username, password, secret, t);
+            if (token) {
                 logger.info(`登录成功: ${username}`);
-                return result.data.token;
-            } else {
-                logger.error(`登录失败: ${username}`, result?.msg);
-                return null;
+                return token;
             }
+            logger.error(`登录失败: ${username}`);
+            return null;
         } catch (error) {
             logger.error(`登录异常: ${username}`, error.message);
             return null;

@@ -17,12 +17,13 @@
  *
  * 使用方式：
  *   # 并发场景（同轮多人共享同一设备ID）
- *   k6 run verifySameDeviceInvite.test.js -e TENANT_ID=3004 -e TEST_MODE=concurrent
+ *   k6 run verifySameDeviceInvite.test.js -e TENANT_ID=3101 -e TEST_MODE=concurrent
  *
  *   # 跨轮场景（第二轮复用第一轮的设备ID）
- *   k6 run verifySameDeviceInvite.test.js -e TENANT_ID=3004 -e TEST_MODE=cross_round -e WHEEL_NUMBER=3
+ *   k6 run verifySameDeviceInvite.test.js -e TENANT_ID=3101 -e TEST_MODE=cross_round -e WHEEL_NUMBER=3
+ * 
  *  # 总代设备作弊场景，使用总代的设备id注册下级，验证这种自刷行为不会触发邀请次数。
- *   k6 run verifySameDeviceInvite.test.js -e TENANT_ID=3004 -e TEST_MODE=agent_device
+ *   k6 run verifySameDeviceInvite.test.js -e TENANT_ID=3101 -e TEST_MODE=agent_device
  *
  * 环境变量：
  *   TENANT_ID           租户ID（默认 3004）

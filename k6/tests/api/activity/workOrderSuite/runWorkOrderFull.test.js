@@ -36,7 +36,7 @@ import { sendRequest, sendQueryRequest } from '../../common/request.js';
 import { ENV_CONFIG, getEnvByTenantId } from '../../../../config/envconfig.js';
 import { getActiveLangs } from '../../../../config/languageConfig.js';
 import { getUserAccount, autoLoginByAccount } from '../../user/userAccountApi.js';
-import { tenantRequest } from '../../../../libs/http/tenantRequest.js';
+import { tenantRequest, backendLogin } from '../../../../libs/http/tenantRequest.js';
 
 import { orderSystemConfig } from '../orderSystem/oderyconfig.js';
 import { TRANSLATIONS } from '../orderSystem/createOrdersystem.js';
@@ -204,13 +204,9 @@ export function setup() {
     let workOrderRoleToken = null;
     if (envConfig.WorkOrderRole && envConfig.WorkOrderRolePasswrod) {
         logger.info(`[${TAG}] 登录第二客服: ${envConfig.WorkOrderRole}`);
-        const roleRes = tenantRequest('/api/Login/Login', {
-            userName: envConfig.WorkOrderRole,
-            pwd: envConfig.WorkOrderRolePasswrod,
-        }, { isDesk: false });
-
-        if (roleRes && roleRes.msgCode === 0 && roleRes.data && roleRes.data.token) {
-            workOrderRoleToken = roleRes.data.token;
+        // 客服角色也是后台登录，走统一 backendLogin（带 vCode，共用租户 GOOGLE_SECRET）
+        workOrderRoleToken = backendLogin(envConfig.WorkOrderRole, envConfig.WorkOrderRolePasswrod, envConfig.GOOGLE_SECRET, envConfig.TENANTID);
+        if (workOrderRoleToken) {
             logger.info(`[${TAG}] ✅ 第二客服登录成功: ${envConfig.WorkOrderRole}`);
         } else {
             logger.warn(`[${TAG}] ⚠️ 第二客服登录失败，将使用单客服模式`);

@@ -32,7 +32,7 @@
  * 
  */
 
-import { tenantAdminLogin, tenantRequest } from '../../../libs/http/tenantRequest.js';
+import { tenantAdminLogin, tenantRequest, backendLogin } from '../../../libs/http/tenantRequest.js';
 import { getEnvByTenantId } from '../../../config/envconfig.js';
 import { lockWithdrawOrder } from './backendWithdrawApi.js';
 import { getUserIdByAccount } from '../user/userManagement.js';
@@ -140,21 +140,14 @@ function queryPendingWithdrawOrder(adminToken, userId, amount) {
  */
 function limitedAdminLogin(tenantId) {
     const envConfig = getEnvByTenantId(tenantId);
-
-    const response = tenantRequest('/api/Login/Login', {
-        userName: envConfig.LimitedPermissions,
-        pwd:      envConfig.LimitedPermissionsPassWord
-    }, {
-        isDesk: false
-    });
-
-    if (response.msgCode === 0 && response.data && response.data.token) {
+    // 受限账号也是后台登录，走统一 backendLogin（带 vCode，共用租户 GOOGLE_SECRET）
+    const token = backendLogin(envConfig.LimitedPermissions, envConfig.LimitedPermissionsPassWord, envConfig.GOOGLE_SECRET, tenantId);
+    if (token) {
         console.log(`[${TAG}] ✅ 受限账号 (${envConfig.LimitedPermissions}) 登录成功`);
-        return response.data.token;
+    } else {
+        console.error(`[${TAG}] ❌ 受限账号 (${envConfig.LimitedPermissions}) 登录失败`);
     }
-
-    console.error(`[${TAG}] ❌ 受限账号登录失败: ${response.msg}`);
-    return null;
+    return token;
 }
 
 // ============================================================

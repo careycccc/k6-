@@ -4,9 +4,36 @@
  */
 
 import http from 'k6/http';
+import crypto from 'k6/crypto';
 import { SignedHttpClient } from '../utils/signature.js';
 import { getTimeRandom } from '../../tests/utils/utils.js';
 import { ENV_CONFIG, getEnvByTenantId } from '../../config/envconfig.js';
+
+// ============================================================
+// 后台谷歌验证码(TOTP)：标准 SHA1 / 30秒 / 6位，密钥 base32（取自 envconfig 的 GOOGLE_SECRET）
+// ============================================================
+function base32Decode(s) {
+    const a = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    s = String(s).toUpperCase().replace(/=+$/, '').replace(/\s/g, '');
+    let bits = '';
+    for (let i = 0; i < s.length; i++) { const idx = a.indexOf(s[i]); if (idx < 0) continue; bits += idx.toString(2).padStart(5, '0'); }
+    const by = [];
+    for (let i = 0; i + 8 <= bits.length; i += 8) by.push(parseInt(bits.slice(i, i + 8), 2));
+    return new Uint8Array(by);
+}
+export function totpVCode(secret, windowOffset = 0, baseSec) {
+    const key = base32Decode(secret);
+    const t = (baseSec === undefined ? Math.floor(Date.now() / 1000) : baseSec);
+    let ctr = Math.floor(t / 30) + windowOffset;
+    const cbuf = new Uint8Array(8);
+    for (let i = 7; i >= 0; i--) { cbuf[i] = ctr & 0xff; ctr = Math.floor(ctr / 256); }
+    const hex = crypto.hmac('sha1', key.buffer, cbuf.buffer, 'hex');
+    const h = [];
+    for (let i = 0; i < hex.length; i += 2) h.push(parseInt(hex.substr(i, 2), 16));
+    const o = h[h.length - 1] & 0x0f;
+    const code = ((h[o] & 0x7f) << 24) | ((h[o + 1] & 0xff) << 16) | ((h[o + 2] & 0xff) << 8) | (h[o + 3] & 0xff);
+    return String(code % 1000000).padStart(6, '0');
+}
 
 /**
  * 发送多租户请求
@@ -128,21 +155,42 @@ export function tenantQueryRequest(api, payload = {}, options = {}) {
  * @param {string} tenantId - 租户ID，可选
  * @returns {string|null} token
  */
+/**
+ * 通用后台登录（带 Google 验证码 vCode + 多窗口重试）—— 所有后台账号（主管理员/受限/客服）统一走这里
+ * @param {string} userName - 后台账号
+ * @param {string} pwd      - 密码
+ * @param {string} secret   - 谷歌验证码 base32 密钥（同租户后台账号共用 GOOGLE_SECRET）；为空则走旧登录
+ * @param {string} tenantId - 租户ID（确定后台域）
+ * @returns {string|null} token
+ */
+export function backendLogin(userName, pwd, secret, tenantId = null) {
+    // 配了密钥则带 vCode；被拒自动试相邻时间窗口（容忍时钟偏差）。固定基准避免多次取码跨窗口边界。
+    const offsets = secret ? [0, -1, 1] : [null];
+    const baseSec = Math.floor(Date.now() / 1000);
+    let response;
+    for (const off of offsets) {
+        const payload = { userName, pwd };
+        if (off !== null) {
+            payload.vCode = totpVCode(secret, off, baseSec);
+            console.log(`[backendLogin] 🔐 ${userName} vCode=${payload.vCode}${off ? ` (窗口${off > 0 ? '+' : ''}${off})` : ''}`);
+        }
+        response = tenantRequest('/api/Login/Login', payload, { isDesk: false, tenantId });
+        if (response.msgCode === 0 && response.data && response.data.token) {
+            return response.data.token;
+        }
+        if (response.msgCode !== 1119 && !/vcode/i.test(response.msg || '')) break; // 非 vCode 错误不重试
+    }
+    console.error(`[backendLogin] ${userName} 登录失败: ${response ? response.msg : 'null'}`);
+    return null;
+}
+
+/**
+ * 后台管理员登录（主管理员账号）
+ * @param {string} tenantId - 租户ID，可选
+ * @returns {string|null} token
+ */
 export function tenantAdminLogin(tenantId = null) {
     const tenant = tenantId || __ENV.TENANT || __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID);
     const envConfig = getEnvByTenantId(tenant);
-
-    const response = tenantRequest('/api/Login/Login', {
-        userName: envConfig.ADMIN_USERNAME,
-        pwd: envConfig.ADMIN_PASSWORD
-    }, {
-        isDesk: false
-    });
-
-    if (response.msgCode === 0 && response.data && response.data.token) {
-        return response.data.token;
-    }
-
-    console.error(`[TenantAdminLogin] 登录失败: ${response.msg}`);
-    return null;
+    return backendLogin(envConfig.ADMIN_USERNAME, envConfig.ADMIN_PASSWORD, envConfig.GOOGLE_SECRET, tenant);
 }

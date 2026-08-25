@@ -1,6 +1,9 @@
 /**
  * collectUsers.js  —  Node 版用户采集器（并发翻页 + 写文件）
  *
+ * ⚠️ 已被 k6/playwrith/collect-users.js 替代（支持 Google 验证码 vCode + 多租户 + 采集后改密码）。
+ *    本文件后台登录未带 vCode，对已启用验证码的租户（如 3004）会登录失败 —— 请改用 playwrith/collect-users.js。
+ *
  * 为什么不用 k6：
  *   k6 的 handleSummary 跑在独立运行时，拿不到 setup 采集的数据，
  *   而 k6 又只能在 handleSummary 里写文件 —— 采集数据根本传不过去。
