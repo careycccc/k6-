@@ -4,7 +4,7 @@ import { phoneRegisterByInvite } from '../../login/register.test.js';
 import { getFrontUserInfo } from '../../user/userManagement.js';
 import { getAgentHierarchyList } from '../../invite/agentApi.js';
 import { batchGetUserAccounts, autoLoginByAccount } from '../../user/userAccountApi.js';
-import { generateRandomPhone } from '../../../utils/accountGenerator.js';
+import { generateRandomPhone } from '../../../utils/accountGeneratorFaker.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../../config/envconfig.js';
 
 /**

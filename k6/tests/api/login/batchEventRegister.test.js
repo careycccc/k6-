@@ -3,7 +3,7 @@ import { Counter } from 'k6/metrics';
 import { AdminLogin } from './adminlogin.test.js';
 import { eventIdentityRegister } from './register.test.js';
 import { hybridRecharge, getConfigRechargeAmount, eventBatchFrontendRechargeRequest, eventBatchAuditUserOrders } from '../recharge/rechargeService.js';
-import { generateRandomPhone } from '../../utils/accountGenerator.js';
+import { generateRandomPhone } from '../../utils/accountGeneratorFaker.js';
 import { ENV_CONFIG } from '../../../config/envconfig.js';
 import { hanlderThresholds } from '../../../config/thresholds.js';
 import { getEventConfig } from '../../../config/eventRegisterConfig.js';

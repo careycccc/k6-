@@ -43,7 +43,7 @@ import { textSummary } from '../../../libs/vendor/k6-summary-0.0.2.js';
 import { AdminLogin } from '../login/adminlogin.test.js';
 import { phoneRegister, emailRegister } from '../login/register.test.js';
 import { getFrontUserInfo } from './userManagement.js';
-import { generateRandomPhone, generateRandomEmail } from '../../utils/accountGenerator.js';
+import { generateRandomPhone, generateRandomEmail } from '../../utils/accountGeneratorFaker.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
 
 // ============================================================

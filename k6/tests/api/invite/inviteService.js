@@ -5,7 +5,7 @@
 
 import { sleep } from 'k6';
 import { phoneRegisterByInvite, emailRegisterByInvite } from '../login/register.test.js';
-import { generateRandomPhones, generateRandomEmails } from '../../utils/accountGenerator.js';
+import { generateRandomPhones, generateRandomEmails } from '../../utils/accountGeneratorFaker.js';
 import { betRun } from '../runbet/betRun.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
 import { hybridRecharge, getConfigRechargeAmount } from '../recharge/rechargeService.js';

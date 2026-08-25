@@ -5,7 +5,7 @@ import { AdminLogin } from '../../login/adminlogin.test.js';
 import { ENV_CONFIG } from '../../../../config/envconfig.js';
 import { autoLoginByUserId } from '../../user/userAccountApi.js';
 import { phoneRegisterByInvite } from '../../login/register.test.js';
-import { generateRandomPhone } from '../../../utils/accountGenerator.js';
+import { generateRandomPhone } from '../../../utils/accountGeneratorFaker.js';
 import { hybridRecharge } from '../../recharge/rechargeService.js';
 import { betRun } from '../../runbet/betRun.js';
 import { getFrontUserInfo } from '../../user/userManagement.js';

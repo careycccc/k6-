@@ -13,7 +13,7 @@ import { addAllWallets } from '../withdraw/addWalletApi.js';
 import { getWithdrawBasicInfo, setWithdrawPassword, getUserWithdrawWallet, withdrawApply } from '../withdraw/withdrawApi.js';
 import { runBackendWithdrawApproval } from '../withdraw/backendWithdrawApi.js';
 import { sendRequest } from '../common/request.js';
-import { generateRandomPhone } from '../../utils/accountGenerator.js';
+import { generateRandomPhone } from '../../utils/accountGeneratorFaker.js';
 import { phoneRegister } from '../login/register.test.js';
 
 const TENANT_ID = __ENV.TENANT_ID || '3004';

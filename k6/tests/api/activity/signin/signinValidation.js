@@ -15,7 +15,7 @@ import { getActivityInformationList, receiveRewardViaActivityInfo } from '../com
 import { phoneRegister, emailRegister } from '../../login/register.test.js';
 import { getFrontUserInfo } from '../../user/userManagement.js';
 import { hybridRecharge } from '../../recharge/rechargeService.js';
-import { generateRandomPhone, generateRandomEmail } from '../../../utils/accountGenerator.js';
+import { generateRandomPhone, generateRandomEmail } from '../../../utils/accountGeneratorFaker.js';
 import { autoLoginByAccount } from '../../user/userAccountApi.js';
 
 const TAG = 'SignInValidation';

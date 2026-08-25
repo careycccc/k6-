@@ -41,7 +41,7 @@ import { getFrontUserInfo } from '../user/userManagement.js';
 import { mobileAutoLoginFlow } from '../login/MobileAutoLogin.test.js';
 import { emailAutoLoginFlow } from '../login/EmailAutoLogin.test.js';
 import { sendRequest } from '../common/request.js';
-import { generateRandomPhone } from '../../utils/accountGenerator.js';
+import { generateRandomPhone } from '../../utils/accountGeneratorFaker.js';
 import { phoneRegister, phoneRegisterByInvite } from '../login/register.test.js';
 
 // ============================================================

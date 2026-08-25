@@ -1,7 +1,7 @@
 import { betRun } from '../runbet/betRun.js';
 import { AdminLogin } from '../login/adminlogin.test.js';
 import { emailRegister } from '../login/register.test.js';
-import { generateRandomEmail } from '../../utils/accountGenerator.js';
+import { generateRandomEmail } from '../../utils/accountGeneratorFaker.js';
 
 export function setup() {
     // 使用现有的 AdminLogin 函数

@@ -31,7 +31,7 @@ import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
 import { getAgentHierarchyList } from '../invite/agentApi.js';
 import { runMultiLevelInvite } from '../invite/inviteService.js';
 import { phoneRegister, phoneRegisterByInvite } from '../login/register.test.js';
-import { generateRandomPhone } from '../../utils/accountGenerator.js';
+import { generateRandomPhone } from '../../utils/accountGeneratorFaker.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
 import { batchGetUserAccounts, autoLoginByAccount } from '../user/userAccountApi.js';
 import { hybridRecharge, getConfigRechargeAmount } from '../recharge/rechargeService.js';

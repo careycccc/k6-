@@ -66,7 +66,7 @@ import { sleep } from 'k6';
 import exec from 'k6/execution';
 import { AdminLogin } from '../../login/adminlogin.test.js';
 import { phoneRegisterByInvite, phoneRegister } from '../../login/register.test.js';
-import { generateRandomPhone } from '../../../utils/accountGenerator.js';
+import { generateRandomPhone } from '../../../utils/accountGeneratorFaker.js';
 import { getFrontUserInfo } from '../../user/userManagement.js';
 import { hybridRecharge, getConfigRechargeAmount } from '../../recharge/rechargeService.js';
 import { betRun } from '../../runbet/betRun.js';

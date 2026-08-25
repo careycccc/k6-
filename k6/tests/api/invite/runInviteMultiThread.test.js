@@ -3,14 +3,14 @@
  * 一键执行多层级用户邀请、充值和投注
  * 
  * 使用方法：
- * k6 run -e TOTAL_USERS=50 -e LEVELS=3 k6/tests/api/invite/runInviteMultiThread.test.js
+ * k6 run -e TOTAL_USERS=5 -e LEVELS=2 k6/tests/api/invite/runInviteMultiThread.test.js
  */
 
 import { sleep } from 'k6';
 import exec from 'k6/execution';
 import { AdminLogin } from '../login/adminlogin.test.js';
 import { phoneRegisterByInvite, emailRegisterByInvite } from '../login/register.test.js';
-import { generateRandomPhone } from '../../utils/accountGenerator.js';
+import { generateRandomPhone } from '../../utils/accountGeneratorFaker.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
 import { hybridRecharge, getConfigRechargeAmount } from '../recharge/rechargeService.js';
 import { betRun } from '../runbet/betRun.js';

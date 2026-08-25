@@ -22,7 +22,7 @@ import { sleep } from 'k6';
 import { httpClient } from '../../../libs/http/client.js';
 import { getTimeRandom, generateCryptoRandomString } from '../../utils/utils.js';
 import { sendToGetVerCode } from '../login/SendVerifiyCode.test.js';
-import { generateRandomPhone } from '../../utils/accountGenerator.js';
+import { generateRandomPhone } from '../../utils/accountGeneratorFaker.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
 import { hybridRecharge, getConfigRechargeAmount } from '../recharge/rechargeService.js';
 import { betRun } from '../runbet/betRun.js';

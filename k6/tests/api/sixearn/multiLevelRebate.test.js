@@ -35,7 +35,7 @@ k6 run -e TENANT_ID=3101 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM1_MODE=v2 -e
 import { sleep } from 'k6';
 import { AdminLogin } from '../login/adminlogin.test.js';
 import { phoneRegister, phoneRegisterByInvite } from '../login/register.test.js';
-import { generateRandomPhone } from '../../utils/accountGenerator.js';
+import { generateRandomPhone } from '../../utils/accountGeneratorFaker.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
 import { getAgentHierarchyList } from '../invite/agentApi.js';
 import { runMultiLevelInvite, runMultiLevelInviteV2 } from '../invite/inviteService.js';

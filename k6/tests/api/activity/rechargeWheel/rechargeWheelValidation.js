@@ -10,7 +10,7 @@ import { httpClient } from '../../../../libs/http/client.js';
 import { manualRecharge } from '../../recharge/manualRecharge.js';
 import { phoneRegister, emailRegister } from '../../login/register.test.js';
 import { getTimeRandom } from '../../../utils/utils.js';
-import { generateRandomPhone, generateRandomEmail } from '../../../utils/accountGenerator.js';
+import { generateRandomPhone, generateRandomEmail } from '../../../utils/accountGeneratorFaker.js';
 import { getEnvByTenantId } from '../../../../config/envconfig.js';
 
 /**

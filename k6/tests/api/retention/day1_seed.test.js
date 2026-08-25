@@ -18,7 +18,7 @@ import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
 import { getEventConfig } from '../../../config/eventRegisterConfig.js';
 import { eventIdentityRegister } from '../login/register.test.js';
-import { generateRandomPhone } from '../../utils/accountGenerator.js';
+import { generateRandomPhone } from '../../utils/accountGeneratorFaker.js';
 import { hybridRecharge } from '../recharge/rechargeService.js';
 
 const regSuccessCounter = new Counter('seed_reg_success');

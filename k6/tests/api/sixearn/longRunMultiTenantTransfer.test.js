@@ -49,7 +49,7 @@ import { hybridRecharge, getConfigRechargeAmount } from '../recharge/rechargeSer
 import { betRun } from '../runbet/betRun.js';
 import { getAccountBalance } from '../balance/balance.test.js';
 import { sendRequest } from '../common/request.js';
-import { generateRandomPhone } from '../../utils/accountGenerator.js';
+import { generateRandomPhone } from '../../utils/accountGeneratorFaker.js';
 import { phoneRegister, phoneRegisterByInvite } from '../login/register.test.js';
 import { runMultiLevelInvite } from '../invite/inviteService.js';
 

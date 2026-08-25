@@ -1,7 +1,7 @@
 import { logger } from '../../../../libs/utils/logger.js';
 import * as api from './api.js';
 import { phoneRegister } from '../../login/register.test.js';
-import { generateRandomPhone } from '../../../utils/accountGenerator.js';
+import { generateRandomPhone } from '../../../utils/accountGeneratorFaker.js';
 import { ENV_CONFIG } from '../../../../config/envconfig.js';
 
 const TAG = 'MemberLimitSupplier';

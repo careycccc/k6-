@@ -29,7 +29,7 @@ import { getEnvByTenantId } from '../../../config/envconfig.js';
 import { getEventConfig } from '../../../config/eventRegisterConfig.js';
 import { eventIdentityRegister } from './register.test.js';
 import { hybridRecharge, getConfigRechargeAmount, eventBatchFrontendRechargeRequest, eventBatchAuditUserOrders } from '../recharge/rechargeService.js';
-import { generateRandomPhone } from '../../utils/accountGenerator.js';
+import { generateRandomPhone } from '../../utils/accountGeneratorFaker.js';
 import { hanlderThresholds } from '../../../config/thresholds.js';
 
 // ============================================================

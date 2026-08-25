@@ -32,7 +32,7 @@ import { AdminLogin } from '../../login/adminlogin.test.js';
 import { phoneRegister, emailRegister, phoneRegisterByInvite, emailRegisterByInvite } from '../../login/register.test.js';
 import { getFrontUserInfo } from '../../user/userManagement.js';
 import { hybridRecharge } from '../../recharge/rechargeService.js';
-import { generateRandomPhone, generateRandomEmail } from '../../../utils/accountGenerator.js';
+import { generateRandomPhone, generateRandomEmail } from '../../../utils/accountGeneratorFaker.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../../config/envconfig.js';
 import {
     getInvitedWheelConfig,

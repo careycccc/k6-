@@ -5,7 +5,7 @@
 
 import { AdminLogin } from '../tests/api/login/adminlogin.test.js';
 import { phoneRegister, emailRegister } from '../tests/api/login/register.test.js';
-import { generateRandomPhone, generateRandomEmail } from '../tests/utils/accountGenerator.js';
+import { generateRandomPhone, generateRandomEmail } from '../tests/utils/accountGeneratorFaker.js';
 import { getEnvByTenantId } from '../config/envconfig.js';
 import { httpClient } from '../libs/http/client.js';
 

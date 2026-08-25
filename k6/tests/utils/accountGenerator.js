@@ -12,6 +12,10 @@ const EMAIL_DOMAINS = [
     "aol.com", "zoho.com", "mail.com", "inbox.com"
 ];
 
+// 模块级自增序列：为手机号/邮箱提供进程内唯一区分位。
+// k6 中每个 VU 是独立 JS 运行时，本变量为每 VU 私有；配合时间戳/随机降低跨 VU 碰撞。
+let _seq = 0;
+
 /**
  * 生成随机整数
  * @param {number} min - 最小值（包含）
@@ -45,46 +49,26 @@ function generateRandomString(length) {
  * @returns {string} 随机手机号
  */
 export function generateRandomPhone(countryCode = '91') {
-    // 获取当前日期
-    const now = new Date();
-    const month = now.getMonth() + 1; // JavaScript 月份从 0 开始
-    const day = now.getDate();
+    // 手机号总长度（含区号）：孟加拉(880) 13 位，其它 12 位
+    const targetLength = countryCode === '880' ? 13 : 12;
+    // 号码部分位数（不含区号），通常为 10
+    const N = targetLength - countryCode.length;
 
-    // 格式化月和日
-    let prefix;
-    if (month < 10) {
-        // 月1位+日2位=3位
-        prefix = `${month}${day.toString().padStart(2, '0')}`;
-    } else {
-        // 月2位+日2位=4位
-        prefix = `${month.toString().padStart(2, '0')}${day.toString().padStart(2, '0')}`;
-    }
+    // 号码构造：epoch 秒低 4 位（时间散列，随年份单调滚动，不再像"月日"那样跨年系统性重复）
+    //          + 进程内自增序列 2 位（压低同刻并发碰撞）+ 其余随机位。
+    const t4 = String(Math.floor(Date.now() / 1000) % 10000).padStart(4, '0');
+    const s2 = String(_seq++ % 100).padStart(2, '0');
+    const randLen = Math.max(0, N - t4.length - s2.length);
+    let randPart = '';
+    for (let i = 0; i < randLen; i++) randPart += randInt(0, 9);
 
-    // 根据国家区号和前缀长度决定随机数位数
-    // 不同国家的手机号总长度不同：
-    // - 印度(91): 12位 (2位区号 + 10位号码)
-    // - 孟加拉(880): 13位 (3位区号 + 10位号码)
-    // - 墨西哥(52): 12位 (2位区号 + 10位号码)
-    let targetLength;
-    if (countryCode === '880') {
-        // 孟加拉：13位总长度
-        targetLength = 13;
-    } else {
-        // 其他国家：12位总长度
-        targetLength = 12;
-    }
+    // 拼成 N 位号码；位数兜底后再确保首位非 0（避免被判为短号/校验失败）
+    let number = (t4 + s2 + randPart).slice(0, N);
+    while (number.length < N) number += randInt(0, 9);
+    if (number[0] === '0') number = String(randInt(1, 9)) + number.slice(1);
 
-    // 计算随机数位数 = 总长度 - 区号长度 - 前缀长度
-    const randomLength = targetLength - countryCode.length - prefix.length;
-
-    // 生成随机数
-    let randomNum = '';
-    for (let i = 0; i < randomLength; i++) {
-        randomNum += randInt(0, 9);
-    }
-
-    // 合并：区号 + 前缀 + 随机数
-    return countryCode + prefix + randomNum;
+    // 合并：区号 + 号码
+    return countryCode + number;
 }
 
 /**
@@ -92,14 +76,17 @@ export function generateRandomPhone(countryCode = '91') {
  * @returns {string} 随机邮箱
  */
 export function generateRandomEmail() {
-    // 生成随机用户名长度 (6-12个字符)
+    // 真实感随机词（6-12 字符）作为前缀主体
     const usernameLen = 6 + randInt(0, 6);
-    const username = generateRandomString(usernameLen);
+    const word = generateRandomString(usernameLen);
+
+    // 唯一后缀：base36(毫秒时间) + base36(自增序列) + base36(随机) → 实际唯一，跨年不重复
+    const uniq = Date.now().toString(36) + (_seq++).toString(36) + randInt(0, 46655).toString(36);
 
     // 随机选择域名
     const domain = EMAIL_DOMAINS[randInt(0, EMAIL_DOMAINS.length - 1)];
 
-    return `${username}@${domain}`;
+    return `${word}${uniq}@${domain}`;
 }
 
 /**

@@ -7,7 +7,7 @@
 
 import { AdminLogin } from '../login/adminlogin.test.js';
 import { emailRegister } from '../login/register.test.js';
-import { generateRandomEmail } from '../../utils/accountGenerator.js';
+import { generateRandomEmail } from '../../utils/accountGeneratorFaker.js';
 import { getRechargeCategoryList, getRechargeCategoryByType, getRandomRechargeCategory } from '../recharge/recharge.test.js';
 
 export function setup() {

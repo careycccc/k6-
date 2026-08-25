@@ -20,7 +20,7 @@ import {
     phoneRegisterByInvite,
     emailRegisterByInvite
 } from '../api/login/register.test.js';
-import { generateRandomPhone, generateRandomEmails } from '../utils/accountGenerator.js';
+import { generateRandomPhone, generateRandomEmails } from '../utils/accountGeneratorFaker.js';
 import { getFrontUserInfo } from '../api/user/userManagement.js';
 import { getEnvByTenantId } from '../../config/envconfig.js';
 import { injectUserTokens, closeRedis, checkRedisConnection } from '../../libs/redis/tokenPool.js';

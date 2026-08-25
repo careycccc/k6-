@@ -13,7 +13,7 @@
 
 import { phoneRegister, emailRegister } from '../k6/tests/api/login/register.test.js';
 import { AdminLogin } from '../k6/tests/api/login/adminlogin.test.js';
-import { generateRandomPhone, generateRandomEmail } from '../k6/tests/utils/accountGenerator.js';
+import { generateRandomPhone, generateRandomEmail } from '../k6/tests/utils/accountGeneratorFaker.js';
 import { getEnvByTenantId } from '../k6/config/envconfig.js';
 
 // 从环境变量获取参数

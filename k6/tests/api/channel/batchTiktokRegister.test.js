@@ -40,7 +40,7 @@ import { group, sleep } from 'k6';
 import { Counter } from 'k6/metrics';
 import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
 import { getEnvByTenantId } from '../../../config/envconfig.js';
-import { generateRandomPhone } from '../../utils/accountGenerator.js';
+import { generateRandomPhone } from '../../utils/accountGeneratorFaker.js';
 import { hanlderThresholds } from '../../../config/thresholds.js';
 import {
     hybridRecharge,

@@ -39,7 +39,7 @@ import {
     // 未赋值即读 .status），这里不 import，改用下方本地修复版 localEmailRegisterByInvite
 } from '../login/register.test.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
-import { generateRandomPhone, generateRandomEmail } from '../../utils/accountGenerator.js';
+import { generateRandomPhone, generateRandomEmail } from '../../utils/accountGeneratorFaker.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
 // 用于本地修复版邮箱邀请注册
 import { httpClient } from '../../../libs/http/client.js';

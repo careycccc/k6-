@@ -13,7 +13,7 @@
 
 import { sleep } from 'k6';
 import { phoneRegister, phoneRegisterByInvite, emailRegister, emailRegisterByInvite } from '../login/register.test.js';
-import { generateRandomPhone, generateRandomEmail } from '../../utils/accountGenerator.js';
+import { generateRandomPhone, generateRandomEmail } from '../../utils/accountGeneratorFaker.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
 import { getEnvByTenantId } from '../../../config/envconfig.js';
 import { injectTokens, getPoolSize } from '../../../libs/redis/tokenPool.js';
