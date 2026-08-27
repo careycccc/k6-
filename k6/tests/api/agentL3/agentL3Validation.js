@@ -185,6 +185,112 @@ function getBetData(data, userId, startTs, endTs) {
 }
 
 // ============================================================
+// ============ API: 获取被邀请列表（支持翻页）================
+// ============================================================
+
+/**
+ * 获取某代理直推被邀请成员列表，自动翻页
+ */
+function getInvitedListAllPages(data, agentId) {
+    const api = '/api/AgentL3/GetPageListInvitedList';
+    const pageSize = 500;
+    let allItems = [];
+    let pageNo = 1;
+
+    while (true) {
+        const payload = { agentId, pageNo, pageSize, orderBy: 'Desc' };
+        let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token);
+        if (typeof result !== 'object') {
+            try { result = JSON.parse(result); } catch (e) { break; }
+        }
+        const list = (result && result.list) ? result.list : [];
+        allItems = allItems.concat(list);
+        const totalPage = (result && result.totalPage) ? result.totalPage : 1;
+        if (pageNo >= totalPage || list.length === 0) break;
+        pageNo++;
+        sleep(0.3);
+    }
+    return allItems;
+}
+
+/**
+ * 递归获取完整团队 L1~L3 成员，每个成员带 relHier 字段。
+ * 同时从 L1 成员的 parentIdL2 推断 root 自身的 parentId。
+ */
+function getAllTeamMembers(data, rootId) {
+    const memberList = [];
+    let rootParentId = 0;
+
+    const l1List = getInvitedListAllPages(data, rootId);
+    if (l1List.length > 0 && l1List[0].parentIdL2 !== undefined) {
+        rootParentId = l1List[0].parentIdL2 || 0;
+    }
+
+    for (const m of l1List) {
+        memberList.push({ ...m, relHier: 1 });
+        sleep(0.2);
+
+        const l2List = getInvitedListAllPages(data, m.userId);
+        for (const m2 of l2List) {
+            memberList.push({ ...m2, relHier: 2 });
+            sleep(0.2);
+
+            const l3List = getInvitedListAllPages(data, m2.userId);
+            for (const m3 of l3List) {
+                memberList.push({ ...m3, relHier: 3 });
+            }
+        }
+    }
+
+    return { memberList, rootParentId };
+}
+
+/**
+ * 获取 root 用户自身信息（注册时间、parentId 等）。
+ * 新团队 API GetPageListInvitedList 不返回 root 本身，用 GetPageList 补齐。
+ * @returns {object|null} 用户记录（含 registerTime / parentId），查不到返回 null
+ */
+function getUserSelfInfo(data, userId) {
+    const api = '/api/Users/GetPageList';
+    const payload = { userId, pageNo: 1, pageSize: 20, orderBy: 'Desc' };
+    let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token);
+    if (typeof result !== 'object') {
+        try { result = JSON.parse(result); } catch (e) { return null; }
+    }
+    const list = (result && result.list) ? result.list : [];
+    return list.find(u => Number(u.userId) === Number(userId)) || list[0] || null;
+}
+
+/**
+ * 查询某用户近半年内累计获得的「邀请成功奖励(L3InviteOkReward)」次数。
+ * 用于被邀请奖金判定：上级累计发放次数 <= 总上限，才算有效邀请，下级才得被邀请奖金。
+ * 只取 totalCount（记录总数），无需翻页。
+ * @param {object} data   - 含 token 的管理员数据
+ * @param {number} userId - 直属上级 userId
+ * @returns {number} 近半年累计发放次数；查询失败返回 0
+ */
+function getInviteOkRewardCount(data, userId) {
+    const api = '/api/Financial/GetPageList';
+    const now = Date.now();
+    const halfYearMs = 182 * 24 * 60 * 60 * 1000; // 约半年
+    const payload = {
+        searchUserIdType: 1,          // 1=会员id
+        userId,
+        financialTypeList: ['L3InviteOkReward'],
+        startTime: now - halfYearMs,  // 从现在向前推半年
+        endTime: now,
+        pageNo: 1,
+        pageSize: 20,
+        orderBy: 'Desc'
+    };
+    let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token);
+    if (typeof result !== 'object') {
+        try { result = JSON.parse(result); } catch (e) { return 0; }
+    }
+    return (result && typeof result.totalCount === 'number') ? result.totalCount : 0;
+}
+
+// ============================================================
 // ============ 核心计算逻辑 ==================================
 // ============================================================
 
@@ -226,33 +332,23 @@ export function runAgentL3Validation(data, targetUid) {
 
     // 2. 获取团队成员
     console.log('【Step 2】获取团队成员列表...');
-    const agentListApi = '/api/Agent/GetPageListAgentList';
-    const agentPayload = { userId: rootId, isAll: true, isIncludeSelfAndParent: true, pageNo: 1, pageSize: 500 };
-    let agentResult = sendQueryRequest(agentPayload, agentListApi, agentL3Tag, false, data.token);
 
-    if (typeof agentResult !== 'object') {
-        try { agentResult = JSON.parse(agentResult); } catch (e) {
-            logger.error(`[${agentL3Tag}] 解析团队成员响应失败: ${e.message}`);
-            return;
-        }
-    }
+    // 先拿 root 自身信息（注册时间、parentId），新团队 API 不返回 root 本身
+    const rootSelf = getUserSelfInfo(data, rootId);
 
-    let memberList = [];
-    if (agentResult && Array.isArray(agentResult.list)) memberList = agentResult.list;
-    else if (agentResult && agentResult.data && Array.isArray(agentResult.data.list)) memberList = agentResult.data.list;
+    const { memberList, rootParentId } = getAllTeamMembers(data, rootId);
 
     if (!memberList.length) {
         logger.error(`[${agentL3Tag}] 未获取到任何成员(或者团队为空)`);
         return;
     }
-    console.log(`   ✅ 共获取团队成员 ${memberList.length} 人（含自身）\n`);
+    console.log(`   ✅ 共获取团队成员 ${memberList.length} 人（不含自身）\n`);
 
-    // 找到 root 自身配置
-    const rootRecord = memberList.find(m => m.userId === rootId);
-    if (!rootRecord) {
-        logger.error(`[${agentL3Tag}] 返回的成员列表中不包含总代本身!`);
-        return;
-    }
+    // root 自身记录：优先用 GetPageList 的真实数据（含 registerTime），
+    // 兜底用 L1 成员 parentIdL2 反推 parentId
+    const rootRecord = rootSelf
+        ? { ...rootSelf, parentId: rootSelf.parentId || 0, registerTime: rootSelf.registerTime || 0 }
+        : { userId: rootId, parentId: rootParentId, registerTime: 0 };
 
     // ==========================================
     // 新增：判断是否拥有被邀请奖励
@@ -276,8 +372,20 @@ export function runAgentL3Validation(data, targetUid) {
             }
             
             if (selfIsValidYd) {
-                myInvitedReward = invitedReward;
-                console.log(`   ✅ 满足代理有效邀请条件 (昨日充值: ${selfYdRecharge}, 有效投注: ${selfYdBet.totalValidAmount.toFixed(2)})，被邀请奖金: ${myInvitedReward}`);
+                // 自身达标后，还需校验直属上级的「邀请成功奖励」发放次数未超总上限：
+                // 上级近半年累计发放(L3InviteOkReward) <= 总上限 才算有效邀请，下级才得被邀请奖金
+                const inviteTotalLimit = configData.agentL3InviteTotalLimitCount
+                    ? (Number(configData.agentL3InviteTotalLimitCount.value1) || 999999)
+                    : 999999;
+                const parentOkCount = getInviteOkRewardCount(data, rootRecord.parentId);
+                console.log(`   ► 直属上级 UID=${rootRecord.parentId} 近半年已发放邀请成功奖励 ${parentOkCount} 次 | 总上限 ${inviteTotalLimit === 999999 ? '无上限' : inviteTotalLimit} 次`);
+
+                if (parentOkCount <= inviteTotalLimit) {
+                    myInvitedReward = invitedReward;
+                    console.log(`   ✅ 满足被邀请条件 (昨日充值: ${selfYdRecharge}, 有效投注: ${selfYdBet.totalValidAmount.toFixed(2)}; 上级未超总上限)，被邀请奖金: ${myInvitedReward}`);
+                } else {
+                    console.log(`   ❌ 直属上级邀请成功奖励已达总上限 (${parentOkCount} > ${inviteTotalLimit})，无被邀请奖金`);
+                }
             } else {
                 console.log(`   ❌ 未满足被邀请的达标条件 (昨日充值: ${selfYdRecharge}, 有效投注: ${selfYdBet.totalValidAmount.toFixed(2)})，无被邀请奖金`);
             }
@@ -288,20 +396,23 @@ export function runAgentL3Validation(data, targetUid) {
     console.log('【Step 3】获取成员(L1~L3及自身) 昨日+今日 的充值与投注数据...');
     const enrichedMembers = [];
 
-    // 获取自上而下的绝对层级差，只保留 L1 ~ L3 和自己
+    // root 自身 (L0)
+    enrichedMembers.push({
+        ...rootRecord, relHier: 0,
+        yesterday: { recharge: 0, bet: null },
+        today: { recharge: 0, bet: null },
+        isValidYesterday: false, isValidToday: false
+    });
+
+    // L1~L3 成员已在 getAllTeamMembers 中标注 relHier
     memberList.forEach(m => {
-        const relHier = m.hierarchy - rootRecord.hierarchy;
-        if (relHier >= 0 && relHier <= 3) {
-            // 需要获取数据的名单
-            enrichedMembers.push({
-                ...m,
-                relHier,
-                yesterday: { recharge: 0, bet: null },
-                today: { recharge: 0, bet: null },
-                isValidYesterday: false,
-                isValidToday: false
-            });
-        }
+        enrichedMembers.push({
+            ...m,
+            yesterday: { recharge: 0, bet: null },
+            today: { recharge: 0, bet: null },
+            isValidYesterday: false,
+            isValidToday: false
+        });
     });
 
     console.log(`   需要查询数据的核心成员: ${enrichedMembers.length} 人...`);

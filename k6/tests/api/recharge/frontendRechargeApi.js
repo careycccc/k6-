@@ -9,6 +9,7 @@ import { ENV_CONFIG, getEnvByTenantId } from '../../../config/envconfig.js';
 
 const apiRechargeCategoryList = '/api/Recharge/GetRechargeCategoryList';
 const apiDepositRecharge = '/api/Recharge/DepositRecharge';
+const apiGoodsDepositRecharge = '/api/Recharge/GoodsDepositRecharge';
 const apiSubmitCertificate = '/api/Recharge/SubmitCertificate';
 
 /**
@@ -113,6 +114,60 @@ export function depositRecharge(token, payload) {
     }
 
     return parsedBody;
+}
+
+/**
+ * 商品模式充值发起 (GoodsDepositRecharge)
+ * 商品模式下前台只能充值 goodsList 里的固定金额，充值方式与金额均以 id 指定。
+ * 发起响应仅含 redirectUrl 等、不含 orderNo，成功与否需由后台「查今天订单 + 补单」判断。
+ * @param {string} token              - 前台用户 token
+ * @param {number} rechargeGoodsId    - 商品(金额)id，对应 goodsList[].id
+ * @param {number} rechargeCategoryId - 充值方式id，对应 supportCategories[].id
+ * @returns {object|null} 解析后的响应体（含 code/msgCode），无响应返回 null
+ */
+export function goodsDepositRecharge(token, rechargeGoodsId, rechargeCategoryId) {
+    const tag = 'GoodsDepositRecharge';
+    const timeData = getTimeRandom();
+
+    // 动态获取当前租户前台域名，拼接 returnUrl / urlInfo（商品方式非 Local，用默认顺序）
+    const tenantIdStr = __ENV.TENANT_ID || ENV_CONFIG.TENANTID;
+    const currentEnv = getEnvByTenantId(tenantIdStr);
+    const frontBaseUrl = currentEnv.BASE_DESK_URL || 'https://arplatsaassit4.club';
+
+    const requestData = {
+        rechargeCategoryId: rechargeCategoryId,
+        rechargeGoodsId: rechargeGoodsId,
+        returnUrl: `${frontBaseUrl}/#/main`,
+        urlInfo: `${frontBaseUrl},status/rechargeStatus`,
+        vendorId: 0,
+        language: timeData.language,
+        random: timeData.random,
+        signature: '',
+        timestamp: timeData.timestamp
+    };
+
+    if (token) {
+        httpClient.setAuthToken(token);
+    }
+
+    const response = httpClient.post(
+        apiGoodsDepositRecharge,
+        requestData,
+        { params: { tags: { type: tag, name: `${tag}_request` } } },
+        true // isDesk
+    );
+
+    if (!response || !response.body) {
+        console.error(`[${tag}] 商品充值请求失败: 无响应体`);
+        return null;
+    }
+
+    try {
+        return typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+    } catch (e) {
+        console.error(`[${tag}] 响应体解析失败: ${e.message}`);
+        return null;
+    }
 }
 
 /**

@@ -7,7 +7,12 @@ import { sleep } from 'k6';
 import { getRechargeCategoryList, depositRecharge, submitCertificate, generateRandomAccountNo, generateRandomHolderName, generateUsdtTransactionId } from './frontendRechargeApi.js';
 import { getLocalRechargeOrderPageList, manualAuditLocalRechargeOrder, getRechargeOrderPageList, manualAuditRechargeOrder } from './backendRechargeApi.js';
 import { manualRecharge } from './manualRecharge.js';
+import { goodsFrontendRecharge } from './goodsRechargeService.js';
 import { ENV_CONFIG } from '../../../config/envconfig.js';
+
+// 商品模式全局标志：任一用户前台充值遇到 msgCode 10049(Unsupport recharge mode) 即置 true，
+// 此后（同一 VU runtime 内）所有前台充值直接走商品模式，不再试经典。
+let useGoodsMode = false;
 
 /**
  * 获取范围内的随机整数金额
@@ -37,6 +42,12 @@ export function getConfigRechargeAmount() {
  */
 export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
     console.log(`[FrontRecharge] 开始前台充值流程，用户ID: ${userId}, 目标金额: ${targetAmount}`);
+
+    // 商品模式已启用（此前有用户遇到 10049）→ 直接走商品模式，不再试经典
+    if (useGoodsMode) {
+        console.log(`[FrontRecharge] 商品模式已启用，直接走商品充值`);
+        return goodsFrontendRecharge(userToken, adminToken, userId, targetAmount, backendRecharge);
+    }
 
     // 1. 获取充值通道列表
     const categories = getRechargeCategoryList(userToken);
@@ -185,6 +196,13 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
         const code = response.code;
         const msgCode = response.msgCode;
         const msg = response.msg || "";
+
+        // 检测商品模式：经典发起不被支持(10049) → 置全局标志并立即改走商品流程
+        if (msgCode === 10049) {
+            console.warn(`[FrontRecharge] 检测到商品模式(msgCode 10049 Unsupport recharge mode)，切换到商品模式`);
+            useGoodsMode = true;
+            return goodsFrontendRecharge(userToken, adminToken, userId, targetAmount, backendRecharge);
+        }
 
         console.log(`[FrontRecharge] 充值响应详情:`);
         console.log(`[FrontRecharge]   - code: ${code}`);

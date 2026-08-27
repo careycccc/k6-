@@ -2,9 +2,9 @@
  * 3级代理(AgentL3) 验证入口脚本
  * 
  * 使用方法：
- * k6 run -e TENANT_ID=3004 -e TARGET_UID=136139 tests/api/agentL3/runAgentL3Validation.test.js
+ * k6 run -e TENANT_ID=3004 -e TARGET_UID=165588 tests/api/agentL3/runAgentL3Validation.test.js
  
-   k6 run -e TENANT_ID=3101 -e TARGET_UID=112675 runAgentL3Validation.test.js
+   k6 run -e TENANT_ID=3004 -e TARGET_UID=165588 runAgentL3Validation.test.js
 */
 
 import { logger } from '../../../libs/utils/logger.js';
