@@ -208,7 +208,7 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
         console.log(`[FrontRecharge]   - code: ${code}`);
         console.log(`[FrontRecharge]   - msgCode: ${msgCode}`);
         console.log(`[FrontRecharge]   - msg: ${msg}`);
-        console.log(`[FrontRecharge]   - 完整响应: ${JSON.stringify(response)}`);
+        //console.log(`[FrontRecharge]   - 完整响应: ${JSON.stringify(response)}`);
 
         // 充值成功的条件
         const isApiSuccess = (code === 0 || msg === "Sorry, The system is busy, please try again later! code: 10003");

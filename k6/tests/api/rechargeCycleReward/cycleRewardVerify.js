@@ -16,7 +16,7 @@
  *   - 异常：D-1 无充值却生成了奖励记录 → 报出
  *
  * 运行：
- *   k6 run -e TENANT_ID=3004 -e REWARD_DATE=2026-08-28 cycleRewardVerify.js
+ *   k6 run -e TENANT_ID=3004 -e REWARD_DATE=2026-09-02 cycleRewardVerify.js
  *
  * 参数：
  *   TENANT_ID    租户ID（默认 3004）
@@ -193,6 +193,28 @@ function fmtDateTime(ms, offsetMin) {
     return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())} ${pad2(dt.getUTCHours())}:${pad2(dt.getUTCMinutes())}`;
 }
 
+/** 按 userId 分组订单，并按 lastUpdateTime 升序（付费进度按后台「最后更新时间」先后累计） */
+function groupByUser(orders) {
+    const map = {};
+    for (const o of orders) {
+        const uid = Number(o.userId);
+        if (!map[uid]) map[uid] = [];
+        map[uid].push(o);
+    }
+    Object.keys(map).forEach(u => map[u].sort((a, b) => Number(a.lastUpdateTime) - Number(b.lastUpdateTime)));
+    return map;
+}
+
+/** 按充值先后累加，累计 >= require 即停，返回「刚达标那一刻」的累计；未达标返回全部之和 */
+function cumUntilReach(userOrders, require) {
+    let cum = 0;
+    for (const o of userOrders) {
+        cum += Number(o.amount) || 0;
+        if (cum >= require - TOL) return cum;
+    }
+    return cum;
+}
+
 /** 打印某天充值汇总：充值会员数 + 总额（明细不打，正常数据太多） */
 function printRechargeDetail(label, dateStr, sumMap) {
     const uids = Object.keys(sumMap);
@@ -253,6 +275,7 @@ export default function (data) {
     const dSum = sumByUser(dOrders);
     const dMaxSingle = maxSingleByUser(dOrders);
     const d1RegTime = regTimeByUser(d1Orders);
+    const dByUser = groupByUser(dOrders);   // D 当日订单按 userId 分组(充值时间升序)，算付费进度用
 
     // 打印两天充值明细（前一天 D-1 / 今天 D）
     printRechargeDetail('前一天(D-1)', prevDate, d1Sum);
@@ -346,9 +369,10 @@ export default function (data) {
         if (cumulative) {
             const dCum = dSum[uid] || 0;
             paidSatisfied = dCum >= require - TOL;
-            // 仅累计模式校验付费进度 == D 当日累计
-            if (!numEq(r.paidProgressAmount, dCum)) {
-                fails.push(`付费进度不符(累计): 记录=${r.paidProgressAmount} D当日累计=${dCum}`);
+            // 付费进度 = 按充值先后累加到「刚满足要求」为止的累计（达标后的充值不计入）
+            const progress = cumUntilReach(dByUser[uid] || [], require);
+            if (!numEq(r.paidProgressAmount, progress)) {
+                fails.push(`付费进度不符(累计到达标即停): 记录=${r.paidProgressAmount} 应=${progress}`);
             }
         } else {
             const dMax = dMaxSingle[uid] || 0;

@@ -282,7 +282,7 @@ export function addUserWallet(adminToken, userId) {
     console.log(`[${tag}] 响应状态码: ${response.status}`);
     console.log(`[${tag}] 响应msgCode: ${response.msgCode}`);
     console.log(`[${tag}] 响应msg: ${response.msg}`);
-    console.log(`[${tag}] 完整响应:`, JSON.stringify(response, null, 2));
+    //console.log(`[${tag}] 完整响应:`, JSON.stringify(response, null, 2));
 
     if (!response || response.msgCode !== 0) {
         console.error(`[${tag}] ❌ 添加电子钱包失败`);
@@ -317,7 +317,7 @@ export function addUserPix(adminToken, userId) {
     console.log(`[${tag}] 响应状态码: ${response.status}`);
     console.log(`[${tag}] 响应msgCode: ${response.msgCode}`);
     console.log(`[${tag}] 响应msg: ${response.msg}`);
-    console.log(`[${tag}] 完整响应:`, JSON.stringify(response, null, 2));
+    //console.log(`[${tag}] 完整响应:`, JSON.stringify(response, null, 2));
 
     if (!response || response.msgCode !== 0) {
         console.error(`[${tag}] ❌ 添加PIX失败`);
@@ -355,7 +355,7 @@ export function addUserUsdt(adminToken, userId) {
     console.log(`[${tag}] 响应状态码: ${response.status}`);
     console.log(`[${tag}] 响应msgCode: ${response.msgCode}`);
     console.log(`[${tag}] 响应msg: ${response.msg}`);
-    console.log(`[${tag}] 完整响应:`, JSON.stringify(response, null, 2));
+    //console.log(`[${tag}] 完整响应:`, JSON.stringify(response, null, 2));
 
     if (!response || response.msgCode !== 0) {
         console.error(`[${tag}] ❌ 添加USDT失败`);

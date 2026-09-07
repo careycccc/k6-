@@ -248,7 +248,7 @@ function querySystemActivities(data) {
         } else {
             logger.warn(`[${createSystemActiveTag}] 查询结果为空或没有list字段，语言: ${language}`);
             logger.warn(`[${createSystemActiveTag}] 响应结构: ${JSON.stringify(Object.keys(result || {}))}`);
-            logger.warn(`[${createSystemActiveTag}] 完整响应: ${JSON.stringify(result)}`);
+            //logger.warn(`[${createSystemActiveTag}] 完整响应: ${JSON.stringify(result)}`);
         }
 
         return activityList;

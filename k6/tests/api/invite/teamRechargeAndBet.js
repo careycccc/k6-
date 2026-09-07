@@ -51,15 +51,24 @@ function loginUser(account, accountType, adminData) {
 }
 
 /**
- * 随机执行 1~3 次充值（首充 + 随机二充/三充）
+ * 随机执行 1~4 次充值（链式条件概率）
+ *
+ * 判定要充值 → 必充 1 次；之后逐次判定是否"继续追加下一次"：
+ *   第2次 40% | 第3次 30% | 第4次 10%，任一次未命中即停止（最多 4 次）。
+ * 恰好次数分布：1次=60%、2次=28%、3次=10.8%、4次=1.2%。
+ *
  * @param {object} userInfo   - { token, userId, account }
  * @param {string} adminToken
  * @returns {{ recharged: boolean, totalAmount: number }}
  */
 function processMultiRecharge(userInfo, adminToken) {
-    // 随机决定充值次数：60% 概率1次，30% 概率2次，10% 概率3次
-    const rand = Math.random();
-    const rechargeCount = rand < 0.6 ? 1 : rand < 0.9 ? 2 : 3;
+    // 判定充值→必充1次；随后按 第2/3/4次 的"继续充"概率依次追加，一旦未命中即停止（最多4次）
+    const NEXT_CHANCE = [0.40, 0.30, 0.10]; // 第2次40% / 第3次30% / 第4次10%
+    let rechargeCount = 1;
+    for (const p of NEXT_CHANCE) {
+        if (Math.random() < p) rechargeCount++;
+        else break;
+    }
 
     console.log(`[Process] 本次充值次数: ${rechargeCount} 次`);
 
@@ -70,7 +79,7 @@ function processMultiRecharge(userInfo, adminToken) {
         if (i > 0) sleep(2); // 二充/三充前等待
 
         const rechargeAmount = getConfigRechargeAmount();
-        const label = i === 0 ? '首充' : i === 1 ? '二充' : '三充';
+        const label = ['首充', '二充', '三充', '四充'][i] || `第${i + 1}充`;
         console.log(`[Process] ${label}: ${userInfo.account}, 金额: ${rechargeAmount}`);
 
         const rechargeResult = hybridRecharge({

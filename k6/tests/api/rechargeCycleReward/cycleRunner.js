@@ -51,6 +51,7 @@ const root = args.root || process.env.ROOT_INVITE_CODE || 'W5LU89N';
 const paidRatio = args.paid || process.env.PAID_RATIO || '';
 const userGap = args.gap || process.env.USER_GAP || '';
 const country = args.country || process.env.COUNTRY_CODE || '';
+const overwrite = args.overwrite !== undefined || process.env.OVERWRITE === '1'; // 默认追加，加 --overwrite 则覆盖
 
 const SCRIPT = 'cycleRewardSeed.day.js';
 const scriptDir = __dirname; // k6 cwd 与 txt 读写目录，保证 open() 与写盘一致
@@ -124,9 +125,17 @@ child.on('close', (code) => {
         process.exit(code);
     }
 
-    fs.writeFileSync(outFile, uniq.join('\n') + (uniq.length ? '\n' : ''), 'utf-8');
+    // 默认追加：读已有 txt 账号 + 本次新增 → 去重后写回（加 --overwrite 才覆盖）
+    let existing = [];
+    if (!overwrite && fs.existsSync(outFile)) {
+        try {
+            existing = fs.readFileSync(outFile, 'utf-8').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        } catch (e) { /* 读失败当空 */ }
+    }
+    const merged = Array.from(new Set(existing.concat(uniq)));
+    fs.writeFileSync(outFile, merged.join('\n') + (merged.length ? '\n' : ''), 'utf-8');
     printReport();
-    console.log(`\n✅ 已写入 ${outFile}：${uniq.length} 个账号`);
+    console.log(`\n✅ ${outFile}：已有 ${existing.length} + 本次 ${uniq.length} → 去重累计 ${merged.length} 个账号（${overwrite ? '覆盖' : '追加'}）`);
 });
 
 // -------- 报表美化打印（Node 端：换行正常、无 k6 前缀） --------

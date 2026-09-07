@@ -12,7 +12,7 @@
  * 7. 注意只有团队2进行充值投注的时候才会有一定的几率把成员加入到特殊/固定的返佣中
  * 
  * 使用方法：
- * k6 run -e TENANT_ID=3007 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=2 multiLevelRebate.test.js
+ * k6 run -e TENANT_ID=3006 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=28 -e TEAM2_LEVELS=7 multiLevelRebate.test.js
 
 # 默认模式（不变）
 k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=2 multiLevelRebate.test.js

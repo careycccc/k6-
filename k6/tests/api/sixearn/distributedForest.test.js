@@ -14,7 +14,7 @@
  *   -e LEVELS=5            每VU内部树的层级数（默认5）
  *
  * 运行示例：
- *   k6 run -e TENANT_ID=3007 -e VUS=2 -e TOTAL_USERS=5 -e LEVELS=2  distributedForest.test.js
+ *   k6 run -e TENANT_ID=3004 -e VUS=1 -e TOTAL_USERS=30 -e LEVELS=4 distributedForest.test.js
  *
  * ============================================================
  * 设计原则（只读 + 增量）：

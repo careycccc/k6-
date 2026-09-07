@@ -13,7 +13,7 @@
  * 成员来自后台查询、不需跨天 txt 桥接 → 直接 k6 run 即可，无需 Node 包装器。
  *
  * 运行：
- *   k6 run -e TENANT_ID=3004 -e ROOT_UID=165175 cycleRewardByTeam.js
+ *   k6 run -e TENANT_ID=3004 -e ROOT_UID=165641 cycleRewardByTeam.js
  *
  * 参数（-e）：
  *   TENANT_ID   租户ID（默认 3004）

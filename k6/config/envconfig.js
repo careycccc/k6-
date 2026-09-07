@@ -71,7 +71,7 @@ export const ENV_3003 = {
     START_TIME: "2026-01-08 00:00:00",
     END_TIME: "2026-01-08 23:59:59",
     TENANTID: 3003,
-    GOOGLE_SECRET: "", // 后台谷歌验证码(TOTP)密钥，待补充
+    GOOGLE_SECRET: "GYZTQOBZGEYDGNJQHEYTKNBSGMZTSMLIPFRA", // 后台谷歌验证码(TOTP)密钥，待补充
     LimitedPermissions: "carey3003_001",
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3003_001",
@@ -137,7 +137,7 @@ export const ENV_3006 = {
     START_TIME: "2026-01-08 00:00:00",
     END_TIME: "2026-01-08 23:59:59",
     TENANTID: 3006,
-    GOOGLE_SECRET: "", // 后台谷歌验证码(TOTP)密钥，待补充
+    GOOGLE_SECRET: "GYZTSMJQGUZDSNBYGAYDGMZZGI2DQOJSNZSA", // 后台谷歌验证码(TOTP)密钥，待补充
     LimitedPermissions: "carey3006_001",
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3006_001",
@@ -181,7 +181,7 @@ export const ENV_3101 = {
     START_TIME: "2026-01-08 00:00:00",
     END_TIME: "2026-01-08 23:59:59",
     TENANTID: 3101,
-    GOOGLE_SECRET: "", // 后台谷歌验证码(TOTP)密钥，待补充
+    GOOGLE_SECRET: "GYZTQOBYG42TGNRQGA3TONJYGEZDM43RMFSA", // 后台谷歌验证码(TOTP)密钥，待补充
     LimitedPermissions: "carey_3101d",
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3101_kf",

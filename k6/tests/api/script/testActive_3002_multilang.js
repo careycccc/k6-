@@ -67,7 +67,7 @@ const ACTIVITY_MAP = {
 export function setup() {
     try {
         // 固定使用3002租户
-        const tenantId = '3002';
+        const tenantId = '3003';
         logger.info(`[Setup] 目标租户: ${tenantId}`);
 
         // 切换到3002租户的环境配置

@@ -39,7 +39,7 @@ function postWithToken(api, bizPayload, userToken) {
 function printResponse(label, response) {
   console.log(`\n${'─'.repeat(55)}`);
   console.log(`[${label}] HTTP ${response.status}`);
-  console.log(`[${label}] 完整响应：`);
+  //console.log(`[${label}] 完整响应：`);
   console.log(response.body);
   console.log(`${'─'.repeat(55)}`);
 }

@@ -8,9 +8,9 @@
  *    - 造数在 default(VU) 内执行；vus:1 单 runtime，统计完整、报表在 default 末尾打印。
  *
  * 正式运行（推荐）：
- *    node cycleRunner.js --day 1 --count 35 --levels 4 --root PJM7QLN --tenant 3004
+ *    node cycleRunner.js --day 1 --count 10 --levels 2 --root 89MMJ5N --tenant 3101
  * 第二天运行：
- *   node cycleRunner.js --day 2 --tenant 3004
+ *   node cycleRunner.js --day 5 --tenant 3004
  *
  * 仅调试（不会生成 txt，只打印）：
  *    k6 run -e USER_COUNT=15 -e LEVELS=2 -e ROOT_INVITE_CODE=7VA3VCN cycleRewardSeed.day.js

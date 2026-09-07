@@ -54,7 +54,7 @@ export function sendVerificationCode(verifyCodeType, userName, codeType, customF
 
     const rawResp = http.post(url, JSON.stringify(signedPayload), { headers });
     console.log(`[SendVerificationCode] 响应状态: ${rawResp.status}`);
-    console.log(`[SendVerificationCode] 完整响应体: ${rawResp.body}`);
+    //console.log(`[SendVerificationCode] 完整响应体: ${rawResp.body}`);
 
     let parsedBody = null;
     try {
@@ -94,7 +94,7 @@ export function sendVerificationCode(verifyCodeType, userName, codeType, customF
   console.log(`[SendVerificationCode] 响应状态: ${response.status}`);
   console.log(`[SendVerificationCode] 响应msgCode: ${response.msgCode}`);
   console.log(`[SendVerificationCode] 响应msg: ${response.msg}`);
-  console.log(`[SendVerificationCode] 完整响应体: ${JSON.stringify(response.raw)}`);
+  //console.log(`[SendVerificationCode] 完整响应体: ${JSON.stringify(response.raw)}`);
 
   if (response.msgCode === 0) {
     console.log(`[SendVerificationCode] ✅ 验证码发送成功: ${userName} (language=${lang})`);
