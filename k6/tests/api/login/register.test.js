@@ -53,9 +53,9 @@ export function isRateLimitError(err) {
  */
 export function phoneRegister(userName, data, password = 'qwer1234', inviteCode = '', captchaId = null, deviceOverride = '', browserOverride = '') {
     console.log(`[PhoneRegister] ========== 开始手机号注册流程（无验证码）==========`);
-    console.log(`[PhoneRegister] 用户名: ${userName}`);
-    console.log(`[PhoneRegister] 密码: ${password}`);
-    console.log(`[PhoneRegister] 邀请码: ${inviteCode || '(空)'}`);
+    // console.log(`[PhoneRegister] 用户名: ${userName}`);
+    // console.log(`[PhoneRegister] 密码: ${password}`);
+    // console.log(`[PhoneRegister] 邀请码: ${inviteCode || '(空)'}`);
 
     const api = "/api/Home/Register";
     const deviceId = deviceOverride || '';
@@ -78,7 +78,7 @@ export function phoneRegister(userName, data, password = 'qwer1234', inviteCode 
         timestamp: timeData.timestamp
     };
 
-    console.log(`[PhoneRegister] 注册 payload:`, JSON.stringify(payload, null, 2));
+   // console.log(`[PhoneRegister] 注册 payload:`, JSON.stringify(payload, null, 2));
 
     const httpResponse = httpClient.post(api, payload, {}, true);
 
@@ -103,10 +103,10 @@ export function phoneRegister(userName, data, password = 'qwer1234', inviteCode 
  * @returns {object} 返回包含 headers 和 data 的响应对象
  */
 export function phoneRegisterByInvite(userName, inviteCode, data, password = 'qwer1234', turnstileToken = '', customUrls = null, deviceOverride = '', browserOverride = '') {
-    console.log(`[PhoneRegisterByInvite] ========== 开始手机号邀请注册流程（无验证码）==========`);
-    console.log(`[PhoneRegisterByInvite] 用户名: ${userName}`);
-    console.log(`[PhoneRegisterByInvite] 邀请码: ${inviteCode}`);
-    console.log(`[PhoneRegisterByInvite] 密码: ${password}`);
+        console.log(`[PhoneRegisterByInvite] ========== 开始手机号邀请注册流程（无验证码）==========`);
+        // console.log(`[PhoneRegisterByInvite] 用户名: ${userName}`);
+        // console.log(`[PhoneRegisterByInvite] 邀请码: ${inviteCode}`);
+        // console.log(`[PhoneRegisterByInvite] 密码: ${password}`);
 
     const customRegisterUrl = customUrls && customUrls.registerUrl ? customUrls.registerUrl : null;
     const api = "/api/Home/Register";
@@ -129,8 +129,8 @@ export function phoneRegisterByInvite(userName, inviteCode, data, password = 'qw
         timestamp: timeData.timestamp
     };
 
-    console.log(`[PhoneRegisterByInvite] 注册 payload:`, JSON.stringify(payload, null, 2));
-    console.log(`[PhoneRegisterByInvite] ⚠️  当前 ENV_CONFIG.BASE_DESK_URL = ${ENV_CONFIG.BASE_DESK_URL}`);
+    // console.log(`[PhoneRegisterByInvite] 注册 payload:`, JSON.stringify(payload, null, 2));
+    // console.log(`[PhoneRegisterByInvite] ⚠️  当前 ENV_CONFIG.BASE_DESK_URL = ${ENV_CONFIG.BASE_DESK_URL}`);
 
     let httpResponse;
     if (customRegisterUrl) {
@@ -161,9 +161,9 @@ export function phoneRegisterByInvite(userName, inviteCode, data, password = 'qw
  */
 export function emailRegister(email, data, password = 'qwer1234', inviteCode = '', captchaId = null) {
     console.log(`[EmailRegister] ========== 开始邮箱注册流程（无验证码）==========`);
-    console.log(`[EmailRegister] 邮箱: ${email}`);
-    console.log(`[EmailRegister] 密码: ${password}`);
-    console.log(`[EmailRegister] 邀请码: ${inviteCode || '(空)'}`);
+    // console.log(`[EmailRegister] 邮箱: ${email}`);
+    // console.log(`[EmailRegister] 密码: ${password}`);
+    // console.log(`[EmailRegister] 邀请码: ${inviteCode || '(空)'}`);
 
     const api = "/api/Home/Register";
     const browserId = generateCryptoRandomString(32);
@@ -185,7 +185,7 @@ export function emailRegister(email, data, password = 'qwer1234', inviteCode = '
         timestamp: timeData.timestamp
     };
 
-    console.log(`[EmailRegister] 注册 payload:`, JSON.stringify(payload, null, 2));
+    //console.log(`[EmailRegister] 注册 payload:`, JSON.stringify(payload, null, 2));
 
     const httpResponse = httpClient.post(api, payload, {}, true);
 
@@ -209,9 +209,9 @@ export function emailRegister(email, data, password = 'qwer1234', inviteCode = '
  */
 export function emailRegisterByInvite(email, inviteCode, data, password = 'qwer1234', turnstileToken = '', customUrls = null) {
     console.log(`[EmailRegisterByInvite] ========== 开始邮箱邀请注册流程（无验证码）==========`);
-    console.log(`[EmailRegisterByInvite] 邮箱: ${email}`);
-    console.log(`[EmailRegisterByInvite] 邀请码: ${inviteCode}`);
-    console.log(`[EmailRegisterByInvite] 密码: ${password}`);
+    // console.log(`[EmailRegisterByInvite] 邮箱: ${email}`);
+    // console.log(`[EmailRegisterByInvite] 邀请码: ${inviteCode}`);
+    // console.log(`[EmailRegisterByInvite] 密码: ${password}`);
 
     const customRegisterUrl = customUrls && customUrls.registerUrl ? customUrls.registerUrl : null;
     const api = "/api/Home/Register";
@@ -234,8 +234,8 @@ export function emailRegisterByInvite(email, inviteCode, data, password = 'qwer1
         timestamp: timeData.timestamp
     };
 
-    console.log(`[EmailRegisterByInvite] 注册 payload:`, JSON.stringify(payload, null, 2));
-    console.log(`[EmailRegisterByInvite] ⚠️  当前 ENV_CONFIG.BASE_DESK_URL = ${ENV_CONFIG.BASE_DESK_URL}`);
+    // console.log(`[EmailRegisterByInvite] 注册 payload:`, JSON.stringify(payload, null, 2));
+    // console.log(`[EmailRegisterByInvite] ⚠️  当前 ENV_CONFIG.BASE_DESK_URL = ${ENV_CONFIG.BASE_DESK_URL}`);
 
     let httpResponse;
     if (customRegisterUrl) {
