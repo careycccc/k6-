@@ -159,7 +159,7 @@ export const ENV_3007 = {
     START_TIME: "2026-01-08 00:00:00",
     END_TIME: "2026-01-08 23:59:59",
     TENANTID: 3007,
-    GOOGLE_SECRET: "", // 后台谷歌验证码(TOTP)密钥，待补充
+    GOOGLE_SECRET: "GYZTSMRUGUZDQOBYGQ4DCOBXG4YTK6LDNNYQ", // 后台谷歌验证码(TOTP)密钥，待补充
     LimitedPermissions: "carey3007_001",
     LimitedPermissionsPassWord: "qwer1234",
     WorkOrderRole: "carey3007_001",

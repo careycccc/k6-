@@ -14,7 +14,7 @@ import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
 export function setup() {
     try {
         // 获取目标租户ID（从环境变量读取，优先使用 TENANT，其次 TENANT_ID，默认3003）
-        const tenantId = __ENV.TENANT || __ENV.TENANT_ID || '3003';
+        const tenantId = __ENV.TENANT || __ENV.TENANT_ID || '3007';
         logger.info(`[Setup] 目标租户: ${tenantId}`);
 
         // 如果是非默认租户，需要切换到该租户的环境配置

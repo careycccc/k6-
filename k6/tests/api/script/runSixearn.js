@@ -29,6 +29,7 @@ export function loginExec() {
 }
 
 
+// 六级代理返佣验证脚本
 // 返佣金额查询逻辑
 //k6 run -e TENANT_ID=3004 -e TARGET_UID=135833 k6-/k6/tests/api/script/runSixearn.js
 
@@ -40,7 +41,7 @@ export function loginExec() {
 // 进行前后台一起的验证逻辑
 // k6 run -e TENANT_ID=3007 -e TARGET_UID=110610 -e ACTION=verifyPromotion runSixearn.js
 
-// k6 run -e TENANT_ID=3007 -e TARGET_UID=110610  runSixearn.js
+// k6 run -e TENANT_ID=3006 -e TARGET_UID=118370  runSixearn.js
 
 
 // ============================================================

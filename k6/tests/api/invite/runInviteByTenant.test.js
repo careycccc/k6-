@@ -16,7 +16,7 @@ k6 run -e TENANT_ID=3005 -e ROOT_INVITE_CODE=LU9VJ9N -e LEVELS=3,4,2,3 runInvite
 k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=45PEPNN -e LEVELS=3,2 -e INVITE_CODE_MODE=2 runInviteByTenant.test.js
 
 # 模式3（userId）
-k6 run -e TENANT_ID=3007 -e ROOT_INVITE_CODE=SPEX6LN -e LEVELS=2,3 -e INVITE_CODE_MODE=3 runInviteByTenant.test.js
+k6 run -e TENANT_ID=3101 -e ROOT_INVITE_CODE=UYRVANN -e LEVELS=8,5,7 -e INVITE_CODE_MODE=3 runInviteByTenant.test.js
 
 # mix（50%模式1 / 30%模式2 / 20%模式3）
 k6 run -e TENANT_ID=3007 -e ROOT_INVITE_CODE=MPR9CKN -e LEVELS=2,3 -e INVITE_CODE_MODE=mix runInviteByTenant.test.js

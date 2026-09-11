@@ -11,7 +11,7 @@
  *     每天的复充报表 + 与后台报表的逐项对比（对不上打印脚本算出的会员id）。
  *
  * 用法（在本目录内运行）：
- *   node retentionRunner.js --date 2026-09-07 --tenant 3004
+ *   node retentionRunner.js --date 2026-09-07 --tenant 3101
  *   node retentionRunner.js --date 2026-09-05                 # 租户默认 3004
  *   node retentionRunner.js --date 2026-09-07 --exclude-manual   # 排除人工充值
  *   node retentionRunner.js --date 2026-09-07 --debug 165935,165940

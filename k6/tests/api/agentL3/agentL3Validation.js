@@ -417,7 +417,7 @@ export function runAgentL3Validation(data, targetUid) {
 
     console.log(`   需要查询数据的核心成员: ${enrichedMembers.length} 人...`);
 
-    // 挨个查询 (包含自身) 
+    // 挨个查询 (包含自身)
     enrichedMembers.forEach((m, idx) => {
         sleep(0.5);
         if (idx % 5 === 0 && idx > 0) console.log(`   ...已查询 ${idx}/${enrichedMembers.length}人 ...`);

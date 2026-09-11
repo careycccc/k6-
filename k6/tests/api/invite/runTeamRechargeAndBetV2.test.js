@@ -26,7 +26,7 @@
  *   k6 run -e TENANT_ID=3004 -e TARGET_UID=164320 -e WITHDRAW_CHANCE=0.9 -e WITHDRAW_AUDIT=true runTeamRechargeAndBetV2.test.js
  *
  *   # 只针对于L3团队的方式进行整个团队的充值投注
- *   k6 run -e TENANT_ID=3004 -e TARGET_UID=164597 -e IS_L3=true -e VUS=3 runTeamRechargeAndBetV2.test.js
+ *   k6 run -e TENANT_ID=3101 -e TARGET_UID=112821 -e IS_L3=true -e VUS=3 runTeamRechargeAndBetV2.test.js
  *
  * ════════════════════════════════════════════════════════════
  * 环境变量
