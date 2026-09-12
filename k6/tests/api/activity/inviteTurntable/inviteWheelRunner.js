@@ -11,7 +11,8 @@
  * 用法（在本目录内运行）：
  *   node inviteWheelRunner.js --day 1 --agents 3 --subs 3 --rounds 2 --tenant 3004
  *   node inviteWheelRunner.js --day 2 --tenant 3004     # 读 all_day01.txt
- *   node inviteWheelRunner.js --day 3 --tenant 3004
+ *   node inviteWheelRunner.js --day 4 --tenant 3004
+ * 
  *
  * 参数：
  *   --day     第几天 1~3（默认 1）

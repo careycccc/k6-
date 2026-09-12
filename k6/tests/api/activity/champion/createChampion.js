@@ -6,8 +6,12 @@ import { handleMultipleConfigs, ConfigType } from '../common/activityConfigHandl
 
 export const createChampionTag = 'createChampion';
 
-// vendorCode 列表，按顺序尝试
-const VENDOR_CODES = ["TB_Chess", "INOUT", "EVO_Electronic", "JILI", "G9"];
+// 锦标赛指定游戏类型：ARLottery 厂商的 WinGo_30S（gameCategory=3 指定单一游戏）
+const CHAMPION_GAME = {
+    gameCategory: 3,
+    vendorCode: "ARLottery",
+    gameCode: "WinGo_30S"
+};
 
 // 在模块顶层创建图片上传器
 const uploadChampionImage = createImageUploader('../../uploadFile/img/champion/1.png', createChampionTag);
@@ -59,48 +63,42 @@ export function createChampion(data) {
 
         const imagePath = imageResult.imagePath;
 
-        // 尝试使用不同的 vendorCode 创建锦标赛活动
-        let lastError = null;
-        for (let i = 0; i < VENDOR_CODES.length; i++) {
-            const vendorCode = VENDOR_CODES[i];
-            logger.info(`[${createChampionTag}] 尝试使用 vendorCode: ${vendorCode} (${i + 1}/${VENDOR_CODES.length})`);
+        // 使用指定游戏（ARLottery - WinGo_30S）创建锦标赛活动
+        logger.info(`[${createChampionTag}] 使用游戏 vendorCode=${CHAMPION_GAME.vendorCode} gameCode=${CHAMPION_GAME.gameCode} 创建锦标赛`);
 
-            const createResult = createChampionActivity(data, vendorCode, imagePath);
+        const createResult = createChampionActivity(data, imagePath);
 
-            if (createResult.success) {
-                logger.info(`[${createChampionTag}] 锦标赛活动创建成功，使用 vendorCode: ${vendorCode}`);
+        if (createResult.success) {
+            logger.info(`[${createChampionTag}] 锦标赛活动创建成功，游戏: ${CHAMPION_GAME.vendorCode}/${CHAMPION_GAME.gameCode}`);
 
-                // 等待0.5秒
-                sleep(0.5);
+            // 等待0.5秒
+            sleep(0.5);
 
-                return {
-                    success: true,
-                    tag: createChampionTag,
-                    message: `锦标赛活动创建成功，使用 vendorCode: ${vendorCode}`,
-                    vendorCode: vendorCode
-                };
-            } else if (createResult.errorCode === 6026) {
-                // 如果是错误码 6026，记录并尝试下一个 vendorCode
-                logger.info(`[${createChampionTag}] vendorCode ${vendorCode} 已有活动，尝试下一个...`);
-                lastError = createResult.message;
-                continue;
-            } else {
-                // 其他错误，直接返回失败
-                logger.error(`[${createChampionTag}] 创建失败: ${createResult.message}`);
-                return {
-                    success: false,
-                    tag: createChampionTag,
-                    message: createResult.message
-                };
-            }
+            return {
+                success: true,
+                tag: createChampionTag,
+                message: `锦标赛活动创建成功，游戏: ${CHAMPION_GAME.vendorCode}/${CHAMPION_GAME.gameCode}`,
+                vendorCode: CHAMPION_GAME.vendorCode,
+                gameCode: CHAMPION_GAME.gameCode
+            };
         }
 
-        // 所有 vendorCode 都尝试过了，仍然失败
-        logger.error(`[${createChampionTag}] 所有 vendorCode 都已尝试，创建失败`);
+        if (createResult.errorCode === 6026) {
+            // 错误码 6026：该游戏已有进行中的活动
+            logger.error(`[${createChampionTag}] 游戏 ${CHAMPION_GAME.vendorCode}/${CHAMPION_GAME.gameCode} 已有活动: ${createResult.message}`);
+            return {
+                success: false,
+                tag: createChampionTag,
+                message: `游戏 ${CHAMPION_GAME.vendorCode}/${CHAMPION_GAME.gameCode} 已有活动: ${createResult.message}`
+            };
+        }
+
+        // 其他错误，直接返回失败
+        logger.error(`[${createChampionTag}] 创建失败: ${createResult.message}`);
         return {
             success: false,
             tag: createChampionTag,
-            message: `所有 vendorCode 都已尝试失败: ${lastError || '未知错误'}`
+            message: createResult.message
         };
 
     } catch (error) {
@@ -196,11 +194,10 @@ function checkAndConfigureChampionSettings(data) {
 /**
  * 创建锦标赛活动
  * @param {*} data
- * @param {string} vendorCode 供应商代码
  * @param {string} imagePath 图片路径
  * @returns {Object} 创建结果 { success, errorCode, message }
  */
-function createChampionActivity(data, vendorCode, imagePath) {
+function createChampionActivity(data, imagePath) {
     const token = data.token;
     const api = '/api/Champion/Add';
 
@@ -221,9 +218,9 @@ function createChampionActivity(data, vendorCode, imagePath) {
     const payload = {
         "image": imagePath,
         "id": 0,
-        "gameCategory": 0,
-        "vendorCode": vendorCode,
-        "gameCode": null,
+        "gameCategory": CHAMPION_GAME.gameCategory,
+        "vendorCode": CHAMPION_GAME.vendorCode,
+        "gameCode": CHAMPION_GAME.gameCode,
         "betAmount": 1000,
         "rechargeAmount": 100,
         "bindWallet": 1,

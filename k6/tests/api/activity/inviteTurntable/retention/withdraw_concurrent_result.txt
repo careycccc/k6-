@@ -1,0 +1,24 @@
+===== 并发提现验证（重复提现 / 竞态条件）=====
+总代 phone=917077002160 userId=167159
+邀请码=D6MUPCW
+下级1 phone=917084011623 userId=167160 充值=1000
+下级2 phone=917093023660 userId=167161 充值=1000
+下级3 phone=917101031595 userId=167162 充值=1000
+下级成功=3/3
+转盘奖金 totalPrizeAmount=500  已旋转 userWheelAmount=500
+提现前 订单数=0
+并发数 CONC=10  模式=相同payload重放  提现金额=500
+VU10 提现 success=true code=0 msg=Succeed
+VU3 提现 success=false code=11 msg=Too frequent access, please try again later
+VU7 提现 success=false code=11 msg=Too frequent access, please try again later
+VU6 提现 success=false code=11 msg=Too frequent access, please try again later
+VU8 提现 success=false code=11 msg=Too frequent access, please try again later
+VU1 提现 success=false code=11 msg=Too frequent access, please try again later
+VU9 提现 success=false code=11 msg=Too frequent access, please try again later
+VU2 提现 success=false code=11 msg=Too frequent access, please try again later
+VU4 提现 success=false code=11 msg=Too frequent access, please try again later
+VU5 提现 success=false code=11 msg=Too frequent access, please try again later
+—— 结论 ——
+提现前订单=0  并发10发提现后订单=1  (增量=1)
+✅ 只产生 1 个订单 → 防重正常(有锁/幂等，或限流把多余并发挡住了)
+订单 orderNo=IW260912124521814T0aIQGePRE 金额=500 auditState=2(通过) 轮次=1

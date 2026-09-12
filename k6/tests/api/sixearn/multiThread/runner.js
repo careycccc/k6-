@@ -2,7 +2,7 @@ const { execSync, spawnSync } = require('child_process');
 // @ts-ignore
 const fs = require('fs');
 
-const tenantId = process.env.TENANT_ID || '3007';
+const tenantId = process.env.TENANT_ID || '3003';
 const team1Total = process.env.TEAM1_TOTAL || '20';   // 团队1总人数
 const team1Levels = process.env.TEAM1_LEVELS || '4';    // 团队1总层级
 const team2Total = process.env.TEAM2_TOTAL || '15';   // 团队2总人数

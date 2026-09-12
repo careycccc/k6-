@@ -1,0 +1,18 @@
+===== 二次提现验证（相同 payload 重放 / 重复提现防护）=====
+总代 phone=917900006202 userId=167179
+邀请码=D26AT8W
+下级1 phone=917907014184 userId=167180 充值=1000
+下级2 phone=917917025596 userId=167181 充值=1000
+下级3 phone=917925038018 userId=167182 充值=1000
+下级成功=3/3
+转盘奖金 totalPrizeAmount=500  已旋转 userWheelAmount=500
+提现前 订单数=0
+固定 payload: random=835640869062 timestamp=1789217942 amount=500
+第一次提现 success=true code=0 msg=Succeed
+第一次后 订单数=1  (增量=1)
+第二次提现(payload一摸一样) success=false code=11 msg=The data does not exist
+第二次后 订单数=1  (增量=0)
+—— 结论 ——
+第一次提现 产生了订单 ✅（增量=1）
+✅ 第二次(相同payload)未产生新订单（防重正常），返回 success=false msg=The data does not exist
+订单 orderNo=IW260912125906131STaIQGePRY 金额=500 auditState=2(通过) 轮次=1 time=1789217946131
