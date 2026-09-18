@@ -40,6 +40,7 @@ const ADMIN_USER = process.env.ADMIN_USER || T.user;
 const ADMIN_PWD  = process.env.ADMIN_PWD  || 'qwer1234';
 const TARGET     = parseInt(process.env.TARGET || '50', 10);
 const PAGE_SIZE  = Math.min(parseInt(process.env.PAGE_SIZE || '500', 10), 500);
+const PACKAGE_ID = process.env.PACKAGE_ID || '';              // 渠道过滤：只采某渠道会员（GetPageList packageId），空=全部渠道
 const LANG       = process.env.LANG_CODE || 'zh';
 const SET_PWD    = process.env.SETPWD === 'true';              // SETPWD=true：采集后把这批账号登录密码重置为 NEW_PWD
 const NEW_PWD    = process.env.NEW_PWD || 'qwer1234';
@@ -127,7 +128,7 @@ async function setPassword(userId, token) {
 }
 
 (async () => {
-  console.log(`[采集] 租户 ${TENANT}  后台 ${ADMIN_URL}  admin ${ADMIN_USER}  目标 ${TARGET} 条`);
+  console.log(`[采集] 租户 ${TENANT}  后台 ${ADMIN_URL}  admin ${ADMIN_USER}  目标 ${TARGET} 条${PACKAGE_ID ? `  渠道 packageId=${PACKAGE_ID}` : ''}`);
 
   // 1) 后台登录（配了密钥则带 vCode；vCode 被拒时自动试相邻时间窗口，容忍轻微时钟偏差）
   let login;
@@ -149,12 +150,23 @@ async function setPassword(userId, token) {
   // 2) 分页拉取 userId + account
   const users = [];
   for (let pageNo = 1; users.length < TARGET; pageNo++) {
-    const r = await post('/api/Users/GetPageList', { userType: 0, pageNo, pageSize: PAGE_SIZE, orderBy: 'Desc' }, token);
+    const listPayload = { userType: 0, pageNo, pageSize: PAGE_SIZE, orderBy: 'Desc' };
+    if (PACKAGE_ID) listPayload.packageId = [PACKAGE_ID];  // 渠道过滤：packageId 数组（同后台 payload 格式 "packageId":["100051"]）
+    const r = await post('/api/Users/GetPageList', listPayload, token);
     if (r.code !== 0 || !r.data || !Array.isArray(r.data.list)) {
       console.error(`[采集] ❌ 第 ${pageNo} 页失败: code=${r.code} msg=${r.msg || r.text.slice(0, 200)}`);
       break;
     }
-    if (pageNo === 1) console.log(`[采集] 总用户数: ${r.data.totalCount}`);
+    if (pageNo === 1) {
+      console.log(`[采集] 总用户数: ${r.data.totalCount}  ${PACKAGE_ID ? `（渠道 ${PACKAGE_ID} 过滤生效的话，这里应≈该渠道人数）` : '（未过滤=全部渠道）'}`);
+      const s = r.data.list[0];
+      if (s) {
+        console.log(`[采集] 首条样本(确认渠道): ${JSON.stringify(s)}`);
+        const chFields = ['packageId', 'packageName', 'channelId', 'channelName', 'packageCode', 'channelCode'];
+        const found = chFields.filter(k => s[k] !== undefined).map(k => `${k}=${JSON.stringify(s[k])}`);
+        console.log(`[采集] 渠道字段自检: ${found.length ? found.join('  ') : '未见常见渠道字段（看上面完整样本里叫什么）'}${PACKAGE_ID ? `   期望 packageId=${PACKAGE_ID}` : ''}`);
+      }
+    }
     for (const u of r.data.list) {
       users.push({ userId: u.userId, account: u.account });
       if (users.length >= TARGET) break;

@@ -54,14 +54,21 @@ const RECHARGE_AMOUNT = 1000;
 const BET_UNIT = 20, BET_MULTIPLE = 10; // 投注 200
 const SUB_PARTICIPATE_RATE = 0.5;       // 下级 50% 参与
 
-// DAY>=2：init 阶段读上一天 all 账号（open 相对本脚本目录）
+// DAY>=2：init 阶段读上一天 all 账号 + 总代列表（open 相对本脚本目录）
 let PREV_ACCOUNTS = [];
+let PREV_AGENTS = [];
 if (DAY >= 2) {
     const prevFile = `./retention/all_day${String(DAY - 1).padStart(2, '0')}.txt`;
     try {
         PREV_ACCOUNTS = open(prevFile).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     } catch (e) {
         throw new Error(`[InviteWheel] ❌ DAY=${DAY} 读上一天文件 ${prevFile} 失败：${e.message}（请确认已生成且 runner 在脚本目录运行）`);
+    }
+    const prevAgentFile = `./retention/agents_day${String(DAY - 1).padStart(2, '0')}.txt`;
+    try {
+        PREV_AGENTS = open(prevAgentFile).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    } catch (e) {
+        console.warn(`[InviteWheel] ⚠️ 未找到上一天总代文件 ${prevAgentFile}，DAY≥2 将没有总代持续参与（请用新版从 DAY=1 重跑以生成 agents 文件）`);
     }
 }
 
@@ -83,6 +90,7 @@ export const options = {
 
 function emitAll(acct) { console.log(`##ALL##${acct}`); }
 function emitPart(acct) { console.log(`##PART##${acct}`); }
+function emitAgent(acct) { console.log(`##AGENT##${acct}`); }
 
 function extractToken(response) {
     if (!response) return null;
@@ -222,27 +230,44 @@ function runDay1(ctx) {
     const agent = registerWithRetry('agent', null, ctx);
     if (!agent) { console.error(`[InviteWheel][D1][VU${__VU}] 总代注册失败`); return; }
     emitAll(agent.phone);
+    emitAgent(agent.phone); // 标记为总代，供 DAY≥2 让总代持续参与
     console.log(`[InviteWheel][D1][VU${__VU}] 总代 ${agent.phone} 注册成功，开始 ${ROUNDS} 轮邀请转盘`);
 
     runWheelRounds(agent.token, agent.phone, ctx); // 每轮：参与转盘 + 邀请 SUBS 下级 + 提现
 }
 
-// ================= D2/D3：读账号 → 行为分层 + 30% 参与 =================
+// ================= D2/D3：总代持续参与+邀请，下级只登录留存 =================
 
-function runDayN(myAccounts, ctx) {
+function runDayN(myAccounts, agentSet, partAgentSet, ctx) {
     if (myAccounts.length === 0) return;
-    const accounts = shuffle(myAccounts);
-    const n = accounts.length;
+    const agents = myAccounts.filter(a => agentSet.has(a));
+    const subs = shuffle(myAccounts.filter(a => !agentSet.has(a)));
+    const partAgents = agents.filter(a => partAgentSet.has(a));
+
+    console.log(`[InviteWheel][D${DAY}][VU${__VU}] 本片 总代${agents.length}(其中${partAgents.length}个参与转盘+邀请) 下级${subs.length}(登录留存)`);
+
+    // 1) 总代：都登录留存；被抽中的（总代池全局 30%）才额外参与转盘 + 邀请新下级
+    for (const account of agents) {
+        const token = loginWithPassword(account, 'qwer1234'); // 登录=留存
+        if (!token) { sleep(1); continue; }
+        if (partAgentSet.has(account)) {
+            runWheelRounds(token, account, ctx); // 每轮：参与转盘 + 邀请 SUBS 下级 + 提现
+        }
+        emitAll(account);   // 总代留存
+        emitAgent(account); // 持续为总代，供下一天
+        sleep(1);
+    }
+
+    // 2) 下级：行为分层登录留存，不参与转盘
+    const n = subs.length;
     const n70 = Math.floor(n * 0.70);
     const n90 = n70 + Math.floor(n * 0.20);
     const n95 = n90 + Math.floor(n * 0.05);
     // [0,n70) 充投 | [n70,n90) 只充 | [n90,n95) 只登录 | [n95,n) 不登录
-    const partSet = new Set(shuffle(accounts).slice(0, Math.floor(n * 0.30))); // 独立 30% 参与转盘
+    console.log(`[InviteWheel][D${DAY}][VU${__VU}] 下级分层：充投${n70} 只充${n90 - n70} 只登录${n95 - n90} 不登录${n - n95}`);
 
-    console.log(`[InviteWheel][D${DAY}][VU${__VU}] 本片 ${n} 人：充投${n70} 只充${n90 - n70} 只登录${n95 - n90} 不登录${n - n95}，参与转盘${partSet.size}`);
-
-    for (let i = 0; i < accounts.length; i++) {
-        const account = accounts[i];
+    for (let i = 0; i < subs.length; i++) {
+        const account = subs[i];
         const behavior = i < n70 ? 'both' : i < n90 ? 'recharge' : i < n95 ? 'login' : 'skip';
         if (behavior === 'skip') continue; // 5% 不登录：不写 all
 
@@ -255,10 +280,6 @@ function runDayN(myAccounts, ctx) {
             hybridRecharge({ userToken: token, adminToken: ctx.adminData.token, userId, amount: RECHARGE_AMOUNT, frontendFirst: true, remark: `InviteWheelD${DAY}` });
         }
         if (behavior === 'both') { sleep(1); betFixed(token, BET_UNIT, BET_MULTIPLE, account); }
-
-        if (partSet.has(account)) {
-            runWheelRounds(token, account, ctx); // 额外参与转盘：每轮 参与 + 邀请 SUBS 下级 + 提现
-        }
 
         emitAll(account); // 登录成功（非不登录）→ 写当天 all，供下一天
         sleep(1);
@@ -280,7 +301,16 @@ export function setup() {
     console.log(`[InviteWheel] DAY=${DAY} | ${DAY === 1 ? `总代 ${AGENTS} × 每轮 ${SUBS} 下级 × ${ROUNDS} 轮` : `上一天账号 ${PREV_ACCOUNTS.length} 人，${RUN_VUS} VU 分片`}`);
     if (!__ENV.VIA_RUNNER) console.warn(`[InviteWheel] ⚠️ 直接 k6 run 不会写 txt（沙箱限制），请用：node inviteWheelRunner.js --day ${DAY} --tenant ${TENANT_ID}`);
 
-    return { token: adminToken, envConfig };
+    // DAY≥2：从「总代池」全局抽 30%（至少1）参与转盘——只在总代里算，不在全部账号里稀释，保证总代参与几率
+    let partAgents = [];
+    if (DAY >= 2 && PREV_AGENTS.length > 0) {
+        const shuffled = PREV_AGENTS.slice();
+        for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = t; }
+        partAgents = shuffled.slice(0, Math.max(1, Math.floor(PREV_AGENTS.length * 0.30)));
+        console.log(`[InviteWheel] DAY=${DAY} 总代池 ${PREV_AGENTS.length} 人 → 全局抽 ${partAgents.length} 个参与转盘(约30%)`);
+    }
+
+    return { token: adminToken, envConfig, partAgents };
 }
 
 export default function (data) {
@@ -303,6 +333,8 @@ export default function (data) {
         runDay1(ctx);
     } else {
         const myAccounts = PREV_ACCOUNTS.filter((_, i) => i % RUN_VUS === (__VU - 1));
-        runDayN(myAccounts, ctx);
+        const agentSet = new Set(PREV_AGENTS);
+        const partAgentSet = new Set(data.partAgents || []);
+        runDayN(myAccounts, agentSet, partAgentSet, ctx);
     }
 }

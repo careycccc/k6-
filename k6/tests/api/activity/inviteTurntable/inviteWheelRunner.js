@@ -9,7 +9,7 @@
  *   - DAY>=2 由 k6 用 open() 读上一天 retention/all_day(NN-1).txt。
  *
  * 用法（在本目录内运行）：
- *   node inviteWheelRunner.js --day 1 --agents 3 --subs 3 --rounds 2 --tenant 3004
+ *   node inviteWheelRunner.js --day 1 --agents 3 --subs 2 --rounds 2 --tenant 3004
  *   node inviteWheelRunner.js --day 2 --tenant 3004     # 读 all_day01.txt
  *   node inviteWheelRunner.js --day 4 --tenant 3004
  * 
@@ -56,6 +56,7 @@ const retentionDir = path.join(scriptDir, 'retention');
 const dayStr = String(DAY).padStart(2, '0');
 const allFile = path.join(retentionDir, `all_day${dayStr}.txt`);
 const partFile = path.join(retentionDir, `participants_day${dayStr}.txt`);
+const agentFile = path.join(retentionDir, `agents_day${dayStr}.txt`);
 
 // DAY>=2：校验上一天 all 文件存在
 if (DAY >= 2) {
@@ -82,6 +83,7 @@ const child = spawn('k6', k6Args, { cwd: scriptDir, windowsHide: true });
 
 const allAccts = [];
 const partAccts = [];
+const agentAccts = [];
 let buf = '';
 
 function handleLine(line) {
@@ -90,6 +92,8 @@ function handleLine(line) {
     if (am) { allAccts.push(am[1].trim()); return; }
     const pm = line.match(/##PART##([^\s"]+)/);
     if (pm) { partAccts.push(pm[1].trim()); return; }
+    const gm = line.match(/##AGENT##([^\s"]+)/);
+    if (gm) { agentAccts.push(gm[1].trim()); return; }
 }
 
 function scan(chunk) {
@@ -120,10 +124,12 @@ child.on('close', (code) => {
 
     const allWritten = writeMerged(allFile, allAccts);
     const partWritten = writeMerged(partFile, partAccts);
+    const agentWritten = writeMerged(agentFile, agentAccts);
 
     console.log(`\n✅ DAY=${DAY} 完成`);
     console.log(`   ${allFile}   → 累计 ${allWritten} 个账号（本次新增去重 ${new Set(allAccts).size}）`);
     console.log(`   ${partFile} → 累计 ${partWritten} 个参与账号（本次新增去重 ${new Set(partAccts).size}）`);
+    console.log(`   ${agentFile} → 累计 ${agentWritten} 个总代（本次新增去重 ${new Set(agentAccts).size}）`);
     if (DAY < 3) console.log(`\n   下一天： node inviteWheelRunner.js --day ${DAY + 1} --tenant ${tenant}`);
 });
 

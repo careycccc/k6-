@@ -1,0 +1,24 @@
+==================== 充值拉单黑名单风控验证结果 ====================
+租户：3004    时间：2026-09-18T06:01:32.247Z
+请求用例数：2    已执行：2    ✅通过：0    🔴失败：2
+
+---------- 全部用例明细 ----------
+[FAIL] 用例=cross_day   用户userId=167418   手机号=911293000142
+      预期：跨午夜后限制按绝对limitEnd生效(被拦10068)
+      实际：跨天(2026-09-17→2026-09-18)后前台发起 code=undefined, msgCode=undefined, 未被拦✗
+      详情：limitEnd=2026-09-18 00:30:34" source=console
+
+[FAIL] 用例=dubai_release   用户userId=167419   手机号=911295019940
+      预期：限制到期(迪拜10点)后前台充值可正常发起(code=0)
+      实际：解除(limitEnd=2026-09-18 11:30:34)后前台发起 code=undefined, msgCode=undefined, 发起异常✗
+      详情：limitEnd=2026-09-18 11:30:34" source=console
+
+---------- 🔴 实际≠预期（需排查） ----------
+🔴 用例=cross_day   用户userId=167418   手机号=911293000142
+   预期：跨午夜后限制按绝对limitEnd生效(被拦10068)
+   实际：跨天(2026-09-17→2026-09-18)后前台发起 code=undefined, msgCode=undefined, 未被拦✗
+   详情：limitEnd=2026-09-18 00:30:34" source=console
+🔴 用例=dubai_release   用户userId=167419   手机号=911295019940
+   预期：限制到期(迪拜10点)后前台充值可正常发起(code=0)
+   实际：解除(limitEnd=2026-09-18 11:30:34)后前台发起 code=undefined, msgCode=undefined, 发起异常✗
+   详情：limitEnd=2026-09-18 11:30:34" source=console
