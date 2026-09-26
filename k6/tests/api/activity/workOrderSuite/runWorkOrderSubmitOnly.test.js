@@ -36,6 +36,11 @@ import { AdminLogin } from '../../login/adminlogin.test.js';
 import { sendQueryRequest } from '../../common/request.js';
 import { ENV_CONFIG, getEnvByTenantId } from '../../../../config/envconfig.js';
 import { getUserAccount, autoLoginByAccount } from '../../user/userAccountApi.js';
+import { phoneRegister } from '../../login/register.test.js';
+import { getFrontUserInfo } from '../../user/userManagement.js';
+import { addAllWallets } from '../../withdraw/addWalletApi.js';
+import { generateRandomPhone } from '../../../utils/accountGeneratorFaker.js';
+import { generateCryptoRandomString } from '../../../utils/utils.js';
 
 // 复用已有触发逻辑，不做任何修改
 import { triggerAllForAccount }   from './lib/triggerAll.js';
@@ -75,6 +80,19 @@ export const options = {
 };
 
 const TAG = 'WorkOrderSubmitOnly';
+const PWD = 'qwer1234';
+
+// 从注册响应中提取前台 token
+function extractToken(res) {
+    if (!res) return null;
+    if (typeof res === 'string' && res.length > 10) return res;
+    if (res.data && res.data.token) return res.data.token;
+    if (res.headers) {
+        const a = res.headers['Authorization'] || res.headers['authorization'];
+        if (a) return a.replace(/^Bearer\s+/i, '').trim();
+    }
+    return null;
+}
 
 // ============================================================
 // 工具
@@ -98,46 +116,36 @@ export function setup() {
 
     const accountCount = parseInt(__ENV.ACCOUNT_COUNT || '1', 10);
     const tenantId     = getTenantId();
+    const env          = getCurrentEnv();
+    const adminData    = { token: adminToken, envConfig: env };
+    const countryCode  = env.COUNTRY_CODE || '91';
 
-    // ---- 1. 从后台查询候选账号（过滤邮箱，只保留手机号） ----
-    const candidateSize = Math.min(accountCount * 5, 200);
-    logger.info(`[${TAG}] 查询 ${candidateSize} 个候选账号...`);
-
-    const userListRes = sendQueryRequest(
-        { pageNo: 1, pageSize: candidateSize },
-        '/api/Users/GetPageList',
-        TAG,
-        false,
-        adminToken
-    );
-
-    if (!userListRes || !userListRes.list || userListRes.list.length === 0) {
-        throw new Error(`[${TAG}] 无法获取会员列表，终止测试`);
+    // ---- 新注册 accountCount 个账号,每个绑全钱包并记录 ----
+    // 目的:保证账号有 银行卡/USDT/PIX/电子钱包 数据,后续"删除USDT/删除银行卡/修改银行"等工单才有数据可操作
+    // (系统现有账号常没绑对应钱包,删除类工单会因"无钱包数据"跳过;
+    //  另外主管理员对 GetUserAccount 无权限拿不到明文账号,直接新注册最稳妥)
+    logger.info(`[${TAG}] 新注册 ${accountCount} 个账号(每个绑全钱包)...`);
+    const accountInfoList = [];
+    for (let i = 0; i < accountCount; i++) {
+        const phone = generateRandomPhone(countryCode);
+        const deviceId = generateCryptoRandomString(16);
+        const res = phoneRegister(phone, adminData, PWD, '', null, deviceId, '');
+        const token = extractToken(res);
+        if (!token) { logger.warn(`[${TAG}] ⚠️ 第${i + 1}个账号注册失败: ${phone}`); continue; }
+        const uinfo = getFrontUserInfo(token);
+        const userId = uinfo && uinfo.userId ? uinfo.userId : null;
+        if (!userId) { logger.warn(`[${TAG}] ⚠️ 第${i + 1}个账号取 userId 失败: ${phone}`); continue; }
+        // 绑全钱包:银行卡 + 电子钱包 + PIX + USDT(供删除/修改类工单使用)
+        addAllWallets(adminToken, userId);
+        // 记录新账号(账号/密码/userId)
+        logger.info(`[${TAG}] 📝 新账号就绪: account=${phone} | password=${PWD} | userId=${userId} (已绑全钱包)`);
+        accountInfoList.push({ account: phone, userId });
+        sleep(0.5);
     }
 
-    const candidates = [];
-    for (const u of userListRes.list) {
-        const realAccount = getUserAccount(adminToken, u.userId);
-        if (!realAccount || realAccount.includes('@')) {
-            sleep(0.1);
-            continue;
-        }
-        candidates.push({ account: realAccount, userId: u.userId });
-        sleep(0.1);
-        if (candidates.length >= accountCount * 3) break;
+    if (accountInfoList.length === 0) {
+        throw new Error(`[${TAG}] 没有可用账号(注册全失败)，终止测试`);
     }
-
-    if (candidates.length === 0) {
-        throw new Error(`[${TAG}] 没有可用的手机号账号，终止测试`);
-    }
-
-    // Fisher-Yates shuffle 随机取 accountCount 个
-    const shuffled = candidates.slice();
-    for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const tmp = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = tmp;
-    }
-    const accountInfoList = shuffled.slice(0, accountCount);
     logger.info(`[${TAG}] 选取账号: ${accountInfoList.map(a => a.account).join(', ')}`);
 
     // ---- 2. 按 VU 数量均分账号 ----

@@ -1,4 +1,5 @@
 /**
+ * 工单发起 + 客服处理 + 多轮等待清空
  * workOrderSuite/runWorkOrderFull.test.js
  * 工单全流程主入口（多线程 + 多轮）
  *
@@ -156,20 +157,19 @@ export function setup() {
     // 获取真实账号，自动过滤邮箱账号
     const candidates = [];
     for (const u of userListRes.list) {
-        const realAccount = getUserAccount(adminToken, u.userId);
+        // GetPageList 返回项已自带 account(手机号/邮箱明文),直接用;
+        // 不再调 /api/Users/GetUserAccount —— 该管理员账号对此接口无操作权限(No operation permission)
+        const realAccount = u.account ? String(u.account) : null;
         if (!realAccount) {
-            logger.warn(`[${TAG}] ⚠️ userId=${u.userId} 无法获取账号，跳过`);
-            sleep(0.1);
+            logger.warn(`[${TAG}] ⚠️ userId=${u.userId} 无 account 字段，跳过`);
             continue;
         }
         // 过滤邮箱
         if (realAccount.includes('@')) {
             logger.info(`[${TAG}] ⏭️ userId=${u.userId} 账号为邮箱，跳过`);
-            sleep(0.1);
             continue;
         }
         candidates.push({ account: realAccount, userId: u.userId });
-        sleep(0.1);
         // 够用就停止查询
         if (candidates.length >= accountCount * 3) break;
     }
