@@ -10,7 +10,7 @@
  *
  * 运行示例：
  *   # 单账号单轮
- *   k6 run -e TENANT_ID=3004 -e ACCOUNT_COUNT=1 -e VUS=1 -e ITERATIONS=1 runWorkOrderSubmitOnly.test.js
+ *   k6 run -e TENANT_ID=3007 -e ACCOUNT_COUNT=1 -e VUS=1 -e ITERATIONS=1 runWorkOrderSubmitOnly.test.js
  *
  *   # 多账号多线程
  *   k6 run -e TENANT_ID=3004 -e ACCOUNT_COUNT=5 -e VUS=2 -e ITERATIONS=2 runWorkOrderSubmitOnly.test.js
