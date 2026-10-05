@@ -306,7 +306,7 @@ function withdrawSingleAccount(account, adminToken, config, index, total) {
 
     // 2. 添加钱包
     console.log(`[${tag}] [${index}/${total}] 步骤2: 添加提现钱包...`);
-    const walletsAdded = addAllWallets(adminToken, account.userId);
+    const walletsAdded = addAllWallets(adminToken, account.userId, account.token);
     if (!walletsAdded) {
         console.warn(`[${tag}] [${index}/${total}] ⚠️ 钱包添加失败，继续尝试提现`);
     } else {

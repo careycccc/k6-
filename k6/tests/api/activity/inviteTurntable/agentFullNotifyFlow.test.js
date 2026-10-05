@@ -318,7 +318,7 @@ export default function (data) {
 
     // ========== 8. 总代提现申请 ==========
     console.log(`\n[${TAG}] ===== 8. 总代提现(绑卡 → 设密码 → 申请) =====`);
-    addAllWallets(adminToken, agent.userId);
+    addAllWallets(adminToken, agent.userId, agent.token);
     sleep(2);
     setWithdrawPassword(agent.token);
     sleep(1);

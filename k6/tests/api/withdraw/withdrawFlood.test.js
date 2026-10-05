@@ -148,7 +148,7 @@ function acquireAccount(adminToken) {
         let balance = Number(bal.balance) || 0;
 
         // 3) 提现前置（必须）：绑定银行卡等钱包 + 设置提现密码
-        addAllWallets(adminToken, userId);   // 绑银行卡/电子钱包/PIX/USDT；后面 GetUserWithdrawWallet 拿的就是这里绑的卡
+        addAllWallets(adminToken, userId, token);   // 绑银行卡/电子钱包/PIX/USDT；后面 GetUserWithdrawWallet 拿的就是这里绑的卡
         setWithdrawPassword(token, WD_PWD);  // 提现密码，与 withdrawApply 的 withdrawPassword 一致
         sleep(1);                            // 等钱包数据同步，否则随后 GetUserWithdrawWallet 可能查不到刚绑的卡
 

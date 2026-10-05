@@ -3,6 +3,7 @@
  * 支持：银行卡、电子钱包、PIX、USDT、UPI
  */
 
+import { sleep } from 'k6';
 import { tenantRequest } from '../../../libs/http/tenantRequest.js';
 
 /**
@@ -393,14 +394,91 @@ export function addUserUpi(adminToken, userId) {
     return true;
 }
 
+// ============================================================
+// 前台添加钱包（/api/Withdraw/AddUserWithdrawWallet，会员 token）
+// 后台 /api/Users/AddUserWallet 现在返回 msgCode=0、data=13001 但不落库，改走前台接口
+// ============================================================
+
+/** 随机字母名字（holderName） */
+function generateHolderName() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    let name = 'name';
+    for (let i = 0; i < 2 + Math.floor(Math.random() * 4); i++) name += chars.charAt(Math.floor(Math.random() * chars.length));
+    return name;
+}
+
+/** msgCode=13 Too frequent access 时退避重试 */
+function addFrontWithdrawWallet(userToken, payload, tag) {
+    console.log(`[${tag}] 请求参数:`, JSON.stringify(payload));
+    let response = null;
+    for (let attempt = 1; attempt <= 4; attempt++) {
+        response = tenantRequest('/api/Withdraw/AddUserWithdrawWallet', payload, { token: userToken, isDesk: true });
+        if (!response || response.msgCode !== 13) break;
+        console.warn(`[${tag}] 访问太频繁，${attempt * 3}s 后重试 (${attempt}/4)`);
+        sleep(attempt * 3);
+    }
+    // 10031：该类型只能绑一个且已绑过（电子钱包），已有可用钱包，视为成功
+    if (response && response.msgCode === 10031) {
+        console.log(`[${tag}] ✅ 已绑定过，沿用现有钱包`);
+        return true;
+    }
+    if (!response || response.msgCode !== 0) {
+        console.error(`[${tag}] ❌ 添加失败: msgCode=${response && response.msgCode} msg=${response && response.msg}`);
+        return false;
+    }
+    console.log(`[${tag}] ✅ 添加成功`);
+    return true;
+}
+
+/** 会员已有真实姓名时 holderName 必须一致（否则 10035 Full name is not match） */
+function getFrontRealName(userToken) {
+    const response = tenantRequest('/api/Withdraw/GetWithdrawBasicInfo', {}, { token: userToken, isDesk: true });
+    return (response && response.data && response.data.realName) || '';
+}
+
+/** 前台添加银行卡：accountNo 18位、mobileNo 10位 */
+export function addFrontBankCard(userToken, bankCode = 'INR10125', holderName = '') {
+    return addFrontWithdrawWallet(userToken, {
+        bankCode: bankCode,
+        holderName: holderName || getFrontRealName(userToken) || generateHolderName(),
+        accountNo: generateNumberString(18, true),
+        mobileNo: generateNumberString(10, true),
+        ifscCode: generateIFSC(),
+        withdrawType: 'BankCard'
+    }, 'AddFrontBankCard');
+}
+
+/** 前台添加电子钱包：accountNo 10位且不能0开头 */
+export function addFrontEWallet(userToken, bankCode = 'ceshiyong', holderName = '') {
+    return addFrontWithdrawWallet(userToken, {
+        bankCode: bankCode,
+        holderName: holderName || getFrontRealName(userToken) || generateHolderName(),
+        accountNo: generateNumberString(10, true),
+        withdrawType: 'EWallet'
+    }, 'AddFrontEWallet');
+}
+
+/** 前台添加 USDT：aliasAddress 为随机字母备注 */
+export function addFrontUsdt(userToken) {
+    return addFrontWithdrawWallet(userToken, {
+        networkType: 'TRC20',
+        usdtAddress: generateTRONAddress(),
+        aliasAddress: generateRandomString(6),
+        withdrawType: 'USDT'
+    }, 'AddFrontUsdt');
+}
+
 /**
  * 批量添加所有类型的钱包
  * @param {string} adminToken - 后台管理员token
  * @param {string} userId - 用户ID
+ * @param {string} userToken - 会员token（传了就走前台接口添加银行卡/电子钱包/USDT，推荐）
  * @returns {boolean} 是否全部成功
  */
-export function addAllWallets(adminToken, userId) {
+export function addAllWallets(adminToken, userId, userToken = null) {
     const tag = 'AddAllWallets';
+
+    if (userToken) return addAllWalletsByFront(adminToken, userId, userToken);
 
     console.log(`[${tag}] ========== 开始为用户 ${userId} 添加所有钱包类型 ==========`);
 
@@ -428,7 +506,66 @@ export function addAllWallets(adminToken, userId) {
     console.log(`[${tag}] 电子钱包: ${results.wallet ? '✅ 成功' : '❌ 失败'}`);
     console.log(`[${tag}] PIX: ${results.pix ? '✅ 成功' : '❌ 失败'}`);
     console.log(`[${tag}] USDT: ${results.usdt ? '✅ 成功' : '❌ 失败'}`);
-    console.log(`[${tag}] 总计: ${successCount}/${totalCount} 成功`);
+    console.log(`[${tag}] 总计: ${successCount}/${totalCount} 接口返回成功`);
+
+    // AddUserWallet 可能返回 msgCode=0 却没落库（如 data=13001），以后台 GetWallet 实查为准
+    const actual = getUserWalletCount(adminToken, userId);
+    console.log(`[${tag}] 后台实查已绑钱包: ${JSON.stringify(actual)}`);
+    if (actual && actual.total === 0) {
+        console.error(`[${tag}] ❌ 接口返回成功但后台查不到任何钱包，添加实际未生效`);
+        return false;
+    }
 
     return successCount === totalCount;
+}
+
+/** 前台接口添加 银行卡/电子钱包/USDT，bankCode 用后台字典随机取（取不到用默认值），最后后台实查确认 */
+function addAllWalletsByFront(adminToken, userId, userToken) {
+    const tag = 'AddAllWallets';
+    console.log(`[${tag}] ========== 前台接口为用户 ${userId} 添加钱包 ==========`);
+
+    const bankCode = (adminToken && getBankCode(adminToken, '1')) || 'INR10125';
+    const ewalletCode = (adminToken && getBankCode(adminToken, '2')) || 'ceshiyong';
+
+    // 已有真实姓名就沿用；没有则随机一个，银行卡和电子钱包用同一个名字
+    const holderName = getFrontRealName(userToken) || generateHolderName();
+    console.log(`[${tag}] holderName: ${holderName}`);
+
+    const results = {};
+    results.bank = addFrontBankCard(userToken, bankCode, holderName);
+    sleep(3); // 连续添加会 Too frequent access
+    results.ewallet = addFrontEWallet(userToken, ewalletCode, holderName);
+    sleep(3);
+    results.usdt = addFrontUsdt(userToken);
+
+    console.log(`[${tag}] 银行卡: ${results.bank ? '✅' : '❌'}  电子钱包: ${results.ewallet ? '✅' : '❌'}  USDT: ${results.usdt ? '✅' : '❌'}`);
+    if (adminToken) {
+        const actual = getUserWalletCount(adminToken, userId);
+        console.log(`[${tag}] 后台实查已绑钱包: ${JSON.stringify(actual)}`);
+        if (actual && actual.total === 0) {
+            console.error(`[${tag}] ❌ 接口返回成功但后台查不到任何钱包，添加实际未生效`);
+            return false;
+        }
+    }
+    return results.bank && results.ewallet && results.usdt;
+}
+
+/**
+ * 后台查询用户已绑定的钱包数量（/api/Users/GetWallet）
+ * @returns {{bank:number, ewallet:number, pix:number, usdt:number, upi:number, total:number}|null}
+ */
+export function getUserWalletCount(adminToken, userId) {
+    const response = tenantRequest('/api/Users/GetWallet', { userId: userId }, { token: adminToken, isDesk: false });
+    if (!response || response.msgCode !== 0 || !response.data) return null;
+    const d = response.data;
+    const len = a => (Array.isArray(a) ? a.length : 0);
+    const c = {
+        bank: len(d.usersWalletbankList),
+        ewallet: len(d.usersWalletElectronicWalletList),
+        pix: len(d.userPixWalletList),
+        usdt: len(d.usersWalletVirtualCurrencyList),
+        upi: len(d.usersWalletUpiList)
+    };
+    c.total = c.bank + c.ewallet + c.pix + c.usdt + c.upi;
+    return c;
 }

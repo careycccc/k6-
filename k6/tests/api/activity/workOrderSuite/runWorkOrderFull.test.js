@@ -273,7 +273,9 @@ export default function (data) {
         // 每轮触发前先绑定所有类型的钱包（银行卡/电子钱包/PIX/USDT）
         // 确保后续删除/修改类工单有数据可操作
         logger.info(`[${TAG}] [绑卡] 为 userId=${accountInfo.userId} 绑定所有钱包...`);
-        addAllWallets(adminToken, accountInfo.userId);
+        // 绑卡走前台接口需会员 token；setup 里的 token 约 55s 就失效，这里现登一次
+        const bindToken = autoLoginByAccount(accountInfo.account, adminToken) || memberTokenMap[accountInfo.userId];
+        addAllWallets(adminToken, accountInfo.userId, bindToken);
         sleep(1);
 
         if (runNoLogin) {

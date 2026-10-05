@@ -335,7 +335,7 @@ function processUserWithdraw(userInfo, adminToken, withdrawAudit = false) {
     console.log(`[Process] 准备为用户 ${userInfo.account} 申请提现...`);
 
     // 1. 添加所有类型的钱包
-    const walletsAdded = addAllWallets(adminToken, userInfo.userId);
+    const walletsAdded = addAllWallets(adminToken, userInfo.userId, userInfo.token);
     if (!walletsAdded) {
         console.warn(`[Process] ⚠️ 部分钱包添加失败，尝试继续提现流程`);
     }

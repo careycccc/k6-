@@ -528,7 +528,7 @@ export default function (data) {
                 console.log(`[VU ${vuId}] 💳 开始提现流程 | ${phone}`);
 
                 // 4a. 绑定提现信息（addAllWallets = 绑定所有类型钱包）
-                addAllWallets(adminToken, userInfo.userId);
+                addAllWallets(adminToken, userInfo.userId, token);
                 sleep(1);
 
                 // 4b. 设置提现密码

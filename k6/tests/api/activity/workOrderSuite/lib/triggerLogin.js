@@ -20,7 +20,7 @@ import { signAndPost } from './submitHelper.js';
 import { uploadFrontendWithToken } from './upload.js';
 import { autoLoginByAccount, detectAccountType } from '../../../user/userAccountApi.js';
 import { getFrontUserInfo } from '../../../user/userManagement.js';
-import { addUserBank, generateIFSC, generateTRONAddress } from '../../../withdraw/addWalletApi.js';
+import { addFrontBankCard, generateIFSC, generateTRONAddress } from '../../../withdraw/addWalletApi.js';
 import { sendToGetVerCode } from '../../../login/SendVerifiyCode.test.js';
 import { logger } from '../../../../../libs/utils/logger.js';
 import { PERF_METRICS, ERROR_COUNTERS } from '../../../../../libs/monitor/perfMetrics.js';
@@ -113,7 +113,7 @@ function fetchRandomWallet(memberToken, adminToken, userId, withdrawType) {
     }
     if (withdrawType === 'BankCard') {
         logger.warn(`[${TAG}] userId=${userId} 无银行卡，尝试绑卡...`);
-        const bindOk = addUserBank(adminToken, userId);
+        const bindOk = addFrontBankCard(memberToken);
         if (!bindOk) { logger.error(`[${TAG}] 绑卡失败`); return null; }
         sleep(1);
         const retryRes = sendRequest({ withdrawType }, '/api/Withdraw/GetUserWithdrawWallet', TAG, true, memberToken);

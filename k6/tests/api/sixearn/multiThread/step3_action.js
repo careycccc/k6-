@@ -31,7 +31,7 @@ export const options = {
  */
 function withdrawForUser(adminToken, userId, userToken, enableApproval) {
     try {
-        addAllWallets(adminToken, userId);
+        addAllWallets(adminToken, userId, userToken);
         sleep(1); // 等待钱包数据同步
         const info = getWithdrawBasicInfo(userToken);
         if (!info) return 'no_info';

@@ -232,8 +232,8 @@ export default function (data) {
     }
 
     // 3. 绑卡
-    console.log(`[BatchWithdraw] 正在尝试绑定钱包 (Admin 操作)...`);
-    addAllWallets(adminToken, userId);
+    console.log(`[BatchWithdraw] 正在尝试绑定钱包 (前台接口)...`);
+    addAllWallets(adminToken, userId, userToken);
     sleep(1);
 
     // 4. 设置/重置提现密码

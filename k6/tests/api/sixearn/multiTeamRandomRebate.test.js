@@ -209,7 +209,7 @@ export default function () {
 
           if (totalBet > 0) {
             console.log(`[${teamName}] 成员 UID=${userId} 开始提现流程...`);
-            addAllWallets(adminData.token, userId);
+            addAllWallets(adminData.token, userId, userToken);
             setWithdrawPassword(userToken, '123456');
             const withdrawInfo = getWithdrawBasicInfo(userToken);
             if (withdrawInfo && withdrawInfo.balance > 0) {

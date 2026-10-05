@@ -136,7 +136,7 @@ export function setup() {
         const userId = uinfo && uinfo.userId ? uinfo.userId : null;
         if (!userId) { logger.warn(`[${TAG}] ⚠️ 第${i + 1}个账号取 userId 失败: ${phone}`); continue; }
         // 绑全钱包:银行卡 + 电子钱包 + PIX + USDT(供删除/修改类工单使用)
-        addAllWallets(adminToken, userId);
+        addAllWallets(adminToken, userId, token);
         // 记录新账号(账号/密码/userId)
         logger.info(`[${TAG}] 📝 新账号就绪: account=${phone} | password=${PWD} | userId=${userId} (已绑全钱包)`);
         accountInfoList.push({ account: phone, userId });

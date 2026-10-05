@@ -105,7 +105,7 @@ function runWithdraw(userToken, userId, adminToken, enableBackendApproval) {
         return false;
     }
 
-    addAllWallets(adminToken, userId);
+    addAllWallets(adminToken, userId, userToken);
     sleep(1);
 
     const pwdRes = setWithdrawPassword(userToken, '123456');

@@ -90,7 +90,7 @@ function doWithdraw(userToken, userId, adminToken) {
     if (!balInfo) return { totalAmt: 0, times: 0 };
     const amt = calcWithdrawAmount(balInfo.balance || 0);
     if (amt <= 0) return { totalAmt: 0, times: 0 };
-    addAllWallets(adminToken, userId);
+    addAllWallets(adminToken, userId, userToken);
     sleep(1);
     setWithdrawPassword(userToken, '123456');
     const wInfo = getWithdrawBasicInfo(userToken);

@@ -300,7 +300,7 @@ function doSingleWithdraw(userToken, userId, adminToken) {
     const amt = calcWithdrawAmount(balInfo.balance || 0);
     if (amt <= 0) return { success: false, amount: 0 };
 
-    addAllWallets(adminToken, userId);
+    addAllWallets(adminToken, userId, userToken);
     sleep(1);
     setWithdrawPassword(userToken, '123456');
     sleep(1);

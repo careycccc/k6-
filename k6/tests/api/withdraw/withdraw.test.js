@@ -2,7 +2,7 @@
  * 提现流程逻辑 - 多租户 + 多账号多线程版本
  *
  * 单账号（原有用法）:
- *   k6 run -e TENANT=3007 -e TARGET_USER=924023003904 withdraw.test.js
+ *   k6 run -e TENANT=3004 -e TARGET_USER=915450057363 withdraw.test.js
  *
  * 多账号多线程（每个账号独立 VU 并发执行）:
  *   k6 run -e TENANT=3004 -e TARGET_USERS=918516050194,915246024319 withdraw.test.js
@@ -319,7 +319,7 @@ export function RunWithDrawCase(targetUser, tenantId, adminToken) {
 
     // 2. 添加所有类型的钱包
     console.log(`[${tag}][${vuLabel}] 正在为用户添加钱包...`);
-    const walletsAdded = addAllWallets(adminToken, userId);
+    const walletsAdded = addAllWallets(adminToken, userId, token);
     if (!walletsAdded) {
         console.warn(`[${tag}][${vuLabel}] ⚠️ 部分钱包添加失败，但继续执行提现流程`);
     } else {

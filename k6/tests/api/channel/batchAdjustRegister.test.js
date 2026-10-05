@@ -106,7 +106,7 @@ function runWithdraw(userToken, userId, adminToken, enableBackendApproval) {
     console.log(`[AdjustBatch] 计划提现金额: ${withdrawAmount}`);
 
     // 3. 添加钱包
-    addAllWallets(adminToken, userId);
+    addAllWallets(adminToken, userId, userToken);
     sleep(1);
 
     // 4. 设置提现密码

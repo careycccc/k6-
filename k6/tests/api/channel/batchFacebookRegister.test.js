@@ -102,7 +102,7 @@ function runWithdraw(userToken, userId, adminToken, enableBackendApproval) {
     }
     console.log(`[FbBatch] 计划提现金额: ${withdrawAmount}`);
 
-    addAllWallets(adminToken, userId);
+    addAllWallets(adminToken, userId, userToken);
     sleep(1);
 
     const pwdRes = setWithdrawPassword(userToken, '123456');

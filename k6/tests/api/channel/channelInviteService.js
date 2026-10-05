@@ -284,7 +284,7 @@ function doWithdraw(userToken, userId, adminToken, enableBackendApproval) {
     const withdrawAmount = calcWithdrawAmount(balance);
     if (withdrawAmount <= 0) return { success: false, amount: 0, reason: `余额${balance}不足` };
 
-    addAllWallets(adminToken, userId);
+    addAllWallets(adminToken, userId, userToken);
     sleep(1);
 
     const pwdRes = setWithdrawPassword(userToken, '123456');
