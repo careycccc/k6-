@@ -2,7 +2,7 @@ import http from 'k6/http';
 import { getApiUrl } from '../../config/environment.js';
 import { getLogger } from '../utils/logger.js';
 import { SignedHttpClient } from '../utils/signature.js';
-import { ENV_CONFIG, getEnvByTenantId } from '../../config/envconfig.js';
+import { getBaseUrl } from './core.js';
 
 const logger = getLogger();
 
@@ -64,15 +64,13 @@ export class HttpClient extends SignedHttpClient {
     //logger.info(`请求的url:  ${url}`);
 
     // 为前后端请求的时候添加不同的headers
+    // 租户/域名规则与 tenantRequest 一致（libs/http/core.js）：以前这里只认 TENANT_ID，与 URL 用的 TENANT 不一致
     let domainUrl;
-    const tenantIdStr = __ENV.TENANT_ID || ENV_CONFIG.TENANTID;
-    const currentEnv = getEnvByTenantId(tenantIdStr);
-
     if (config.fullUrl) {
       const match = config.fullUrl.match(/^(https?:\/\/[^\/]+)/);
-      domainUrl = match ? match[1] : (isDesk ? currentEnv.BASE_DESK_URL : currentEnv.BASE_ADMIN_URL);
+      domainUrl = match ? match[1] : getBaseUrl(isDesk);
     } else {
-      domainUrl = isDesk ? currentEnv.BASE_DESK_URL : currentEnv.BASE_ADMIN_URL;
+      domainUrl = getBaseUrl(isDesk);
     }
 
     config.headers = generateRequestBody(config, domainUrl);

@@ -1,5 +1,6 @@
 import { loadConfigFromFile } from './load.js';
 import { ENV_CONFIG, getEnvByTenantId } from './envconfig.js';
+import { resolveTenant } from '../libs/http/core.js';
 
 const config = loadConfigFromFile();
 
@@ -26,7 +27,7 @@ export function getApiUrl(endpoint, isDesk = true) {
   let baseUrl = '';
 
   // 优先使用 TENANT 环境变量，其次使用 TENANT_ID，最后使用默认配置
-  const tenantIdStr = __ENV.TENANT || __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID);
+  const tenantIdStr = resolveTenant();
   const currentEnv = getEnvByTenantId(tenantIdStr);
 
   if (isDesk) {

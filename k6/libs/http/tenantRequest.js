@@ -5,9 +5,9 @@
 
 import http from 'k6/http';
 import crypto from 'k6/crypto';
-import { SignedHttpClient } from '../utils/signature.js';
+import { getBaseUrl, buildBaseHeaders, signPayload, resolveTenant } from './core.js';
 import { getTimeRandom } from '../../tests/utils/utils.js';
-import { ENV_CONFIG, getEnvByTenantId } from '../../config/envconfig.js';
+import { getEnvByTenantId } from '../../config/envconfig.js';
 
 // ============================================================
 // 后台谷歌验证码(TOTP)：标准 SHA1 / 30秒 / 6位，密钥 base32（取自 envconfig 的 GOOGLE_SECRET）
@@ -52,12 +52,8 @@ export function tenantRequest(api, payload = {}, options = {}) {
         tenantId = null
     } = options;
 
-    // 获取租户配置
-    const tenant = tenantId || __ENV.TENANT || __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID);
-    const envConfig = getEnvByTenantId(tenant);
-
-    // 确定请求URL
-    const baseUrl = isDesk ? envConfig.BASE_DESK_URL : envConfig.BASE_ADMIN_URL;
+    // 租户 / 域名（与 sendRequest 共用 libs/http/core.js 的规则）
+    const baseUrl = getBaseUrl(isDesk, tenantId);
     const url = baseUrl + api;
 
     // console.log(`[TenantRequest] ========== 请求详情 ==========`);
@@ -79,22 +75,9 @@ export function tenantRequest(api, payload = {}, options = {}) {
 
     //console.log(`[TenantRequest] 添加时间参数后: ${JSON.stringify(requestData, null, 2)}`);
 
-    // 生成签名
-    const signClient = new SignedHttpClient();
-    const signedData = signClient.signData(requestData);
-
-    //console.log(`[TenantRequest] 签名后数据: ${JSON.stringify(signedData, null, 2)}`);
-
-    // 构建请求头
-    const headers = {
-        'Content-Type': 'application/json',
-        'Domainurl': baseUrl,
-        'Referrer': baseUrl
-    };
-
-    // 添加认证token
+    const signedData = signPayload(requestData);
+    const headers = buildBaseHeaders(baseUrl, token);
     if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
         console.log(`[TenantRequest] 添加认证token: ${token.substring(0, 20)}...`);
     }
 
@@ -137,7 +120,7 @@ export function tenantRequest(api, payload = {}, options = {}) {
  * @returns {object} 响应对象
  */
 export function tenantQueryRequest(api, payload = {}, options = {}) {
-    const tenant = options.tenantId || __ENV.TENANT || __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID);
+    const tenant = resolveTenant(options.tenantId);
     const envConfig = getEnvByTenantId(tenant);
 
     const queryPayload = {
@@ -190,7 +173,7 @@ export function backendLogin(userName, pwd, secret, tenantId = null) {
  * @returns {string|null} token
  */
 export function tenantAdminLogin(tenantId = null) {
-    const tenant = tenantId || __ENV.TENANT || __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID);
+    const tenant = resolveTenant(tenantId);
     const envConfig = getEnvByTenantId(tenant);
     return backendLogin(envConfig.ADMIN_USERNAME, envConfig.ADMIN_PASSWORD, envConfig.GOOGLE_SECRET, tenant);
 }
