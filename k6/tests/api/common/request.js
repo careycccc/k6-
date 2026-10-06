@@ -16,22 +16,20 @@ export function setup() {
   const env = getEnvironment();
   logger.info(`测试环境: ${env.name} (${env.baseUrl})`);
 }
-// 登录成功的token
-let Token = '';
-// 返回数据
-let ResponseData = null;
-// 响应结果
-let ResponseResult = null;
-
 /***
  * data  请求的数据
  * api 请求的接口
  * tag 请求的标签
- * CustomMetrics 自定义指标名称
+ * 返回：登录类接口返回 token 字符串；有 data 返回 data；否则返回整个响应体；
+ *       请求异常 / 响应体解析失败 / 空响应体且非 2xx → null；空响应体且 2xx → { emptyBody: true, status }
  */
 export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
   //logger.info('本次请求测试数据:', data);
   checkCounter = 0;
+  // 每次请求独立：以前是模块级变量不清空，失败时会返回上一个请求的结果
+  let Token = '';
+  let ResponseData = null;
+  let ResponseResult = null;
 
   group('请求流程', () => {
     const startTime = Date.now();
@@ -42,9 +40,8 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
       //   requestData: data,
       //   isDesk: isDesk
       // });
-      if (token) {
-        httpClient.setAuthToken(token);
-      }
+      // 不传 token 时清掉 Authorization（以前会沿用上一个请求的 token，「未登录」请求其实是登录态）
+      httpClient.setAuthToken(token);
       const response = httpClient.post(
         api,
         data,
@@ -87,6 +84,7 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
             status: response.status,
             statusText: response.status_text
           });
+          ResponseResult = { emptyBody: true, status: response.status };
         } else {
           logger.error(`${api} 请求失败（空响应体）`, {
             status: response.status,

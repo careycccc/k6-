@@ -385,8 +385,8 @@ function addFrontWithdrawWallet(userToken, payload, tag) {
         console.warn(`[${tag}] 访问太频繁，${attempt * 3}s 后重试 (${attempt}/4)`);
         sleep(attempt * 3);
     }
-    // 10031：该类型只能绑一个且已绑过（电子钱包），已有可用钱包，视为成功
-    if (response && response.msgCode === 10031) {
+    // 已绑满（10030 银行卡 / 10031 电子钱包 / 10032 USDT），已有可用钱包，视为成功
+    if (response && [10030, 10031, 10032].includes(response.msgCode)) {
         console.log(`[${tag}] ✅ 已绑定过，沿用现有钱包`);
         return true;
     }
