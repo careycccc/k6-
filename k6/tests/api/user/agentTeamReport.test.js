@@ -29,6 +29,7 @@ import {
     GetBetRecordPageList
 } from '../sixearn/sixearn.test.js';
 import { dateStartTs, dateEndTs } from '../../../libs/common/time.js';
+import { fetchAllPages } from '../../../libs/common/paging.js';
 
 // ============================================================
 // 环境变量解析
@@ -107,34 +108,20 @@ function enumerateDates(startDate, endDate) {
 function fetchTotalWithdraw(adminToken, userId, startTime, endTime) {
     const api = '/api/WithdrawOrder/GetWithdrawOrderPageList';
     let total = 0;
-    let pageNo = 1;
-    let totalPage = 1;
-
-    while (pageNo <= totalPage) {
-        const payload = {
-            userId,
-            withdrawState: 'Pass',
-            startTime,
-            endTime,
-            pageNo,
-            pageSize: 200,
-            dateType: 1,
-            orderBy: 'Desc',
-            sortField: ''
-        };
-        const result = sendRequest(payload, api, TAG, false, adminToken);
-        if (!result) break;
-
-        const list = result.list || [];
-        if (result.totalPage && result.totalPage > totalPage) totalPage = result.totalPage;
-
-        list.forEach(order => {
-            total += parseFloat(order.actualAmount || 0);
-        });
-
-        pageNo++;
-        if (pageNo <= totalPage) sleep(0.2);
-    }
+    const list = fetchAllPages(p => sendRequest({
+        userId,
+        withdrawState: 'Pass',
+        startTime,
+        endTime,
+        pageNo: p,
+        pageSize: 200,
+        dateType: 1,
+        orderBy: 'Desc',
+        sortField: ''
+    }, api, TAG, false, adminToken), { pause: 0.2, maxPages: Infinity });
+    list.forEach(order => {
+        total += parseFloat(order.actualAmount || 0);
+    });
     return total;
 }
 
@@ -147,27 +134,14 @@ function fetchTotalWithdraw(adminToken, userId, startTime, endTime) {
 function fetchL6RebateListByDate(adminToken, reportDate) {
     const api = '/api/Agent/GetPageListAgentRebate';
     const allList = [];
-    let pageNo = 1;
-    let totalPage = 1;
-
-    while (pageNo <= totalPage) {
-        const payload = {
-            reportDate: `${reportDate} 00:00:00`,
-            pageNo,
-            pageSize: 200,
-            orderBy: 'Desc',
-            isAll: false
-        };
-        const result = sendRequest(payload, api, TAG, false, adminToken);
-        if (!result) break;
-
-        const list = result.list || [];
-        if (result.totalPage && result.totalPage > totalPage) totalPage = result.totalPage;
-        list.forEach(r => allList.push(r));
-
-        pageNo++;
-        if (pageNo <= totalPage) sleep(0.2);
-    }
+    const list = fetchAllPages(p => sendRequest({
+        reportDate: `${reportDate} 00:00:00`,
+        pageNo: p,
+        pageSize: 200,
+        orderBy: 'Desc',
+        isAll: false
+    }, api, TAG, false, adminToken), { pause: 0.2, maxPages: Infinity });
+    list.forEach(r => allList.push(r));
     return allList;
 }
 
@@ -180,26 +154,13 @@ function fetchL6RebateListByDate(adminToken, reportDate) {
 function fetchL3RebateListByDate(adminToken, reportDate) {
     const api = '/api/AgentL3/GetPageListRebateList';
     const allList = [];
-    let pageNo = 1;
-    let totalPage = 1;
-
-    while (pageNo <= totalPage) {
-        const payload = {
-            reportDate,
-            pageNo,
-            pageSize: 200,
-            orderBy: 'Desc'
-        };
-        const result = sendRequest(payload, api, TAG, false, adminToken);
-        if (!result) break;
-
-        const list = result.list || [];
-        if (result.totalPage && result.totalPage > totalPage) totalPage = result.totalPage;
-        list.forEach(r => allList.push(r));
-
-        pageNo++;
-        if (pageNo <= totalPage) sleep(0.2);
-    }
+    const list = fetchAllPages(p => sendRequest({
+        reportDate,
+        pageNo: p,
+        pageSize: 200,
+        orderBy: 'Desc'
+    }, api, TAG, false, adminToken), { pause: 0.2, maxPages: Infinity });
+    list.forEach(r => allList.push(r));
     return allList;
 }
 
