@@ -51,7 +51,7 @@ import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
 import { sendRequest } from '../common/request.js';
 import { getTzOffset } from './rechargeRetentionApi.js';
 import encoding from 'k6/encoding';
-import { extractList, extractTotalPage } from '../../../libs/common/index.js';
+import { extractList, fetchAllPages } from '../../../libs/common/index.js';
 
 const TAG = 'RetentionVerify';
 
@@ -130,24 +130,18 @@ function dateRangeList(start, end) {
 function fetchLoginUsers(token, dateStr) {
     const api = '/api/RptUserInfo/GetUserLoginLogPageList';
     const set = new Set();
-    let pageNo = 1;
-    while (pageNo <= MAX_SCAN_PAGES) {
+    const list = fetchAllPages(pageNo => {
         const payload = {
             memberIdType: 1,
             startTime: `${dateStr} 00:00:00`,
             endTime: `${dateStr} 23:59:59`,
             pageNo, pageSize: PAGE_SIZE, orderBy: 'Desc'
         };
-        const res = sendRequest(payload, api, TAG, false, token);
-        const list = extractList(res);
-        for (const it of list) {
-            // 只认 loginDate == 当日的记录（保险；正常传单天范围即当日）
-            if (it.userId != null && (!it.loginDate || it.loginDate === dateStr)) set.add(Number(it.userId));
-        }
-        const totalPage = extractTotalPage(res);
-        if (pageNo >= totalPage || list.length === 0) break;
-        pageNo++;
-        sleep(0.3);
+        return sendRequest(payload, api, TAG, false, token);
+    }, { maxPages: MAX_SCAN_PAGES, pause: 0.3 });
+    for (const it of list) {
+        // 只认 loginDate == 当日的记录（保险；正常传单天范围即当日）
+        if (it.userId != null && (!it.loginDate || it.loginDate === dateStr)) set.add(Number(it.userId));
     }
     return set;
 }
@@ -158,21 +152,15 @@ function fetchLoginUsers(token, dateStr) {
 function fetchLoginUsersByLastLogin(token, startTime, endTime) {
     const api = '/api/Users/GetPageList';
     const all = new Set(), type02 = new Set();
-    let pageNo = 1;
-    while (pageNo <= MAX_SCAN_PAGES) {
+    const list = fetchAllPages(pageNo => {
         const payload = { loginBeginTime: startTime, loginEndTime: endTime, pageNo, pageSize: PAGE_SIZE, orderBy: 'Desc' };
-        const res = sendRequest(payload, api, TAG, false, token);
-        const list = extractList(res);
-        for (const u of list) {
-            if (u.userId == null) continue;
-            const uid = Number(u.userId);
-            all.add(uid);
-            if (u.userType === 0 || u.userType === 2) type02.add(uid);
-        }
-        const totalPage = extractTotalPage(res);
-        if (pageNo >= totalPage || list.length === 0) break;
-        pageNo++;
-        sleep(0.3);
+        return sendRequest(payload, api, TAG, false, token);
+    }, { maxPages: MAX_SCAN_PAGES, pause: 0.3 });
+    for (const u of list) {
+        if (u.userId == null) continue;
+        const uid = Number(u.userId);
+        all.add(uid);
+        if (u.userType === 0 || u.userType === 2) type02.add(uid);
     }
     return { all, type02 };
 }
@@ -181,17 +169,11 @@ function fetchLoginUsersByLastLogin(token, startTime, endTime) {
 function fetchRechargeUsers(token, startTime, endTime) {
     const api = '/api/RechargeOrder/GetRechargeOrderPageList';
     const set = new Set();
-    let pageNo = 1;
-    while (pageNo <= MAX_SCAN_PAGES) {
+    const list = fetchAllPages(pageNo => {
         const payload = { rechargeState: 'Payed', startTime, endTime, pageNo, pageSize: PAGE_SIZE, dateType: 1, orderBy: 'Desc' };
-        const res = sendRequest(payload, api, TAG, false, token);
-        const list = extractList(res);
-        for (const o of list) { if (o.userId != null) set.add(Number(o.userId)); }
-        const totalPage = extractTotalPage(res);
-        if (pageNo >= totalPage || list.length === 0) break;
-        pageNo++;
-        sleep(0.3);
-    }
+        return sendRequest(payload, api, TAG, false, token);
+    }, { maxPages: MAX_SCAN_PAGES, pause: 0.3 });
+    for (const o of list) { if (o.userId != null) set.add(Number(o.userId)); }
     return set;
 }
 
@@ -200,18 +182,12 @@ function fetchRechargeUsers(token, startTime, endTime) {
 function fetchRegisterUsers(token, startTime, endTime, withType) {
     const api = '/api/Users/GetPageList';
     const set = {};
-    let pageNo = 1;
-    while (pageNo <= MAX_SCAN_PAGES) {
+    const list = fetchAllPages(pageNo => {
         const payload = { registerBeginTime: startTime, registerEndTime: endTime, pageNo, pageSize: PAGE_SIZE, orderBy: 'Desc' };
         if (withType) payload.userType = [0, 2];
-        const res = sendRequest(payload, api, TAG, false, token);
-        const list = extractList(res);
-        for (const u of list) { if (u.userId != null) set[Number(u.userId)] = true; }
-        const totalPage = extractTotalPage(res);
-        if (pageNo >= totalPage || list.length === 0) break;
-        pageNo++;
-        sleep(0.3);
-    }
+        return sendRequest(payload, api, TAG, false, token);
+    }, { maxPages: MAX_SCAN_PAGES, pause: 0.3 });
+    for (const u of list) { if (u.userId != null) set[Number(u.userId)] = true; }
     return Object.keys(set).map(Number);
 }
 
@@ -224,25 +200,19 @@ function fetchBetSumByUser(token, startTime, endTime) {
     const api = '/api/ThirdGame/GetBetRecordPageList';
     const map = new Map();
     for (let type = 0; type < 5; type++) {
-        let pageNo = 1;
-        while (pageNo <= MAX_SCAN_PAGES) {
+        const list = fetchAllPages(pageNo => {
             const payload = {
                 categoryType: type, queryTimeType: 'BetTime',
                 beginTimeUnix: startTime, endTimeUnix: endTime,
                 pageNo, pageSize: PAGE_SIZE, sortField: 'BetTime'
             };
-            const res = sendRequest(payload, api, TAG, false, token);
-            const list = extractList(res);
-            for (const b of list) {
-                if (b.userId == null) continue;
-                const uid = Number(b.userId);
-                const amt = parseFloat(b.betAmount) || 0;
-                map.set(uid, (map.get(uid) || 0) + amt);
-            }
-            const totalPage = extractTotalPage(res);
-            if (pageNo >= totalPage || list.length === 0) break;
-            pageNo++;
-            sleep(0.3);
+            return sendRequest(payload, api, TAG, false, token);
+        }, { maxPages: MAX_SCAN_PAGES, pause: 0.3 });
+        for (const b of list) {
+            if (b.userId == null) continue;
+            const uid = Number(b.userId);
+            const amt = parseFloat(b.betAmount) || 0;
+            map.set(uid, (map.get(uid) || 0) + amt);
         }
     }
     return map;
