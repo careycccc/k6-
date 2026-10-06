@@ -4,8 +4,6 @@ import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
 import { getAgentHierarchyList } from '../invite/agentApi.js';
 import { batchGetUserAccounts, autoLoginByUserId } from '../user/userAccountApi.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
-import { mobileAutoLoginFlow } from '../login/MobileAutoLogin.test.js';
-import { emailAutoLoginFlow } from '../login/EmailAutoLogin.test.js';
 import { hybridRecharge, getConfigRechargeAmount } from '../recharge/rechargeService.js';
 import { betRun } from '../runbet/betRun.js';
 import { getAccountBalance } from '../balance/balance.test.js';
@@ -15,6 +13,7 @@ import { runBackendWithdrawApproval } from '../withdraw/backendWithdrawApi.js';
 import { sendRequest } from '../common/request.js';
 import { generateRandomPhone } from '../../utils/accountGeneratorFaker.js';
 import { phoneRegister } from '../login/register.test.js';
+import { loginByCode as loginByAccount } from '../common/auth.js';
 
 const TENANT_ID = __ENV.TENANT_ID || '3004';
 const ROOT_UIDS = (__ENV.ROOT_UIDS || '').split(',').map(s => parseInt(s.trim(), 10)).filter(Boolean);
@@ -37,12 +36,6 @@ function randomBehavior() { return BEHAVIORS[Math.floor(Math.random() * BEHAVIOR
 
 const reportRecords = [];
 function addRecord(rec) { reportRecords.push(rec); }
-
-function loginByAccount(account, adminToken) {
-    const adminData = { token: adminToken };
-    if (account.includes('@')) return emailAutoLoginFlow(account, adminData);
-    return mobileAutoLoginFlow(account, adminData);
-}
 
 function selectByHierarchy(memberList, excludeUid) {
     const eligible = memberList.filter(m => m.userId !== excludeUid);

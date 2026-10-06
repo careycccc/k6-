@@ -34,6 +34,7 @@ import {
     getUserInvitedWheelInfo, clickWheelWithdraw
 } from './inviteTurntableApi.js';
 import { extractToken } from '../../../../libs/common/index.js';
+import { loginByPasswordRetry } from '../../common/auth.js';
 
 const TAG = 'AuditRuleVerify';
 const TENANT_ID = __ENV.TENANT_ID || '3004';
@@ -229,8 +230,7 @@ function runCase(caseName, cfg, ctx) {
     const adminToken = ctx.adminData.token;
 
     // 1) 登录老号（Do not resubmit / 并发撞防重时退避重试）
-    let token = null;
-    for (let a = 1; a <= 4 && !token; a++) { token = loginWithPassword(cfg.account, PWD); if (!token) sleep(2 + a * 2); }
+    const token = loginByPasswordRetry(cfg.account, PWD, 4);
     if (!token) { A(caseName, cfg.account, `老号登录失败(Do not resubmit/需带区号91)`, false); return; }
     const info = getFrontUserInfo(token);
     if (!info || !info.userId) { A(caseName, cfg.account, '取前台userId失败', false); return; }

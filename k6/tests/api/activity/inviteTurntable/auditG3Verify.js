@@ -43,6 +43,7 @@ import {
 } from './inviteTurntableApi.js';
 import { extractToken } from '../../../../libs/common/index.js';
 import { formatTs, BEIJING_OFFSET_MS } from '../../../../libs/common/time.js';
+import { loginByPasswordRetry } from '../../common/auth.js';
 const fmtTs = ms => formatTs(ms, BEIJING_OFFSET_MS);
 
 const TAG = 'AuditG3';
@@ -683,10 +684,7 @@ export default function (data) {
 // ================= 用例执行引擎 =================
 /** 复现轨迹：带北京时间的每一步操作 */
 function T(st, text) { st.trail.push(`[${fmtTs(Date.now())}] ${text}`); }
-function login(account) {
-    for (let a = 1; a <= 3; a++) { const t = loginWithPassword(account, PWD); if (t) return t; sleep(2 + a * 2); }
-    return null;
-}
+const login = account => loginByPasswordRetry(account, PWD, 3);
 /** 老号登录：失败则后台改密码为 qwer1234 → 等 5s → 再登 */
 function loginOrReset(adminToken, account, userId) {
     let t = login(account);

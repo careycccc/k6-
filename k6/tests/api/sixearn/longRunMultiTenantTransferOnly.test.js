@@ -38,12 +38,11 @@ import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
 import { getAgentHierarchyList } from '../invite/agentApi.js';
 import { batchGetUserAccounts, autoLoginByUserId } from '../user/userAccountApi.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
-import { mobileAutoLoginFlow } from '../login/MobileAutoLogin.test.js';
-import { emailAutoLoginFlow } from '../login/EmailAutoLogin.test.js';
 import { sendRequest } from '../common/request.js';
 import { generateRandomPhone } from '../../utils/accountGeneratorFaker.js';
 import { phoneRegister, phoneRegisterByInvite } from '../login/register.test.js';
 import { randInt } from '../../../libs/common/index.js';
+import { loginByCode as loginByAccount } from '../common/auth.js';
 
 // ============================================================
 // ==================== 参数解析 ==============================
@@ -145,15 +144,6 @@ function selectMemberByHierarchyWeight(memberList, excludeUserId) {
 
     const pool = byHier[selectedHier];
     return pool[Math.floor(Math.random() * pool.length)];
-}
-
-/**
- * 登录用户（自动识别手机号/邮箱）
- */
-function loginByAccount(account, adminToken) {
-    const adminData = { token: adminToken };
-    if (account.includes('@')) return emailAutoLoginFlow(account, adminData);
-    return mobileAutoLoginFlow(account, adminData);
 }
 
 /**
