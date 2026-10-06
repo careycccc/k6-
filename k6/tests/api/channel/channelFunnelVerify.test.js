@@ -26,6 +26,7 @@ import { sendRequest, sendQueryRequest } from '../common/request.js';
 import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
 import { getTzOffset } from '../retention/rechargeRetentionApi.js';
 import { dateStartTs, dateEndTs } from '../../../libs/common/time.js';
+import { fetchAllPages } from '../../../libs/common/paging.js';
 
 const TENANT_ID = __ENV.TENANT_ID || '3004';
 // 支持多个渠道包ID，逗号分隔，如 "1,2,3"
@@ -85,29 +86,18 @@ function enumerateDates(startDate, endDate) {
 function fetchRealUsers(adminToken, packageId, startTs, endTs) {
     const api = '/api/Users/GetPageList';
     const users = [];
-    let pageNo = 1, totalPage = 1;
+    const list = fetchAllPages(pageNo => sendRequest({
+        packageId,
+        registerBeginTime: startTs,
+        registerEndTime: endTs,
+        pageNo,
+        pageSize: 500,
+        orderBy: 'Desc'
+    }, api, TAG, false, adminToken), { pause: 0.3, maxPages: Infinity });
 
-    while (pageNo <= totalPage) {
-        const result = sendRequest({
-            packageId,
-            registerBeginTime: startTs,
-            registerEndTime: endTs,
-            pageNo,
-            pageSize: 500,
-            orderBy: 'Desc'
-        }, api, TAG, false, adminToken);
-
-        if (!result) break;
-        const list = result.list || [];
-        if (result.totalPage && result.totalPage > totalPage) totalPage = result.totalPage;
-
-        list.forEach(u => {
-            if (u.userType !== 1) users.push(u);  // 剔除测试账号
-        });
-
-        pageNo++;
-        if (pageNo <= totalPage) sleep(0.3);
-    }
+    list.forEach(u => {
+        if (u.userType !== 1) users.push(u);  // 剔除测试账号
+    });
     return users;
 }
 
