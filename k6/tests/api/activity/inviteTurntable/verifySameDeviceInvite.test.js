@@ -54,6 +54,7 @@ import {
     getUserInvitedWheelInfo,
     clickWheelWithdraw,
 } from './inviteTurntableApi.js';
+import { randomPickN as pickRandom, randInt } from '../../../../libs/common/index.js';
 
 const tag = 'SameDeviceInvite';
 
@@ -85,19 +86,7 @@ function getConfig() {
 // ============================================================
 //  工具函数
 // ============================================================
-function randInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
 
-function pickRandom(arr, n) {
-    const copy = arr.slice();
-    const result = [];
-    for (let i = 0; i < Math.min(n, copy.length); i++) {
-        const idx = Math.floor(Math.random() * copy.length);
-        result.push(copy.splice(idx, 1)[0]);
-    }
-    return result;
-}
 
 // ============================================================
 //  总代注册（可指定 deviceId）

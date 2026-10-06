@@ -36,6 +36,7 @@ import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
 import { sendRequest } from '../common/request.js';
 import { getTzOffset } from './rechargeRetentionApi.js';
 import encoding from 'k6/encoding';
+import { extractList, extractTotalPage } from '../../../libs/common/index.js';
 
 const TAG = 'RetentionReport';
 
@@ -114,18 +115,6 @@ function notFuture(dateStr, today) {
 
 // ================= 数据拉取 =================
 
-function extractList(res) {
-    if (!res) return [];
-    if (res.data && Array.isArray(res.data.list)) return res.data.list;
-    if (Array.isArray(res.list)) return res.list;
-    return [];
-}
-function extractTotalPage(res) {
-    if (!res) return 1;
-    if (res.totalPage) return res.totalPage;
-    if (res.data && res.data.totalPage) return res.data.totalPage;
-    return 1;
-}
 
 /** 查某时间范围内所有 Payed 充值订单（全站、不限渠道，dateType=1 按成功时间，翻页 + orderNo 去重） */
 function fetchPayedOrders(adminToken, startTime, endTime) {

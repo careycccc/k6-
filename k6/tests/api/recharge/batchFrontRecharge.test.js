@@ -25,6 +25,7 @@ import {
     generateRandomHolderName,
     generateUsdtTransactionId
 } from './frontendRechargeApi.js';
+import { randInt as getRandomInt } from '../../../libs/common/index.js';
 
 // 获取环境变量
 const FETCH_COUNT = __ENV.FETCH_COUNT ? parseInt(__ENV.FETCH_COUNT) : 10;
@@ -180,12 +181,6 @@ export default function (data) {
     console.log(`[BatchRecharge] 用户 ${account} 处理完毕`);
 }
 
-/**
- * 获取随机整数
- */
-function getRandomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
 
 /**
  * 本地封装充值申请函数

@@ -52,6 +52,7 @@ import { triggerLoginForAccount } from './lib/triggerLogin.js';
 import { PERF_METRICS, ERROR_COUNTERS, GAUGES, buildThresholdsByPreset } from '../../../../libs/monitor/perfMetrics.js';
 import { measure, recordResponse, diagnoseTiming } from '../../../../libs/monitor/perfWrapper.js';
 import { buildHandleSummary } from '../../../../libs/monitor/perfSummary.js';
+import { extractToken } from '../../../../libs/common/index.js';
 
 // ============================================================
 // K6 Options
@@ -83,16 +84,6 @@ const TAG = 'WorkOrderSubmitOnly';
 const PWD = 'qwer1234';
 
 // 从注册响应中提取前台 token
-function extractToken(res) {
-    if (!res) return null;
-    if (typeof res === 'string' && res.length > 10) return res;
-    if (res.data && res.data.token) return res.data.token;
-    if (res.headers) {
-        const a = res.headers['Authorization'] || res.headers['authorization'];
-        if (a) return a.replace(/^Bearer\s+/i, '').trim();
-    }
-    return null;
-}
 
 // ============================================================
 // 工具

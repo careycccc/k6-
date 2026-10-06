@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"D:/project/k6-/k6/tests/api/activity/inviteTurntable\\\" && python - <<'EOF'\\nimport io\\np='auditG3Verify.js'; s=io.open(p,encoding='utf-8').read()\\ndef rep(old,new):\\n    global s\\n   ...",
+  "error": "Exit code 2\n/usr/bin/bash: -c: line 119: unexpected EOF while looking for matching `''",
+  "timestamp": "2026-09-28T06:04:17.510Z",
+  "retry_count": 1
+}

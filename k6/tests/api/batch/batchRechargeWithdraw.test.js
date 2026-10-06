@@ -32,6 +32,7 @@ import { addAllWallets } from '../withdraw/addWalletApi.js';
 import { getWithdrawBasicInfo, setWithdrawPassword, getUserWithdrawWallet, withdrawApply } from '../withdraw/withdrawApi.js';
 import { getAccountBalance } from '../balance/balance.test.js';
 import { runBackendWithdrawApproval } from '../withdraw/backendWithdrawApi.js';
+import { randInt as getRandomRechargeAmount } from '../../../libs/common/index.js';
 
 const tag = 'BatchRechargeWithdraw';
 
@@ -65,12 +66,6 @@ function getConfig() {
     };
 }
 
-/**
- * 获取随机充值金额
- */
-function getRandomRechargeAmount(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
 
 /**
  * 注册单个账号（手机号优先，失败则邮箱）

@@ -32,6 +32,7 @@ import {
     clickSpinInvitedWheel, clickSpinningTurntable, clickShareLink,
     getUserInvitedWheelInfo
 } from './inviteTurntableApi.js';
+import { extractList, extractToken } from '../../../../libs/common/index.js';
 
 const TENANT_ID = __ENV.TENANT_ID || '3004';
 const CONC = parseInt(__ENV.CONC || '5', 10);
@@ -48,18 +49,6 @@ export const options = {
 
 // ---------- 工具 ----------
 function C(msg) { console.log(`##C##${msg}`); }
-function extractToken(r) {
-    if (!r) return null;
-    if (typeof r === 'string' && r.length > 10) return r;
-    if (r.data && r.data.token) return r.data.token;
-    return null;
-}
-function extractList(res) {
-    if (!res) return [];
-    if (res.data && Array.isArray(res.data.list)) return res.data.list;
-    if (Array.isArray(res.list)) return res.list;
-    return [];
-}
 function totalCountOf(res) {
     if (res && res.data && res.data.totalCount != null) return res.data.totalCount;
     if (res && res.totalCount != null) return res.totalCount;

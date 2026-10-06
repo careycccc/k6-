@@ -60,6 +60,7 @@ import { getAccountBalance } from '../../balance/balance.test.js';
 import { getBetToken } from '../../runbet/betToken.js';
 import { betWingo } from '../../runbet/bet.js';
 import { isBet } from '../../runbet/issueNumber.js';
+import { extractToken, randInt } from '../../../../libs/common/index.js';
 
 const TAG = 'AgentFullNotify';
 
@@ -94,20 +95,6 @@ function getEnv() {
     return getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
 }
 
-function randInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function extractToken(res) {
-    if (!res) return null;
-    if (typeof res === 'string' && res.length > 10) return res;
-    if (res.data && res.data.token) return res.data.token;
-    if (res.headers) {
-        const a = res.headers['Authorization'] || res.headers['authorization'];
-        if (a) return a.replace(/^Bearer\s+/i, '').trim();
-    }
-    return null;
-}
 
 /** 充值: method=manual 走免打码后台充值 / front 走前台真实充值 */
 function doRecharge(method, userToken, adminToken, userId, amount, remark) {

@@ -84,6 +84,7 @@ import { generateCryptoRandomString } from '../../../utils/utils.js';
 import { PERF_METRICS, ERROR_COUNTERS, SUCCESS_RATES, buildThresholdsByPreset } from '../../../../libs/monitor/perfMetrics.js';
 import { measure } from '../../../../libs/monitor/perfWrapper.js';
 import { buildHandleSummary } from '../../../../libs/monitor/perfSummary.js';
+import { extractToken, randomPick } from '../../../../libs/common/index.js';
 
 // ================================================================
 // 全局参数
@@ -131,16 +132,6 @@ export const options = {
 // 工具函数
 // ================================================================
 
-/** 从注册/登录响应中提取 token */
-function extractToken(response) {
-    if (!response) return null;
-    if (response.data && response.data.token) return response.data.token;
-    if (response.headers) {
-        const auth = response.headers['Authorization'] || response.headers['authorization'];
-        if (auth) return auth.replace(/^Bearer\s+/i, '').trim();
-    }
-    return null;
-}
 
 /**
  * 将 totalPeople 按权重随机分配到 levels 层
@@ -166,11 +157,6 @@ function distributePeople(totalPeople, levelCount) {
     return result;
 }
 
-/** 从数组中随机取一个元素 */
-function randomPick(pool) {
-    if (!pool || pool.length === 0) return null;
-    return pool[Math.floor(Math.random() * pool.length)];
-}
 
 /**
  * 根据合伙人奖励的随机规则决定充值次数

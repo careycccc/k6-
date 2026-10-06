@@ -1,0 +1,19 @@
+{
+  "agents": [
+    {
+      "agent_id": "a5f30e5b4b5f7b75e",
+      "agent_type": "untracked-native-fork",
+      "started_at": "2026-09-08T12:26:41.681Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-09-08T12:26:41.681Z",
+      "synthetic": true,
+      "telemetry_status": "unmatched_stop",
+      "telemetry_note": "SubagentStop arrived without a matching SubagentStart; native Agent/Task start telemetry was not observed."
+    }
+  ],
+  "total_spawned": 0,
+  "total_completed": 1,
+  "total_failed": 0,
+  "last_updated": "2026-09-08T12:26:41.795Z"
+}

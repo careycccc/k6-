@@ -31,6 +31,7 @@ import {
     clickSpinInvitedWheel, clickSpinningTurntable, clickShareLink,
     getUserInvitedWheelInfo
 } from './inviteTurntableApi.js';
+import { extractList, extractToken } from '../../../../libs/common/index.js';
 
 const TENANT_ID = __ENV.TENANT_ID || '3004';
 const SUBS = parseInt(__ENV.SUBS || '3', 10);
@@ -43,18 +44,6 @@ export const options = { scenarios: { w: { executor: 'per-vu-iterations', vus: 1
 
 // ---------- 工具 ----------
 function W(msg) { console.log(`##W##${msg}`); }
-function extractToken(r) {
-    if (!r) return null;
-    if (typeof r === 'string' && r.length > 10) return r;
-    if (r.data && r.data.token) return r.data.token;
-    return null;
-}
-function extractList(res) {
-    if (!res) return [];
-    if (res.data && Array.isArray(res.data.list)) return res.data.list;
-    if (Array.isArray(res.list)) return res.list;
-    return [];
-}
 function totalCountOf(res) {
     if (res && res.data && res.data.totalCount != null) return res.data.totalCount;
     if (res && res.totalCount != null) return res.totalCount;

@@ -28,6 +28,7 @@ import { getFrontUserInfo } from '../user/userManagement.js';
 import { loginWithPassword } from '../recharge/rechargeLevel.service.js';
 import { getCycleRewardConfig, getCycleRewardSettings } from './cycleRewardApi.js';
 import { buildRechargePlans, distributePeople, randomPick, rechargeToTarget } from './cycleRewardService.js';
+import { extractToken } from '../../../libs/common/index.js';
 
 // ================= 参数（init 上下文） =================
 
@@ -68,15 +69,6 @@ export const options = {
 
 // ================= Utils =================
 
-function extractToken(response) {
-    if (!response) return null;
-    if (response.data && response.data.token) return response.data.token;
-    if (response.headers) {
-        const auth = response.headers['Authorization'] || response.headers['authorization'];
-        if (auth) return auth.replace(/^Bearer\s+/i, '').trim();
-    }
-    return null;
-}
 
 /** 打印账号落盘标记行（cycleRunner.js 提取）；单独一行避免与其它日志混淆 */
 function emitAccount(phone) {

@@ -23,6 +23,7 @@ import { maybeUpload } from '../lib/upload.js';
 import { lockOrder, unlockOrder } from '../lib/pendingHelper.js';
 import { buildKefuPrefix, buildLongUserId } from '../lib/userIdHelper.js';
 import { PERF_METRICS, ERROR_COUNTERS } from '../../../../../libs/monitor/perfMetrics.js';
+import { randInt } from '../../../../../libs/common/index.js';
 
 const TAG = 'CsDialog';
 
@@ -39,9 +40,6 @@ function lockOrderWithRetry(workOrderId, token, tag, maxRetries = 3) {
     return false;
 }
 
-function randInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
 
 // 随机抖动：错开多线程并发请求（1~3s）
 function jitter() { sleep(1 + Math.random() * 2); }

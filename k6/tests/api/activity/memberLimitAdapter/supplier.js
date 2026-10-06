@@ -3,25 +3,10 @@ import * as api from './api.js';
 import { phoneRegister } from '../../login/register.test.js';
 import { generateRandomPhone } from '../../../utils/accountGeneratorFaker.js';
 import { ENV_CONFIG } from '../../../../config/envconfig.js';
+import { extractList, randomPick } from '../../../../libs/common/index.js';
 
 const TAG = 'MemberLimitSupplier';
 
-function extractList(response) {
-    if (!response) return [];
-    if (response.data && Array.isArray(response.data.list)) return response.data.list;
-    if (Array.isArray(response.list)) return response.list;
-    if (Array.isArray(response.data)) return response.data;
-    if (Array.isArray(response)) return response;
-    return [];
-}
-
-/**
- * 随机取一个元素
- */
-function randomPick(list) {
-    if (!list || list.length === 0) return null;
-    return list[Math.floor(Math.random() * list.length)];
-}
 
 /**
  * 找一个没有任何分组和标签的纯净新账号

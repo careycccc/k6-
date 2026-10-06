@@ -15,6 +15,7 @@ import { getFrontUserInfo } from '../user/userManagement.js';
 import { hybridRecharge, getConfigRechargeAmount } from '../recharge/rechargeService.js';
 import { betRun } from '../runbet/betRun.js';
 import { ENV_CONFIG } from '../../../config/envconfig.js';
+import { extractToken, randomPick } from '../../../libs/common/index.js';
 
 const totalUsers = parseInt(__ENV.TOTAL_USERS || '10', 10);
 const levels = parseInt(__ENV.LEVELS || '2', 10);
@@ -40,15 +41,6 @@ export const options = {
 
 // ================= Utils =================
 
-function extractToken(response) {
-    if (!response) return null;
-    if (response.data && response.data.token) return response.data.token;
-    if (response.headers) {
-        const auth = response.headers['Authorization'] || response.headers['authorization'];
-        if (auth) return auth.replace(/^Bearer\s+/i, '').trim();
-    }
-    return null;
-}
 
 function distributePeople(totalPeople, levels) {
     if (levels <= 0 || totalPeople <= 0) return [];
@@ -68,10 +60,6 @@ function distributePeople(totalPeople, levels) {
     return result;
 }
 
-function randomPick(pool) {
-    if (!pool || pool.length === 0) return null;
-    return pool[Math.floor(Math.random() * pool.length)];
-}
 
 // ================= Setup =================
 

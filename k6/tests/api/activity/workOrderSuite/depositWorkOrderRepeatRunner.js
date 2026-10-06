@@ -14,19 +14,8 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { parseArgs } = require('../../../../libs/node/args.js');
 
-function parseArgs(argv) {
-    const a = {};
-    for (let i = 2; i < argv.length; i++) {
-        const k = argv[i];
-        if (k && k.startsWith('--')) {
-            const key = k.slice(2);
-            const val = (i + 1 < argv.length && !argv[i + 1].startsWith('--')) ? argv[++i] : 'true';
-            a[key] = val;
-        }
-    }
-    return a;
-}
 const args = parseArgs(process.argv);
 
 const tenant = args.tenant || '3004';

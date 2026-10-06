@@ -17,6 +17,7 @@ import { generateRandomPhone, generateRandomEmail } from '../../utils/accountGen
 import { getFrontUserInfo } from '../user/userManagement.js';
 import { getEnvByTenantId } from '../../../config/envconfig.js';
 import { injectTokens, getPoolSize } from '../../../libs/redis/tokenPool.js';
+import { extractToken } from '../../../libs/common/index.js';
 
 // ============================================================
 // 错误码常量
@@ -27,25 +28,6 @@ const ERR_INVITE_CODE_REQUIRED = 11; // 邀请码不能为空
 // 内部工具
 // ============================================================
 
-/**
- * 从注册响应中提取 token
- * @param {object} response
- * @returns {string|null}
- */
-function extractToken(response) {
-    if (!response) return null;
-
-    // 优先从 data.token 取
-    if (response.data && response.data.token) {
-        return response.data.token;
-    }
-    // 其次从 headers.Authorization 取
-    if (response.headers) {
-        const auth = response.headers['Authorization'] || response.headers['authorization'];
-        if (auth) return auth.replace(/^Bearer\s+/i, '').trim();
-    }
-    return null;
-}
 
 /**
  * 检查响应是否是"需要邀请码"错误

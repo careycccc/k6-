@@ -13,6 +13,7 @@
 
 import { sleep } from 'k6';
 import { hybridRecharge } from '../recharge/rechargeService.js';
+import { randInt } from '../../../libs/common/index.js';
 
 // 基础衰减权重（首档 30%，其后每档 -5%）。实际档数不为 5 时按前 n 个截断并归一化。
 const BASE_WEIGHTS = [30, 25, 20, 15, 10, 5];
@@ -23,9 +24,6 @@ const MIN_PER_INSTALLMENT = 100;
 
 // ================= 基础工具 =================
 
-function randInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
 
 /** Fisher-Yates 洗牌（原地） */
 function shuffle(arr) {

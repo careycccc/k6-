@@ -52,6 +52,7 @@ import { sendRequest } from '../common/request.js';
 import { generateRandomPhone } from '../../utils/accountGeneratorFaker.js';
 import { phoneRegister, phoneRegisterByInvite } from '../login/register.test.js';
 import { runMultiLevelInvite } from '../invite/inviteService.js';
+import { randInt } from '../../../libs/common/index.js';
 
 // ============================================================
 // ==================== 参数解析 ==============================
@@ -152,12 +153,6 @@ function formatDuration(ms) {
     return `${sec}s`;
 }
 
-/**
- * 随机整数 [min, max]
- */
-function randInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
 
 /**
  * 按层级加权随机选择成员

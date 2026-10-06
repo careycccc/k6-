@@ -5,6 +5,7 @@ import { phoneRegister, phoneRegisterByInvite, getLastRegisterError, isRateLimit
 import { getFrontUserInfo } from '../../user/userManagement.js';
 import { generateRandomPhone } from '../../../utils/accountGeneratorFaker.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../../config/envconfig.js';
+import { extractToken, randomPick } from '../../../../libs/common/index.js';
 
 // Options
 export const options = {
@@ -19,15 +20,6 @@ export const options = {
 };
 
 // Utils
-function extractToken(response) {
-    if (!response) return null;
-    if (response.data && response.data.token) return response.data.token;
-    if (response.headers) {
-        const auth = response.headers['Authorization'] || response.headers['authorization'];
-        if (auth) return auth.replace(/^Bearer\s+/i, '').trim();
-    }
-    return null;
-}
 
 function distributePeople(totalPeople, levels) {
     if (levels <= 0 || totalPeople <= 0) return [];
@@ -49,10 +41,6 @@ function distributePeople(totalPeople, levels) {
     return result;
 }
 
-function randomPick(pool) {
-    if (!pool || pool.length === 0) return null;
-    return pool[Math.floor(Math.random() * pool.length)];
-}
 
 // 注册/取邀请码的重试上限（可用 -e 覆盖）
 const MAX_REG_ATTEMPTS = parseInt(__ENV.MAX_REG_ATTEMPTS || '8', 10);

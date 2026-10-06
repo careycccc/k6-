@@ -51,6 +51,7 @@ import { getBetToken } from '../runbet/betToken.js';
 import { betWingo } from '../runbet/bet.js';
 import { isBet } from '../runbet/issueNumber.js';
 import { getAccountBalance } from '../balance/balance.test.js';
+import { randInt } from '../../../libs/common/index.js';
 
 const TAG = 'InviteCases';
 
@@ -96,10 +97,6 @@ function toWheelCode(code) {
     return code.slice(0, -1) + 'W';
 }
 
-/** 随机整数 [min, max] */
-function randInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
 
 /**
  * 固定金额投注(复用 runbet 底层,多游戏重试);投注额 = unit × multiple

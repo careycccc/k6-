@@ -19,6 +19,7 @@ import { sleep } from 'k6';
 import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
 import { sendRequest } from '../common/request.js';
+import { extractList, extractTotalCount, extractTotalPage } from '../../../libs/common/index.js';
 
 const TAG = 'CycleMultiDay';
 
@@ -40,24 +41,6 @@ export const options = {
 
 // ================= 数据拉取（翻页 + orderNo 去重） =================
 
-function extractList(res) {
-    if (!res) return [];
-    if (res.data && Array.isArray(res.data.list)) return res.data.list;
-    if (Array.isArray(res.list)) return res.list;
-    return [];
-}
-function extractTotalPage(res) {
-    if (!res) return 1;
-    if (res.totalPage) return res.totalPage;
-    if (res.data && res.data.totalPage) return res.data.totalPage;
-    return 1;
-}
-function extractTotalCount(res) {
-    if (!res) return null;
-    if (res.totalCount != null) return res.totalCount;
-    if (res.data && res.data.totalCount != null) return res.data.totalCount;
-    return null;
-}
 
 /** 拉取 [startDate, endDate] 范围内所有奖励记录（按 orderNo 去重，防翻页重叠/遗漏） */
 function fetchRecordsRange(adminToken, startDate, endDate) {

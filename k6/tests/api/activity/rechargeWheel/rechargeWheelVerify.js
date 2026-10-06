@@ -40,6 +40,7 @@ import { sendRequest } from '../../common/request.js';
 import { getTzOffset } from '../../retention/rechargeRetentionApi.js';
 import { AdminLogin } from '../../login/adminlogin.test.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../../config/envconfig.js';
+import { extractList, extractTotalPage } from '../../../../libs/common/index.js';
 
 const TAG = 'RechargeWheelVerify';
 const TENANT_ID = __ENV.TENANT_ID || '3004';
@@ -103,18 +104,6 @@ function normReportDate(s) {
 
 // ================= 提取工具 =================
 
-function extractList(res) {
-    if (!res) return [];
-    if (Array.isArray(res.list)) return res.list;
-    if (res.data && Array.isArray(res.data.list)) return res.data.list;
-    return [];
-}
-function extractTotalPage(res) {
-    if (!res) return 1;
-    if (res.totalPage) return res.totalPage;
-    if (res.data && res.data.totalPage) return res.data.totalPage;
-    return 1;
-}
 
 // ================= 数据拉取 =================
 

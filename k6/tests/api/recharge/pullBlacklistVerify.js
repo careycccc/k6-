@@ -34,6 +34,7 @@ import { getFrontUserInfo } from '../user/userManagement.js';
 import { goodsDepositRecharge } from './frontendRechargeApi.js';
 import { getRechargeOrderPageListFull, getLocalRechargeOrderPageList, manualAuditRechargeOrder, manualAuditLocalRechargeOrder } from './backendRechargeApi.js';
 import { getPullMonitorRecord, getPullMonitorRecords, setPullLimitTime } from './pullMonitorApi.js';
+import { extractToken } from '../../../libs/common/index.js';
 
 const TENANT_ID = __ENV.TENANT_ID || '3004';
 const TAG = 'PullBlacklist';
@@ -115,12 +116,6 @@ function R(caseName, acct, expect, actual, pass, detail) {
     const uid = acct && acct.userId != null ? acct.userId : '?';
     const phone = acct && acct.phone ? acct.phone : '?';
     console.log(`##R##${caseName}|${uid}|${phone}|${expect}|${actual}|${pass ? 'PASS' : 'FAIL'}|${detail || ''}`);
-}
-function extractToken(r) {
-    if (!r) return null;
-    if (typeof r === 'string' && r.length > 10) return r;
-    if (r.data && r.data.token) return r.data.token;
-    return null;
 }
 
 /** 商品盘面 */

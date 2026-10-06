@@ -25,6 +25,7 @@ import { runBackendWithdrawApproval } from './backendWithdrawApi.js';
 import { addAllWallets } from './addWalletApi.js';
 import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
 import { getEnvByTenantId } from '../../../config/envconfig.js';
+import { randInt as getRandomInt } from '../../../libs/common/index.js';
 
 // ============================================================
 // ==================== 参数解析 ==============================
@@ -80,7 +81,6 @@ export const options = {
     }
 };
 
-function getRandomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
 const tag = 'WithdrawTest';
 

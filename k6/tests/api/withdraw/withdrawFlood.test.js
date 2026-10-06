@@ -45,6 +45,7 @@ import {
     getUserWithdrawWallet,
     setWithdrawPassword,
 } from './withdrawApi.js';
+import { randInt as getRandomInt } from '../../../libs/common/index.js';
 
 // ============================================================
 // ==================== 参数 ==================================
@@ -94,7 +95,6 @@ let myAccounts = null;   // 本 VU 分到的账号子列表（切片）
 let myPtr = 0;           // 本 VU 账号指针
 let cur = null;          // 当前账号会话：{ account, token, userId, balance, withdrawType, withdrawCategoryId, walletId, amountList }
 
-function getRandomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
 // 从提现通道列表挑一个非 UPI 通道（UPI 常有额外校验，排除）
 function pickChannel(withdrawCategoryList) {

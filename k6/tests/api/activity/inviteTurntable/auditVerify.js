@@ -32,6 +32,7 @@ import {
     clickSpinInvitedWheel, clickSpinningTurntable, clickShareLink,
     getUserInvitedWheelInfo, clickWheelWithdraw
 } from './inviteTurntableApi.js';
+import { extractToken } from '../../../../libs/common/index.js';
 
 const TAG = 'AuditVerify';
 const TENANT_ID = __ENV.TENANT_ID || '3004';
@@ -155,13 +156,6 @@ function registerAgent(channel, ctx) {
     return { phone, token, userId: info.userId };
 }
 
-function extractToken(res) {
-    if (!res) return null;
-    if (typeof res === 'string' && res.length > 10) return res;
-    if (res.data && res.data.token) return res.data.token;
-    if (res.headers) { const a = res.headers['Authorization'] || res.headers['authorization']; if (a) return a.replace(/^Bearer\s+/i, '').trim(); }
-    return null;
-}
 
 // ================= Setup =================
 export function setup() {

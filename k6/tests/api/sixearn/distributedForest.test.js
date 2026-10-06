@@ -45,6 +45,7 @@ import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
 import { httpClient } from '../../../libs/http/client.js';
 import { sendToGetVerCode } from '../login/SendVerifiyCode.test.js';
 import { getTimeRandom } from '../../utils/utils.js';
+import { extractToken, randomPick as randomPickFromPool } from '../../../libs/common/index.js';
 
 // ============================================================
 // localEmailRegisterByInvite —— 修复版邮箱邀请注册
@@ -159,24 +160,6 @@ export const options = {
 // 工具函数（仅在本文件内使用，不导出）
 // ============================================================
 
-/**
- * 从注册响应中提取前台 token
- * 兼容两种来源：data.token 和 headers.Authorization
- * （复用 batchRegister.js 中验证过的提取逻辑）
- * @param {object|null} response - 注册响应对象
- * @returns {string|null}
- */
-function extractToken(response) {
-    if (!response) return null;
-    if (response.data && response.data.token) {
-        return response.data.token;
-    }
-    if (response.headers) {
-        const auth = response.headers['Authorization'] || response.headers['authorization'];
-        if (auth) return auth.replace(/^Bearer\s+/i, '').trim();
-    }
-    return null;
-}
 
 /**
  * 按层级递减随机分配人数
@@ -215,15 +198,6 @@ function distributePeople(totalPeople, levels) {
     return result;
 }
 
-/**
- * 从池中完全随机抽取一个邀请码
- * @param {string[]} pool
- * @returns {string|null}
- */
-function randomPickFromPool(pool) {
-    if (!pool || pool.length === 0) return null;
-    return pool[Math.floor(Math.random() * pool.length)];
-}
 
 /**
  * 单次邀请注册尝试（手机优先 → 失败降级邮箱）

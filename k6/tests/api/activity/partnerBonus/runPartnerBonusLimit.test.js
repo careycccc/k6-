@@ -10,6 +10,7 @@ import { hybridRecharge } from '../../recharge/rechargeService.js';
 import { betRun } from '../../runbet/betRun.js';
 import { getFrontUserInfo } from '../../user/userManagement.js';
 import { sendRequest, sendQueryRequest } from '../../common/request.js';
+import { extractToken } from '../../../../libs/common/index.js';
 
 export const options = {
     scenarios: {
@@ -98,15 +99,6 @@ function initFixedEnv(adminToken) {
     return { tuhaoGroupId, dageGroupId, chongzhiCompositeId, tixianCompositeId };
 }
 
-function extractToken(response) {
-    if (!response) return null;
-    if (response.data && response.data.token) return response.data.token;
-    if (response.headers) {
-        const auth = response.headers['Authorization'] || response.headers['authorization'];
-        if (auth) return auth.replace(/^Bearer\s+/i, '').trim();
-    }
-    return null;
-}
 
 export function setup() {
     const adminToken = AdminLogin();

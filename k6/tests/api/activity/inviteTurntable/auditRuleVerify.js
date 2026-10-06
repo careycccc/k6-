@@ -33,6 +33,7 @@ import {
     clickSpinInvitedWheel, clickSpinningTurntable, clickShareLink,
     getUserInvitedWheelInfo, clickWheelWithdraw
 } from './inviteTurntableApi.js';
+import { extractToken } from '../../../../libs/common/index.js';
 
 const TAG = 'AuditRuleVerify';
 const TENANT_ID = __ENV.TENANT_ID || '3004';
@@ -106,12 +107,6 @@ export const options = {
 function A(name, userId, msg, pass) { console.log(`##A##${name}|${userId}|${msg}|${pass ? 'PASS' : 'FAIL'}`); }
 function pad2(n) { return String(n).padStart(2, '0'); }
 function dateStr(off) { const d = new Date(Date.now() + off * 86400000); return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`; }
-function extractToken(res) {
-    if (!res) return null;
-    if (typeof res === 'string' && res.length > 10) return res;
-    if (res.data && res.data.token) return res.data.token;
-    return null;
-}
 
 /** GetUserDetail → { account, cumRecharge(累计), packageName } */
 function getUserDetail(adminToken, userId) {

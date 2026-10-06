@@ -38,6 +38,7 @@ import { getBetToken } from '../../runbet/betToken.js';
 import { betWingo } from '../../runbet/bet.js';
 import { isBet } from '../../runbet/issueNumber.js';
 import { getAccountBalance } from '../../balance/balance.test.js';
+import { extractToken } from '../../../../libs/common/index.js';
 
 // ================= 参数（init 上下文） =================
 
@@ -92,16 +93,6 @@ function emitAll(acct) { console.log(`##ALL##${acct}`); }
 function emitPart(acct) { console.log(`##PART##${acct}`); }
 function emitAgent(acct) { console.log(`##AGENT##${acct}`); }
 
-function extractToken(response) {
-    if (!response) return null;
-    if (typeof response === 'string' && response.length > 10) return response;
-    if (response.data && response.data.token) return response.data.token;
-    if (response.headers) {
-        const auth = response.headers['Authorization'] || response.headers['authorization'];
-        if (auth) return auth.replace(/^Bearer\s+/i, '').trim();
-    }
-    return null;
-}
 
 function shuffle(arr) {
     const a = arr.slice();

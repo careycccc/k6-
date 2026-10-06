@@ -29,6 +29,7 @@ import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
 import { sendRequest } from '../common/request.js';
 import { getCycleRewardConfig } from './cycleRewardApi.js';
+import { extractList, extractTotalCount, extractTotalPage } from '../../../libs/common/index.js';
 
 const TAG = 'CycleVerify';
 
@@ -81,24 +82,6 @@ function numEq(a, b) { return Math.abs(Number(a) - Number(b)) < TOL; }
 
 // ================= 数据拉取（翻页） =================
 
-function extractList(res) {
-    if (!res) return [];
-    if (res.data && Array.isArray(res.data.list)) return res.data.list;
-    if (Array.isArray(res.list)) return res.list;
-    return [];
-}
-function extractTotalPage(res) {
-    if (!res) return 1;
-    if (res.totalPage) return res.totalPage;
-    if (res.data && res.data.totalPage) return res.data.totalPage;
-    return 1;
-}
-function extractTotalCount(res) {
-    if (!res) return null;
-    if (res.totalCount != null) return res.totalCount;
-    if (res.data && res.data.totalCount != null) return res.data.totalCount;
-    return null;
-}
 
 /** 查某时间范围内所有 Payed 充值订单（不限 userId，按成功时间 dateType=1，自动翻页） */
 function fetchAllPayedOrders(adminToken, startTime, endTime) {

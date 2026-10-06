@@ -1,3 +1,4 @@
+import { randInt } from '../../libs/common/index.js';
 /**
  * 账号生成工具
  * 用于生成随机手机号和邮箱
@@ -16,15 +17,6 @@ const EMAIL_DOMAINS = [
 // k6 中每个 VU 是独立 JS 运行时，本变量为每 VU 私有；配合时间戳/随机降低跨 VU 碰撞。
 let _seq = 0;
 
-/**
- * 生成随机整数
- * @param {number} min - 最小值（包含）
- * @param {number} max - 最大值（包含）
- * @returns {number} 随机整数
- */
-function randInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
 
 /**
  * 生成随机字符串

@@ -51,6 +51,7 @@ import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
 import { sendRequest } from '../common/request.js';
 import { getTzOffset } from './rechargeRetentionApi.js';
 import encoding from 'k6/encoding';
+import { extractList, extractTotalPage } from '../../../libs/common/index.js';
 
 const TAG = 'RetentionVerify';
 
@@ -122,18 +123,6 @@ function dateRangeList(start, end) {
 
 // ================= 通用响应解包 =================
 
-function extractList(res) {
-    if (!res) return [];
-    if (res.data && Array.isArray(res.data.list)) return res.data.list;
-    if (Array.isArray(res.list)) return res.list;
-    return [];
-}
-function extractTotalPage(res) {
-    if (!res) return 1;
-    if (res.totalPage) return res.totalPage;
-    if (res.data && res.data.totalPage) return res.data.totalPage;
-    return 1;
-}
 
 // ================= 全站按天预取（单 VU 串行翻页） =================
 

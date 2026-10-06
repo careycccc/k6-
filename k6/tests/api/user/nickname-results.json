@@ -1,0 +1,11 @@
+{
+  "_note": "此文件为元信息占位，完整数据在 output.log 中的 [NICKNAME_CHECK] 行",
+  "_analyze_cmd": "node analyzeNicknames.js output.log",
+  "tenantId": "3007",
+  "vus": 200,
+  "totalTarget": 1000,
+  "regSuccess": 214,
+  "regFail": 786,
+  "successRate": "21.4%",
+  "p95DurationMs": 20453
+}

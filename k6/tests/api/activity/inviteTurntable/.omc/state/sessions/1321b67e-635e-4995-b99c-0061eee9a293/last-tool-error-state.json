@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"sleep 135 && grep -a \\\"总代 userId\\\\|提现，金额\\\\|结果:\\\" \\\"C:\\\\Users\\\\wensi\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--project-k6-\\\\1321b67e-635e-4995-b99c-0061eee9a293\\\\tasks\\\\b6ajs3381.output\\\" | tail -6...",
+  "error": "Exit code 143\nCommand timed out after 2m 0s",
+  "timestamp": "2026-09-11T06:09:48.379Z",
+  "retry_count": 1
+}

@@ -43,6 +43,7 @@ import {
     getUserInvitedWheelInfo,
     clickWheelWithdraw
 } from './inviteTurntableApi.js';
+import { randInt as getRandomRechargeAmount } from '../../../../libs/common/index.js';
 
 const tag = 'VerifyInviteTurntable';
 
@@ -79,12 +80,6 @@ function getConfig() {
     };
 }
 
-/**
- * 获取随机充值金额
- */
-function getRandomRechargeAmount(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
 
 /**
  * 总代注册（手机号优先，失败则邮箱）

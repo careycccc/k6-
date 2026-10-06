@@ -33,6 +33,7 @@ import {
     getUserWithdrawWallet,
     withdrawApply
 } from './withdrawApi.js';
+import { randInt as getRandomInt } from '../../../libs/common/index.js';
 
 // 获取环境变量
 const FETCH_COUNT = __ENV.FETCH_COUNT ? parseInt(__ENV.FETCH_COUNT) : 10;
@@ -175,9 +176,6 @@ export function setup() {
     };
 }
 
-function getRandomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
 
 export default function (data) {
     const { accounts, adminToken } = data;

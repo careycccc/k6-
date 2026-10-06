@@ -21,6 +21,7 @@ import { getEnvByTenantId, ENV_CONFIG } from '../../../../config/envconfig.js';
 import { sendRequest } from '../../common/request.js';
 import { loginWithPassword } from '../../recharge/rechargeLevel.service.js';
 import { getFrontUserInfo } from '../../user/userManagement.js';
+import { extractList, extractTotalPage } from '../../../../libs/common/index.js';
 
 const TENANT_ID = __ENV.TENANT_ID || '3004';
 const TAG = 'RetLoginVerify';
@@ -39,19 +40,6 @@ export const options = {
 };
 
 // ---------- 工具 ----------
-function extractList(res) {
-    if (!res) return [];
-    if (res.data && Array.isArray(res.data.list)) return res.data.list;
-    if (Array.isArray(res.list)) return res.list;
-    if (Array.isArray(res)) return res;
-    return [];
-}
-function extractTotalPage(res) {
-    if (!res) return 1;
-    if (res.totalPage) return res.totalPage;
-    if (res.data && res.data.totalPage) return res.data.totalPage;
-    return 1;
-}
 
 /** 某自然日全站「登录用户」userId 集：GetUserLoginLogPageList（照 retentionVerify 口径） */
 function fetchLoginUsers(token, dateStr) {

@@ -23,6 +23,7 @@ import {
     manualAuditRechargeOrder,
     manualAuditLocalRechargeOrder
 } from './backendRechargeApi.js';
+import { extractList } from '../../../libs/common/index.js';
 
 // 需要跳过的充值方式（不管经典/商品模式都不使用）
 const SKIP_RECHARGE_TYPES = ['ArUpi', 'ARPay'];
@@ -44,13 +45,6 @@ function todayRange() {
     return { startTime: s.getTime(), endTime: e.getTime() };
 }
 
-/** 从各种返回形态里取订单 list */
-function extractList(resp) {
-    if (!resp) return [];
-    if (resp.data && Array.isArray(resp.data.list)) return resp.data.list;
-    if (Array.isArray(resp.list)) return resp.list;
-    return [];
-}
 
 /** goodsList 里去重的可用面额（升序） */
 function uniqueAmounts(goodsList) {

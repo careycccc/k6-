@@ -45,6 +45,7 @@ import { phoneRegister, emailRegister } from '../login/register.test.js';
 import { getFrontUserInfo } from './userManagement.js';
 import { generateRandomPhone, generateRandomEmail } from '../../utils/accountGeneratorFaker.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
+import { extractToken } from '../../../libs/common/index.js';
 
 // ============================================================
 // 自定义 k6 指标
@@ -81,21 +82,6 @@ export const options = {
 // 工具函数
 // ============================================================
 
-/**
- * 从注册响应中提取前台 token
- * 兼容两种来源：data.token 和 headers.Authorization
- */
-function extractToken(response) {
-    if (!response) return null;
-    if (response.data && response.data.token) {
-        return response.data.token;
-    }
-    if (response.headers) {
-        const auth = response.headers['Authorization'] || response.headers['authorization'];
-        if (auth) return auth.replace(/^Bearer\s+/i, '').trim();
-    }
-    return null;
-}
 
 // ============================================================
 // Setup 阶段：管理员登录 + 租户环境初始化

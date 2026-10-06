@@ -1,0 +1,423 @@
+OK  ./config/envconfig.js
+OK  ./config/environment.js
+OK  ./config/eventRegisterConfig.js
+OK  ./config/languageConfig.js
+OK  ./config/load.js
+OK  ./config/scenarios.js
+OK  ./config/signature.js
+OK  ./config/tenantConfig.js
+OK  ./config/tenantLanguageConfig.js
+OK  ./config/thresholds.js
+OK  ./data/loader/accountLoader.js
+OK  ./libs/analysis/performanceAnalyzer.js
+OK  ./libs/auth/tokenManager.js
+OK  ./libs/batch/BatchOperationBase.js
+OK  ./libs/batch/ParallelBatchOperation.js
+OK  ./libs/checks/apiChecks.js
+OK  ./libs/common/index.js
+OK  ./libs/common/paging.js
+OK  ./libs/common/random.js
+OK  ./libs/common/response.js
+OK  ./libs/common/time.js
+OK  ./libs/http/client.js
+OK  ./libs/http/tenantRequest.js
+OK  ./libs/http/tenantRequestWithRetry.js
+OK  ./libs/load/loadTestRunner.js
+OK  ./libs/monitor/perfIntegration.js
+OK  ./libs/monitor/perfMetrics.js
+OK  ./libs/monitor/perfSummary.js
+OK  ./libs/monitor/perfWrapper.js
+OK  ./libs/node/args.js
+OK  ./libs/redis/tokenPool.js
+OK  ./libs/utils/logger.js
+OK  ./libs/utils/performance.js
+OK  ./libs/utils/signature.js
+OK  ./libs/utils/signature2.js
+OK  ./libs/vendor/k6-reporter.js
+OK  ./libs/vendor/k6-summary-0.0.1.js
+OK  ./libs/vendor/k6-summary-0.0.2.js
+OK  ./libs/vendor/k6-utils.js
+OK  ./libs/vendor/k6chaijs.js
+OK  ./libs/vendor/papaparse.js
+OK  ./libs/zodValidator.js
+OK  ./page/browser.config.js
+OK  ./page/helpers/i18nHelper.js
+OK  ./page/helpers/pageHelper.js
+OK  ./page/helpers/webVitals.js
+OK  ./page/indexpage/index.test.js
+OK  ./page/loginpage/login.test.js
+OK  ./safetest/0_positive_control.js
+OK  ./safetest/1_rce_webshell.test.js
+OK  ./safetest/2_stored_xss.test.js
+OK  ./safetest/3_dos.test.js
+OK  ./safetest/4_path_traversal.test.js
+OK  ./safetest/5_config_hijack.test.js
+OK  ./safetest/6_pdf_upload.test.js
+OK  ./safetest/lib/env.js
+OK  ./safetest/lib/guest.js
+OK  ./safetest/lib/payloads.js
+OK  ./safetest/lib/report.js
+OK  ./safetest/lib/submit.js
+OK  ./safetest/lib/uploadProbe.js
+OK  ./safetest/run_all.test.js
+OK  ./safetest/sqli/lib/signedLogin.js
+OK  ./safetest/sqli/login_sqli.test.js
+OK  ./services/registerService.js
+OK  ./tests/aitest/1-api-security/api-security.test.js
+OK  ./tests/aitest/2-data-isolation/data-isolation.test.js
+OK  ./tests/aitest/3-server-probe/server-probe.test.js
+OK  ./tests/aitest/4-input-validation/input-validation.test.js
+OK  ./tests/aitest/common/aiTestUtils.js
+OK  ./tests/aitest/run-all-tests.js
+OK  ./tests/api/activity/GiftCodes/createGiftCodes.js
+OK  ./tests/api/activity/GiftCodes/createGiftCodes_dispatch.js
+OK  ./tests/api/activity/GiftCodes/giftCodes.test.js
+OK  ./tests/api/activity/MegaJackpot/createMegaJackpot.js
+OK  ./tests/api/activity/MegaJackpot/createMegaJackpot_dispatch.js
+OK  ./tests/api/activity/MegaJackpot/megaJackpot.test.js
+OK  ./tests/api/activity/RedRainActivity/createRedRainActivity.js
+OK  ./tests/api/activity/RedRainActivity/createRedRainActivity_dispatch.js
+OK  ./tests/api/activity/RedRainActivity/redRainActivity.test.js
+OK  ./tests/api/activity/activityGuide/activityGuide.test.js
+OK  ./tests/api/activity/activityGuide/createActivityGuide.js
+OK  ./tests/api/activity/activityGuide/createActivityGuide_dispatch.js
+OK  ./tests/api/activity/banner/createBanner.js
+OK  ./tests/api/activity/banner/createBanner_dispatch.js
+OK  ./tests/api/activity/champion/champion.test.js
+OK  ./tests/api/activity/champion/createChampion.js
+OK  ./tests/api/activity/champion/createChampion_dispatch.js
+OK  ./tests/api/activity/codeWashing/codeWashing.test.js
+OK  ./tests/api/activity/codeWashing/createCodeWashing.js
+OK  ./tests/api/activity/codeWashing/createCodeWashing_dispatch.js
+OK  ./tests/api/activity/common/activityConfigExample.js
+OK  ./tests/api/activity/common/activityConfigHandler.js
+OK  ./tests/api/activity/common/activityInfoApi.js
+OK  ./tests/api/activity/common/dateTimeUtils.js
+OK  ./tests/api/activity/coupon/createCoupon.js
+OK  ./tests/api/activity/coupon/createCoupon_dispatch.js
+OK  ./tests/api/activity/coupon/querycoupon.test.js
+OK  ./tests/api/activity/customizePopup/createCustomizePopup.js
+OK  ./tests/api/activity/customizePopup/createCustomizePopup_dispatch.js
+OK  ./tests/api/activity/dailyTasks/createDailyTasks.js
+OK  ./tests/api/activity/dailyTasks/createDailyTasks_dispatch.js
+OK  ./tests/api/activity/dailyTasks/dailyTasks.test.js
+OK  ./tests/api/activity/firebase/collectUserIds.test.js
+OK  ./tests/api/activity/firebase/firebaseBatchImport.test.js
+OK  ./tests/api/activity/giftPack/createGiftPack.js
+OK  ./tests/api/activity/giftPack/createGiftPack_dispatch.js
+OK  ./tests/api/activity/giftPack/giftPack.test.js
+OK  ./tests/api/activity/inmail/createInmail.js
+OK  ./tests/api/activity/inmail/createInmail_dispatch.js
+OK  ./tests/api/activity/inmail/test_createInmail.js
+OK  ./tests/api/activity/inviteTurntable/agentFullNotifyFlow.test.js
+OK  ./tests/api/activity/inviteTurntable/auditG3Verify.js
+OK  ./tests/api/activity/inviteTurntable/auditProbe.js
+OK  ./tests/api/activity/inviteTurntable/auditRuleVerify.js
+OK  ./tests/api/activity/inviteTurntable/auditVerify.js
+OK  ./tests/api/activity/inviteTurntable/createInviteTurntable.js
+OK  ./tests/api/activity/inviteTurntable/createInviteTurntable_dispatch.js
+OK  ./tests/api/activity/inviteTurntable/inviteTurntable.test.js
+OK  ./tests/api/activity/inviteTurntable/inviteTurntableApi.js
+OK  ./tests/api/activity/inviteTurntable/inviteWheelDailyGrantVerify.js
+OK  ./tests/api/activity/inviteTurntable/inviteWheelRetention.day.js
+OK  ./tests/api/activity/inviteTurntable/retentionLoginVerify.js
+OK  ./tests/api/activity/inviteTurntable/verifyInviteTurntable.test.js
+OK  ./tests/api/activity/inviteTurntable/verifySameDeviceInvite.test.js
+OK  ./tests/api/activity/inviteTurntable/withdrawConcurrentVerify.js
+OK  ./tests/api/activity/inviteTurntable/withdrawTwiceVerify.js
+OK  ./tests/api/activity/loginPopup/createLoginPopup.js
+OK  ./tests/api/activity/loginPopup/createLoginPopup_dispatch.js
+OK  ./tests/api/activity/luckyDoubleBonus/createluckyDoubleBonus.js
+OK  ./tests/api/activity/luckyDoubleBonus/createluckyDoubleBonus_dispatch.js
+OK  ./tests/api/activity/memberLimitAdapter/adapter.js
+OK  ./tests/api/activity/memberLimitAdapter/api.js
+OK  ./tests/api/activity/memberLimitAdapter/exampleUsage.js
+OK  ./tests/api/activity/memberLimitAdapter/memberLimitPayloadBuilder.js
+OK  ./tests/api/activity/memberLimitAdapter/supplier.js
+OK  ./tests/api/activity/newagent/createNewagent.js
+OK  ./tests/api/activity/newagent/createNewagentRank.js
+OK  ./tests/api/activity/newagent/createNewagentRank_dispatch.js
+OK  ./tests/api/activity/newagent/createNewagent_dispatch.js
+OK  ./tests/api/activity/newagent/newagent.test.js
+OK  ./tests/api/activity/newagent/newagentRank.test.js
+OK  ./tests/api/activity/orderSystem/createOrder.js
+OK  ./tests/api/activity/orderSystem/createOrder_dispatch.js
+OK  ./tests/api/activity/orderSystem/createOrdersystem.js
+OK  ./tests/api/activity/orderSystem/runCsReply.test.js
+OK  ./tests/api/activity/orderSystem/runOrderTrigger.test.js
+OK  ./tests/api/activity/partnerBonus/runPartnerBonusLimit.test.js
+OK  ./tests/api/activity/partnerBonus/runPartnerBonusVerify.test.js
+OK  ./tests/api/activity/ranking/createRanking.js
+OK  ./tests/api/activity/ranking/createRanking_dispatch.js
+OK  ./tests/api/activity/ranking/ranking.test.js
+OK  ./tests/api/activity/rechargeGiftPack/createRechargeGiftPack.js
+OK  ./tests/api/activity/rechargeGiftPack/createRechargeGiftPack_dispatch.js
+OK  ./tests/api/activity/rechargeGiftPack/rechargeGiftPack.test.js
+OK  ./tests/api/activity/rechargeWheel/createRechargeWheel.js
+OK  ./tests/api/activity/rechargeWheel/createRechargeWheel_dispatch.js
+OK  ./tests/api/activity/rechargeWheel/rechargeWheel.test.js
+OK  ./tests/api/activity/rechargeWheel/rechargeWheelExecution.js
+OK  ./tests/api/activity/rechargeWheel/rechargeWheelValidation.test.js
+OK  ./tests/api/activity/rechargeWheel/rechargeWheelVerify.js
+OK  ./tests/api/activity/rescue/createRescue.js
+OK  ./tests/api/activity/rescue/createRescue_dispatch.js
+OK  ./tests/api/activity/rescue/rescue.test.js
+OK  ./tests/api/activity/rescue/rescueValidation.js
+OK  ./tests/api/activity/rescue/runRescueValidation.test.js
+OK  ./tests/api/activity/signin/createSignin.js
+OK  ./tests/api/activity/signin/createSignin_dispatch.js
+OK  ./tests/api/activity/signin/signin.test.js
+OK  ./tests/api/activity/signin/signinApi.js
+OK  ./tests/api/activity/systemActive/createSystemActive.js
+OK  ./tests/api/activity/systemActive/createSystemActive_dispatch.js
+OK  ./tests/api/activity/tag/createTag.js
+OK  ./tests/api/activity/weekCard/createWeekCard.js
+OK  ./tests/api/activity/weekCard/createWeekCard_dispatch.js
+OK  ./tests/api/activity/weekCard/weekCard.test.js
+OK  ./tests/api/activity/withdrawalTimeout/createWithdrawalTimeout.js
+OK  ./tests/api/activity/withdrawalTimeout/createWithdrawalTimeout_dispatch.js
+OK  ./tests/api/activity/withdrawalTimeout/withdrawalTimeout.test.js
+OK  ./tests/api/activity/workOrderSuite/depositWorkOrderRepeatVerify.js
+OK  ./tests/api/activity/workOrderSuite/handlers/closeHandler.js
+OK  ./tests/api/activity/workOrderSuite/handlers/csDialogHandler.js
+OK  ./tests/api/activity/workOrderSuite/handlers/index.js
+OK  ./tests/api/activity/workOrderSuite/handlers/simpleHandler.js
+OK  ./tests/api/activity/workOrderSuite/lib/pendingHelper.js
+OK  ./tests/api/activity/workOrderSuite/lib/submitHelper.js
+OK  ./tests/api/activity/workOrderSuite/lib/triggerAll.js
+OK  ./tests/api/activity/workOrderSuite/lib/triggerLogin.js
+OK  ./tests/api/activity/workOrderSuite/lib/upload.js
+OK  ./tests/api/activity/workOrderSuite/lib/userIdHelper.js
+OK  ./tests/api/activity/workOrderSuite/runWorkOrderFull.test.js
+OK  ./tests/api/agentHierarchy/agentHierarchyApi.js
+OK  ./tests/api/agentHierarchy/agentHierarchyValidation.test.js
+OK  ./tests/api/agentHierarchy/agentVerifyCore.js
+OK  ./tests/api/agentHierarchy/verifyAllGeneralAgents.test.js
+OK  ./tests/api/agentL3/agentL3Api.js
+OK  ./tests/api/agentL3/agentL3Validation.js
+OK  ./tests/api/agentL3/runAgentL3Validation.test.js
+OK  ./tests/api/balance/balance.test.js
+OK  ./tests/api/channel/adjustRegister.js
+OK  ./tests/api/channel/adjustRegisterConfig.js
+OK  ./tests/api/channel/channelFunnelVerify.test.js
+OK  ./tests/api/channel/facebookRegister.js
+OK  ./tests/api/channel/facebookRegisterConfig.js
+OK  ./tests/api/common/common.js
+OK  ./tests/api/common/request.js
+OK  ./tests/api/common/session.js
+OK  ./tests/api/formdata/DailySummaryReport/DailySummaryReport.test.js
+OK  ./tests/api/formdata/Dashboard/Dashboard.test.js
+OK  ./tests/api/formdata/MemberReport/gameBettypeQuery.test.js
+OK  ./tests/api/formdata/MemberReport/memberReport.test.js
+OK  ./tests/api/formdata/Statistics/Statistics.test.js
+OK  ./tests/api/formdata/Statistics/statisticsinfo.test.js
+OK  ./tests/api/formdata/accountChanges/accountChanges.test.js
+OK  ./tests/api/formdata/aggregatecalculation.test.js
+OK  ./tests/api/formdata/config/formreqeust.js
+OK  ./tests/api/formdata/handlerActive.test.js
+OK  ./tests/api/formdata/manualRecharge/manualRecharge.test.js
+OK  ./tests/api/formdata/messageManage/messageManage.test.js
+OK  ./tests/api/formdata/newagentForm/newagentForm.test.js
+OK  ./tests/api/invite/agentApi.js
+OK  ./tests/api/invite/inviteBySource.js
+OK  ./tests/api/invite/runTeamRechargeAndBet.test.js
+OK  ./tests/api/invite/runTeamRechargeAndBetV2.test.js
+OK  ./tests/api/invite/teamRechargeAndBet.js
+OK  ./tests/api/invite/tenantConfig.js
+OK  ./tests/api/login/EmailAutoLogin.test.js
+OK  ./tests/api/login/MobileAutoLogin.test.js
+OK  ./tests/api/login/SendVerifiyCode.test.js
+OK  ./tests/api/login/adminlogin.test.js
+OK  ./tests/api/login/desklogin.test.js
+OK  ./tests/api/login/guestToMember.test.js
+OK  ./tests/api/login/register.test.js
+OK  ./tests/api/login/test.js
+OK  ./tests/api/login/testInviteRegister.js
+OK  ./tests/api/login/testPhoneRegister.js
+OK  ./tests/api/presetup/exportAccounts.test.js
+OK  ./tests/api/recharge/backendRechargeApi.js
+OK  ./tests/api/recharge/batchFrontRecharge.test.js
+OK  ./tests/api/recharge/frontendRecharge.test.js
+OK  ./tests/api/recharge/frontendRechargeApi.js
+OK  ./tests/api/recharge/getRechargeOrderPageList.test.js
+OK  ./tests/api/recharge/goodsRechargeService.js
+OK  ./tests/api/recharge/manualRecharge.js
+OK  ./tests/api/recharge/pullMonitorApi.js
+OK  ./tests/api/recharge/queryRechargeOrder.test.js
+OK  ./tests/api/recharge/recharge.test.js
+OK  ./tests/api/recharge/rechargeLevel.service.js
+OK  ./tests/api/recharge/rechargeLevelConfig.test.js
+OK  ./tests/api/recharge/rechargeService.js
+OK  ./tests/api/rechargeCycleReward/cycleRewardApi.js
+OK  ./tests/api/rechargeCycleReward/cycleRewardByTeam.js
+OK  ./tests/api/rechargeCycleReward/cycleRewardMultiDay.js
+OK  ./tests/api/rechargeCycleReward/cycleRewardService.js
+OK  ./tests/api/rechargeCycleReward/cycleRewardVerify.js
+OK  ./tests/api/retention/channelDailyReport.test.js
+OK  ./tests/api/retention/dayN_recharge.test.js
+OK  ./tests/api/retention/dayN_verify.test.js
+OK  ./tests/api/retention/rechargeRetention.test.js
+OK  ./tests/api/retention/rechargeRetentionApi.js
+OK  ./tests/api/retention/rechargeRetentionReport.js
+OK  ./tests/api/retention/retentionService.js
+OK  ./tests/api/retention/retentionVerify.js
+OK  ./tests/api/rptDashboard/rptDashboardApi.js
+OK  ./tests/api/rptDashboard/runAllMetrics.test.js
+OK  ./tests/api/rptDashboard/runSnapshotCompare.test.js
+OK  ./tests/api/rptDashboard/runThirdPartyRate.test.js
+OK  ./tests/api/rptDashboard/snapshotCompare.js
+OK  ./tests/api/rptDashboard/sourceMetrics.js
+OK  ./tests/api/rptDashboard/thirdPartyRate.js
+OK  ./tests/api/runbet/bet.js
+OK  ./tests/api/runbet/betRun.js
+OK  ./tests/api/runbet/betToken.js
+OK  ./tests/api/runbet/issueNumber.js
+OK  ./tests/api/runbet/thirdGame.js
+OK  ./tests/api/script/batchCreateActivities.js
+OK  ./tests/api/script/batchReportsV3.js
+OK  ./tests/api/script/runBatchReports.js
+OK  ./tests/api/script/runSixearn.js
+OK  ./tests/api/script/testActive.js
+OK  ./tests/api/script/testActive_3001_multilang.js
+OK  ./tests/api/script/testActive_3002_multilang.js
+OK  ./tests/api/script/testActive_3006_multilang.js
+OK  ./tests/api/script/testActive_3007_multilang.js
+OK  ./tests/api/script/testBalance.js
+OK  ./tests/api/script/testLoginAndBet.js
+OK  ./tests/api/script/testMobileAutoLogin.js
+OK  ./tests/api/script/testRechargeSimple.js
+OK  ./tests/api/script/test_query_3006.js
+OK  ./tests/api/sixearn/RebateLevel.test.js
+OK  ./tests/api/sixearn/bundearn.test.js
+OK  ./tests/api/sixearn/l6AgentReport.test.js
+OK  ./tests/api/sixearn/multiThread/step2_swap.js
+OK  ./tests/api/sixearn/multiThread/step3_action.js
+OK  ./tests/api/sixearn/sixearn.test.js
+OK  ./tests/api/uploadFile/figma-sync/tasks/banner.js
+OK  ./tests/api/uploadFile/uploadFactory.js
+OK  ./tests/api/uploadFile/uploadInmail.js
+OK  ./tests/api/uploadFile/uploadSystemActive.js
+OK  ./tests/api/uploadFile/uploadUtils.js
+OK  ./tests/api/uploadFile/uploadchampion.js
+OK  ./tests/api/user/agentTeamReport.test.js
+OK  ./tests/api/user/duplicateUserDetect.test.js
+OK  ./tests/api/user/testGetUserInfo.js
+OK  ./tests/api/user/userAccountApi.js
+OK  ./tests/api/user/userManagement.js
+OK  ./tests/api/user/userProfile/getUserInfo.test.js
+OK  ./tests/api/user/userProfile/updateUserGender.test.js
+OK  ./tests/api/user/userProfile/userInviteBind.test.js
+OK  ./tests/api/withdraw/addWalletApi.js
+OK  ./tests/api/withdraw/autoWithdrawBetRatioVerify.js
+OK  ./tests/api/withdraw/backendWithdrawApi.js
+OK  ./tests/api/withdraw/batchWithdraw.test.js
+OK  ./tests/api/withdraw/concurrentLockWithdraw.test.js
+OK  ./tests/api/withdraw/withdraw.test.js
+OK  ./tests/api/withdraw/withdrawApi.js
+OK  ./tests/api/withdraw/withdrawFlood.test.js
+OK  ./tests/scratch.js
+OK  ./tests/signature/signature.test.js
+OK  ./tests/unit/commonLibs.test.js
+OK  ./tests/unit/signature-logic.test.js
+OK  ./tests/utils/accountGenerator.js
+OK  ./tests/utils/utils.js
+ERR ./config/activities.js :: level=error msg="could not initialize './config/activities.js': could not load JS test 'file:///D:/project/k6-/k6/config/activities.js': no exported functions in script"
+ERR ./config/fromConfig.js :: level=error msg="could not initialize './config/fromConfig.js': could not load JS test 'file:///D:/project/k6-/k6/config/fromConfig.js': no exported functions in script"
+ERR ./config/zodSchemas.js :: level=error msg="could not initialize './config/zodSchemas.js': could not load JS test 'file:///D:/project/k6-/k6/config/zodSchemas.js': no exported functions in script"
+ERR ./libs/auth/oauth2.js :: level=error msg="could not initialize './libs/auth/oauth2.js': could not load JS test 'file:///D:/project/k6-/k6/libs/auth/oauth2.js': no exported functions in script"
+ERR ./playwrith/batch-push-test.js :: level=error msg="GoError: The moduleSpecifier \"playwright\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/project/
+ERR ./playwrith/collect-users.js :: level=error msg="GoError: The moduleSpecifier \"crypto\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/project/k6-/
+ERR ./playwrith/delivery-verify.js :: level=error msg="GoError: The moduleSpecifier \"playwright\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/project/
+ERR ./playwrith/diag-firebase.js :: level=error msg="GoError: The moduleSpecifier \"playwright\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/project/
+ERR ./playwrith/perf_audit.js :: level=error msg="GoError: The moduleSpecifier \"playwright\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/project/
+ERR ./playwrith/perf_audit_v2.js :: level=error msg="GoError: The moduleSpecifier \"playwright\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/project/
+ERR ./safetest/sqli/lib/payloads.js :: level=error msg="could not initialize './safetest/sqli/lib/payloads.js': could not load JS test 'file:///D:/project/k6-/k6/safetest/sqli/lib/payloads.js': no exported functions in script"
+ERR ./tests/api/activity/firebase/collectUsers.js :: level=error msg="GoError: The moduleSpecifier \"crypto\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/project/k6-/
+ERR ./tests/api/activity/inviteTurntable/auditG3Runner.js :: level=error msg="GoError: The moduleSpecifier \"child_process\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/proje
+ERR ./tests/api/activity/inviteTurntable/auditRuleRunner.js :: level=error msg="GoError: The moduleSpecifier \"child_process\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/proje
+ERR ./tests/api/activity/inviteTurntable/auditRunner.js :: level=error msg="GoError: The moduleSpecifier \"child_process\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/proje
+ERR ./tests/api/activity/inviteTurntable/inviteWheelDailyGrantRunner.js :: level=error msg="GoError: The moduleSpecifier \"child_process\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/proje
+ERR ./tests/api/activity/inviteTurntable/inviteWheelRunner.js :: level=error msg="GoError: The moduleSpecifier \"child_process\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/proje
+ERR ./tests/api/activity/inviteTurntable/retentionLoginRunner.js :: level=error msg="GoError: The moduleSpecifier \"child_process\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/proje
+ERR ./tests/api/activity/inviteTurntable/withdrawConcurrentRunner.js :: level=error msg="GoError: The moduleSpecifier \"child_process\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/proje
+ERR ./tests/api/activity/inviteTurntable/withdrawTwiceRoundsRunner.js :: level=error msg="GoError: The moduleSpecifier \"child_process\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/proje
+OK  ./tests/api/activity/inviteTurntable/withdrawTwiceRoundsVerify.js
+ERR ./tests/api/activity/inviteTurntable/withdrawTwiceRunner.js :: level=error msg="GoError: The moduleSpecifier \"child_process\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/proje
+ERR ./tests/api/activity/orderSystem/oderyconfig.js :: level=error msg="could not initialize './tests/api/activity/orderSystem/oderyconfig.js': could not load JS test 'file:///D:/project/k6-/k6/tests/api/activity/orderSystem/oderyconfig.js': no exported f
+OK  ./tests/api/activity/partnerBonus/runPartnerBonusExec.test.js
+OK  ./tests/api/activity/rechargeWheel/rechargeWheelValidation.js
+ERR ./tests/api/activity/rechargeWheel/rechargeWheelVerifyRunner.js :: level=error msg="GoError: The moduleSpecifier \"child_process\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/proje
+OK  ./tests/api/activity/signin/signinValidation.js
+OK  ./tests/api/activity/signin/signinValidation.test.js
+ERR ./tests/api/activity/tag/createTag_dispatch.js :: level=error msg="SyntaxError: The requested module \"./createTag.js\" does not provide an export named \"createTag\"\n\tat file:///D:/project/k6-/k6/tests/api/activity/tag/createTag_dispatch.js:1:2(2)
+ERR ./tests/api/activity/workOrderSuite/depositWorkOrderRepeatRunner.js :: level=error msg="GoError: The moduleSpecifier \"child_process\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/proje
+OK  ./tests/api/activity/workOrderSuite/runWorkOrderSubmitOnly.test.js
+OK  ./tests/api/batch/batchRechargeWithdraw.test.js
+OK  ./tests/api/batch/batchRechargeWithdrawWithBet.test.js
+OK  ./tests/api/channel/batchAdjustRegister.test.js
+OK  ./tests/api/channel/batchFacebookRegister.test.js
+OK  ./tests/api/channel/batchTiktokRegister.test.js
+OK  ./tests/api/channel/channelInviteService.js
+ERR ./tests/api/common/type.js :: level=error msg="could not initialize './tests/api/common/type.js': could not load JS test 'file:///D:/project/k6-/k6/tests/api/common/type.js': no exported functions in script"
+ERR ./tests/api/formdata/config/config.js :: level=error msg="could not initialize './tests/api/formdata/config/config.js': could not load JS test 'file:///D:/project/k6-/k6/tests/api/formdata/config/config.js': no exported functions in script"
+OK  ./tests/api/invite/inviteDownlineCases.test.js
+OK  ./tests/api/invite/inviteService.js
+OK  ./tests/api/invite/runInvite.test.js
+OK  ./tests/api/invite/runInviteByTenant.test.js
+OK  ./tests/api/invite/runInviteByTenantMultiThread.test.js
+OK  ./tests/api/invite/runInviteMultiThread.test.js
+OK  ./tests/api/invite/runSameDeviceInviteTwoWays.test.js
+OK  ./tests/api/login/batchEventRegister.multi-tenant.test.js
+OK  ./tests/api/login/batchEventRegister.test.js
+OK  ./tests/api/presetup/batchRegister.js
+OK  ./tests/api/presetup/batchRegister.test.js
+ERR ./tests/api/presetup/clearTokenPool.js :: level=error msg="could not initialize './tests/api/presetup/clearTokenPool.js': could not load JS test 'file:///D:/project/k6-/k6/tests/api/presetup/clearTokenPool.js': file:///D:/project/k6-/k6/tests
+OK  ./tests/api/presetup/clearTokenPool.test.js
+ERR ./tests/api/recharge/frontendOnlyRecharge.test.js :: level=warning msg="Couldn't load source map for file:///D:/project/k6-/k6/libs/vendor/k6-utils.js" error="The moduleSpecifier \"file:///D:/project/k6-/k6/libs/vendor/index.js.map\" couldn't be found o
+ERR ./tests/api/recharge/pullBlacklistRunner.js :: level=error msg="GoError: The moduleSpecifier \"child_process\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/proje
+OK  ./tests/api/recharge/pullBlacklistVerify.js
+OK  ./tests/api/rechargeCycleReward/cycleRewardSeed.day.js
+ERR ./tests/api/rechargeCycleReward/cycleRunner.js :: level=error msg="GoError: The moduleSpecifier \"child_process\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/proje
+OK  ./tests/api/retention/day1_seed.test.js
+ERR ./tests/api/retention/retentionRunner.js :: level=error msg="GoError: The moduleSpecifier \"child_process\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/proje
+ERR ./tests/api/retention/retentionVerifyRunner.js :: level=error msg="GoError: The moduleSpecifier \"child_process\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/proje
+ERR ./tests/api/rptDashboard/snapshotEnum.js :: level=error msg="could not initialize './tests/api/rptDashboard/snapshotEnum.js': could not load JS test 'file:///D:/project/k6-/k6/tests/api/rptDashboard/snapshotEnum.js': no exported functions in sc
+ERR ./tests/api/script/runCoupon.js :: level=error msg="could not initialize './tests/api/script/runCoupon.js': could not load JS test 'file:///D:/project/k6-/k6/tests/api/script/runCoupon.js': The moduleSpecifier \"../activity/coupon.test
+ERR ./tests/api/script/runInmail.js :: level=error msg="could not initialize './tests/api/script/runInmail.js': could not load JS test 'file:///D:/project/k6-/k6/tests/api/script/runInmail.js': The moduleSpecifier \"../message/sitmessage.t
+OK  ./tests/api/script/runMobile.js
+OK  ./tests/api/script/testRecharge.js
+OK  ./tests/api/sixearn/distributedForest.test.js
+OK  ./tests/api/sixearn/longRunMultiTenantTransfer.test.js
+OK  ./tests/api/sixearn/longRunMultiTenantTransferOnly.test.js
+OK  ./tests/api/sixearn/multiAgentTransfer.test.js
+OK  ./tests/api/sixearn/multiLevelRebate.test.js
+OK  ./tests/api/sixearn/multiTeamRandomRebate.test.js
+ERR ./tests/api/sixearn/multiThread/runner.js :: level=error msg="GoError: The moduleSpecifier \"child_process\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/proje
+OK  ./tests/api/sixearn/multiThread/step1_register.js
+OK  ./tests/api/sixearn/multiThread/step_invite.js
+ERR ./tests/api/uploadFile/figma-sync/compare-methods.js :: level=error msg="could not initialize './tests/api/uploadFile/figma-sync/compare-methods.js': could not load JS test 'file:///D:/project/k6-/k6/tests/api/uploadFile/figma-sync/compare-methods.js': fil
+ERR ./tests/api/uploadFile/figma-sync/core/download-banners.js :: level=error msg="could not initialize './tests/api/uploadFile/figma-sync/core/download-banners.js': could not load JS test 'file:///D:/project/k6-/k6/tests/api/uploadFile/figma-sync/core/download-bann
+ERR ./tests/api/uploadFile/figma-sync/core/figma-api.js :: level=error msg="GoError: The moduleSpecifier \"axios\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/project/k6-/k
+ERR ./tests/api/uploadFile/figma-sync/core/get-nodes.js :: level=error msg="could not initialize './tests/api/uploadFile/figma-sync/core/get-nodes.js': could not load JS test 'file:///D:/project/k6-/k6/tests/api/uploadFile/figma-sync/core/get-nodes.js': file:
+ERR ./tests/api/uploadFile/figma-sync/core/test-connection.js :: level=error msg="could not initialize './tests/api/uploadFile/figma-sync/core/test-connection.js': could not load JS test 'file:///D:/project/k6-/k6/tests/api/uploadFile/figma-sync/core/test-connectio
+ERR ./tests/api/uploadFile/figma-sync/master.js :: level=error msg="could not initialize './tests/api/uploadFile/figma-sync/master.js': could not load JS test 'file:///D:/project/k6-/k6/tests/api/uploadFile/figma-sync/master.js': file:///D:/project/k6
+ERR ./tests/api/uploadFile/figma-sync/tasks/index.js :: level=error msg="GoError: The moduleSpecifier \"fs\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/project/k6-/k6/t
+ERR ./tests/api/uploadFile/figma-sync/tasks/systemActive-test.js :: level=error msg="could not initialize './tests/api/uploadFile/figma-sync/tasks/systemActive-test.js': could not load JS test 'file:///D:/project/k6-/k6/tests/api/uploadFile/figma-sync/tasks/systemActi
+ERR ./tests/api/uploadFile/figma-sync/tasks/systemActive.js :: level=error msg="GoError: The moduleSpecifier \"path\" couldn't be recognised as something k6 supports.\n\tat go.k6.io/k6/internal/js.(*requireImpl).require-fm (native)\n\tat file:///D:/project/k6-/k6
+ERR ./tests/api/uploadFile/figma-sync/test-batch-download.js :: level=error msg="could not initialize './tests/api/uploadFile/figma-sync/test-batch-download.js': could not load JS test 'file:///D:/project/k6-/k6/tests/api/uploadFile/figma-sync/test-batch-download.
+ERR ./tests/api/user/analyzeNicknames.js :: level=error msg="could not initialize './tests/api/user/analyzeNicknames.js': could not load JS test 'file:///D:/project/k6-/k6/tests/api/user/analyzeNicknames.js': file:///D:/project/k6-/k6/tests/api
+OK  ./tests/api/user/nickNameDuplicateCheck.test.js
+ERR ./tests/api/user/userProfile/userInviteBindConcurrent.test.js :: level=error msg="Error: 请通过 -e USERNAMES=账号1,账号2,... 传入至少 2 个账号\n\tat file:///D:/project/k6-/k6/tests/api/user/userProfile/userInviteBindConcurrent.test.js:44:9(52)\n" hint
+ERR ./tests/api/user/userProfile/userInviteBindMultiCode.test.js :: level=error msg="Error: 请通过 -e INVITE_CODES=码1,码2,... 传入至少 2 个邀请码\n\tat file:///D:/project/k6-/k6/tests/api/user/userProfile/userInviteBindMultiCode.test.js:43:9(52)\n" hint=
+ERR ./tests/integration/third-party/payment.test.js :: level=error msg="could not initialize './tests/integration/third-party/payment.test.js': could not load JS test 'file:///D:/project/k6-/k6/tests/integration/third-party/payment.test.js': no exported f
+ERR ./tests/integration/workflow/checkout-flow.test.js :: level=error msg="could not initialize './tests/integration/workflow/checkout-flow.test.js': could not load JS test 'file:///D:/project/k6-/k6/tests/integration/workflow/checkout-flow.test.js': no expo
+OK  ./tests/load/clear.tokenPool.js
+OK  ./tests/load/recharge.load.test.js
+OK  ./tests/load/seed.tokenPool.js
+ERR ./tests/performance/endurance/endurance.test.js :: level=error msg="Error: [AccountLoader] ❌ 无法加载账号 CSV 文件: ./k6/data/csv/accounts.csv\n请确认：\n  1. 文件路径正确（相对于执行命令的目录）\n  2. 文件格式：us
+ERR ./tests/performance/load/normal-load.test.js :: level=error msg="Error: [AccountLoader] ❌ 无法加载账号 CSV 文件: ./k6/data/csv/accounts.csv\n请确认：\n  1. 文件路径正确（相对于执行命令的目录）\n  2. 文件格式：us
+ERR ./tests/performance/load/spike.test.js :: level=error msg="Error: [AccountLoader] ❌ 无法加载账号 CSV 文件: ./k6/data/csv/accounts.csv\n请确认：\n  1. 文件路径正确（相对于执行命令的目录）\n  2. 文件格式：us
+ERR ./tests/performance/stress/stress.test.js :: level=error msg="Error: [AccountLoader] ❌ 无法加载账号 CSV 文件: ./k6/data/csv/accounts.csv\n请确认：\n  1. 文件路径正确（相对于执行命令的目录）\n  2. 文件格式：us
+OK  ./tests/utils/accountGeneratorFaker.js
+ERR ./vendor/zod-lite.js :: level=error msg="could not initialize './vendor/zod-lite.js': could not load JS test 'file:///D:/project/k6-/k6/vendor/zod-lite.js': no exported functions in script"
+ERR ./vendor/zod.bundle.js :: level=error msg="could not initialize './vendor/zod.bundle.js': could not load JS test 'file:///D:/project/k6-/k6/vendor/zod.bundle.js': no exported functions in script"
