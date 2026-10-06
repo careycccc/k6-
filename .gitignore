@@ -95,7 +95,8 @@ docker-compose.override.yml
 *.rw2
 *.rwl
 *.sr2
-*.json.refactor/
+*.json
+.refactor/
 
 # 服务账号密钥，勿提交
 docs/serviceAccountKey.json
