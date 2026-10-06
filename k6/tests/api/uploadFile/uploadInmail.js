@@ -2,6 +2,7 @@ import http from 'k6/http';
 import { check } from 'k6';
 import { AdminLogin, adminTag } from '../login/adminlogin.test.js';
 import { ENV_CONFIG } from '../../../config/envconfig.js';
+import { logger } from '../../../libs/utils/logger.js';
 
 export const uploadInmailFileTag = 'uploadInmailFile';
 

@@ -87,7 +87,7 @@ function fetchRealUsers(adminToken, packageId, startTs, endTs) {
     const api = '/api/Users/GetPageList';
     const users = [];
     const list = fetchAllPages(pageNo => sendRequest({
-        packageId,
+        packageId: [packageId],  // 后台 Users/GetPageList 要求 packageId 为数组
         registerBeginTime: startTs,
         registerEndTime: endTs,
         pageNo,

@@ -1031,6 +1031,8 @@ function printFinalSummary(agentRebateSummary, masterHierarchy, accountId, dateS
 
 import { getUserAccount, detectAccountType, autoLoginByUserId } from '../user/userAccountApi.js';
 import { tenantRequest } from '../../../libs/http/tenantRequest.js';
+import { mobileAutoLoginFlow } from '../login/MobileAutoLogin.test.js';
+import { emailAutoLoginFlow } from '../login/EmailAutoLogin.test.js';
 
 const frontVerifyTag = 'sixearnFrontVerify';
 

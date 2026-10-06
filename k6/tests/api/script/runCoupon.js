@@ -4,6 +4,7 @@ import { loadConfigFromFile } from '../../../config/load.js';
 import { createCoupons as couponFunc, couponTag, startCoupons as startCouponsFunc } from '../activity/coupon.test.js';
 import { handleSummary as requestHandleSummary } from '../common/request.js';
 import { couponIds } from '../activity/coupon.test.js';
+import { logger } from '../../../libs/utils/logger.js';
 
 //优惠券的创建和启用
 const loader = loadConfigFromFile();

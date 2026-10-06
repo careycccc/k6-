@@ -43,6 +43,7 @@ import { generateRandomPhone } from '../../utils/accountGeneratorFaker.js';
 import { phoneRegister, phoneRegisterByInvite } from '../login/register.test.js';
 import { randInt } from '../../../libs/common/index.js';
 import { loginByCode as loginByAccount } from '../common/auth.js';
+import { buildTeamSync } from '../invite/inviteService.js';
 
 // ============================================================
 // ==================== 参数解析 ==============================

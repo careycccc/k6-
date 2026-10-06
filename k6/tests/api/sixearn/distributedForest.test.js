@@ -38,7 +38,7 @@ import {
     // emailRegisterByInvite 原函数在 register.test.js 中存在 bug（httpResponse 声明后
     // 未赋值即读 .status），这里不 import，改用下方本地修复版 localEmailRegisterByInvite
 } from '../login/register.test.js';
-import { getFrontUserInfo } from '../user/userManagement.js';
+import { getFrontUserInfo, getUserInfo } from '../user/userManagement.js';
 import { generateRandomPhone, generateRandomEmail } from '../../utils/accountGeneratorFaker.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../config/envconfig.js';
 // 用于本地修复版邮箱邀请注册

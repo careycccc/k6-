@@ -1,3 +1,4 @@
+import { logger } from '../../libs/utils/logger.js';
 
 /**
  * 生成加密安全的随机字符串（类似浏览器指纹的一部分）

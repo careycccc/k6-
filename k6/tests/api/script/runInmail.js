@@ -1,5 +1,6 @@
 import { getUploadFileName } from '../uploadFile/uploadInmail.js';
 import { createInmail as createInmailFunc, couponTag, startInmail as startInmailFunc } from '../message/sitmessage.test.js';
+import { logger } from '../../../libs/utils/logger.js';
 // 执行站内信相关操作
 
 // 全局标记，用于跟踪场景1的执行状态

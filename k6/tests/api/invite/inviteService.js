@@ -5,7 +5,7 @@
 
 import { sleep } from 'k6';
 import { phoneRegisterByInvite, emailRegisterByInvite } from '../login/register.test.js';
-import { generateRandomPhones, generateRandomEmails } from '../../utils/accountGeneratorFaker.js';
+import { generateRandomPhone, generateRandomPhones, generateRandomEmails } from '../../utils/accountGeneratorFaker.js';
 import { betRun } from '../runbet/betRun.js';
 import { getFrontUserInfo } from '../user/userManagement.js';
 import { hybridRecharge, getConfigRechargeAmount } from '../recharge/rechargeService.js';
@@ -893,4 +893,60 @@ export async function runMultiLevelInviteV2(rootInviteCode, subordinates, adminD
 
     // ========== 生成最终测试报表 ==========
     printInviteReport(userDetails, rootInviteCode);
+}
+
+/**
+ * 同步建立多级团队（调用 inviteService 的 bindOneLevel）
+ * 由于 k6 不支持 async/await 在 setup 中，我们直接调用底层注册逻辑
+ */
+export function buildTeamSync(rootInviteCode, distribution, adminData, tenantId) {
+    const envCfg = getEnvByTenantId(tenantId);
+    const countryCode = envCfg.COUNTRY_CODE || '91';
+    const inviteRegisterUrl = envCfg.INVITE_REGISTER_URL || envCfg.BASE_DESK_URL;
+    const customUrls = {
+        frontUrl: inviteRegisterUrl,
+        adminUrl: envCfg.BASE_ADMIN_URL,
+        registerUrl: inviteRegisterUrl
+    };
+
+    let currentParentCodes = [rootInviteCode];
+
+    for (let level = 0; level < distribution.length; level++) {
+        const count = distribution[level];
+        if (count <= 0) continue;
+
+        console.log(`[BuildTeam] 层级${level+1}: 注册 ${count} 人，父级 ${currentParentCodes.length} 个`);
+        const newCodes = [];
+
+        for (let i = 0; i < count; i++) {
+            sleep(1);
+            const phone = generateRandomPhone(countryCode);
+            const parentCode = currentParentCodes[Math.floor(Math.random() * currentParentCodes.length)];
+
+            let regResult = phoneRegisterByInvite(phone, parentCode, adminData, 'qwer1234', '', customUrls);
+            if (!regResult || !regResult.data) {
+                console.warn(`[BuildTeam] 注册失败: ${phone}，跳过`);
+                continue;
+            }
+
+            let token = null;
+            if (regResult.headers && regResult.headers.Authorization) {
+                token = regResult.headers.Authorization.replace('Bearer ', '').trim();
+            } else if (regResult.data && regResult.data.token) {
+                token = regResult.data.token;
+            }
+            if (!token) continue;
+
+            sleep(1);
+            const info = getFrontUserInfo(token);
+            if (info && info.inviteCode) {
+                newCodes.push(info.inviteCode);
+            }
+        }
+
+        if (newCodes.length > 0) {
+            currentParentCodes = newCodes;
+        }
+        sleep(2);
+    }
 }

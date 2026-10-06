@@ -49,9 +49,12 @@ import { getAccountBalance } from '../balance/balance.test.js';
 import { sendRequest } from '../common/request.js';
 import { generateRandomPhone } from '../../utils/accountGeneratorFaker.js';
 import { phoneRegister, phoneRegisterByInvite } from '../login/register.test.js';
-import { runMultiLevelInvite } from '../invite/inviteService.js';
+import { runMultiLevelInvite, buildTeamSync } from '../invite/inviteService.js';
 import { randInt } from '../../../libs/common/index.js';
 import { loginByCode as loginByAccount } from '../common/auth.js';
+import { addAllWallets } from '../withdraw/addWalletApi.js';
+import { getWithdrawBasicInfo, setWithdrawPassword, getUserWithdrawWallet, withdrawApply } from '../withdraw/withdrawApi.js';
+import { runBackendWithdrawApproval } from '../withdraw/backendWithdrawApi.js';
 
 // ============================================================
 // ==================== 参数解析 ==============================
@@ -69,6 +72,11 @@ const MAX_RECHARGE_BEFORE = parseInt(__ENV.MAX_RECHARGE_BEFORE || '3', 10);
 const MAX_RECHARGE_AFTER  = parseInt(__ENV.MAX_RECHARGE_AFTER  || '3', 10);
 const MAX_BET_BEFORE      = parseInt(__ENV.MAX_BET_BEFORE      || '3', 10);
 const MAX_BET_AFTER       = parseInt(__ENV.MAX_BET_AFTER       || '3', 10);
+// 提现：默认关闭，-e ENABLE_WITHDRAW=true 开启；后台审核默认关闭（同 multiAgentTransfer）
+const ENABLE_WITHDRAW         = (__ENV.ENABLE_WITHDRAW || '').toLowerCase() === 'true';
+const ENABLE_BACKEND_APPROVAL = (__ENV.ENABLE_BACKEND_APPROVAL || '').toLowerCase() === 'true';
+const MAX_WITHDRAW_BEFORE = parseInt(__ENV.MAX_WITHDRAW_BEFORE || '1', 10);
+const MAX_WITHDRAW_AFTER  = parseInt(__ENV.MAX_WITHDRAW_AFTER  || '1', 10);
 const REPORT_DIR          = __ENV.REPORT_DIR || 'k6/reports';
 
 const TAG = 'LongRunTransfer';
@@ -598,63 +606,6 @@ export function setup() {
         testStartTs: Date.now()
     };
 }
-
-/**
- * 同步建立多级团队（调用 inviteService 的 bindOneLevel）
- * 由于 k6 不支持 async/await 在 setup 中，我们直接调用底层注册逻辑
- */
-function buildTeamSync(rootInviteCode, distribution, adminData, tenantId) {
-    const envCfg = getEnvByTenantId(tenantId);
-    const countryCode = envCfg.COUNTRY_CODE || '91';
-    const inviteRegisterUrl = envCfg.INVITE_REGISTER_URL || envCfg.BASE_DESK_URL;
-    const customUrls = {
-        frontUrl: inviteRegisterUrl,
-        adminUrl: envCfg.BASE_ADMIN_URL,
-        registerUrl: inviteRegisterUrl
-    };
-
-    let currentParentCodes = [rootInviteCode];
-
-    for (let level = 0; level < distribution.length; level++) {
-        const count = distribution[level];
-        if (count <= 0) continue;
-
-        console.log(`[BuildTeam] 层级${level+1}: 注册 ${count} 人，父级 ${currentParentCodes.length} 个`);
-        const newCodes = [];
-
-        for (let i = 0; i < count; i++) {
-            sleep(1);
-            const phone = generateRandomPhone(countryCode);
-            const parentCode = currentParentCodes[Math.floor(Math.random() * currentParentCodes.length)];
-
-            let regResult = phoneRegisterByInvite(phone, parentCode, adminData, 'qwer1234', '', customUrls);
-            if (!regResult || !regResult.data) {
-                console.warn(`[BuildTeam] 注册失败: ${phone}，跳过`);
-                continue;
-            }
-
-            let token = null;
-            if (regResult.headers && regResult.headers.Authorization) {
-                token = regResult.headers.Authorization.replace('Bearer ', '').trim();
-            } else if (regResult.data && regResult.data.token) {
-                token = regResult.data.token;
-            }
-            if (!token) continue;
-
-            sleep(1);
-            const info = getFrontUserInfo(token);
-            if (info && info.inviteCode) {
-                newCodes.push(info.inviteCode);
-            }
-        }
-
-        if (newCodes.length > 0) {
-            currentParentCodes = newCodes;
-        }
-        sleep(2);
-    }
-}
-
 
 // ============================================================
 // ==================== 核心：单次转线任务执行 =================

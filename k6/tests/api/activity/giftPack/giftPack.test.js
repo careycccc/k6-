@@ -59,7 +59,7 @@ function queryGiftPackDetail(data, ele) {
     const result = commonRequest(data, api, payload, giftPackTag)
 
     if (!result || !result.list) {
-        logger.info(`${orderNo}活动礼包详情查询结果为空，跳过后续处理`, result)
+        logger.info(`${ele.orderNo}活动礼包详情查询结果为空，跳过后续处理`, result)
     }
     // 活动礼包里面的奖励金额
     let amount = 0

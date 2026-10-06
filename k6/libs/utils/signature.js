@@ -1,4 +1,5 @@
 import crypto from 'k6/crypto';
+import { logger } from './logger.js';
 
 /**
  * 签名工具类
