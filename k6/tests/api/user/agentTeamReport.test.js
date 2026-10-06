@@ -28,6 +28,7 @@ import {
     GetUserRptRechargePageList,
     GetBetRecordPageList
 } from '../sixearn/sixearn.test.js';
+import { dateStartTs, dateEndTs } from '../../../libs/common/time.js';
 
 // ============================================================
 // 环境变量解析
@@ -86,16 +87,10 @@ function enumerateDates(startDate, endDate) {
 /**
  * 将 YYYY-MM-DD 转为当天 00:00:00 的毫秒时间戳（UTC）
  */
-function dateToStartTs(dateStr) {
-    return new Date(dateStr + 'T00:00:00Z').getTime();
-}
 
 /**
  * 将 YYYY-MM-DD 转为当天 23:59:59.999 的毫秒时间戳（UTC）
  */
-function dateToEndTs(dateStr) {
-    return new Date(dateStr + 'T23:59:59.999Z').getTime();
-}
 
 // ============================================================
 // API 封装（新增，不修改任何现有文件）
@@ -281,8 +276,8 @@ function calcAgentCommission(adminToken, rootUid, memberList, dates) {
  * @returns {object} 统计结果
  */
 function calcRootAgentStats(adminToken, rootUid, startDate, endDate, dates) {
-    const startTs = dateToStartTs(startDate);
-    const endTs   = dateToEndTs(endDate);
+    const startTs = dateStartTs(startDate);
+    const endTs   = dateEndTs(endDate);
     const startDateStr = `${startDate} 00:00:00`;
     const endDateStr   = `${endDate} 23:59:59`;
 

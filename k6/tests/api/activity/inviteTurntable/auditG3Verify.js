@@ -42,6 +42,8 @@ import {
     getUserInvitedWheelInfo, clickWheelWithdraw
 } from './inviteTurntableApi.js';
 import { extractToken } from '../../../../libs/common/index.js';
+import { formatTs, BEIJING_OFFSET_MS } from '../../../../libs/common/time.js';
+const fmtTs = ms => formatTs(ms, BEIJING_OFFSET_MS);
 
 const TAG = 'AuditG3';
 const TENANT_ID = __ENV.TENANT_ID || '3004';
@@ -392,7 +394,6 @@ function emit(kind, obj) { console.log(`##${kind}##${encoding.b64encode(JSON.str
 function pad2(n) { return String(n).padStart(2, '0'); }
 function dateStr(off) { const d = new Date(Date.now() + off * 86400000); return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`; }
 function monthStart() { const d = new Date(); return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-01`; }
-function fmtTs(ms) { if (!ms) return '-'; const d = new Date(Number(ms) + 8 * 3600000); return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`; }
 function stateName(s) { return s === 2 ? 'pass' : s === 3 ? 'reject' : s === 1 ? '审核中' : s === 0 ? '待审核' : `?${s}`; }
 function listOf(res) {
     if (res && res.list && Array.isArray(res.list)) return res.list;

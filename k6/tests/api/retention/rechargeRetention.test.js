@@ -21,13 +21,13 @@
  */
 
 import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
-import { getEnvByTenantId } from '../../../config/envconfig.js';
 import {
     getDayRange,
     fetchAllRechargeOrders,
     analyzeSameDayRetention,
     analyzeNextDayRetention
 } from './rechargeRetentionApi.js';
+import { getTzOffsetMs } from '../../../libs/common/time.js';
 
 export const options = {
     scenarios: {
@@ -58,16 +58,7 @@ let _reportData = {
 // ============================================================
 // 时区工具（内联，避免循环依赖）
 // ============================================================
-const TZ_MAP = {
-    '91': 5.5, '880': 6, '92': 5, '52': -6, '1': -5, '86': 8
-};
 
-function getTzOffsetMs(tenantId) {
-    const envConfig = getEnvByTenantId(tenantId);
-    const code = (envConfig && envConfig.COUNTRY_CODE) ? envConfig.COUNTRY_CODE : '91';
-    const offset = TZ_MAP[code] !== undefined ? TZ_MAP[code] : 5.5;
-    return offset * 3600 * 1000;
-}
 
 /**
  * 将 "YYYY-MM-DD" 字符串解析为租户时区的自然日时间戳范围

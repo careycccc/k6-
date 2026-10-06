@@ -25,6 +25,7 @@ import { sleep } from 'k6';
 import { sendRequest, sendQueryRequest } from '../common/request.js';
 import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
 import { getTzOffset } from '../retention/rechargeRetentionApi.js';
+import { dateStartTs, dateEndTs } from '../../../libs/common/time.js';
 
 const TENANT_ID = __ENV.TENANT_ID || '3004';
 // 支持多个渠道包ID，逗号分隔，如 "1,2,3"
@@ -74,14 +75,7 @@ function enumerateDates(startDate, endDate) {
  * YYYY-MM-DD → 当天租户时区 00:00:00 的 UTC 毫秒时间戳
  * 例如 UTC+5:30：当天 00:00:00 本地时间 = UTC 前一天 18:30:00
  */
-function dateToIstStartTs(dateStr) {
-    const utcMidnight = new Date(dateStr + 'T00:00:00Z').getTime();
-    return utcMidnight - TZ_OFFSET_MS;
-}
 
-function dateToIstEndTs(dateStr) {
-    return dateToIstStartTs(dateStr) + 24 * 60 * 60 * 1000 - 1;
-}
 
 // ============================================================
 // API 封装
@@ -567,8 +561,8 @@ export default function (data) {
     const dates = enumerateDates(startDate, endDate);
 
     // 整个日期范围的时间戳（IST）
-    const rangeStartTs = dateToIstStartTs(startDate);
-    const rangeEndTs = dateToIstEndTs(endDate);
+    const rangeStartTs = dateStartTs(startDate, TZ_OFFSET_MS);
+    const rangeEndTs = dateEndTs(endDate, TZ_OFFSET_MS);
 
     const isMultiDay = dates.length > 1;
     const isMultiPackage = PACKAGE_IDS.length > 1;

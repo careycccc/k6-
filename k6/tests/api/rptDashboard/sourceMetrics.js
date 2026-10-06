@@ -12,19 +12,15 @@
  */
 import { sleep } from 'k6';
 import { sendRequest, sendQueryRequest } from '../common/request.js';
-import { getTzOffset } from '../retention/rechargeRetentionApi.js';
+import { getTzOffsetMs, dateStartTs } from '../../../libs/common/time.js';
 import { getRealTimeSnapshotReport } from './rptDashboardApi.js';
 
 const TAG = 'rptSource';
 const MAX_PAGES = 200; // 安全上限，防止异常翻页
 
-function tzMs(tenantId) { return getTzOffset(tenantId) * 3600 * 1000; }
 function todayStr() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function nowHHMM() { const d = new Date(); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
 
-function dateToIstStartTs(dateStr, tenantId) {
-    return new Date(dateStr + 'T00:00:00Z').getTime() - tzMs(tenantId);
-}
 
 /** 报表最新时间节点（今天以当前时刻为界；历史日期取全天最后节点），并算出该节点的 IST 时间戳 */
 export function getReportLatestNode(token, date, tenantId) {
@@ -41,7 +37,7 @@ export function getReportLatestNode(token, date, tenantId) {
     if (!latest) return null;
 
     const [H, M] = latest.timeNode.split(':').map(Number);
-    latest.ts = dateToIstStartTs(date, tenantId) + (H * 60 + M) * 60000; // 节点时刻的 IST 时间戳
+    latest.ts = dateStartTs(date, getTzOffsetMs(tenantId)) + (H * 60 + M) * 60000; // 节点时刻的 IST 时间戳
     return latest;
 }
 
@@ -195,7 +191,7 @@ export function verifyBaseMetrics(token, date, tenantId, tol = 0.01) {
     const node = getReportLatestNode(token, date, tenantId);
     if (!node) return null;
 
-    const s = dateToIstStartTs(date, tenantId);
+    const s = dateStartTs(date, getTzOffsetMs(tenantId));
     const e = node.ts; // 绑定到报表节点时刻
 
     const reg = srcRegisterCount(token, s, e);
@@ -230,7 +226,7 @@ export function verifyAllMetrics(token, date, tenantId, tol = 0.01) {
     const c = node.cell;
 
     // 时间戳窗口（订单类）与 字符串窗口（GetUserRpt* 类），都绑定到节点时刻
-    const sTs = dateToIstStartTs(date, tenantId);
+    const sTs = dateStartTs(date, getTzOffsetMs(tenantId));
     const eTs = node.ts;
     const sStr = `${date} 00:00:00`;
     const eStr = `${date} ${node.timeNode}:00`;
@@ -371,7 +367,7 @@ export function verifyAllNodes(token, date, tenantId, tol = 0.01) {
     const report = getRealTimeSnapshotReport(token, date);
     if (!report || !Array.isArray(report.list)) return null;
 
-    const dayStart = dateToIstStartTs(date, tenantId);
+    const dayStart = dateStartTs(date, getTzOffsetMs(tenantId));
     const isToday = date === todayStr();
     const nowTs = Date.now();
 

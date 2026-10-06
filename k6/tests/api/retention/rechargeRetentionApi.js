@@ -10,73 +10,12 @@
 
 import { sleep } from 'k6';
 import { sendRequest } from '../common/request.js';
-import { getEnvByTenantId } from '../../../config/envconfig.js';
 
 // ============================================================
-// 时区工具
+// 时区工具（已移到 libs/common/time.js，这里转发保持旧 import 可用）
 // ============================================================
 
-/**
- * 根据 COUNTRY_CODE 获取 UTC 偏移小时数
- * 未配置或未知区号默认印度时区 UTC+5:30
- */
-const COUNTRY_CODE_TZ_OFFSET = {
-    '91':  5.5,   // 印度 IST UTC+5:30
-    '880': 6,     // 孟加拉 BST UTC+6
-    '92':  5,     // 巴基斯坦 PKT UTC+5
-    '52':  -6,    // 墨西哥 CST UTC-6
-    '1':   -5,    // 美国东部 EST UTC-5
-    '86':  8,     // 中国 CST UTC+8
-};
-
-/**
- * 获取租户时区偏移（小时）
- * @param {string} tenantId
- * @returns {number} UTC 偏移小时数，如 5.5 表示 UTC+5:30
- */
-export function getTzOffset(tenantId) {
-    const envConfig = getEnvByTenantId(tenantId);
-    const countryCode = (envConfig && envConfig.COUNTRY_CODE) ? envConfig.COUNTRY_CODE : '91';
-    const offset = COUNTRY_CODE_TZ_OFFSET[countryCode];
-    if (offset === undefined) {
-        console.warn(`[TZ] 未知区号 ${countryCode}，使用默认印度时区 UTC+5:30`);
-        return 5.5;
-    }
-    return offset;
-}
-
-/**
- * 获取指定自然日的起止毫秒时间戳（按租户时区）
- *
- * @param {number} daysAgo  - 相对今天往前几天，0=今天，1=昨天，2=前天
- * @param {string} tenantId - 租户ID
- * @returns {{ startTime: number, endTime: number, dateStr: string }}
- */
-export function getDayRange(daysAgo, tenantId) {
-    const tzOffset = getTzOffset(tenantId);
-    const tzOffsetMs = tzOffset * 3600 * 1000;
-
-    // 当前 UTC 时间 + 时区偏移 = 本地时间
-    const nowLocal = new Date(Date.now() + tzOffsetMs);
-
-    // 取本地日期的年月日
-    const year  = nowLocal.getUTCFullYear();
-    const month = nowLocal.getUTCMonth();
-    const day   = nowLocal.getUTCDate();
-
-    // 目标日期（本地时间的 00:00:00）
-    const targetLocalMidnight = Date.UTC(year, month, day - daysAgo, 0, 0, 0, 0);
-
-    // 转回 UTC 时间戳（减去时区偏移）
-    const startTime = targetLocalMidnight - tzOffsetMs;
-    const endTime   = startTime + 86400000 - 1; // 当天最后一毫秒
-
-    // 格式化日期字符串（用于报表显示）
-    const d = new Date(targetLocalMidnight);
-    const dateStr = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-
-    return { startTime, endTime, dateStr };
-}
+export { getTzOffset, getDayRange } from '../../../libs/common/time.js';
 
 // ============================================================
 // 翻页公共逻辑
