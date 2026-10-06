@@ -5,6 +5,7 @@
 
 import { sleep } from 'k6';
 import { tenantRequest } from '../../../libs/http/tenantRequest.js';
+import { randomString as generateRandomString, randomDigits as generateNumberString } from '../../../libs/common/random.js';
 
 /**
  * 获取银行字典列表
@@ -49,20 +50,6 @@ function getBankCode(adminToken, type = '1') {
 }
 
 /**
- * 生成随机字符串
- * @param {number} length - 字符串长度
- * @returns {string}
- */
-function generateRandomString(length) {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-}
-
-/**
  * 生成随机邮箱
  * @returns {string}
  */
@@ -78,25 +65,6 @@ function generateRandomEmail() {
     const username = generateRandomString(usernameLen);
     const domain = domains[Math.floor(Math.random() * domains.length)];
     return `${username}@${domain}`;
-}
-
-/**
- * 生成随机数字字符串
- * @param {number} length - 长度
- * @param {boolean} noLeadingZero - 是否禁止0开头（默认false）
- * @returns {string}
- */
-function generateNumberString(length, noLeadingZero = false) {
-    let result = '';
-    for (let i = 0; i < length; i++) {
-        if (i === 0 && noLeadingZero) {
-            // 第一位不能是0，生成1-9
-            result += Math.floor(Math.random() * 9) + 1;
-        } else {
-            result += Math.floor(Math.random() * 10);
-        }
-    }
-    return result;
 }
 
 /**
