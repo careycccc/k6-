@@ -10,13 +10,15 @@
  *   充值人数 rechargeUserCount / 充值金额 rechargeAmount ← /api/RechargeOrder(Payed)
  *   提现人数 withdrawUserCount / 提现金额 withdrawAmount ← /api/WithdrawOrder(Pass)
  */
-import { sleep } from 'k6';
 import { sendRequest, sendQueryRequest } from '../common/request.js';
 import { getTzOffsetMs, dateStartTs } from '../../../libs/common/time.js';
+import { fetchAllPages } from '../../../libs/common/paging.js';
 import { getRealTimeSnapshotReport } from './rptDashboardApi.js';
 
 const TAG = 'rptSource';
 const MAX_PAGES = 200; // 安全上限，防止异常翻页
+/** 翻页取全量：pause 为每页间隔秒数，onPage 用来读首页的 summary/sum 等汇总字段 */
+const pageAll = (fetchPage, pause, onPage) => fetchAllPages(fetchPage, { maxPages: MAX_PAGES, pause, onPage });
 
 function todayStr() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function nowHHMM() { const d = new Date(); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
@@ -43,54 +45,34 @@ export function getReportLatestNode(token, date, tenantId) {
 
 /** 注册人数：剔除 userType=1 测试账号，只留正式+游客 */
 export function srcRegisterCount(token, startTs, endTs) {
-    let page = 1, totalPage = 1, count = 0;
-    while (page <= totalPage && page <= MAX_PAGES) {
-        const r = sendRequest({
-            registerBeginTime: startTs, registerEndTime: endTs,
-            pageNo: page, pageSize: 500, orderBy: 'Desc'
-        }, '/api/Users/GetPageList', TAG, false, token);
-        if (!r) break;
-        (r.list || []).forEach(u => { if (u.userType !== 1) count++; });
-        if (r.totalPage && r.totalPage > totalPage) totalPage = r.totalPage;
-        page++;
-        if (page <= totalPage) sleep(0.2);
-    }
+    let count = 0;
+    pageAll(page => sendRequest({
+        registerBeginTime: startTs, registerEndTime: endTs,
+        pageNo: page, pageSize: 500, orderBy: 'Desc'
+    }, '/api/Users/GetPageList', TAG, false, token), 0.2)
+        .forEach(u => { if (u.userType !== 1) count++; });
     return count;
 }
 
 /** 充值（Payed）：distinct 用户数 + actualAmount 求和 */
 export function srcRecharge(token, startTs, endTs) {
     const users = new Set(); let amount = 0;
-    let page = 1, totalPage = 1;
-    while (page <= totalPage && page <= MAX_PAGES) {
-        const r = sendRequest({
-            rechargeState: 'Payed', startTime: startTs, endTime: endTs,
-            pageNo: page, pageSize: 500, dateType: 0, orderBy: 'Desc'
-        }, '/api/RechargeOrder/GetRechargeOrderPageList', TAG, false, token);
-        if (!r) break;
-        (r.list || []).forEach(o => { users.add(o.userId); amount += parseFloat(o.actualAmount || 0); });
-        if (r.totalPage && r.totalPage > totalPage) totalPage = r.totalPage;
-        page++;
-        if (page <= totalPage) sleep(0.2);
-    }
+    pageAll(page => sendRequest({
+        rechargeState: 'Payed', startTime: startTs, endTime: endTs,
+        pageNo: page, pageSize: 500, dateType: 0, orderBy: 'Desc'
+    }, '/api/RechargeOrder/GetRechargeOrderPageList', TAG, false, token), 0.2)
+        .forEach(o => { users.add(o.userId); amount += parseFloat(o.actualAmount || 0); });
     return { userCount: users.size, amount };
 }
 
 /** 提现（Pass）：distinct 用户数 + actualAmount 求和（报表口径=扣手续费后实际到账）*/
 export function srcWithdraw(token, startTs, endTs) {
     const users = new Set(); let amount = 0;
-    let page = 1, totalPage = 1;
-    while (page <= totalPage && page <= MAX_PAGES) {
-        const r = sendRequest({
-            withdrawState: 'Pass', startTime: startTs, endTime: endTs,
-            pageNo: page, pageSize: 500, dateType: 1, orderBy: 'Desc', sortField: ''
-        }, '/api/WithdrawOrder/GetWithdrawOrderPageList', TAG, false, token);
-        if (!r) break;
-        (r.list || []).forEach(o => { users.add(o.userId); amount += parseFloat(o.actualAmount || 0); });
-        if (r.totalPage && r.totalPage > totalPage) totalPage = r.totalPage;
-        page++;
-        if (page <= totalPage) sleep(0.2);
-    }
+    pageAll(page => sendRequest({
+        withdrawState: 'Pass', startTime: startTs, endTime: endTs,
+        pageNo: page, pageSize: 500, dateType: 1, orderBy: 'Desc', sortField: ''
+    }, '/api/WithdrawOrder/GetWithdrawOrderPageList', TAG, false, token), 0.2)
+        .forEach(o => { users.add(o.userId); amount += parseFloat(o.actualAmount || 0); });
     return { userCount: users.size, amount };
 }
 
@@ -111,18 +93,12 @@ const RPT_WITHDRAW = '/api/RptUserInfo/GetUserRptWithdrawPageList';
 
 /** 登录人数：Users/GetPageList 按 loginBeginTime/loginEndTime，剔除 userType=1 测试账号后去重计数 */
 function srcLoginCount(token, startTs, endTs) {
-    let page = 1, totalPage = 1, count = 0;
-    while (page <= totalPage && page <= MAX_PAGES) {
-        const r = sendRequest({
-            loginBeginTime: startTs, loginEndTime: endTs,
-            pageNo: page, pageSize: 500, orderBy: 'Desc'
-        }, '/api/Users/GetPageList', TAG, false, token);
-        if (!r) break;
-        (r.list || []).forEach(u => { if (u.userType !== 1) count++; });
-        if (r.totalPage && r.totalPage > totalPage) totalPage = r.totalPage;
-        page++;
-        if (page <= totalPage) sleep(0.2);
-    }
+    let count = 0;
+    pageAll(page => sendRequest({
+        loginBeginTime: startTs, loginEndTime: endTs,
+        pageNo: page, pageSize: 500, orderBy: 'Desc'
+    }, '/api/Users/GetPageList', TAG, false, token), 0.2)
+        .forEach(u => { if (u.userType !== 1) count++; });
     return count;
 }
 
@@ -133,19 +109,12 @@ function srcLoginCount(token, startTs, endTs) {
 function srcBetGame(token, startTs, endTs) {
     const users = new Set();
     let winLose = 0, gotSum = false;
-    let page = 1, totalPage = 1;
-    while (page <= totalPage && page <= MAX_PAGES) {
-        const r = sendRequest({
-            queryTimeType: 'BetTime', beginTimeUnix: startTs, endTimeUnix: endTs,
-            pageNo: page, pageSize: 500, orderBy: 'Desc', sortField: 'BetTime'
-        }, '/api/ThirdGame/GetBetRecordPageList', TAG, false, token);
-        if (!r) break;
+    pageAll(page => sendRequest({
+        queryTimeType: 'BetTime', beginTimeUnix: startTs, endTimeUnix: endTs,
+        pageNo: page, pageSize: 500, orderBy: 'Desc', sortField: 'BetTime'
+    }, '/api/ThirdGame/GetBetRecordPageList', TAG, false, token), 0.2, r => {
         if (!gotSum && r.data && r.data.sum) { winLose = parseFloat(r.data.sum.winLoseAmount || 0); gotSum = true; }
-        (r.list || []).forEach(b => { if (b.userType !== 1) users.add(b.userId); });
-        if (r.totalPage && r.totalPage > totalPage) totalPage = r.totalPage;
-        page++;
-        if (page <= totalPage) sleep(0.2);
-    }
+    }).forEach(b => { if (b.userType !== 1) users.add(b.userId); });
     return { players: users.size, winLose };
 }
 
@@ -167,19 +136,12 @@ const ACTIVITY_TYPES = [
 function srcActivity(token, startTs, endTs) {
     const users = new Set();
     let amount = 0, gotSummary = false;
-    let page = 1, totalPage = 1;
-    while (page <= totalPage && page <= MAX_PAGES) {
-        const r = sendRequest({
-            searchUserIdType: 1, userTypeList: [0], financialTypeList: ACTIVITY_TYPES,
-            startTime: startTs, endTime: endTs, pageNo: page, pageSize: 500, orderBy: 'Desc'
-        }, '/api/Financial/GetPageList', TAG, false, token);
-        if (!r) break;
+    pageAll(page => sendRequest({
+        searchUserIdType: 1, userTypeList: [0], financialTypeList: ACTIVITY_TYPES,
+        startTime: startTs, endTime: endTs, pageNo: page, pageSize: 500, orderBy: 'Desc'
+    }, '/api/Financial/GetPageList', TAG, false, token), 0.2, r => {
         if (!gotSummary && r.summary) { amount = parseFloat(r.summary.totalAmount || 0); gotSummary = true; }
-        (r.list || []).forEach(x => users.add(x.userId));
-        if (r.totalPage && r.totalPage > totalPage) totalPage = r.totalPage;
-        page++;
-        if (page <= totalPage) sleep(0.2);
-    }
+    }).forEach(x => users.add(x.userId));
     return { userCount: users.size, amount };
 }
 
@@ -285,68 +247,35 @@ export function verifyAllMetrics(token, date, tenantId, tol = 0.01) {
 
 // 原始拉取：用户列表（byLogin=true 用 loginTime，否则 registerTime；均剔除 userType=1）
 function fetchUsersRaw(token, s, e, byLogin) {
-    const out = []; let page = 1, totalPage = 1;
-    while (page <= totalPage && page <= MAX_PAGES) {
-        const win = byLogin ? { loginBeginTime: s, loginEndTime: e } : { registerBeginTime: s, registerEndTime: e };
-        const r = sendRequest({ ...win, pageNo: page, pageSize: 500, orderBy: 'Desc' }, '/api/Users/GetPageList', TAG, false, token);
-        if (!r) break;
-        (r.list || []).forEach(u => { if (u.userType !== 1) out.push({ t: Number(byLogin ? u.lastLoginTime : u.registerTime) || 0, u: u.userId }); });
-        if (r.totalPage && r.totalPage > totalPage) totalPage = r.totalPage;
-        page++; if (page <= totalPage) sleep(0.15);
-    }
+    const win = byLogin ? { loginBeginTime: s, loginEndTime: e } : { registerBeginTime: s, registerEndTime: e };
+    const out = [];
+    pageAll(page => sendRequest({ ...win, pageNo: page, pageSize: 500, orderBy: 'Desc' }, '/api/Users/GetPageList', TAG, false, token), 0.15)
+        .forEach(u => { if (u.userType !== 1) out.push({ t: Number(byLogin ? u.lastLoginTime : u.registerTime) || 0, u: u.userId }); });
     return out;
 }
 
 // 原始拉取：订单（充值/提现）→ [{t, u, v}]
 function fetchOrdersRaw(token, api, extra, timeField, amountField) {
-    const out = []; let page = 1, totalPage = 1;
-    while (page <= totalPage && page <= MAX_PAGES) {
-        const r = sendRequest({ ...extra, pageNo: page, pageSize: 500 }, api, TAG, false, token);
-        if (!r) break;
-        (r.list || []).forEach(o => out.push({ t: Number(o[timeField]) || 0, u: o.userId, v: parseFloat(o[amountField] || 0) }));
-        if (r.totalPage && r.totalPage > totalPage) totalPage = r.totalPage;
-        page++; if (page <= totalPage) sleep(0.15);
-    }
-    return out;
+    return pageAll(page => sendRequest({ ...extra, pageNo: page, pageSize: 500 }, api, TAG, false, token), 0.15)
+        .map(o => ({ t: Number(o[timeField]) || 0, u: o.userId, v: parseFloat(o[amountField] || 0) }));
 }
 
 // 原始拉取：GetUserRpt* type=R1/R2/W1 → [{t: rechargeTime, v: rechargeAmount}]
 function fetchRptRaw(token, api, type, sStr, eStr) {
-    const out = []; let page = 1, totalPage = 1;
-    while (page <= totalPage && page <= MAX_PAGES) {
-        const r = sendQueryRequest({ type, startTime: sStr, endTime: eStr, pageNo: page, pageSize: 500 }, api, TAG, false, token);
-        if (!r) break;
-        (r.list || []).forEach(x => out.push({ t: Number(x.rechargeTime) || 0, v: parseFloat(x.rechargeAmount || 0) }));
-        if (r.totalPage && r.totalPage > totalPage) totalPage = r.totalPage;
-        page++; if (page <= totalPage) sleep(0.15);
-    }
-    return out;
+    return pageAll(page => sendQueryRequest({ type, startTime: sStr, endTime: eStr, pageNo: page, pageSize: 500 }, api, TAG, false, token), 0.15)
+        .map(x => ({ t: Number(x.rechargeTime) || 0, v: parseFloat(x.rechargeAmount || 0) }));
 }
 
 // 原始拉取：活动账变 Financial → [{t: createTime, u, v: amount}]
 function fetchFinancialRaw(token, s, e) {
-    const out = []; let page = 1, totalPage = 1;
-    while (page <= totalPage && page <= MAX_PAGES) {
-        const r = sendRequest({ searchUserIdType: 1, userTypeList: [0], financialTypeList: ACTIVITY_TYPES, startTime: s, endTime: e, pageNo: page, pageSize: 500, orderBy: 'Desc' }, '/api/Financial/GetPageList', TAG, false, token);
-        if (!r) break;
-        (r.list || []).forEach(x => out.push({ t: Number(x.createTime) || 0, u: x.userId, v: parseFloat(x.amount || 0) }));
-        if (r.totalPage && r.totalPage > totalPage) totalPage = r.totalPage;
-        page++; if (page <= totalPage) sleep(0.15);
-    }
-    return out;
+    return pageAll(page => sendRequest({ searchUserIdType: 1, userTypeList: [0], financialTypeList: ACTIVITY_TYPES, startTime: s, endTime: e, pageNo: page, pageSize: 500, orderBy: 'Desc' }, '/api/Financial/GetPageList', TAG, false, token), 0.15)
+        .map(x => ({ t: Number(x.createTime) || 0, u: x.userId, v: parseFloat(x.amount || 0) }));
 }
 
 // 原始拉取：投注 BetRecord → [{t: betTime, u, v: winLoseAmount, isTest}]
 function fetchBetRaw(token, s, e) {
-    const out = []; let page = 1, totalPage = 1;
-    while (page <= totalPage && page <= MAX_PAGES) {
-        const r = sendRequest({ queryTimeType: 'BetTime', beginTimeUnix: s, endTimeUnix: e, pageNo: page, pageSize: 500, orderBy: 'Desc', sortField: 'BetTime' }, '/api/ThirdGame/GetBetRecordPageList', TAG, false, token);
-        if (!r) break;
-        (r.list || []).forEach(b => out.push({ t: Number(b.betTime) || 0, u: b.userId, v: parseFloat(b.winLoseAmount || 0), isTest: b.userType === 1 }));
-        if (r.totalPage && r.totalPage > totalPage) totalPage = r.totalPage;
-        page++; if (page <= totalPage) sleep(0.15);
-    }
-    return out;
+    return pageAll(page => sendRequest({ queryTimeType: 'BetTime', beginTimeUnix: s, endTimeUnix: e, pageNo: page, pageSize: 500, orderBy: 'Desc', sortField: 'BetTime' }, '/api/ThirdGame/GetBetRecordPageList', TAG, false, token), 0.15)
+        .map(b => ({ t: Number(b.betTime) || 0, u: b.userId, v: parseFloat(b.winLoseAmount || 0), isTest: b.userType === 1 }));
 }
 
 // 累计工具

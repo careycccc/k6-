@@ -42,6 +42,10 @@ export default function () {
     calls = 0;
     const got2 = fetchAllPages(p => { calls++; return { data: { list: p <= 2 ? [p] : [], totalPage: 2 } }; }, { pause: 0 });
     eq('fetchAllPages 无 totalCount 按 totalPage', [got2, calls], [[1, 2], 2]);
+    const seenPages = [];
+    fetchAllPages(p => (p === 1 ? { list: [1], totalCount: 2, summary: 9 } : { list: [2], totalCount: 2 }), { pause: 0, onPage: (r, p) => seenPages.push([p, r.summary || 0]) });
+    eq('fetchAllPages onPage 回调', seenPages, [[1, 9], [2, 0]]);
+    eq('fetchAllPages 首页 null 立即停', fetchAllPages(() => null, { pause: 0 }), []);
 
     // time（3004 区号 91 → 5.5）
     eq('getTzOffset 3004', getTzOffset('3004'), 5.5);

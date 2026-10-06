@@ -40,6 +40,7 @@ export function extractTotalCount(res) {
  * @param {object} [opts]
  * @param {number} [opts.maxPages=200]  最多翻几页（防死循环）
  * @param {number} [opts.pause=0.3]     每页之间 sleep 秒数
+ * @param {(res:any, pageNo:number) => void} [opts.onPage]  每取到一页回调原始响应（取 summary/sum 等汇总字段用）
  * @returns {Array} 所有页的列表拼接
  *
  * 结束条件：本页为空 / 已收齐 totalCount / 到达 totalPage。
@@ -51,6 +52,7 @@ export function fetchAllPages(fetchPage, opts = {}) {
     const out = [];
     for (let pageNo = 1; pageNo <= maxPages; pageNo++) {
         const res = fetchPage(pageNo);
+        if (opts.onPage && res) opts.onPage(res, pageNo);
         const list = extractList(res);
         out.push(...list);
         const totalCount = extractTotalCount(res);
