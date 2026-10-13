@@ -15,8 +15,9 @@
  *   - 倍率 = 注单 profit（中奖金额 / 投注金额，两位小数）；投注金额 = betAmount；区间两端都算
  *   - 单条配置每日次数 everyDayRewardLimitNum：每个会员该配置最多触发 N 次，0 = 不限
  *   - 全局每日限制：每个会员当天所有配置合计（含当天老配置已触发的）；超出的记录状态为「系统不发」(3)，
- *     系统不发不算触发；超限按投注时间先后计
+ *     系统不发不算触发、也不判定（只核对未领取/已领取等真正触发的记录）；超限按投注时间先后计
  *   - 一笔注单满足多条配置：某条配置次数用完就改用其它满足条件的配置
+ *   - 记录快照不属于当前满足的配置，但投注之后有配置改动/关闭 → 视为旧版本配置触发，不判定（计入全局次数）
  *   - 只统计正式账号（userType=0）
  *   - 结算不足 GRACE_SEC 秒的注单若暂无记录，标「等待生成」而不是漏发（记录由定时任务约每分钟生成）
  *
@@ -87,7 +88,8 @@ export function normalizeConfig(c) {
 
 function scopeText(c) {
     let s = c.rangeType === 1 ? '电子游戏' : `指定厂商(${c.vendors.join(',')})`;
-    if (c.gameScope === 1) s += ' 指定子游戏:' + Object.keys(c.games).map(v => `${v}[${c.games[v].join(',')}]`).join(' ');
+    // 子游戏多时只显示厂商+个数，避免日志刷屏
+    if (c.gameScope === 1) s += ' 指定子游戏:' + Object.keys(c.games).map(v => (c.games[v].length > 5 ? `${v}(${c.games[v].length}个)` : `${v}[${c.games[v].join(',')}]`)).join(' ');
     return s;
 }
 
@@ -159,95 +161,86 @@ function getUserType(token, userId) {
 // 5. 逐会员按投注时间模拟并比对
 // ============================================================
 export function verifyUser(userId, bets, records, ctx) {
-    const { enabled, allConfigs, globalLimit, windowStart, runStart } = ctx;
-    const recByOrder = {};
-    records.forEach(r => { recByOrder[r.orderNo] = r; });
-
-    // 时间线：满足条件的注单 + 窗口外/不满足条件但已存在的有效记录（老配置当天触发的也占全局次数）
-    const qualifying = bets.map(b => ({ b, configs: matchConfigs(enabled, b) })).filter(x => x.configs.length > 0);
-    const qualOrders = new Set(qualifying.map(x => x.b.orderNo));
-    const events = qualifying.map(x => ({ t: Number(x.b.betTime), kind: 'bet', ...x }));
+    const { enabled, allConfigs, globalLimit, runStart } = ctx;
     const items = [];
+    const recByOrder = {}, betByOrder = {};
+    records.forEach(r => { recByOrder[r.orderNo] = r; });
+    bets.forEach(b => { betByOrder[b.orderNo] = b; });
+    // 「系统不发」不判定也不计次（只关心未领取/已领取等真正触发的记录）
+    const notSendCount = records.filter(r => r.receiveState === SYSTEM_NOT_SEND).length;
 
-    records.filter(r => !qualOrders.has(r.orderNo)).forEach(r => {
-        const t = Number(r.betTime);
-        if (t <= windowStart) {
-            events.push({ t, kind: 'old', r }); // 新配置生效前的记录：只占全局次数，不判对错
-        } else {
-            const snap = snapshotConfigs(allConfigs, r);
-            // 快照对应的配置现已关闭、且关闭(最后更新)晚于这笔投注 → 老配置当时正常触发，不判定，只占全局次数
-            const closedLater = snap.filter(c => c.state !== 1 && c.lastUpdateTime > t);
-            if (closedLater.length > 0) {
-                items.push({ status: 'info_old', orderNo: r.orderNo, r,
-                    note: `由已关闭配置 ${closedLater.map(c => c.id).join(',')} 触发（关闭于 ${fmt(closedLater[0].lastUpdateTime)}），不判定，计入全局次数` });
-            } else {
-                items.push({ status: 'extra', orderNo: r.orderNo, r,
-                    note: `注单不满足任何开启配置（${r.vendorCode}-${r.gameName} 倍率${toNum(r.multiple)} 投注${toNum(r.betAmount)}），记录快照对应配置：${snap.map(c => `${c.id}(${c.state === 1 ? '开启' : '已关闭'})`).join(',') || '无'}` });
-            }
-            if (r.receiveState !== SYSTEM_NOT_SEND) events.push({ t, kind: 'old', r });
-        }
+    // 时间线：真正触发的记录 + 满足条件却完全没有记录的注单，按投注时间先后
+    const events = records.filter(r => r.receiveState !== SYSTEM_NOT_SEND).map(r => ({ t: Number(r.betTime), kind: 'rec', r }));
+    let qualifyingCount = 0;
+    bets.forEach(b => {
+        const configs = matchConfigs(enabled, b);
+        if (configs.length === 0) return;
+        qualifyingCount++;
+        if (!recByOrder[b.orderNo]) events.push({ t: Number(b.betTime), kind: 'bet', b, configs });
     });
-    events.sort((a, b) => a.t - b.t);
+    events.sort((x, y) => x.t - y.t);
 
     let globalUsed = 0;
     const perConfig = {};
+    const availableOf = configs => configs.filter(c => !c.limit || (perConfig[c.id] || 0) < c.limit);
     for (const ev of events) {
-        if (ev.kind === 'old') {
-            if (ev.r.receiveState !== SYSTEM_NOT_SEND) {
-                globalUsed++;
-                snapshotConfigs(enabled, ev.r).slice(0, 1).forEach(c => { perConfig[c.id] = (perConfig[c.id] || 0) + 1; });
+        const overGlobal = globalLimit > 0 && globalUsed >= globalLimit;
+
+        if (ev.kind === 'bet') {
+            const { b, configs } = ev;
+            const available = availableOf(configs);
+            const base = { orderNo: b.orderNo, b, configs, available };
+            const settleAgo = (runStart - Number(b.settlementTime || b.betTime)) / 1000;
+            if (overGlobal) items.push({ ...base, status: 'ok_none', note: `已达全局每日限制 ${globalLimit}，不触发` });
+            else if (available.length === 0) items.push({ ...base, status: 'ok_none', note: `满足的配置 ${configs.map(c => c.id).join(',')} 当日次数已用完，不触发` });
+            else if (settleAgo < GRACE_SEC) items.push({ ...base, status: 'pending', note: `结算 ${Math.round(settleAgo)} 秒，记录可能尚未生成` });
+            else items.push({ ...base, status: 'missing', note: `满足配置 ${available.map(c => c.id).join(',')}，应触发但没有记录` });
+            continue;
+        }
+
+        const r = ev.r, t = ev.t;
+        const b = betByOrder[r.orderNo];
+        const configs = b ? matchConfigs(enabled, b) : [];
+        const snap = snapshotConfigs(configs, r);
+        const base = { orderNo: r.orderNo, b, r, configs };
+        globalUsed++;
+
+        if (snap.length === 0) {
+            // 快照不属于这笔注单满足的当前配置：投注之后有配置改动/关闭过 → 旧版本或已关闭配置当时触发，不判定
+            const snapAll = snapshotConfigs(allConfigs, r);
+            const validNow = snapAll.filter(c => c.state === 1 && c.lastUpdateTime < t);
+            const changedAfter = allConfigs.some(c => c.lastUpdateTime >= t);
+            validNow.slice(0, 1).forEach(c => { perConfig[c.id] = (perConfig[c.id] || 0) + 1; });
+            if (changedAfter && validNow.length === 0) {
+                items.push({ ...base, status: 'info_pre', note: `由配置改动/关闭前的版本触发（快照 倍率${toNum(r.minMultiple)}~${toNum(r.maxMultiple)} 投注${toNum(r.minBetAmount)}~${toNum(r.maxBetAmount)} 奖金${toNum(r.awardAmount)}${snapAll.length ? ' 对应 ' + snapAll.map(c => c.id).join(',') : ''}），不判定，计入全局次数` });
+            } else {
+                const why = validNow.length
+                    ? `注单不满足配置 ${validNow.map(c => c.id).join(',')}（${scopeText(validNow[0])} 倍率${validNow[0].minMultiple}~${validNow[0].maxMultiple} 投注${validNow[0].minBet}~${validNow[0].maxBet}）`
+                    : `快照(倍率${toNum(r.minMultiple)}~${toNum(r.maxMultiple)} 投注${toNum(r.minBetAmount)}~${toNum(r.maxBetAmount)} 奖金${toNum(r.awardAmount)})对应 ${snapAll.map(c => `${c.id}(${c.state === 1 ? '开启' : '已关闭'})`).join(',') || '无任何配置'}`;
+                items.push({ ...base, status: 'extra', note: `不应触发：${why}；注单满足的配置：${configs.map(c => c.id).join(',') || '无'}` });
             }
             continue;
         }
-        const { b, configs } = ev;
-        const r = recByOrder[b.orderNo];
-        const available = configs.filter(c => !c.limit || (perConfig[c.id] || 0) < c.limit);
-        const overGlobal = globalLimit > 0 && globalUsed >= globalLimit;
-        const base = { orderNo: b.orderNo, b, r, configs, available };
 
-        if (!r) {
-            const settleAgo = (runStart - Number(b.settlementTime || b.betTime)) / 1000;
-            if (available.length === 0) { items.push({ ...base, status: 'ok_none', note: `满足的配置当日次数已用完(${configs.map(c => c.id).join(',')})，无记录` }); continue; }
-            if (settleAgo < GRACE_SEC) { items.push({ ...base, status: 'pending', note: `结算 ${Math.round(settleAgo)} 秒，记录可能尚未生成` }); continue; }
-            items.push({ ...base, status: 'missing', note: overGlobal ? '应生成「系统不发」记录，但没有记录' : '应触发，但没有记录' });
-            continue;
-        }
-
-        const snap = snapshotConfigs(configs, r);
-        const snapIds = snap.map(c => c.id);
-        if (snap.length === 0) {
-            items.push({ ...base, status: 'wrong_config', note: `记录快照(倍率${toNum(r.minMultiple)}~${toNum(r.maxMultiple)} 投注${toNum(r.minBetAmount)}~${toNum(r.maxBetAmount)} 奖金${toNum(r.awardAmount)})不属于满足条件的配置 ${configs.map(c => c.id).join(',')}` });
-            if (r.receiveState !== SYSTEM_NOT_SEND) globalUsed++;
-            continue;
-        }
-
-        if (r.receiveState === SYSTEM_NOT_SEND) {
-            if (overGlobal) items.push({ ...base, status: 'ok_notsend', note: `超出全局每日限制 ${globalLimit}，系统不发` });
-            else if (available.length === 0) items.push({ ...base, status: 'ok_notsend', note: '满足的配置当日次数已用完，系统不发' });
-            else items.push({ ...base, status: 'wrong_notsend', note: `全局已用 ${globalUsed}/${globalLimit || '不限'}，可用配置 ${available.map(c => c.id).join(',')}，不应「系统不发」` });
-            continue;
-        }
-
-        // 有效触发
+        const available = availableOf(configs);
         const usedCfg = snap.find(c => available.includes(c));
         if (overGlobal) {
-            items.push({ ...base, status: 'over_global', note: `全局已用 ${globalUsed}/${globalLimit}，应「系统不发」却发了（${RECEIVE_STATE[r.receiveState] || r.receiveState}）` });
+            items.push({ ...base, status: 'over_global', note: `触发前全局已用 ${globalUsed - 1}/${globalLimit}，超出每日限制仍触发（${RECEIVE_STATE[r.receiveState] || r.receiveState}）` });
         } else if (!usedCfg) {
-            items.push({ ...base, status: 'over_config', note: `用的配置 ${snapIds.join(',')} 当日次数已满（${snap.map(c => `${perConfig[c.id] || 0}/${c.limit}`).join(',')}）` });
+            items.push({ ...base, status: 'over_config', note: `配置 ${snap.map(c => `${c.id} 已用${perConfig[c.id] || 0}/${c.limit}`).join(',')}，超出单配置每日次数仍触发` });
         } else {
-            items.push({ ...base, status: 'ok_sent', note: `配置 ${usedCfg.id} 第 ${(perConfig[usedCfg.id] || 0) + 1} 次，全局第 ${globalUsed + 1} 次` });
+            items.push({ ...base, status: 'ok_sent', note: `配置 ${usedCfg.id} 第 ${(perConfig[usedCfg.id] || 0) + 1} 次，全局第 ${globalUsed} 次` });
         }
         const c = usedCfg || snap[0];
         perConfig[c.id] = (perConfig[c.id] || 0) + 1;
-        globalUsed++;
     }
-    return { userId, items, globalUsed, perConfig, qualifyingCount: qualifying.length };
+    return { userId, items, globalUsed, perConfig, qualifyingCount, notSendCount };
 }
 
 const STATUS_TEXT = {
-    ok_sent: '✅ 正确触发', ok_notsend: '✅ 正确系统不发', ok_none: '✅ 次数用完不触发', info_old: 'ℹ️ 老配置触发',
-    pending: '⏳ 等待生成', missing: '❌ 漏发', extra: '❌ 多发', wrong_config: '❌ 配置不符',
-    wrong_notsend: '❌ 不该系统不发', over_global: '❌ 超全局限制仍发', over_config: '❌ 超单配置次数仍发'
+    ok_sent: '✅ 正确触发', ok_none: '✅ 次数用完不触发', info_pre: 'ℹ️ 配置改动前触发',
+    pending: '⏳ 等待生成', missing: '❌ 漏发', extra: '❌ 多发',
+    over_global: '❌ 超全局限制仍发', over_config: '❌ 超单配置次数仍发'
 };
 
 // ============================================================
@@ -287,7 +280,7 @@ export default function () {
 
     const results = formal.map(uid => verifyUser(uid, users[uid].bets, users[uid].records,
         { enabled, allConfigs, globalLimit, windowStart, runStart }))
-        .filter(u => u.items.length > 0 || u.qualifyingCount > 0);
+        .filter(u => u.items.length > 0 || u.qualifyingCount > 0 || u.notSendCount > 0);
 
     // ---------------- 报表 ----------------
     const lines = ['', '================ 超级大奖触发验证 ================'];
@@ -299,7 +292,7 @@ export default function () {
         u.items.forEach(it => { c[it.status] = (c[it.status] || 0) + 1; counter[it.status] = (counter[it.status] || 0) + 1; });
         const bad = u.items.filter(it => STATUS_TEXT[it.status].startsWith('❌'));
         lines.push('--------------------------------------------------');
-        lines.push(`会员 ${u.userId}：满足条件注单 ${u.qualifyingCount} 笔 | 有效触发 ${u.globalUsed} 次（全局限制 ${globalLimit || '不限'}）| 各配置 ${Object.keys(u.perConfig).map(k => `${k}:${u.perConfig[k]}`).join(' ') || '-'} | ${bad.length ? `❌ ${bad.length} 处问题` : '✅ 正常'}`);
+        lines.push(`会员 ${u.userId}：满足条件注单 ${u.qualifyingCount} 笔 | 有效触发 ${u.globalUsed} 次（全局限制 ${globalLimit || '不限'}）| 系统不发 ${u.notSendCount} 条(不判定) | 各配置 ${Object.keys(u.perConfig).map(k => `${k}:${u.perConfig[k]}`).join(' ') || '-'} | ${bad.length ? `❌ ${bad.length} 处问题` : '✅ 正常'}`);
         u.items.slice().sort((a, b) => Number((a.b || a.r).betTime) - Number((b.b || b.r).betTime)).forEach(it => {
             const src = it.b || it.r;
             lines.push(`  ${STATUS_TEXT[it.status]}  ${fmt(src.betTime)} ${src.vendorCode}-${src.gameName || src.gameCode} 投注${toNum(src.betAmount)} 倍率${it.b ? betMultiple(it.b) : toNum(src.multiple)}`
@@ -309,7 +302,8 @@ export default function () {
     }
     const badTotal = Object.keys(counter).filter(k => STATUS_TEXT[k].startsWith('❌')).reduce((s, k) => s + counter[k], 0);
     lines.push('==================================================');
-    lines.push('汇总：' + (Object.keys(counter).map(k => `${STATUS_TEXT[k]} ${counter[k]}`).join(' | ') || '窗口内没有满足条件的注单，也没有大奖记录'));
+    const notSendTotal = results.reduce((n, u) => n + u.notSendCount, 0);
+    lines.push('汇总：' + (notSendTotal ? `系统不发 ${notSendTotal} 条(不判定) | ` : '') + (Object.keys(counter).map(k => `${STATUS_TEXT[k]} ${counter[k]}`).join(' | ') || '窗口内没有满足条件的注单，也没有大奖记录'));
     lines.push(`结论：${badTotal === 0 ? '✅ 全部符合规则' : `❌ 发现 ${badTotal} 处问题，见上方明细`}`);
     lines.push('==================================================');
     console.log(lines.join('\n'));
