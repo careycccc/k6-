@@ -80,6 +80,14 @@ function prevDateStr(dateStr) {
 
 function numEq(a, b) { return Math.abs(Number(a) - Number(b)) < TOL; }
 
+/** 前日累计充值应命中的档位：落在某档 [min, max] 内；超过最高档上限也按最高档；落在档位空档或低于最低档 → null */
+function hitTierOf(tiers, amount) {
+    const inRange = tiers.find(t => amount >= Number(t.minAmount) - TOL && amount <= Number(t.maxAmount) + TOL);
+    if (inRange) return inRange;
+    const top = tiers.reduce((a, t) => (Number(t.minAmount) > Number(a.minAmount) ? t : a), tiers[0]);
+    return amount > Number(top.maxAmount) + TOL ? top : null;
+}
+
 // ================= 数据拉取（翻页） =================
 
 
@@ -292,18 +300,21 @@ export default function (data) {
 
     // 前一天有充值但未生成奖励记录的会员（未命中档位）——只打印这些异常，正常的不打
     const noReward = [];
+    let missingReward = 0; // 应该有奖励（落档或超最高档）却没有记录
     Object.keys(d1Sum).forEach(u => {
         if (!recordUidSet.has(Number(u))) noReward.push({ userId: Number(u), amount: d1Sum[u] });
     });
     if (noReward.length > 0) {
         console.log(`[${TAG}] ⚠️ 前一天有充值但未生成奖励记录 ${noReward.length} 人：`);
         noReward.sort((a, b) => a.userId - b.userId).forEach(x => {
-            const hit = tiers.find(t => x.amount >= Number(t.minAmount) - TOL && x.amount <= Number(t.maxAmount) + TOL);
+            const hit = hitTierOf(tiers, x.amount);
             const regT = d1RegTime[x.userId];
             const isNewToday = regT && regT >= d1Range.startTime && regT <= d1Range.endTime;
             const regInfo = regT ? `注册于 ${fmtDateTime(regT, offsetMin)}${isNewToday ? ' ⚑当天注册' : ''}` : '注册时间未知';
             if (hit) {
-                console.log(`[${TAG}]     ❌ userId=${x.userId} 前一天充值 ${x.amount.toFixed(2)} 落档[${hit.minAmount}-${hit.maxAmount}] 无奖励记录 | ${regInfo}`);
+                missingReward++;
+                const overTop = x.amount > Number(hit.maxAmount) + TOL ? '（超过最高档上限，应按最高档给）' : '';
+                console.log(`[${TAG}]     ❌ userId=${x.userId} 前一天充值 ${x.amount.toFixed(2)} 落档[${hit.minAmount}-${hit.maxAmount}]${overTop} 无奖励记录 | ${regInfo}`);
             } else {
                 console.log(`[${TAG}]     userId=${x.userId} 前一天充值 ${x.amount.toFixed(2)} 未落档位(正常无奖励) | ${regInfo}`);
             }
@@ -334,8 +345,10 @@ export default function (data) {
         if (!tier) {
             fails.push(`命中档位[${r.hitTierMin}-${r.hitTierMax}]在配置中不存在`);
         } else {
-            if (!(prevRecharge >= Number(r.hitTierMin) - TOL && prevRecharge <= Number(r.hitTierMax) + TOL)) {
-                fails.push(`前日累计${prevRecharge}不在命中档位[${r.hitTierMin}-${r.hitTierMax}]内`);
+            const expectTier = hitTierOf(tiers, prevRecharge);
+            // 按金额区间比较，不能用 ===：k6 setup 传进来的对象每次取出来都是新引用
+            if (!expectTier || !numEq(expectTier.minAmount, tier.minAmount) || !numEq(expectTier.maxAmount, tier.maxAmount)) {
+                fails.push(`前日累计${prevRecharge}应落档${expectTier ? `[${expectTier.minAmount}-${expectTier.maxAmount}]` : '(无档位)'}，记录命中[${r.hitTierMin}-${r.hitTierMax}]`);
             }
             // C. 档位配置字段
             if (!numEq(r.freeReward, tier.freeReward)) fails.push(`免费奖励不符: 记录=${r.freeReward} 配置=${tier.freeReward}`);
@@ -378,6 +391,7 @@ export default function (data) {
         }
     }
 
+    stats.missingReward = missingReward;
     printReport(stats, failDetails, prevDate, rewardDate);
 }
 
@@ -394,6 +408,7 @@ function printReport(stats, failDetails, prevDate, rewardDate) {
     console.log(`  奖励记录总数 : ${stats.total}`);
     console.log(`  ✅ 验证通过  : ${stats.pass}`);
     console.log(`  ❌ 验证失败  : ${stats.fail}`);
+    console.log(`  ❌ 应有奖励却没生成记录 : ${stats.missingReward || 0}（前一天充值落档或超过最高档上限，明细见上方日志）`);
     console.log(sline);
     if (failDetails.length > 0) {
         console.log('  失败明细:');

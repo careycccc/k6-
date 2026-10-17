@@ -169,6 +169,12 @@ export function setup() {
             logger.info(`[${TAG}] ⏭️ userId=${u.userId} 账号为邮箱，跳过`);
             continue;
         }
+        // 过滤非纯数字的账号（如游客账号，account 字段是设备指纹风格的十六进制字符串，不是真手机号）
+        // detectAccountType 只认 email/纯数字手机号，这类账号会被判成 unknown 导致 AutoLogin 失败
+        if (!/^\d+$/.test(realAccount)) {
+            logger.warn(`[${TAG}] ⏭️ userId=${u.userId} 账号格式异常(非手机号非邮箱，可能是游客账号): ${realAccount}，跳过`);
+            continue;
+        }
         candidates.push({ account: realAccount, userId: u.userId });
         // 够用就停止查询
         if (candidates.length >= accountCount * 3) break;

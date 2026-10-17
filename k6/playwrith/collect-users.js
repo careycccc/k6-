@@ -150,7 +150,8 @@ async function setPassword(userId, token) {
   // 2) 分页拉取 userId + account
   const users = [];
   for (let pageNo = 1; users.length < TARGET; pageNo++) {
-    const listPayload = { userType: 0, pageNo, pageSize: PAGE_SIZE, orderBy: 'Desc' };
+    // userType 后台要求 List<UserTypeEnum>，传标量 0 会报类型转换错误，必须包成数组
+    const listPayload = { userType: [0], pageNo, pageSize: PAGE_SIZE, orderBy: 'Desc' };
     if (PACKAGE_ID) listPayload.packageId = [PACKAGE_ID];  // 渠道过滤：packageId 数组（同后台 payload 格式 "packageId":["100051"]）
     const r = await post('/api/Users/GetPageList', listPayload, token);
     if (r.code !== 0 || !r.data || !Array.isArray(r.data.list)) {

@@ -269,6 +269,37 @@ function buildTextReport(data, opts) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 定位 k6/reports/ 的绝对路径，不依赖运行 k6 命令时的当前工作目录
+//
+// handleSummary 返回对象的 key 就是输出文件路径，k6 按"相对于运行时 cwd"解析。
+// 之前硬编码 'k6/reports/...' 只有从仓库根目录(D:\project\k6-)运行才能解析对，
+// 从脚本自己所在的深层目录直接跑（比如 cd 到 tests/api/xxx 再 k6 run xxx.test.js）
+// 就会把 'k6/reports' 拼到错误的位置，导致目录不存在、文件写入失败。
+// 本机 k6 版本 import.meta.url 是 undefined（import.meta 对象存在但没填充这个标准属性），
+// 用不了；改用 import.meta.resolve('.')——这是 per-module 的，在本文件里调用拿到的就是
+// 本文件（libs/monitor/perfSummary.js）自己所在目录的绝对 file:// URL，
+// 已实测验证：不管入口脚本在哪，这里拿到的都是 "file:///D:/project/k6-/k6/libs/monitor/"。
+// 反推出 k6/ 根目录，这样不管从哪个目录运行都能定位到同一个 k6/reports/。
+// ─────────────────────────────────────────────────────────────────────────────
+function resolveReportsDir() {
+    try {
+        if (!import.meta || typeof import.meta.resolve !== 'function') return 'k6/reports'; // 不可用时回退旧写法
+
+        let p = import.meta.resolve('.').replace(/^file:\/\//, ''); // .../k6/libs/monitor/（末尾带斜杠的目录）
+        p = decodeURIComponent(p);
+        // Windows 下形如 "/D:/project/.../libs/monitor/"，开头多一个 "/" 要去掉
+        if (/^\/[A-Za-z]:\//.test(p)) p = p.slice(1);
+        p = p.replace(/\/$/, ''); // 去掉结尾斜杠，方便后面 endsWith 判断
+
+        if (!p.endsWith('/libs/monitor')) return 'k6/reports'; // 位置不符合预期，回退兜底
+        const k6Root = p.slice(0, -'/libs/monitor'.length); // .../k6
+        return `${k6Root}/reports`;
+    } catch (e) {
+        return 'k6/reports';
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 公开入口
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -291,20 +322,21 @@ export function buildHandleSummary(data, opts = {}) {
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const baseName  = `${testName}-${environment}-${timestamp}`;
+    const reportsDir = resolveReportsDir();
 
     const result = {
         // 终端报告 = k6 默认 textSummary + 自定义性能分析报告
         stdout: textSummary(data, { indent: ' ', enableColors: true }) + buildTextReport(data, opts),
 
         // HTML 可视化报告
-        [`k6/reports/${baseName}.html`]: htmlReport(data, {
+        [`${reportsDir}/${baseName}.html`]: htmlReport(data, {
             title: `${testName} | 租户 ${environment}`,
         }),
     };
 
     // JSON 原始数据（可接入 Grafana / 数据平台）
     if (saveJson) {
-        result[`k6/reports/${baseName}.json`] = JSON.stringify(data, null, 2);
+        result[`${reportsDir}/${baseName}.json`] = JSON.stringify(data, null, 2);
     }
 
     return result;
