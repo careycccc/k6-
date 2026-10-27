@@ -1,88 +1,98 @@
 /**
- * 邀请转盘 多天留存造数 —— Node 包装器（负责写 txt）
+ * 邀请转盘 每日造数 —— Node 包装器（负责落盘状态）
  *
  * k6 沙箱无法写文件，故由本脚本 spawn k6：
  *   - 实时透传 k6 进度；
- *   - 从 stderr 提取 `##ALL##<账号>`（当天所有相关账号）、`##PART##<账号>`（参与过转盘的）；
- *   - k6 退出码为 0 时，写入 retention/all_dayNN.txt 与 retention/participants_dayNN.txt
- *     （读旧 + 本次去重合并，追加式）。
- *   - DAY>=2 由 k6 用 open() 读上一天 retention/all_day(NN-1).txt。
+ *   - 从 stdout/stderr 提取 `##ACCT##<完整JSON记录>`；
+ *   - k6 退出码为 0 时，用 ndjsonStore 按 account 覆盖合并写入
+ *     state/accounts_<tenantId>.ndjson（累计全量表，不按天分文件）。
+ *   - 运行前若状态文件不存在，先创建空文件，避免 k6 侧 open() 在首次运行时报错。
+ *
+ * ⚠️ Breaking change：旧版本按天分文件的 retention/*.txt（all_dayNN.txt 等）
+ * 不再被写入，但保留在磁盘上不删除，避免影响 retentionLoginVerify.js /
+ * retentionLoginRunner.js 等仍可能依赖旧文件的现有工具。旧数据不迁移，新逻辑
+ * 从空状态表重新开始累积（旧格式没有 userId/真实注册日，没法套公式转换）。
  *
  * 用法（在本目录内运行）：
- *   node inviteWheelRunner.js --day 1 --agents 3 --subs 2 --rounds 2 --tenant 3004
- *   node inviteWheelRunner.js --day 2 --tenant 3004     # 读 all_day01.txt
- *   node inviteWheelRunner.js --day 4 --tenant 3004
- * 
+ *   node inviteWheelRunner.js --tenant 3004 --agents 2 --subs 3 --rounds 2
+ *   node inviteWheelRunner.js --tenant 3004                          # agents 不传则 1~3 随机
+ *   node inviteWheelRunner.js --tenant 3004 --skip-register          # 只做老账号留存检查
+ *   node inviteWheelRunner.js --tenant 3004 --skip-retention         # 只做新总代造数
  *
  * 参数：
- *   --day     第几天 1~3（默认 1）
- *   --tenant  租户ID（默认 3004）
- *   --agents  D1 总代数（默认 3）
- *   --subs    每轮每总代邀请下级数（默认 3）
- *   --rounds  轮数（默认 2）
- *   --vus     D2/D3 并发 VU 数（默认 5）
- *   --country 手机号区号（可选）
+ *   --tenant               租户ID（默认 3004）
+ *   --agents               新总代数（默认不传，1~3 随机；调试/压测场景可固定）
+ *   --subs                 每轮每总代邀请下级数（默认 3）
+ *   --rounds               轮数（默认 2）
+ *   --retention-vus        老账号留存检查并发 VU 数（默认 5）
+ *   --country              手机号区号（可选）
+ *   --login-rate           老账号登录概率（默认 0.72）
+ *   --reparticipate-rate   登录后重新走完整流程概率（默认 0.20）
+ *   --fission-rate         下级裂变参与概率，只转一次轮盘不递归（默认 0.5）
+ *   --skip-register        跳过新总代造数，只做老账号留存检查
+ *   --skip-retention       跳过老账号留存检查，只做新总代造数
  */
 
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { parseArgs } = require('../../../../libs/node/args.js');
+const { loadStore, upsertRecord, saveStore, extractTaggedRecord } = require('../../../../libs/common/ndjsonStore.js');
 
 const args = parseArgs(process.argv);
 
-const DAY = parseInt(args.day || process.env.DAY || '1', 10);
 const tenant = args.tenant || process.env.TENANT_ID || '3004';
-const agents = args.agents || '3';
+const agents = args.agents || process.env.AGENTS || '';
 const subs = args.subs || '3';
 const rounds = args.rounds || '2';
-const vus = args.vus || '5';
+const retentionVus = args['retention-vus'] || '5';
 const country = args.country || process.env.COUNTRY_CODE || '';
+const loginRate = args['login-rate'] || '0.72';
+const reparticipateRate = args['reparticipate-rate'] || '0.20';
+const fissionRate = args['fission-rate'] || '0.5';
+const skipRegister = !!args['skip-register'];
+const skipRetention = !!args['skip-retention'];
 
 const SCRIPT = 'inviteWheelRetention.day.js';
 const scriptDir = __dirname;
-const retentionDir = path.join(scriptDir, 'retention');
-const dayStr = String(DAY).padStart(2, '0');
-const allFile = path.join(retentionDir, `all_day${dayStr}.txt`);
-const partFile = path.join(retentionDir, `participants_day${dayStr}.txt`);
-const agentFile = path.join(retentionDir, `agents_day${dayStr}.txt`);
+const stateDir = path.join(scriptDir, 'state');
+const stateFile = path.join(stateDir, `accounts_${tenant}.ndjson`);
 
-// DAY>=2：校验上一天 all 文件存在
-if (DAY >= 2) {
-    const prev = path.join(retentionDir, `all_day${String(DAY - 1).padStart(2, '0')}.txt`);
-    if (!fs.existsSync(prev)) {
-        console.error(`\n❌ 上一天文件不存在：${prev}\n   请先成功跑完 DAY=${DAY - 1}。`);
-        process.exit(1);
-    }
-}
-if (!fs.existsSync(retentionDir)) fs.mkdirSync(retentionDir, { recursive: true });
+// 首次运行前确保状态文件存在（哪怕是空文件），避免 k6 侧 open() 报错
+if (!fs.existsSync(stateDir)) fs.mkdirSync(stateDir, { recursive: true });
+if (!fs.existsSync(stateFile)) fs.writeFileSync(stateFile, '', 'utf-8');
 
 // -------- 组装 k6 -e 参数 --------
-const envs = { DAY: String(DAY), TENANT_ID: tenant, SUBS: subs, ROUNDS: rounds, VUS: vus, VIA_RUNNER: '1' };
-if (DAY === 1) envs.AGENTS = agents;
+const envs = {
+    TENANT_ID: tenant,
+    SUBS: subs,
+    ROUNDS: rounds,
+    RETENTION_VUS: retentionVus,
+    LOGIN_RATE: loginRate,
+    REPARTICIPATE_RATE: reparticipateRate,
+    FISSION_RATE: fissionRate,
+    VIA_RUNNER: '1'
+};
+if (agents) envs.AGENTS = agents;
 if (country) envs.COUNTRY_CODE = country;
+if (skipRegister) envs.SKIP_REGISTER = '1';
+if (skipRetention) envs.SKIP_RETENTION = '1';
 
 const eArgs = Object.entries(envs).flatMap(([k, v]) => ['-e', `${k}=${v}`]);
 const k6Args = ['run', '--summary-mode=disabled', '-q', ...eArgs, SCRIPT];
 
-console.log(`\n🚀 邀请转盘留存造数  DAY=${DAY}  租户=${tenant}${DAY === 1 ? `  总代=${agents} 下级/轮=${subs} 轮=${rounds}` : `  并发VU=${vus}`}`);
+console.log(`\n🚀 邀请转盘每日造数  租户=${tenant}${agents ? `  总代=${agents}` : '  总代=1~3随机'}  下级/轮=${subs}  轮=${rounds}  留存VU=${retentionVus}`);
+console.log(`🎲 LOGIN_RATE=${loginRate}  REPARTICIPATE_RATE=${reparticipateRate}  FISSION_RATE=${fissionRate}`);
 console.log(`💻 k6 ${k6Args.join(' ')}   (cwd=${scriptDir})\n`);
 
 const child = spawn('k6', k6Args, { cwd: scriptDir, windowsHide: true });
 
-const allAccts = [];
-const partAccts = [];
-const agentAccts = [];
+const acctRecords = [];
 let buf = '';
 
 function handleLine(line) {
-    // 账号无空格无引号，用 [^\s"]+ 避免吞掉 k6 日志 msg="..." 的闭合引号
-    const am = line.match(/##ALL##([^\s"]+)/);
-    if (am) { allAccts.push(am[1].trim()); return; }
-    const pm = line.match(/##PART##([^\s"]+)/);
-    if (pm) { partAccts.push(pm[1].trim()); return; }
-    const gm = line.match(/##AGENT##([^\s"]+)/);
-    if (gm) { agentAccts.push(gm[1].trim()); return; }
+    const record = extractTaggedRecord(line, 'ACCT');
+    if (record) acctRecords.push(record);
 }
 
 function scan(chunk) {
@@ -107,28 +117,18 @@ child.on('close', (code) => {
     if (buf) handleLine(buf);
 
     if (code !== 0) {
-        console.error(`\n❌ k6 退出码 ${code}；已提取 all=${new Set(allAccts).size}、part=${new Set(partAccts).size}，但不写盘（避免污染）。`);
+        console.error(`\n❌ k6 退出码 ${code}；已提取 ${acctRecords.length} 条账号记录，但不写盘（避免污染）。`);
         process.exit(code);
     }
 
-    const allWritten = writeMerged(allFile, allAccts);
-    const partWritten = writeMerged(partFile, partAccts);
-    const agentWritten = writeMerged(agentFile, agentAccts);
-
-    console.log(`\n✅ DAY=${DAY} 完成`);
-    console.log(`   ${allFile}   → 累计 ${allWritten} 个账号（本次新增去重 ${new Set(allAccts).size}）`);
-    console.log(`   ${partFile} → 累计 ${partWritten} 个参与账号（本次新增去重 ${new Set(partAccts).size}）`);
-    console.log(`   ${agentFile} → 累计 ${agentWritten} 个总代（本次新增去重 ${new Set(agentAccts).size}）`);
-    if (DAY < 3) console.log(`\n   下一天： node inviteWheelRunner.js --day ${DAY + 1} --tenant ${tenant}`);
-});
-
-/** 读旧 + 本次去重合并写回；返回累计条数 */
-function writeMerged(file, accts) {
-    let existing = [];
-    if (fs.existsSync(file)) {
-        try { existing = fs.readFileSync(file, 'utf-8').split(/\r?\n/).map(s => s.trim()).filter(Boolean); } catch (e) { /* 读失败当空 */ }
+    const store = loadStore(stateFile, 'account');
+    const beforeCount = store.size;
+    for (const record of acctRecords) {
+        upsertRecord(store, record, 'account');
     }
-    const merged = Array.from(new Set(existing.concat(accts.map(s => s.trim()).filter(Boolean))));
-    fs.writeFileSync(file, merged.join('\n') + (merged.length ? '\n' : ''), 'utf-8');
-    return merged.length;
-}
+    saveStore(stateFile, store);
+
+    console.log('\n✅ 本次造数完成');
+    console.log(`   ${stateFile}`);
+    console.log(`   累计账号: ${store.size}（本次新增/更新: ${acctRecords.length} 条标记，新增账号: ${store.size - beforeCount}）`);
+});

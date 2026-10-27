@@ -115,7 +115,9 @@ function calcWithdrawAmount(balance) {
  * @param {string} inviteIdentifier - 邀请标识（inviteCode / userId / 转盘码）
  * @param {string} adminToken     - 后台 token（用于获取验证码）
  * @param {object} embedOptions   - 埋点参数（null 表示普通注册）
- *   { pixelId, eventConfigId, eventType, packageName }
+ *   { pixelId, eventConfigId, eventType, packageName, campaignId, adSetId, adId }
+ *   campaignId/adSetId/adId 仅埋点注册(isEmbed=true)时才有归因意义，普通注册不传。
+ *   ⚠️ 三个字段名是假设，需要和后端对齐，参照 facebookRegister.js 同样的猜测。
  * @param {string} countryCode    - 区号
  * @returns {object|null} { token, userId, account, isEmbed }
  */
@@ -152,7 +154,7 @@ function registerSubUser(userName, inviteIdentifier, adminToken, embedOptions, c
         timestamp:   timeData.timestamp
     };
 
-    // 埋点注册：加入 eventIdentity
+    // 埋点注册：加入 eventIdentity + FB广告归因三个ID（仅埋点场景有归因意义）
     if (isEmbed) {
         const eventIdentityInfo = JSON.stringify({
             PixelId:        embedOptions.pixelId,
@@ -167,9 +169,13 @@ function registerSubUser(userName, inviteIdentifier, adminToken, embedOptions, c
             eventType:         embedOptions.eventType,
             eventIdentityInfo: eventIdentityInfo
         }];
+        payload.campaignId = embedOptions.campaignId || '';
+        payload.adSetId    = embedOptions.adSetId || '';
+        payload.adId       = embedOptions.adId || '';
     }
 
-    // 3. 签名
+    // 3. 签名（手动列举字段的签名机制，不是自动过滤剩余字段——campaignId/
+    // adSetId/adId 存在时必须也加进 signPayload，否则签名和实际 payload 不一致）
     const signPayload = {
         loginType:   'Mobile',
         userName:    userName,
@@ -183,6 +189,11 @@ function registerSubUser(userName, inviteIdentifier, adminToken, embedOptions, c
         language:    'en',
         random:      timeData.random
     };
+    if (isEmbed) {
+        signPayload.campaignId = payload.campaignId;
+        signPayload.adSetId    = payload.adSetId;
+        signPayload.adId       = payload.adId;
+    }
     const signClient   = new httpClient.constructor();
     const signedParams = signClient.signData(signPayload);
     payload.signature  = signedParams.signature;

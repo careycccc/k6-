@@ -1,29 +1,42 @@
 /**
- * 邀请转盘 - 多天留存造数 k6 脚本（配合 inviteWheelRunner.js 使用）
+ * 邀请转盘 - 每日造数 k6 脚本（配合 inviteWheelRunner.js 使用）
  *
- * ⚠️ 账号落盘由 Node 包装器 inviteWheelRunner.js 完成（k6 沙箱无法写文件）：
- *    - 账号打成标记行走 stderr：`##ALL##<账号>`（所有相关账号）、`##PART##<账号>`（参与过转盘的）
- *    - runner 收集后写入 retention/all_dayNN.txt 与 retention/participants_dayNN.txt
- *    - DAY>=2 用 open() 读上一天 all_dayNN.txt
+ * ⚠️ 账号状态由 Node 包装器 inviteWheelRunner.js 落盘（k6 沙箱无法写文件）：
+ *    - 账号打成标记行走 stdout/stderr：`##ACCT##<完整JSON记录>`
+ *    - runner 收集后用 ndjsonStore 按 account 覆盖合并写入 state/accounts_<tenantId>.ndjson
+ *    - 本脚本 init 阶段用 open() 读取的是全量累计状态表（不是"上一天"文件，不按天分文件）
  *
- * D1（造数）：起 AGENTS 个总代（每 VU 一个，并发），每总代 参与转盘 → ROUNDS 轮 × SUBS 下级
- *            （下级充值1000 + 50%参与）→ 满足提现就提现。
- * D2/D3（留存+行为）：读上一天账号，70%充投 / 20%只充 / 5%只登录 / 5%不登录，另独立 30% 额外参与转盘并邀请。
- *            登录即留存；除 5% 不登录外都写当天 all，供下一天。
+ * 一条命令每天跑两件事（默认都做，不是像旧版 DAY1/DAY2 那样二选一）：
+ *   ① 新注册 AGENTS 个总代（不传时 1~3 随机），每个走完整流程：开礼物盒→转盘→
+ *      拿邀请码→并发邀请 SUBS 个下级（http.batch 并发发送注册请求，失败的用
+ *      现状退避重试补足）→下级充值成功后按 FISSION_RATE 概率自己转一次轮盘
+ *      （不递归）→满足条件提现。共 ROUNDS 轮。
+ *   ② 本地状态里全部 registerDate < today 的老账号（总代和下级一视同仁，不再
+ *      像旧版分治成"总代池固定抽30%"+"下级洗牌分段70/20/5/5"）：每个账号独立
+ *      按 LOGIN_RATE 概率登录，登录成功的再独立按 REPARTICIPATE_RATE 概率重新
+ *      走一遍①同款的完整流程（即该账号变成新一轮的邀请发起人）。
  *
- * 运行（推荐）：
- *    node inviteWheelRunner.js --day 1 --agents 3 --subs 3 --rounds 2 --tenant 3004
- *    node inviteWheelRunner.js --day 2 --tenant 3004
+ * 运行（推荐，经 runner）：
+ *    node inviteWheelRunner.js --tenant 3004 --agents 2 --subs 3 --rounds 2
+ *    node inviteWheelRunner.js --tenant 3004                      # agents 不传则 1~3 随机
+ *    node inviteWheelRunner.js --tenant 3004 --skip-register      # 只做老账号留存检查
+ *    node inviteWheelRunner.js --tenant 3004 --skip-retention     # 只做新总代造数
  *
  * 参数（-e，由 runner 组装）：
- *    TENANT_ID / DAY / AGENTS / SUBS / ROUNDS / VUS / VU_GAP / COUNTRY_CODE / VIA_RUNNER
+ *    TENANT_ID / AGENTS(可选，不传随机1~3) / SUBS / ROUNDS / RETENTION_VUS / COUNTRY_CODE
+ *    LOGIN_RATE / REPARTICIPATE_RATE / FISSION_RATE / SKIP_REGISTER / SKIP_RETENTION / VIA_RUNNER
  */
 
+/* global open */
+
+import http from 'k6/http';
 import { sleep } from 'k6';
+import { httpClient } from '../../../../libs/http/client.js';
 import { tenantAdminLogin } from '../../../../libs/http/tenantRequest.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../../config/envconfig.js';
+import { getDayRange } from '../../../../libs/common/time.js';
 import { generateRandomPhone } from '../../../utils/accountGeneratorFaker.js';
-import { generateCryptoRandomString } from '../../../utils/utils.js';
+import { generateCryptoRandomString, getTimeRandom } from '../../../utils/utils.js';
 import { phoneRegister, phoneRegisterByInvite } from '../../login/register.test.js';
 import { getFrontUserInfo } from '../../user/userManagement.js';
 import { hybridRecharge } from '../../recharge/rechargeService.js';
@@ -43,65 +56,62 @@ import { extractToken } from '../../../../libs/common/index.js';
 // ================= 参数（init 上下文） =================
 
 const TENANT_ID = __ENV.TENANT_ID || '3004';
-const DAY = parseInt(__ENV.DAY || '1', 10);
-const AGENTS = parseInt(__ENV.AGENTS || '3', 10);   // D1 总代数（=VU 数）
+const AGENTS = __ENV.AGENTS ? parseInt(__ENV.AGENTS, 10) : (1 + Math.floor(Math.random() * 3)); // 不传时 1~3 随机
 const SUBS = parseInt(__ENV.SUBS || '3', 10);       // 每轮每总代邀请下级数
 const ROUNDS = parseInt(__ENV.ROUNDS || '2', 10);   // 轮数
-const VUS = parseInt(__ENV.VUS || '5', 10);         // D2/D3 并发 VU 数
+const RETENTION_VUS = parseInt(__ENV.RETENTION_VUS || '5', 10); // 老账号留存检查并发 VU 数
 const VU_GAP = parseFloat(__ENV.VU_GAP || '1');     // VU 启动错峰秒
 const MAX_REG_ATTEMPTS = parseInt(__ENV.MAX_REG_ATTEMPTS || '3', 10);
+const SKIP_REGISTER = __ENV.SKIP_REGISTER === '1';
+const SKIP_RETENTION = __ENV.SKIP_RETENTION === '1';
 
 const RECHARGE_AMOUNT = 1000;
 const BET_UNIT = 20, BET_MULTIPLE = 10; // 投注 200
-const SUB_PARTICIPATE_RATE = 0.5;       // 下级 50% 参与
+const LOGIN_RATE = parseFloat(__ENV.LOGIN_RATE || '0.72');
+const REPARTICIPATE_RATE = parseFloat(__ENV.REPARTICIPATE_RATE || '0.20');
+const FISSION_RATE = parseFloat(__ENV.FISSION_RATE || '0.5'); // 原 SUB_PARTICIPATE_RATE，语义不变：下级只转一次轮盘，不递归
 
-// DAY>=2：init 阶段读上一天 all 账号 + 总代列表（open 相对本脚本目录）
-let PREV_ACCOUNTS = [];
-let PREV_AGENTS = [];
-if (DAY >= 2) {
-    const prevFile = `./retention/all_day${String(DAY - 1).padStart(2, '0')}.txt`;
-    try {
-        PREV_ACCOUNTS = open(prevFile).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-    } catch (e) {
-        throw new Error(`[InviteWheel] ❌ DAY=${DAY} 读上一天文件 ${prevFile} 失败：${e.message}（请确认已生成且 runner 在脚本目录运行）`);
-    }
-    const prevAgentFile = `./retention/agents_day${String(DAY - 1).padStart(2, '0')}.txt`;
-    try {
-        PREV_AGENTS = open(prevAgentFile).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-    } catch (e) {
-        console.warn(`[InviteWheel] ⚠️ 未找到上一天总代文件 ${prevAgentFile}，DAY≥2 将没有总代持续参与（请用新版从 DAY=1 重跑以生成 agents 文件）`);
-    }
+const today = getDayRange(0, TENANT_ID).dateStr;
+
+// init 阶段读全量状态表（累计表，不按天分文件；runner 保证首次运行前文件已存在，哪怕是空文件）
+const STATE_FILE = './state/accounts_' + TENANT_ID + '.ndjson';
+let ALL_RECORDS = [];
+try {
+    ALL_RECORDS = open(STATE_FILE).split(/\r?\n/).map(s => s.trim()).filter(Boolean).map(line => JSON.parse(line));
+} catch (e) {
+    console.warn(`[InviteWheel] ⚠️ 状态文件 ${STATE_FILE} 不存在或读取失败，视为首次运行(无老账号)：${e.message}`);
 }
+const OLD_RECORDS = ALL_RECORDS.filter(r => r.registerDate && r.registerDate < today);
 
-const D2_VUS = Math.max(1, Math.min(VUS, PREV_ACCOUNTS.length || 1));
-const RUN_VUS = DAY === 1 ? Math.max(1, AGENTS) : D2_VUS;
+const RUN_RETENTION_VUS = Math.max(1, Math.min(RETENTION_VUS, OLD_RECORDS.length || 1));
 
 export const options = {
     scenarios: {
-        invite_wheel_retention: {
-            executor: 'per-vu-iterations',
-            vus: RUN_VUS,
-            iterations: 1,
-            maxDuration: '180m'
-        }
+        ...(SKIP_REGISTER ? {} : {
+            new_agents: {
+                executor: 'per-vu-iterations',
+                vus: Math.max(1, AGENTS),
+                iterations: 1,
+                exec: 'runNewAgents',
+                maxDuration: '180m'
+            }
+        }),
+        ...(SKIP_RETENTION ? {} : {
+            old_accounts_retention: {
+                executor: 'per-vu-iterations',
+                vus: RUN_RETENTION_VUS,
+                iterations: 1,
+                exec: 'runRetention',
+                maxDuration: '180m'
+            }
+        })
     }
 };
 
 // ================= 工具 =================
 
-function emitAll(acct) { console.log(`##ALL##${acct}`); }
-function emitPart(acct) { console.log(`##PART##${acct}`); }
-function emitAgent(acct) { console.log(`##AGENT##${acct}`); }
-
-
-function shuffle(arr) {
-    const a = arr.slice();
-    for (let i = a.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const t = a[i]; a[i] = a[j]; a[j] = t;
-    }
-    return a;
-}
+/** 把一条完整账号记录打成标记行给 runner 落盘；记录须自带读旧值+追加新值后的最终状态 */
+function emitAcct(record) { console.log(`##ACCT##${JSON.stringify(record)}`); }
 
 /** 固定金额投注（复用 runbet 底层，多游戏重试）；投注额 = unit×multiple */
 function betFixed(loginToken, unit, multiple, userName) {
@@ -177,11 +187,95 @@ function registerWithRetry(kind, parentCode, ctx) {
 }
 
 /**
- * 完整“邀请转盘”轮次：共 ROUNDS 轮，每轮都完整走一遍（照 verifySameDeviceInvite 的 cross_round）：
- *   点礼物盒 + 转盘 → 拿最新邀请码 → 邀请 SUBS 个下级(充1000 + 50%参与) → 满足就提现。
- * 这样 2 轮 = 2 次转盘 + 2 次提现（修复“两轮只提现一次”）。
+ * 并发批量注册 count 个下级：用 k6 原生 http.batch 并发发送 /api/Home/Register
+ * 请求（绕开 httpClient.post 的逐个同步封装，手动复刻 phoneRegisterByInvite 的
+ * payload 结构——该函数内部没有手动签名，是靠 httpClient.post 的 _signIfNeeded
+ * 自动签名；这里要自己调 signData 补上 signature/timestamp 再发送）。
+ *
+ * 返回成功的下级列表 [{phone, token, userId}]；失败的（包括网络错误、业务失败）
+ * 不出现在返回值里，调用方用 registerWithRetry 顺序补足差额，不丢失现状的重试保护。
  */
-function runWheelRounds(agentToken, agentPhone, ctx) {
+function registerSubsBatch(count, parentCode, ctx) {
+    const { countryCode, customUrls } = ctx;
+    const customRegisterUrl = customUrls && customUrls.registerUrl ? customUrls.registerUrl : null;
+    const api = '/api/Home/Register';
+    const baseUrl = customRegisterUrl || ENV_CONFIG.BASE_DESK_URL;
+    const fullUrl = baseUrl + api;
+
+    const plans = [];
+    for (let i = 0; i < count; i++) {
+        const phone = generateRandomPhone(countryCode);
+        const timeData = getTimeRandom();
+        const deviceId = generateCryptoRandomString(16);
+        const browserId = generateCryptoRandomString(32);
+        const payload = {
+            userName: phone,
+            inviteCode: parentCode,
+            loginType: 'Mobile',
+            turnstileToken: '',
+            password: 'qwer1234',
+            code: '',
+            deviceId: deviceId,
+            browserId: browserId,
+            language: timeData.language,
+            random: timeData.random,
+            signature: '',
+            timestamp: timeData.timestamp
+        };
+        // 签名：照抄 facebookRegister.js 的手动签名范式（新建一个 signClient 实例，避免影响全局单例状态）
+        const signClient = new httpClient.constructor();
+        const signed = signClient.signData(payload);
+        payload.signature = signed.signature;
+        payload.timestamp = signed.timestamp;
+        plans.push({ phone, payload });
+    }
+
+    const headers = { ...httpClient.defaultHeaders, Domainurl: baseUrl, Referrer: baseUrl };
+    const requests = plans.map(p => ({
+        method: 'POST',
+        url: fullUrl,
+        body: JSON.stringify(p.payload),
+        params: { headers }
+    }));
+
+    let responses;
+    try {
+        responses = http.batch(requests);
+    } catch (e) {
+        console.error(`[InviteWheel][VU${__VU}] 并发批量注册请求失败: ${e.message}`);
+        return [];
+    }
+
+    const results = [];
+    responses.forEach((res, idx) => {
+        const phone = plans[idx].phone;
+        if (!res || !res.body) return;
+        let parsed;
+        try {
+            parsed = typeof res.body === 'string' ? JSON.parse(res.body) : res.body;
+        } catch (e) {
+            console.warn(`[InviteWheel][VU${__VU}] 下级${phone}注册响应解析失败: ${e.message}`);
+            return;
+        }
+        const statusCode = parsed.code !== undefined ? parsed.code : parsed.msgCode;
+        if (statusCode !== 0) return;
+        const token = parsed.data && parsed.data.token;
+        const userId = parsed.data && parsed.data.userId;
+        if (token && userId) results.push({ phone, token, userId });
+    });
+    return results;
+}
+
+/**
+ * 完整"邀请转盘"轮次：共 ROUNDS 轮，每轮都完整走一遍（照 verifySameDeviceInvite 的 cross_round）：
+ *   点礼物盒 + 转盘 → 拿最新邀请码 → 并发邀请 SUBS 个下级(充1000 + FISSION_RATE参与) → 满足就提现。
+ * 这样 2 轮 = 2 次转盘 + 2 次提现（修复"两轮只提现一次"）。
+ * @param {string} agentToken
+ * @param {string} agentPhone
+ * @param {object} ctx
+ * @param {object} agentRecord - 发起人的完整状态记录(供 emitAcct 写回 participatedDates)
+ */
+function runWheelRounds(agentToken, agentPhone, ctx, agentRecord) {
     const adminToken = ctx.adminData.token;
     let marked = false;
     for (let round = 1; round <= ROUNDS; round++) {
@@ -190,124 +284,116 @@ function runWheelRounds(agentToken, agentPhone, ctx) {
         if (!spin || !spin.success) { console.error(`[InviteWheel][VU${__VU}] 第${round}轮点礼物盒失败`); continue; }
         sleep(5);
         clickSpinningTurntable(agentToken);
-        if (!marked) { emitPart(agentPhone); marked = true; } // 本人参与一次即计入 participants
+        if (!marked) {
+            marked = true;
+            agentRecord.participatedDates = (agentRecord.participatedDates || []).concat([today]);
+            emitAcct(agentRecord); // 本人参与一次即记入完整流程参与记录
+        }
 
         // 2) 拿最新邀请码
         const share = clickShareLink(agentToken);
         if (!share || !share.success || !share.inviteCode) { console.error(`[InviteWheel][VU${__VU}] 第${round}轮拿邀请码失败`); continue; }
         const wheelCode = share.inviteCode.slice(0, -1) + 'W';
 
-        // 3) 邀请 SUBS 个下级：注册 + 充1000 + 50%参与
-        for (let s = 0; s < SUBS; s++) {
-            const sub = registerWithRetry('sub', wheelCode, ctx);
-            if (!sub) continue;
-            emitAll(sub.phone);
-            hybridRecharge({ userToken: sub.token, adminToken, userId: sub.userId, amount: RECHARGE_AMOUNT, frontendFirst: true, remark: `InviteWheelSub-D${DAY}` });
-            if (Math.random() < SUB_PARTICIPATE_RATE) {
-                if (participateWheel(sub.token)) emitPart(sub.phone);
+        // 3) 并发注册 SUBS 个下级，失败的用顺序退避重试补足
+        const subs = registerSubsBatch(SUBS, wheelCode, ctx);
+        if (subs.length < SUBS) {
+            console.warn(`[InviteWheel][VU${__VU}] 第${round}轮并发注册仅成功${subs.length}/${SUBS}个，顺序重试补足`);
+            for (let i = subs.length; i < SUBS; i++) {
+                const sub = registerWithRetry('sub', wheelCode, ctx);
+                if (sub) subs.push(sub);
+            }
+        }
+
+        // 4) 逐个下级：落状态 + 充1000 + FISSION_RATE 概率裂变参与(只转一次轮盘，不递归)
+        for (const sub of subs) {
+            const subRecord = { account: sub.phone, password: 'qwer1234', userId: sub.userId, tenantId: TENANT_ID, registerDate: today, role: 'sub' };
+            emitAcct(subRecord);
+            hybridRecharge({ userToken: sub.token, adminToken, userId: sub.userId, amount: RECHARGE_AMOUNT, frontendFirst: true, remark: `InviteWheelSub-${today}` });
+            if (Math.random() < FISSION_RATE) {
+                if (participateWheel(sub.token)) {
+                    subRecord.fissionDates = [today];
+                    emitAcct(subRecord);
+                }
             }
             sleep(1);
         }
 
-        // 4) 本轮下级充值后，转盘金额累积 → 满足就提现（每轮一次）
+        // 5) 本轮下级充值后，转盘金额累积 → 满足就提现（每轮一次）
         sleep(3);
         tryWithdraw(agentToken);
     }
 }
 
-// ================= D1：造数 =================
+// ================= Scenario①：新总代造数 =================
 
-function runDay1(ctx) {
+export function runNewAgents(data) {
+    const ctx = buildCtx(data);
+    // VU 启动错峰，缓解注册写库限流
+    if (VU_GAP > 0 && __VU > 1) sleep((__VU - 1) * VU_GAP);
+
     const agent = registerWithRetry('agent', null, ctx);
-    if (!agent) { console.error(`[InviteWheel][D1][VU${__VU}] 总代注册失败`); return; }
-    emitAll(agent.phone);
-    emitAgent(agent.phone); // 标记为总代，供 DAY≥2 让总代持续参与
-    console.log(`[InviteWheel][D1][VU${__VU}] 总代 ${agent.phone} 注册成功，开始 ${ROUNDS} 轮邀请转盘`);
+    if (!agent) { console.error(`[InviteWheel][NewAgent][VU${__VU}] 总代注册失败`); return; }
+    const agentRecord = { account: agent.phone, password: 'qwer1234', userId: agent.userId, tenantId: TENANT_ID, registerDate: today, role: 'agent' };
+    emitAcct(agentRecord);
+    console.log(`[InviteWheel][NewAgent][VU${__VU}] 总代 ${agent.phone} 注册成功，开始 ${ROUNDS} 轮邀请转盘`);
 
-    runWheelRounds(agent.token, agent.phone, ctx); // 每轮：参与转盘 + 邀请 SUBS 下级 + 提现
+    runWheelRounds(agent.token, agent.phone, ctx, agentRecord);
 }
 
-// ================= D2/D3：总代持续参与+邀请，下级只登录留存 =================
+// ================= Scenario②：老账号留存检查（总代+下级一视同仁） =================
 
-function runDayN(myAccounts, agentSet, partAgentSet, ctx) {
-    if (myAccounts.length === 0) return;
-    const agents = myAccounts.filter(a => agentSet.has(a));
-    const subs = shuffle(myAccounts.filter(a => !agentSet.has(a)));
-    const partAgents = agents.filter(a => partAgentSet.has(a));
+export function runRetention(data) {
+    const ctx = buildCtx(data);
+    if (VU_GAP > 0 && __VU > 1) sleep((__VU - 1) * VU_GAP);
 
-    console.log(`[InviteWheel][D${DAY}][VU${__VU}] 本片 总代${agents.length}(其中${partAgents.length}个参与转盘+邀请) 下级${subs.length}(登录留存)`);
+    const myRecords = OLD_RECORDS.filter((_, i) => i % RUN_RETENTION_VUS === (__VU - 1));
+    if (myRecords.length === 0) return;
 
-    // 1) 总代：都登录留存；被抽中的（总代池全局 30%）才额外参与转盘 + 邀请新下级
-    for (const account of agents) {
-        const token = loginWithPassword(account, 'qwer1234'); // 登录=留存
+    console.log(`[InviteWheel][Retention][VU${__VU}] 本片老账号 ${myRecords.length} 个，LOGIN_RATE=${LOGIN_RATE} REPARTICIPATE_RATE=${REPARTICIPATE_RATE}`);
+
+    for (const record of myRecords) {
+        if (Math.random() >= LOGIN_RATE) continue; // 未命中登录概率，今天不登录，不 emit(状态不变)
+
+        const token = loginWithPassword(record.account, record.password || 'qwer1234');
         if (!token) { sleep(1); continue; }
-        if (partAgentSet.has(account)) {
-            runWheelRounds(token, account, ctx); // 每轮：参与转盘 + 邀请 SUBS 下级 + 提现
+
+        record.loginDates = (record.loginDates || []).concat([today]);
+        emitAcct(record); // 登录成功即留存，先写回登录记录
+
+        if (Math.random() < REPARTICIPATE_RATE) {
+            // 重新走一遍完整流程：开礼物盒→转盘→拿邀请码→并发邀请新下级→满足就提现
+            runWheelRounds(token, record.account, ctx, record);
+        } else {
+            // 不重新参与时也顺带让投注行为更贴近真实留存用户(照旧版 betFixed 行为，非必需但保留现状习惯)
+            const info = getFrontUserInfo(token);
+            if (info && info.userId) betFixed(token, BET_UNIT, BET_MULTIPLE, record.account);
         }
-        emitAll(account);   // 总代留存
-        emitAgent(account); // 持续为总代，供下一天
-        sleep(1);
-    }
-
-    // 2) 下级：行为分层登录留存，不参与转盘
-    const n = subs.length;
-    const n70 = Math.floor(n * 0.70);
-    const n90 = n70 + Math.floor(n * 0.20);
-    const n95 = n90 + Math.floor(n * 0.05);
-    // [0,n70) 充投 | [n70,n90) 只充 | [n90,n95) 只登录 | [n95,n) 不登录
-    console.log(`[InviteWheel][D${DAY}][VU${__VU}] 下级分层：充投${n70} 只充${n90 - n70} 只登录${n95 - n90} 不登录${n - n95}`);
-
-    for (let i = 0; i < subs.length; i++) {
-        const account = subs[i];
-        const behavior = i < n70 ? 'both' : i < n90 ? 'recharge' : i < n95 ? 'login' : 'skip';
-        if (behavior === 'skip') continue; // 5% 不登录：不写 all
-
-        const token = loginWithPassword(account, 'qwer1234'); // 登录=留存
-        if (!token) { sleep(1); continue; }
-        const info = getFrontUserInfo(token);
-        const userId = info && info.userId;
-
-        if ((behavior === 'both' || behavior === 'recharge') && userId) {
-            hybridRecharge({ userToken: token, adminToken: ctx.adminData.token, userId, amount: RECHARGE_AMOUNT, frontendFirst: true, remark: `InviteWheelD${DAY}` });
-        }
-        if (behavior === 'both') { sleep(1); betFixed(token, BET_UNIT, BET_MULTIPLE, account); }
-
-        emitAll(account); // 登录成功（非不登录）→ 写当天 all，供下一天
         sleep(1);
     }
 }
 
-// ================= Setup / VU =================
+// ================= Setup / 公共上下文 =================
 
 export function setup() {
-    console.log(`[InviteWheel] ========== 邀请转盘留存造数 DAY=${DAY} 租户=${TENANT_ID} ==========`);
+    console.log(`[InviteWheel] ========== 邀请转盘每日造数 租户=${TENANT_ID} 今日=${today} ==========`);
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
 
     const adminToken = tenantAdminLogin(TENANT_ID);
     if (!adminToken) throw new Error(`[InviteWheel] ❌ 租户 ${TENANT_ID} 管理员登录失败`);
-    console.log(`[InviteWheel] ✅ 管理员登录成功`);
+    console.log('[InviteWheel] ✅ 管理员登录成功');
 
     ensureWheelConfig(adminToken); // 确保活动开启
-    console.log(`[InviteWheel] DAY=${DAY} | ${DAY === 1 ? `总代 ${AGENTS} × 每轮 ${SUBS} 下级 × ${ROUNDS} 轮` : `上一天账号 ${PREV_ACCOUNTS.length} 人，${RUN_VUS} VU 分片`}`);
-    if (!__ENV.VIA_RUNNER) console.warn(`[InviteWheel] ⚠️ 直接 k6 run 不会写 txt（沙箱限制），请用：node inviteWheelRunner.js --day ${DAY} --tenant ${TENANT_ID}`);
+    console.log(`[InviteWheel] ${SKIP_REGISTER ? '(跳过新总代造数)' : `新总代=${AGENTS} × 每轮${SUBS}下级 × ${ROUNDS}轮`} | ${SKIP_RETENTION ? '(跳过老账号留存检查)' : `老账号=${OLD_RECORDS.length}个，${RUN_RETENTION_VUS} VU分片`}`);
+    if (!__ENV.VIA_RUNNER) console.warn(`[InviteWheel] ⚠️ 直接 k6 run 不会落盘状态(沙箱限制)，请用：node inviteWheelRunner.js --tenant ${TENANT_ID}`);
 
-    // DAY≥2：从「总代池」全局抽 30%（至少1）参与转盘——只在总代里算，不在全部账号里稀释，保证总代参与几率
-    let partAgents = [];
-    if (DAY >= 2 && PREV_AGENTS.length > 0) {
-        const shuffled = PREV_AGENTS.slice();
-        for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = t; }
-        partAgents = shuffled.slice(0, Math.max(1, Math.floor(PREV_AGENTS.length * 0.30)));
-        console.log(`[InviteWheel] DAY=${DAY} 总代池 ${PREV_AGENTS.length} 人 → 全局抽 ${partAgents.length} 个参与转盘(约30%)`);
-    }
-
-    return { token: adminToken, envConfig, partAgents };
+    return { token: adminToken, envConfig };
 }
 
-export default function (data) {
+function buildCtx(data) {
     const { token: adminToken, envConfig } = data;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
-
     const countryCode = __ENV.COUNTRY_CODE || envConfig.COUNTRY_CODE || '91';
     const adminData = { token: adminToken, envConfig };
     const customUrls = {
@@ -315,17 +401,5 @@ export default function (data) {
         adminUrl: envConfig.BASE_ADMIN_URL,
         registerUrl: envConfig.INVITE_REGISTER_URL || envConfig.BASE_DESK_URL
     };
-    const ctx = { countryCode, adminData, customUrls };
-
-    // VU 启动错峰，缓解注册写库限流
-    if (VU_GAP > 0 && __VU > 1) sleep((__VU - 1) * VU_GAP);
-
-    if (DAY === 1) {
-        runDay1(ctx);
-    } else {
-        const myAccounts = PREV_ACCOUNTS.filter((_, i) => i % RUN_VUS === (__VU - 1));
-        const agentSet = new Set(PREV_AGENTS);
-        const partAgentSet = new Set(data.partAgents || []);
-        runDayN(myAccounts, agentSet, partAgentSet, ctx);
-    }
+    return { countryCode, adminData, customUrls };
 }

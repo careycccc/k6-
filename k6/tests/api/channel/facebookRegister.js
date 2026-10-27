@@ -36,7 +36,14 @@ function generateFbp() {
  *   - inviteCode:     邀请码（默认空）
  *   - registerUrl:    自定义注册域名（可选）
  *   - customFrontUrl: 自定义前台域名（可选，用于发送验证码）
+ *   - campaignId:     FB广告系列ID（默认空，FB广告分析归因用）
+ *   - adSetId:        FB广告组ID（默认空）
+ *   - adId:           FB广告ID（默认空）
  * @returns {object|null} 注册结果，含 { headers, data, code, msg, deviceId }
+ *
+ * ⚠️ campaignId/adSetId/adId 是假设字段名，需要和后端对齐：现在按最合理的猜测
+ * 放在 payload 顶层(和 eventIdentity 平级)。等后端接口文档出来后，如果字段名
+ * 或位置不同，改动范围只在这个函数的 payload/signPayload 构造处。
  */
 export function facebookIdentityRegister(userName, data, options = {}) {
     const {
@@ -47,7 +54,10 @@ export function facebookIdentityRegister(userName, data, options = {}) {
         packageName = 'com.ar3004.fb.app',
         inviteCode = '',
         registerUrl = null,
-        customFrontUrl = null
+        customFrontUrl = null,
+        campaignId = '',
+        adSetId = '',
+        adId = ''
     } = options;
 
     console.log(`[FbRegister] ========== 开始 Facebook 埋点注册 (ID: ${eventConfigId}) ==========`);
@@ -92,6 +102,9 @@ export function facebookIdentityRegister(userName, data, options = {}) {
         deviceId: deviceId,
         browserId: browserId,
         packageName: packageName,
+        campaignId: campaignId,
+        adSetId: adSetId,
+        adId: adId,
         eventIdentity: [
             {
                 eventConfigId: eventConfigId,
@@ -105,7 +118,9 @@ export function facebookIdentityRegister(userName, data, options = {}) {
         timestamp: timeData.timestamp
     };
 
-    // 5. 签名
+    // 5. 签名（这里是手动列举字段的签名机制，不是自动过滤剩余字段——
+    // campaignId/adSetId/adId 必须也加进 signPayload，否则签名会和实际
+    // payload 不一致导致后端验签失败）
     const signPayload = {
         loginType: 'Mobile',
         userName: userName,
@@ -116,6 +131,9 @@ export function facebookIdentityRegister(userName, data, options = {}) {
         deviceId: deviceId,
         browserId: browserId,
         packageName: packageName,
+        campaignId: campaignId,
+        adSetId: adSetId,
+        adId: adId,
         language: 'en',
         random: timeData.random
     };

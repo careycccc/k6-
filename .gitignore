@@ -47,6 +47,10 @@ temp/
 test-data/
 *.testdata.*
 
+# FB广告分析 / 邀请转盘每日造数的本地状态(含真实手机号，不提交)
+k6/tests/api/fbAd/state/
+k6/tests/api/activity/inviteTurntable/state/
+
 # 敏感信息文件
 docs/工作.txt
 **/工作.txt
