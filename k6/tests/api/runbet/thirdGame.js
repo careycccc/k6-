@@ -61,7 +61,9 @@ export function getThirdGameUrl(token, gameCode) {
         timestamp: timeData.timestamp
     };
     const signedCheckData = signClient.signData(checkPayload);
-    const checkResponse = http.post(baseUrl + checkApi, JSON.stringify(signedCheckData), { headers });
+    // 2026-10-29补：直接裸调k6原生http，绕开libs/http/client.js，单独打tag——
+    // tag名字和betToken.js里同一个接口的调用保持一致，报告里会合并统计。
+    const checkResponse = http.post(baseUrl + checkApi, JSON.stringify(signedCheckData), { headers, tags: { name: 'CheckCanBet' } });
     console.log('[ThirdGame] CheckCanBet响应状态:', checkResponse.status);
 
     if (checkResponse.status === 200 && checkResponse.body) {
@@ -82,7 +84,8 @@ export function getThirdGameUrl(token, gameCode) {
     }
 
     const response = http.post(baseUrl + api, JSON.stringify(signedData), {
-        headers: headers
+        headers: headers,
+        tags: { name: 'GetGameUrl' }
     });
 
     console.log('[ThirdGame] 响应状态:', response.status);

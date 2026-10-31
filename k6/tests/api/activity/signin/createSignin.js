@@ -204,7 +204,7 @@ function createSigninActivity1(data) {
 
         //logger.info(`[${createSigninTag}] 活动类型1 payload: ${JSON.stringify(payload)}`);
 
-        const result = sendRequest(payload, api, createSigninTag, false, token);
+        const result = sendRequest(payload, api, createSigninTag, false, token, true);
 
         //logger.info(`[${createSigninTag}] 活动类型1创建响应: ${JSON.stringify(result)}`);
 
@@ -387,7 +387,7 @@ function createSigninActivity2(data) {
 
         //logger.info(`[${createSigninTag}] 活动类型2 payload: ${JSON.stringify(payload)}`);
 
-        const result = sendRequest(payload, api, createSigninTag, false, token);
+        const result = sendRequest(payload, api, createSigninTag, false, token, true);
 
         //logger.info(`[${createSigninTag}] 活动类型2创建响应: ${JSON.stringify(result)}`);
 
@@ -428,7 +428,7 @@ function querySigninActivities(data) {
 
         const payload = {};
 
-        const result = sendQueryRequest(payload, api, createSigninTag, false, token);
+        const result = sendQueryRequest(payload, api, createSigninTag, false, token, true);
 
         if (!result) {
             logger.error(`[${createSigninTag}] 查询活动列表失败: 响应为空`);
@@ -526,7 +526,7 @@ function enableSigninActivities(data, activityIds) {
                 "state": 1
             };
 
-            const result = sendRequest(payload, api, createSigninTag, false, token);
+            const result = sendRequest(payload, api, createSigninTag, false, token, true);
 
             logger.info(`[${createSigninTag}] 启用响应: ${JSON.stringify(result)}`);
 

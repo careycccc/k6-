@@ -2,9 +2,11 @@ import { sleep } from 'k6';
 import { AdminLogin } from '../../login/adminlogin.test.js';
 import { phoneRegisterByInvite } from '../../login/register.test.js';
 import { getFrontUserInfo } from '../../user/userManagement.js';
-import { getAgentHierarchyList } from '../../invite/agentApi.js';
+import { getTeamMembersAuto } from '../../invite/agentApi.js';
 import { batchGetUserAccounts, autoLoginByAccount } from '../../user/userAccountApi.js';
-import { generateRandomPhone } from '../../../utils/accountGeneratorFaker.js';
+// 同 step1_register.js：只用 generateRandomPhone，改走不带Faker后缀的纯JS版，
+// 避免连带触发 k6/x/faker 扩展依赖检测(普通k6二进制无该扩展时会联网构建超时)。
+import { generateRandomPhone } from '../../../utils/accountGenerator.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../../config/envconfig.js';
 
 /**
@@ -37,7 +39,7 @@ export function setup() {
     const rootId = parseInt(__ENV.ROOT_ID);
     const teamName = __ENV.TEAM_NAME || 'Team';
     console.log(`\n[Invite] 拉取 ${teamName} 活树 (ROOT_ID: ${rootId}) 以挑选上级 ...`);
-    const members = getAgentHierarchyList(adminToken, rootId);
+    const members = getTeamMembersAuto(adminToken, rootId, tenantId);
     console.log(`[Invite] ${teamName} 现有成员 ${members.length} 人`);
 
     return { adminToken, envConfig, members };

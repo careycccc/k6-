@@ -1,0 +1,25 @@
+2026/10/30-16:26:04.385 272bc Reusing MANIFEST D:\project\k6-\k6\playwrith\.browser_profiles\profile_2144035850\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/MANIFEST-000001
+2026/10/30-16:26:04.386 272bc Recovering log #9
+2026/10/30-16:26:04.386 272bc Reusing old log D:\project\k6-\k6\playwrith\.browser_profiles\profile_2144035850\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/000009.log 
+2026/10/30-16:26:04.386 272bc Delete type=2 #8
+2026/10/30-16:26:04.484 25f6c Level-0 table #14: started
+2026/10/30-16:26:04.488 25f6c Level-0 table #14: 925 bytes OK
+2026/10/30-16:26:04.495 25f6c Delete type=0 #9
+2026/10/30-16:26:04.495 ce24 Manual compaction at level-0 from '\x00\x0e\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0f\x00\x00\x00' @ 0 : 0; will stop at '\x00\x0e\x00\x00\x05' @ 671 : 1
+2026/10/30-16:26:04.496 ce24 Compacting 1@0 + 1@1 files
+2026/10/30-16:26:04.499 ce24 Generated table #15@0: 219 keys, 43150 bytes
+2026/10/30-16:26:04.499 ce24 Compacted 1@0 + 1@1 files => 43150 bytes
+2026/10/30-16:26:04.501 ce24 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-16:26:04.501 ce24 Delete type=2 #14
+2026/10/30-16:26:04.501 272bc Manual compaction at level-0 from '\x00\x0e\x00\x00\x05' @ 671 : 1 .. '\x00\x0f\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-16:26:04.502 ce24 Level-0 table #17: started
+2026/10/30-16:26:04.505 ce24 Level-0 table #17: 1768 bytes OK
+2026/10/30-16:26:04.511 ce24 Delete type=2 #11
+2026/10/30-16:26:04.511 ce24 Delete type=0 #13
+2026/10/30-16:26:04.512 272bc Manual compaction at level-0 from '\x00\x0f\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x10\x00\x00\x00' @ 0 : 0; will stop at '\x00\x0f\x00\x00\x05' @ 688 : 1
+2026/10/30-16:26:04.512 272bc Compacting 1@0 + 1@1 files
+2026/10/30-16:26:04.515 272bc Generated table #18@0: 219 keys, 45216 bytes
+2026/10/30-16:26:04.515 272bc Compacted 1@0 + 1@1 files => 45216 bytes
+2026/10/30-16:26:04.517 272bc compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-16:26:04.517 272bc Delete type=2 #17
+2026/10/30-16:26:04.518 272bc Manual compaction at level-0 from '\x00\x0f\x00\x00\x05' @ 688 : 1 .. '\x00\x10\x00\x00\x00' @ 0 : 0; will stop at (end)

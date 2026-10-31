@@ -8,19 +8,11 @@
  */
 
 import { httpClient } from '../../../libs/http/client.js';
-import { getTimeRandom, generateCryptoRandomString } from '../../utils/utils.js';
+import { getTimeRandom, generateCryptoRandomString, generateFbp } from '../../utils/utils.js';
 import { sendToGetVerCode } from '../login/SendVerifiyCode.test.js';
 
-/**
- * 生成 Facebook Fbp 参数
- * 格式：fb.1.<毫秒时间戳>.<随机整数>
- * 参考：https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/fbp-and-fbc
- */
-function generateFbp() {
-    const ts = Date.now();
-    const rand = Math.floor(Math.random() * 1e18);
-    return `fb.1.${ts}.${rand}`;
-}
+// generateFbp 已提取到 tests/utils/utils.js 共享（2026-10-27），guestRegister 等
+// 场景也要用同一份实现，不再在这里单独定义一份。
 
 /**
  * Facebook 埋点注册

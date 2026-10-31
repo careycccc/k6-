@@ -1,0 +1,20 @@
+2026/10/30-15:39:11.357 18fa0 Creating DB D:\project\k6-\k6\playwrith\.browser_profiles\profile_3039059935\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb since it was missing.
+2026/10/30-15:39:11.372 18fa0 Reusing MANIFEST D:\project\k6-\k6\playwrith\.browser_profiles\profile_3039059935\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/MANIFEST-000001
+2026/10/30-15:39:30.708 191f8 Level-0 table #5: started
+2026/10/30-15:39:30.724 191f8 Level-0 table #5: 45070 bytes OK
+2026/10/30-15:39:30.729 191f8 Delete type=0 #3
+2026/10/30-15:39:30.740 18fa4 Manual compaction at level-0 from '\x00\x05\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x06\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-15:39:31.075 18fbc Level-0 table #7: started
+2026/10/30-15:39:31.227 18fbc Level-0 table #7: 1625 bytes OK
+2026/10/30-15:39:31.233 18fbc Delete type=0 #4
+2026/10/30-15:39:31.239 18fbc Manual compaction at level-0 from '\x00\x07\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x08\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-15:39:31.241 18fbc Level-0 table #9: started
+2026/10/30-15:39:31.260 18fbc Level-0 table #9: 1534 bytes OK
+2026/10/30-15:39:31.267 18fbc Delete type=0 #6
+2026/10/30-15:39:31.277 18fa4 Manual compaction at level-0 from '\x00\x08\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x09\x00\x00\x00' @ 0 : 0; will stop at '\x00\x09\x01\x02\x013\x00[\x00D\x00E\x00F\x00A\x00U\x00L\x00T\x00]\x00!\x001\x00:\x007\x004\x007\x008\x009\x001\x007\x000\x006\x008\x002\x008\x00:\x00w\x00e\x00b\x00:\x008\x005\x009\x00a\x00c\x00c\x00b\x000\x008\x004\x000\x001\x008\x005\x003\x00e\x008\x005\x00e\x00b\x006\x009' @ 388 : 1
+2026/10/30-15:39:31.277 18fa4 Compacting 1@0 + 1@1 files
+2026/10/30-15:39:31.292 18fa4 Generated table #10@0: 73 keys, 1770 bytes
+2026/10/30-15:39:31.292 18fa4 Compacted 1@0 + 1@1 files => 1770 bytes
+2026/10/30-15:39:31.298 18fa4 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-15:39:31.299 18fa4 Delete type=2 #9
+2026/10/30-15:39:31.310 18fa4 Manual compaction at level-0 from '\x00\x09\x01\x02\x013\x00[\x00D\x00E\x00F\x00A\x00U\x00L\x00T\x00]\x00!\x001\x00:\x007\x004\x007\x008\x009\x001\x007\x000\x006\x008\x002\x008\x00:\x00w\x00e\x00b\x00:\x008\x005\x009\x00a\x00c\x00c\x00b\x000\x008\x004\x000\x001\x008\x005\x003\x00e\x008\x005\x00e\x00b\x006\x009' @ 388 : 1 .. '\x00\x09\x00\x00\x00' @ 0 : 0; will stop at (end)

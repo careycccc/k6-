@@ -117,7 +117,16 @@ const discoverDump = new Map();                   // account -> [{method,url,bod
 const pushCtx      = new Map();                   // account -> { token, lastReport:{msgId,reportId,language} } 供点击模拟复用凭证
 const clickSim     = new Map();                   // account -> { sent:Set, ok, fail } 接口级点击模拟结果
 const clickDecided = new Map();                   // account -> Set<msgId> 已决策是否点击（防同一消息前台+SW双通道重复决策）
-let   useChrome    = process.env.USE_CHROME !== 'false'; // USE_CHROME=false 强制内置 Chromium（调试用；内置缺 FCM 组件收不到真实推送）
+// chromeAvailable: null=未知(每个账号各自尝试) / true=已确认可用 / false=已确认这台机器没装Chrome(全局降级)。
+// 2026-10-30 修复：原来用一个布尔 useChrome，任何一次 launchPersistentContext 失败（哪怕只是高并发下
+// 偶发的启动超时，不代表机器没装 Chrome）都会把它永久置 false，导致后续所有并发账号被连带拖下水，
+// 全部错误地降级到内置 Chromium（缺 FCM 组件，收不到真实推送）——100 账号并发批量登录时实测踩坑。
+let   chromeAvailable = null;
+// 2026-10-30 内存优化：验证完成(收到送达+(若开点击模拟)点击已处理完)的账号立即关闭浏览器，
+// 不用像原来那样全部拖到 DURATION 超时才一起关——同时存活的浏览器数是内存占用的真正瓶颈。
+// account -> 定时器句柄；account -> 已关闭标记(防重复关闭/避免 gracefulShutdown 再关一次)。
+const closeTimers    = new Map();
+const closedAccounts = new Set();
 
 // ============================================================
 // 读取账号：去掉区号、去重、截断
@@ -162,18 +171,53 @@ async function launchContext(userDataDir) {
       '--disable-background-timer-throttling',
       '--disable-backgrounding-occluded-windows',
       '--disable-renderer-backgrounding',
+      // 2026-10-30 内存优化：只保留"纯渲染/UI、和网络层完全隔离"的省内存参数。
+      //
+      // ⚠️ 已实测确认 --disable-background-networking 会导致 FCM 完全收不到推送(0送达)——
+      // 这个 flag 按 Chromium 官方说明会关掉"独立于当前渲染页面的后台网络服务"，FCM 推送的
+      // 核心机制正是靠浏览器后台维持与 Google 推送服务器的连接，被这个参数一并切断了。
+      // 千万不要加回来，即使看起来能解决那个 Chrome 更新服务 IPC 超时的小毛病也不值得。
+      //
+      // 同一批"听起来和推送无关、但没有逐个实测验证过"的参数——--disable-component-update
+      // （后台组件更新，本质也是网络请求）、--disable-sync（Google 账号同步）、
+      // --metrics-recording-only（遥测/后台行为）、--js-flags=--max-old-space-size=...
+      // （限制 V8 堆，万一 FCM/Service Worker 运行时需要用到会出问题，没有清晰的安全边界）
+      // 这次全部不用——没有验证过的"看起来安全"不算安全，内存优化必须让在"确定不影响推送"
+      // 这条红线之内，保守一点可以接受。
+      //
+      // 下面这几个是真正安全的：纯渲染管线(GPU合成)或纯 UI 交互，和 FCM 依赖的网络/Service
+      // Worker/存储子系统没有任何交叉。
+      '--disable-gpu',                 // 无头场景用不到 GPU 合成，省掉 GPU 进程+显存
+      '--disable-software-rasterizer', // 配合上面，避免软件光栅化兜底进程
+      '--disable-features=Translate',  // 翻译功能 UI，纯前端，和网络/推送无关
+      '--no-first-run',                // 跳过首次运行引导 UI
+      '--no-default-browser-check',    // 跳过"设为默认浏览器"检测弹窗
+      '--mute-audio',                  // 静音，和推送无关
     ],
   };
 
-  if (useChrome) {
+  const wantChrome = process.env.USE_CHROME !== 'false' && chromeAvailable !== false;
+
+  if (wantChrome) {
     try {
-      return await chromium.launchPersistentContext(userDataDir, { channel: 'chrome', ...baseOpts });
+      const ctx = await chromium.launchPersistentContext(userDataDir, { channel: 'chrome', ...baseOpts });
+      chromeAvailable = true;
+      return ctx;
     } catch (e) {
-      console.warn(
-        `\n[⚠️ 警告] 无法启动本机 Chrome(channel=chrome): ${e.message}\n` +
-        `         回退到内置 Chromium —— 可能收不到 Firebase 推送。建议安装 Google Chrome。\n`
-      );
-      useChrome = false;
+      // 只有"确认这台机器没装 Chrome"(可执行文件缺失)才全局缓存降级，避免后续每个账号都
+      // 重复踩同一个注定失败的坑；其他错误(最常见是高并发下系统资源繁忙导致启动超时，这次
+      // 100 账号并发批量登录时实测遇到过)只代表这一次、这一个账号运气不好，不代表机器没
+      // Chrome，所以不改全局状态——只让这一个账号自己降级，不传染给其他正在并发登录的账号。
+      const missingExecutable = /executable doesn't exist/i.test(e.message);
+      if (missingExecutable) {
+        chromeAvailable = false;
+        console.warn(
+          `\n[⚠️ 警告] 本机未安装 Google Chrome: ${e.message}\n` +
+          `         全部账号将回退到内置 Chromium —— 可能收不到 Firebase 推送。建议安装 Google Chrome。\n`
+        );
+      } else {
+        console.warn(`[⚠️ 本账号降级] 启动真实 Chrome 失败(${e.message.slice(0, 100)})，这个账号改用内置 Chromium（不影响其他并发账号）`);
+      }
     }
   }
   return await chromium.launchPersistentContext(userDataDir, baseOpts);
@@ -244,6 +288,29 @@ async function simulateClick(context, account, msgId) {
 }
 
 // ============================================================
+// 验证完成后关闭浏览器（内存优化）：调用方必须保证"该发生的事情都已经发生完"
+// （送达本身 + 若开点击模拟则点击也已经真正模拟完/决定跳过），不是靠猜一个固定延迟
+// 去覆盖这些异步操作的耗时——所以这里只留一个很短的保险缓冲，用来兜底捕获可能还在
+// 极短时间内到达的关联上报（如 GA4 mp_notification_receive 和 /api/Push/Report 不是
+// 同一个请求，存在毫秒级时间差）。debounce：同一账号重复调用会重置计时器，不会提前关闭。
+// ============================================================
+function scheduleAutoClose(account, context) {
+  if (closedAccounts.has(account)) return;
+  if (closeTimers.has(account)) clearTimeout(closeTimers.get(account));
+
+  const timer = setTimeout(async () => {
+    if (closedAccounts.has(account)) return;
+    closedAccounts.add(account);
+    closeTimers.delete(account);
+    try { await context.close(); } catch (e) { /* ignore */ }
+    const idx = openContexts.findIndex(c => c.account === account);
+    if (idx >= 0) openContexts.splice(idx, 1);
+    console.log(`[♻️ 已释放] ${account} 验证完成，浏览器已关闭（释放内存，剩余存活 ${openContexts.length} 个）`);
+  }, 2000);
+  closeTimers.set(account, timer);
+}
+
+// ============================================================
 // 网络拦截（context 级）：抓「前端 + Service Worker」发起的埋点上报
 //   —— 后台报表统计的就是这些上报请求，这是本脚本相较 console 文本的核心升级。
 //   —— context 级能覆盖 page 与 SW 发起的请求（serviceWorkers:'allow'）。
@@ -293,17 +360,27 @@ function attachNetworkListener(context, account) {
         pushCtx.set(account, cur);
       }
       // 接口级点击模拟：收到「送达(action=1)」后，按 CLICK_RATE 概率决定是否模拟点击（每 msgId 只决策一次）
+      // 2026-10-30：scheduleAutoClose 的调用时机很关键——必须等点击模拟这个异步请求真正
+      // 跑完（或者确定本来就不点击）才安排关闭，不能用固定延迟去猜，否则会在点击请求
+      // 还没发出去时就把 context 关掉，导致点击率统计漏记。
       if (SIMULATE_CLICK && action === 1 && mid != null) {
         const dec = clickDecided.get(account) || new Set();
         if (!dec.has(String(mid))) {
           dec.add(String(mid));
           clickDecided.set(account, dec);
           if (Math.random() * 100 < CLICK_RATE) {
-            setTimeout(() => simulateClick(context, account, mid), 1500);
+            setTimeout(async () => {
+              await simulateClick(context, account, mid);
+              scheduleAutoClose(account, context);
+            }, 1500);
           } else {
             console.log(`[🖱️ 跳过点击] ${account} msgId=${mid}（按 CLICK_RATE=${CLICK_RATE}%）`);
+            scheduleAutoClose(account, context);
           }
         }
+      } else if (action === 1 && mid != null) {
+        // 未开点击模拟：收到送达即可安排关闭（scheduleAutoClose 内部留了短暂缓冲）
+        scheduleAutoClose(account, context);
       }
     }
 
@@ -660,6 +737,9 @@ async function main() {
 
   console.log(`>>> ${openContexts.length} 个浏览器保持存活中。`);
   console.log('>>> 现在请去后台把 Firebase 推送发给「这批已登录的人」（定向 targetType:6，userId 用同批 1.txt）。');
+  console.log('>>> 2026-10-30 内存优化：账号一旦验证完成(收到送达，若开CLICK还会等点击模拟处理完)会');
+  console.log('>>>   立即关闭浏览器释放内存，不再保持在线——如果你打算对同一批账号再发第二轮推送，');
+  console.log('>>>   请确保在它们还没被判定"验证完成"前发出，或者改用不同批次的账号分别测试。');
   if (DURATION) {
     console.log(`>>> DURATION=${DURATION}s：到时自动输出报表并退出。\n`);
     setTimeout(() => gracefulShutdown(`已到 DURATION=${DURATION}s`), DURATION * 1000);
@@ -676,6 +756,11 @@ async function gracefulShutdown(reason) {
   if (exiting) return;
   exiting = true;
   console.log(`\n${reason}，正在生成送达闭环报表并关闭浏览器...`);
+  // 先清掉所有还没触发的"验证完成自动关闭"定时器，避免它们和下面的统一关闭逻辑产生
+  // 竞态（两边都想 close 同一个 context）；剩下还在 openContexts 里的就是还没收到送达、
+  // 或者正处于点击模拟异步流程中的账号，交给下面统一关闭。
+  for (const timer of closeTimers.values()) clearTimeout(timer);
+  closeTimers.clear();
   printExitReport();
   for (const { context } of openContexts) {
     try { await context.close(); } catch (e) { /* ignore */ }

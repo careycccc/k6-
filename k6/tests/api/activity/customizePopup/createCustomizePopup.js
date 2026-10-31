@@ -199,7 +199,7 @@ function createPopups(data) {
         }
 
         try {
-            const result = sendRequest(payload, api, createCustomizePopupTag, false, token);
+            const result = sendRequest(payload, api, createCustomizePopupTag, false, token, true);
 
             if (result && result.msgCode === 0) {
                 logger.info(`[${createCustomizePopupTag}] 创建定制化弹窗成功: ${config.title}`);
@@ -247,7 +247,7 @@ function queryPopupIds(data) {
     };
 
     try {
-        let result = sendQueryRequest(payload, api, createCustomizePopupTag, false, token);
+        let result = sendQueryRequest(payload, api, createCustomizePopupTag, false, token, true);
 
         if (typeof result !== 'object') {
             result = JSON.parse(result);
@@ -301,7 +301,7 @@ function startPopups(data, ids) {
         };
 
         try {
-            const result = sendRequest(payload, api, createCustomizePopupTag, false, token);
+            const result = sendRequest(payload, api, createCustomizePopupTag, false, token, true);
 
             if (result && result.msgCode === 0) {
                 logger.info(`[${createCustomizePopupTag}] 启动定制化弹窗成功 ID: ${id}`);

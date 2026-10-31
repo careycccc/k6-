@@ -1,6 +1,6 @@
 import { sleep } from 'k6';
 import { AdminLogin } from '../../login/adminlogin.test.js';
-import { getAgentHierarchyList } from '../../invite/agentApi.js';
+import { getTeamMembersAuto } from '../../invite/agentApi.js';
 import { bundEarn } from '../bundearn.test.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../../config/envconfig.js';
 
@@ -36,7 +36,7 @@ export default function (data) {
     const swapMax = Math.max(swapMin, parseInt(__ENV.SWAP_MAX || '3', 10));
 
     console.log(`\n🔄 开始转线(Swap): ${fromTeam} -> ${toTeam}`);
-    const agentList = getAgentHierarchyList(data.token, parseInt(fromRootId));
+    const agentList = getTeamMembersAuto(data.token, parseInt(fromRootId), tenantId);
 
     if (!agentList || agentList.length === 0) {
         console.warn(`[Swap] ${fromTeam} 没有任何下级，跳过`);

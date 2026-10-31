@@ -1,0 +1,24 @@
+2026/10/30-16:26:01.994 7684 Reusing MANIFEST D:\project\k6-\k6\playwrith\.browser_profiles\profile_9144052961\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/MANIFEST-000001
+2026/10/30-16:26:01.995 7684 Recovering log #6
+2026/10/30-16:26:01.996 7684 Reusing old log D:\project\k6-\k6\playwrith\.browser_profiles\profile_9144052961\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/000006.log 
+2026/10/30-16:26:02.109 7684 Level-0 table #10: started
+2026/10/30-16:26:02.113 7684 Level-0 table #10: 127067 bytes OK
+2026/10/30-16:26:02.117 7684 Delete type=0 #6
+2026/10/30-16:26:02.118 226f4 Manual compaction at level-0 from '\x00\x0e\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0f\x00\x00\x00' @ 0 : 0; will stop at '\x00\x0e\x00\x00\x05' @ 671 : 1
+2026/10/30-16:26:02.118 226f4 Compacting 1@0 + 1@1 files
+2026/10/30-16:26:02.124 226f4 Generated table #11@0: 208 keys, 43028 bytes
+2026/10/30-16:26:02.124 226f4 Compacted 1@0 + 1@1 files => 43028 bytes
+2026/10/30-16:26:02.126 226f4 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-16:26:02.127 226f4 Delete type=2 #10
+2026/10/30-16:26:02.127 7684 Manual compaction at level-0 from '\x00\x0e\x00\x00\x05' @ 671 : 1 .. '\x00\x0f\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-16:26:02.128 2730c Level-0 table #13: started
+2026/10/30-16:26:02.130 2730c Level-0 table #13: 1571 bytes OK
+2026/10/30-16:26:02.133 2730c Delete type=2 #7
+2026/10/30-16:26:02.133 2730c Delete type=0 #9
+2026/10/30-16:26:02.134 2730c Manual compaction at level-0 from '\x00\x0f\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x10\x00\x00\x00' @ 0 : 0; will stop at '\x00\x0f\x00\x00\x05' @ 688 : 1
+2026/10/30-16:26:02.134 2730c Compacting 1@0 + 1@1 files
+2026/10/30-16:26:02.137 2730c Generated table #14@0: 208 keys, 43756 bytes
+2026/10/30-16:26:02.137 2730c Compacted 1@0 + 1@1 files => 43756 bytes
+2026/10/30-16:26:02.138 2730c compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-16:26:02.138 2730c Delete type=2 #13
+2026/10/30-16:26:02.139 2730c Manual compaction at level-0 from '\x00\x0f\x00\x00\x05' @ 688 : 1 .. '\x00\x10\x00\x00\x00' @ 0 : 0; will stop at (end)

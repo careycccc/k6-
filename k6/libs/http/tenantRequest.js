@@ -4,36 +4,19 @@
  */
 
 import http from 'k6/http';
-import crypto from 'k6/crypto';
-import { getBaseUrl, buildBaseHeaders, signPayload, resolveTenant } from './core.js';
+import { buildBaseHeaders, signPayload, resolveTenant, getTenantBaseUrl } from './primitives.js';
+import { resolveQueryRoute, getGroupToken } from './groupRouting.js';
 import { getTimeRandom } from '../../tests/utils/utils.js';
 import { getEnvByTenantId } from '../../config/envconfig.js';
 
-// ============================================================
-// 后台谷歌验证码(TOTP)：标准 SHA1 / 30秒 / 6位，密钥 base32（取自 envconfig 的 GOOGLE_SECRET）
-// ============================================================
-function base32Decode(s) {
-    const a = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-    s = String(s).toUpperCase().replace(/=+$/, '').replace(/\s/g, '');
-    let bits = '';
-    for (let i = 0; i < s.length; i++) { const idx = a.indexOf(s[i]); if (idx < 0) continue; bits += idx.toString(2).padStart(5, '0'); }
-    const by = [];
-    for (let i = 0; i + 8 <= bits.length; i += 8) by.push(parseInt(bits.slice(i, i + 8), 2));
-    return new Uint8Array(by);
-}
-export function totpVCode(secret, windowOffset = 0, baseSec) {
-    const key = base32Decode(secret);
-    const t = (baseSec === undefined ? Math.floor(Date.now() / 1000) : baseSec);
-    let ctr = Math.floor(t / 30) + windowOffset;
-    const cbuf = new Uint8Array(8);
-    for (let i = 7; i >= 0; i--) { cbuf[i] = ctr & 0xff; ctr = Math.floor(ctr / 256); }
-    const hex = crypto.hmac('sha1', key.buffer, cbuf.buffer, 'hex');
-    const h = [];
-    for (let i = 0; i < hex.length; i += 2) h.push(parseInt(hex.substr(i, 2), 16));
-    const o = h[h.length - 1] & 0x0f;
-    const code = ((h[o] & 0x7f) << 24) | ((h[o + 1] & 0xff) << 16) | ((h[o + 2] & 0xff) << 8) | (h[o + 3] & 0xff);
-    return String(code % 1000000).padStart(6, '0');
-}
+// 2026-10-30：TOTP 计算逻辑迁移到了 libs/utils/totp.js（独立的纯工具模块，不依赖任何
+// 业务模块）。迁移原因：groupRouting.js 登录集团后台时也要算 TOTP，而 tenantAdminLogin()
+// (本文件)又要反过来调用 groupRouting.js 优先尝试集团登录——如果 totpVCode 留在本文件，
+// 会成环。注意：必须先 import 再单独 export——`export {x} from 'y'` 这种一步到位的转发
+// 导出语法只会把 x 加进本模块的对外导出列表，不会在本模块内部创建 x 的本地绑定，本文件
+// 下面 backendLogin() 内部直接用 totpVCode(...) 会拿到 ReferenceError（已实测踩坑）。
+import { totpVCode } from '../utils/totp.js';
+export { totpVCode };
 
 /**
  * 发送多租户请求
@@ -43,17 +26,37 @@ export function totpVCode(secret, windowOffset = 0, baseSec) {
  *   - isDesk: 是否前台请求，默认 true
  *   - token: 认证token，可选
  *   - tenantId: 租户ID，可选（默认从环境变量读取）
+ *   - forceTenant: 强制走商户自己的域名，不套集团路由（可选，默认 false）。
+ *     和 tenantAdminLogin(tenantId, true) 的 forceTenant 参数是同一个概念：
+ *     登录拿到商户 token 后，后续用这个 token 发请求也要传 forceTenant:true，
+ *     否则 resolveQueryRoute 会独立判断"集团可用"、把请求路由到集团域名，
+ *     商户 token 打到集团域名会报 "Account type does not match the admin
+ *     site"（已实测踩坑：tenantAdminLogin 的 forceTenant 只管登录这一步，不会
+ *     被后续 tenantRequest 调用自动继承）。
  * @returns {object} 响应对象 {status, body, data, msgCode, msg}
  */
 export function tenantRequest(api, payload = {}, options = {}) {
     const {
         isDesk = true,
         token = null,
-        tenantId = null
+        tenantId = null,
+        forceTenant = false
     } = options;
 
-    // 租户 / 域名（与 sendRequest 共用 libs/http/core.js 的规则）
-    const baseUrl = getBaseUrl(isDesk, tenantId);
+    // 租户 / 域名：默认优先走集团查询，集团登录失败时自动降级为商户自己的域名
+    // （resolveQueryRoute 内部复用 core.js 的 resolveTenant 规则，isDesk=true 时
+    // 不受集团模式影响，直接走商户前台域名）。
+    // 但登录接口(/api/Login/Login)例外，永远不套集团路由——backendLogin() 这个
+    // 通用登录函数不止给 tenantAdminLogin(主管理员)用，也被受限账号/客服/工单角色
+    // 等登录场景直接调用（见 tests/api/withdraw/concurrentLockWithdraw.test.js、
+    // tests/api/activity/workOrderSuite/runWorkOrderFull.test.js 等），这些账号的
+    // 用户名密码是商户私有的，集团后台认不出来，打过去只会登录失败。真正的"集团
+    // 管理员登录"由 groupRouting.js 的 groupAdminLogin 独立实现，不经过这个函数。
+    // forceTenant 同理：调用方已经拿到商户 token 时，显式传它跳过集团路由。
+    const isLoginApi = api === '/api/Login/Login';
+    const { baseUrl, extraHeaders } = (isLoginApi || forceTenant)
+        ? { baseUrl: getTenantBaseUrl(isDesk, tenantId), extraHeaders: {} }
+        : resolveQueryRoute(isDesk, tenantId);
     const url = baseUrl + api;
 
     // console.log(`[TenantRequest] ========== 请求详情 ==========`);
@@ -76,7 +79,7 @@ export function tenantRequest(api, payload = {}, options = {}) {
     //console.log(`[TenantRequest] 添加时间参数后: ${JSON.stringify(requestData, null, 2)}`);
 
     const signedData = signPayload(requestData);
-    const headers = buildBaseHeaders(baseUrl, token);
+    const headers = { ...buildBaseHeaders(baseUrl, token), ...extraHeaders };
     if (token) {
         console.log(`[TenantRequest] 添加认证token: ${token.substring(0, 20)}...`);
     }
@@ -168,12 +171,24 @@ export function backendLogin(userName, pwd, secret, tenantId = null) {
 }
 
 /**
- * 后台管理员登录（主管理员账号）
+ * 后台管理员登录（主管理员账号）。默认优先登录集团后台，拿到集团token就直接返回——
+ * 这个token和路由天然匹配：后续任何经过 resolveQueryRoute 的查询请求，会自动识别出
+ * 该 tenantId 处于集团模式并把请求打到集团域名，不会出现"集团token打到商户域名"的
+ * 错配。只有该 tenantId 不属于任何集团实例、或集团登录失败时，才降级为商户自己登录
+ * （现有行为不变）。
  * @param {string} tenantId - 租户ID，可选
+ * @param {boolean} [forceTenant=false] - 强制走商户自己登录，跳过集团模式（逃生舱口，
+ *   用于明确要测试"这个特定商户自己后台"行为的场景）
  * @returns {string|null} token
  */
-export function tenantAdminLogin(tenantId = null) {
+export function tenantAdminLogin(tenantId = null, forceTenant = false) {
     const tenant = resolveTenant(tenantId);
+
+    if (!forceTenant) {
+        const groupToken = getGroupToken(tenant);
+        if (groupToken) return groupToken;
+    }
+
     const envConfig = getEnvByTenantId(tenant);
     return backendLogin(envConfig.ADMIN_USERNAME, envConfig.ADMIN_PASSWORD, envConfig.GOOGLE_SECRET, tenant);
 }

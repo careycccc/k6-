@@ -1,0 +1,80 @@
+0:00:00 TouchMode.EnteredNonTouchMode
+0:00:00 Tab1 FinishNav3
+0:00:00 Tab1 PageLoad
+0:00:01 Tab1 StartNav4 #typed
+0:00:02 Tab1 FinishNav4
+0:00:02 Tab1 StartNav5 #renderer-script #link
+0:00:02 Tab1 FinishNav5
+0:00:02 Tab1 PageLoad
+0:00:02 Tab1 StartNav6 #renderer-script #link
+0:00:02 Tab1 FinishNav6
+0:00:08 Tab1 StartNav7 #renderer-user #link
+0:00:08 Tab1 FinishNav7
+0:00:29 Memory Pressure: Moderate
+0:00:34 Memory Pressure: Critical
+0:00:40 Memory Pressure: Critical
+0:00:45 Memory Pressure: Critical
+0:00:50 Memory Pressure: Critical
+0:00:55 Memory Pressure: Critical
+0:01:00 Memory Pressure: Critical
+0:01:05 Memory Pressure: Moderate
+0:01:10 Memory Pressure: Critical
+0:01:15 Memory Pressure: Critical
+0:01:20 Memory Pressure: Critical
+0:01:25 Memory Pressure: Critical
+0:01:30 Memory Pressure: Critical
+0:01:35 Memory Pressure: Critical
+0:01:40 Memory Pressure: Critical
+0:01:45 Memory Pressure: Critical
+0:01:50 Memory Pressure: Critical
+0:01:55 Memory Pressure: Critical
+0:02:00 Memory Pressure: Moderate
+0:02:10 Memory Pressure: Moderate
+0:02:15 Memory Pressure: Critical
+0:02:20 Memory Pressure: Moderate
+0:02:30 Memory Pressure: Moderate
+0:02:40 Memory Pressure: Moderate
+0:02:50 Memory Pressure: None
+0:03:05 Memory Pressure: Moderate
+0:03:15 Memory Pressure: Moderate
+0:03:20 Memory Pressure: Critical
+0:03:25 Memory Pressure: Moderate
+0:03:30 Memory Pressure: Critical
+0:03:35 Memory Pressure: None
+0:04:50 Memory Pressure: Moderate
+0:04:55 Memory Pressure: None
+0:05:05 Memory Pressure: Moderate
+0:05:10 Memory Pressure: None
+0:05:15 Memory Pressure: Moderate
+0:05:25 Memory Pressure: Moderate
+0:05:35 Memory Pressure: Moderate
+0:05:39 Notifications.Persistent.Shown
+0:05:45 Memory Pressure: Moderate
+0:05:55 Memory Pressure: Moderate
+0:06:05 Memory Pressure: Moderate
+0:06:15 Memory Pressure: Moderate
+0:06:26 Memory Pressure: Moderate
+0:06:36 Memory Pressure: Moderate
+0:06:46 Memory Pressure: Moderate
+0:06:56 Memory Pressure: Moderate
+0:07:01 Memory Pressure: Critical
+0:07:06 Memory Pressure: Moderate
+0:07:16 Memory Pressure: Moderate
+0:07:26 Memory Pressure: None
+0:07:41 Memory Pressure: Moderate
+0:07:51 Memory Pressure: Moderate
+0:08:01 Memory Pressure: Moderate
+0:08:11 Memory Pressure: Moderate
+0:08:21 Memory Pressure: Moderate
+0:08:32 Memory Pressure: Moderate
+0:08:42 Memory Pressure: Moderate
+0:08:52 Memory Pressure: Moderate
+0:08:57 Memory Pressure: Critical
+0:09:02 Memory Pressure: Moderate
+0:09:12 Memory Pressure: Moderate
+0:09:22 Memory Pressure: Moderate
+0:09:27 Memory Pressure: Critical
+0:09:32 Memory Pressure: Moderate
+0:09:42 Memory Pressure: Moderate
+0:09:52 Memory Pressure: Moderate
+0:10:02 Memory Pressure: Moderate

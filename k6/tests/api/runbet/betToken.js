@@ -73,7 +73,9 @@ export function getGameToken(loginToken, gameCode) {
     let checkPassed = false;
 
     for (let checkAttempt = 1; checkAttempt <= maxCheckRetries; checkAttempt++) {
-        const checkResponse = http.post(baseUrl + checkApi, JSON.stringify(signedCheckData), { headers });
+        // 2026-10-29补：直接裸调k6原生http，绕开libs/http/client.js，单独打tag——
+        // tag名字和thirdGame.js里同一个接口的调用保持一致，报告里会合并统计。
+        const checkResponse = http.post(baseUrl + checkApi, JSON.stringify(signedCheckData), { headers, tags: { name: 'CheckCanBet' } });
         console.log(`[BetToken] CheckCanBet 第${checkAttempt}次 响应状态: ${checkResponse.status}`);
         console.log(`[BetToken] CheckCanBet 第${checkAttempt}次 完整响应: ${checkResponse.body}`);
 
@@ -105,7 +107,7 @@ export function getGameToken(loginToken, gameCode) {
         return null;
     }
 
-    const response = http.post(baseUrl + api, JSON.stringify(signedData), { headers });
+    const response = http.post(baseUrl + api, JSON.stringify(signedData), { headers, tags: { name: 'GetGameUrl' } });
 
     console.log('[BetToken] GetGameUrl请求URL:', baseUrl + api);
     console.log('[BetToken] GetGameUrl响应状态:', response.status);
@@ -173,7 +175,7 @@ export function refreshTokenWithGameList(gameToken, gameBaseUrl) {
         'Accept': 'application/json, text/plain, */*'
     };
 
-    const response = http.get(lotteryBaseUrl + api + '?' + queryString, { headers });
+    const response = http.get(lotteryBaseUrl + api + '?' + queryString, { headers, tags: { name: 'GetGameList' } });
 
     console.log('[BetToken] GetGameList响应状态:', response.status);
     console.log('[BetToken] GetGameList响应体:', response.body ? response.body.substring(0, 200) : '空');
@@ -226,7 +228,7 @@ export function getBalanceAndRefreshToken(currentToken, gameBaseUrl) {
         'Accept': 'application/json, text/plain, */*'
     };
 
-    const response = http.get(lotteryBaseUrl + api + '?' + queryString, { headers });
+    const response = http.get(lotteryBaseUrl + api + '?' + queryString, { headers, tags: { name: 'GetBalance' } });
 
     console.log('[BetToken] GetBalance响应状态:', response.status);
     console.log('[BetToken] GetBalance响应体:', response.body ? response.body.substring(0, 200) : '空');

@@ -1,0 +1,20 @@
+2026/10/30-15:39:25.530 1b9e4 Creating DB D:\project\k6-\k6\playwrith\.browser_profiles\profile_9028009873\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb since it was missing.
+2026/10/30-15:39:25.576 1b9e4 Reusing MANIFEST D:\project\k6-\k6\playwrith\.browser_profiles\profile_9028009873\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/MANIFEST-000001
+2026/10/30-15:39:54.980 b320 Level-0 table #5: started
+2026/10/30-15:39:55.004 b320 Level-0 table #5: 45057 bytes OK
+2026/10/30-15:39:55.009 b320 Delete type=0 #3
+2026/10/30-15:39:55.013 1b9e4 Manual compaction at level-0 from '\x00\x05\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x06\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-15:39:55.680 b320 Level-0 table #7: started
+2026/10/30-15:39:55.707 b320 Level-0 table #7: 1629 bytes OK
+2026/10/30-15:39:55.711 b320 Delete type=0 #4
+2026/10/30-15:39:55.712 1b9f8 Manual compaction at level-0 from '\x00\x07\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x08\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-15:39:55.736 1b9e4 Level-0 table #9: started
+2026/10/30-15:39:55.745 1b9e4 Level-0 table #9: 668 bytes OK
+2026/10/30-15:39:55.748 1b9e4 Delete type=0 #6
+2026/10/30-15:39:55.751 1b9e4 Manual compaction at level-0 from '\x00\x08\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x09\x00\x00\x00' @ 0 : 0; will stop at '\x00\x08\x00\x00\x05' @ 345 : 1
+2026/10/30-15:39:55.751 1b9e4 Compacting 1@0 + 1@1 files
+2026/10/30-15:39:55.757 1b9e4 Generated table #10@0: 42 keys, 1253 bytes
+2026/10/30-15:39:55.757 1b9e4 Compacted 1@0 + 1@1 files => 1253 bytes
+2026/10/30-15:39:55.761 1b9e4 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-15:39:55.761 1b9e4 Delete type=2 #9
+2026/10/30-15:39:55.762 1b9e4 Manual compaction at level-0 from '\x00\x08\x00\x00\x05' @ 345 : 1 .. '\x00\x09\x00\x00\x00' @ 0 : 0; will stop at (end)

@@ -487,7 +487,7 @@ function createOrderForms(data) {
                 "fieldIdsToRemove": []
             };
 
-            const result = sendRequest(payload, api, createOrdersystemTag, false, token);
+            const result = sendRequest(payload, api, createOrdersystemTag, false, token, true);
 
             // 检查返回结果
             if (result && result.msgCode === 0) {

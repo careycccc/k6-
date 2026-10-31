@@ -110,7 +110,7 @@ function checkAndConfigureAgentSettings(data) {
     try {
         // 1. 获取当前配置
         logger.info(`[${createNewagentTag}] 获取代理配置`);
-        const settingsResult = sendRequest({}, getSettingApi, createNewagentTag, false, token);
+        const settingsResult = sendRequest({}, getSettingApi, createNewagentTag, false, token, true);
 
         // logger.info(`[${createNewagentTag}] 配置响应: ${JSON.stringify(settingsResult)}`);
 
@@ -164,7 +164,7 @@ function checkAndConfigureAgentSettings(data) {
                     settingKey: config.key,
                     value1: "100"
                 };
-                const result = sendRequest(payload, updateSettingApi, createNewagentTag, false, token);
+                const result = sendRequest(payload, updateSettingApi, createNewagentTag, false, token, true);
                 if (!result || (result.msgCode !== undefined && result.msgCode !== 0)) {
                     logger.error(`[${createNewagentTag}] 设置 ${config.name} 失败: ${result?.msg || '未知错误'}`);
                 } else {
@@ -211,7 +211,8 @@ function checkAndConfigureAgentSettings(data) {
             settings,
             configRules,
             updateApi: updateSettingApi,
-            tag: createNewagentTag
+            tag: createNewagentTag,
+            forceTenant: true
         });
 
         return result;
@@ -240,7 +241,7 @@ function configureExternalLinks(data) {
     try {
         // 1. 查询现有外链配置
         logger.info(`[${createNewagentTag}] 查询外链配置列表`);
-        const linksResult = sendQueryRequest({}, getLinksApi, createNewagentTag, false, token);
+        const linksResult = sendQueryRequest({}, getLinksApi, createNewagentTag, false, token, true);
 
         if (!linksResult) {
             logger.error(`[${createNewagentTag}] 查询外链配置失败: 响应为空`);
@@ -415,7 +416,7 @@ function submitExternalLink(data, linkConfig) {
     };
 
     try {
-        const result = sendRequest(payload, api, createNewagentTag, false, token);
+        const result = sendRequest(payload, api, createNewagentTag, false, token, true);
 
         if (result && result.msgCode === 0) {
             logger.info(`[${createNewagentTag}] 外链提交成功 - linkIndex: ${linkConfig.linkIndex}`);
@@ -450,7 +451,7 @@ function configureInviteRewards(data) {
     try {
         // 1. 查询现有奖励配置
         logger.info(`[${createNewagentTag}] 查询邀请奖励配置列表`);
-        const rewardsResult = sendQueryRequest({}, getRewardsApi, createNewagentTag, false, token);
+        const rewardsResult = sendQueryRequest({}, getRewardsApi, createNewagentTag, false, token, true);
 
         if (!rewardsResult) {
             logger.error(`[${createNewagentTag}] 查询奖励配置失败: 响应为空`);
@@ -572,7 +573,7 @@ function updateInviteReward(data, rewardConfig) {
 
     try {
         logger.info(`[${createNewagentTag}] 发送奖励配置更新请求 - Payload: ${JSON.stringify(payload)}`);
-        const result = sendRequest(payload, api, createNewagentTag, false, token);
+        const result = sendRequest(payload, api, createNewagentTag, false, token, true);
 
         logger.info(`[${createNewagentTag}] 奖励配置更新响应 - Result: ${JSON.stringify(result)}, Type: ${typeof result}`);
 
@@ -619,7 +620,7 @@ function configureTeamRebateLevels(data) {
     try {
         // 1. 查询现有团队返佣等级配置
         logger.info(`[${createNewagentTag}] 查询团队返佣等级配置列表`);
-        const levelsResult = sendQueryRequest({}, getLevelsApi, createNewagentTag, false, token);
+        const levelsResult = sendQueryRequest({}, getLevelsApi, createNewagentTag, false, token, true);
 
         if (!levelsResult) {
             logger.error(`[${createNewagentTag}] 查询团队返佣等级配置失败: 响应为空`);
@@ -798,7 +799,7 @@ function updateTeamRebateLevel(data, levelConfig) {
     };
 
     try {
-        const result = sendRequest(payload, api, createNewagentTag, false, token);
+        const result = sendRequest(payload, api, createNewagentTag, false, token, true);
 
         // 处理不同的响应格式
         // 1. 如果 sendRequest 返回的是 data 部分（布尔值 true）

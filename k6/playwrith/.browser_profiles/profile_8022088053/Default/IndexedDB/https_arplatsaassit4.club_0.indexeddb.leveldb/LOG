@@ -1,0 +1,25 @@
+2026/10/30-15:49:31.378 13b8c Reusing MANIFEST D:\project\k6-\k6\playwrith\.browser_profiles\profile_8022088053\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/MANIFEST-000001
+2026/10/30-15:49:31.378 13b8c Recovering log #6
+2026/10/30-15:49:31.403 13b8c Reusing old log D:\project\k6-\k6\playwrith\.browser_profiles\profile_8022088053\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/000006.log 
+2026/10/30-15:49:32.749 141cc Manual compaction at level-0 from '\x00\x0b\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0c\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-15:49:32.762 13b8c Level-0 table #10: started
+2026/10/30-15:49:32.766 13b8c Level-0 table #10: 7540 bytes OK
+2026/10/30-15:49:32.771 13b8c Delete type=0 #6
+2026/10/30-15:49:32.774 13b8c Manual compaction at level-0 from '\x00\x0c\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0d\x00\x00\x00' @ 0 : 0; will stop at '\x00\x0c\x00\x00\x05' @ 559 : 1
+2026/10/30-15:49:32.774 13b8c Compacting 1@0 + 1@1 files
+2026/10/30-15:49:32.783 13b8c Generated table #11@0: 116 keys, 4057 bytes
+2026/10/30-15:49:32.783 13b8c Compacted 1@0 + 1@1 files => 4057 bytes
+2026/10/30-15:49:32.786 13b8c compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-15:49:32.787 13b8c Delete type=2 #10
+2026/10/30-15:49:32.790 13b8c Manual compaction at level-0 from '\x00\x0c\x00\x00\x05' @ 559 : 1 .. '\x00\x0d\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-15:54:51.018 13b8c Level-0 table #13: started
+2026/10/30-15:54:51.024 13b8c Level-0 table #13: 81108 bytes OK
+2026/10/30-15:54:51.029 13b8c Delete type=2 #7
+2026/10/30-15:54:51.029 13b8c Delete type=0 #9
+2026/10/30-15:54:51.043 13b8c Manual compaction at level-0 from '\x00\x0d\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0e\x00\x00\x00' @ 0 : 0; will stop at '\x00\x0d\x00\x00\x05' @ 640 : 1
+2026/10/30-15:54:51.043 13b8c Compacting 1@0 + 1@1 files
+2026/10/30-15:54:51.052 13b8c Generated table #14@0: 140 keys, 42225 bytes
+2026/10/30-15:54:51.052 13b8c Compacted 1@0 + 1@1 files => 42225 bytes
+2026/10/30-15:54:51.055 13b8c compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-15:54:51.055 13b8c Delete type=2 #13
+2026/10/30-15:54:51.063 13b8c Manual compaction at level-0 from '\x00\x0d\x00\x00\x05' @ 640 : 1 .. '\x00\x0e\x00\x00\x00' @ 0 : 0; will stop at (end)

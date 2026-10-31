@@ -28,7 +28,12 @@ export function getNowBetNumber(gameToken, gameCode, gameBaseUrl) {
 
     //console.log('[IssueNumber] 请求期号 URL:', gameBaseUrl + api);
 
-    const response = http.get(gameBaseUrl + api, { headers });
+    // 2026-10-29补：直接裸调k6原生http，绕开libs/http/client.js，单独打tag——
+    // 不带gameCode细分(不用'GetIssueNumber_'+gameCode这种写法)，统一归到一组：
+    // 这是个纯查询接口，不同游戏间的后端逻辑复杂度差异不大，细分意义不大，
+    // 反而会让报告里组数变多、变碎；isBet()等不到期号时会在本函数内递归重试，
+    // 都算进同一组统计也更能反映"期号查询"这个动作整体的真实耗时分布。
+    const response = http.get(gameBaseUrl + api, { headers, tags: { name: 'GetIssueNumber' } });
 
     //console.log('[IssueNumber] 期号响应状态:', response.status);
 

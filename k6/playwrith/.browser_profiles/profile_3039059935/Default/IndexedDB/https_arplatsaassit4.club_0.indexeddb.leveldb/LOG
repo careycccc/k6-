@@ -1,0 +1,26 @@
+2026/10/30-15:49:17.942 179ec Reusing MANIFEST D:\project\k6-\k6\playwrith\.browser_profiles\profile_3039059935\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/MANIFEST-000001
+2026/10/30-15:49:17.943 179ec Recovering log #8
+2026/10/30-15:49:17.994 179ec Reusing old log D:\project\k6-\k6\playwrith\.browser_profiles\profile_3039059935\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/000008.log 
+2026/10/30-15:49:17.994 179ec Delete type=2 #7
+2026/10/30-15:49:18.309 132cc Level-0 table #13: started
+2026/10/30-15:49:18.318 132cc Level-0 table #13: 5417 bytes OK
+2026/10/30-15:49:18.322 132cc Delete type=0 #8
+2026/10/30-15:49:18.323 1c8bc Manual compaction at level-0 from '\x00\x0b\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0c\x00\x00\x00' @ 0 : 0; will stop at '\x00\x0b\x00\x00\x05' @ 530 : 1
+2026/10/30-15:49:18.328 1c8bc Compacting 1@0 + 1@1 files
+2026/10/30-15:49:18.339 1c8bc Generated table #14@0: 131 keys, 3471 bytes
+2026/10/30-15:49:18.339 1c8bc Compacted 1@0 + 1@1 files => 3471 bytes
+2026/10/30-15:49:18.356 1c8bc compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-15:49:18.357 1c8bc Delete type=2 #13
+2026/10/30-15:49:18.359 132cc Manual compaction at level-0 from '\x00\x0b\x00\x00\x05' @ 530 : 1 .. '\x00\x0c\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-15:49:18.388 15a88 Level-0 table #16: started
+2026/10/30-15:49:18.398 15a88 Level-0 table #16: 670 bytes OK
+2026/10/30-15:49:18.403 15a88 Delete type=2 #10
+2026/10/30-15:49:18.403 15a88 Delete type=0 #12
+2026/10/30-15:49:18.404 15a88 Manual compaction at level-0 from '\x00\x0c\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0d\x00\x00\x00' @ 0 : 0; will stop at '\x00\x0c\x00\x00\x05' @ 547 : 1
+2026/10/30-15:49:18.404 15a88 Compacting 1@0 + 1@1 files
+2026/10/30-15:49:18.487 15a88 Generated table #17@0: 135 keys, 3508 bytes
+2026/10/30-15:49:18.487 15a88 Compacted 1@0 + 1@1 files => 3508 bytes
+2026/10/30-15:49:18.494 15a88 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-15:49:18.494 15a88 Delete type=2 #16
+2026/10/30-15:49:18.494 15a88 Manual compaction at level-0 from '\x00\x0c\x00\x00\x05' @ 547 : 1 .. '\x00\x0d\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-15:54:50.977 1c8bc Manual compaction at level-0 from '\x00\x0d\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0e\x00\x00\x00' @ 0 : 0; will stop at (end)

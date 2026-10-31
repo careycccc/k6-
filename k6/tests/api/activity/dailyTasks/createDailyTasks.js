@@ -191,7 +191,7 @@ function checkAndConfigureDailyTasksSettings(data) {
     try {
         // 1. 获取当前配置
         logger.info(`[${createDailyTasksTag}] 获取每日每周任务配置`);
-        const settingsResult = sendRequest({}, getSettingApi, createDailyTasksTag, false, token);
+        const settingsResult = sendRequest({}, getSettingApi, createDailyTasksTag, false, token, true);
 
         logger.info(`[${createDailyTasksTag}] 配置响应: ${JSON.stringify(settingsResult)}`);
 
@@ -261,7 +261,8 @@ function checkAndConfigureDailyTasksSettings(data) {
             settings,
             configRules,
             updateApi: updateSettingApi,
-            tag: createDailyTasksTag
+            tag: createDailyTasksTag,
+            forceTenant: true
         });
 
         return result;
@@ -380,7 +381,7 @@ function addOrUpdateAccumulateConfig(data, taskId, task, isWeekly) {
     };
 
     try {
-        const result = sendRequest(payload, api, createDailyTasksTag, false, token);
+        const result = sendRequest(payload, api, createDailyTasksTag, false, token, true);
 
         if (result && result.msgCode === 0) {
             return { success: true };
@@ -586,7 +587,7 @@ function createDailyTasksActivity(data, taskConfig) {
     };
 
     try {
-        const result = sendRequest(payload, api, createDailyTasksTag, false, token);
+        const result = sendRequest(payload, api, createDailyTasksTag, false, token, true);
 
         if (result && result.msgCode === 0) {
             // API 返回成功但不包含任务ID，只返回 {code: 0, msg: "Succeed", msgCode: 0}
@@ -626,7 +627,7 @@ export function getById(data, taskName) {
     const payload = {
         taskName,
     }
-    const result = sendQueryRequest(payload, api, createDailyTasksTag, false, token)
+    const result = sendQueryRequest(payload, api, createDailyTasksTag, false, token, true)
     if (!result || !result.list || result.list.length === 0) {
         return {
             success: false,

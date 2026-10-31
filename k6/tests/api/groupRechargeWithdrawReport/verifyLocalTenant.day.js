@@ -111,6 +111,16 @@ function aggregateRechargeOrders(adminToken, startTs, endTs) {
     // 这几个"third"字段只统计三方类型，才能跟那张表做strict对比；全量字段(含Local)
     // 仍然保留给"商户明细"维度用，两套字段统计范围不同，不要混用。
     let thirdOrderCount = 0, thirdSuccessCount = 0, thirdFailCount = 0, thirdSuccessAmount = 0;
+    // 2026-10-27用户要求：diff要能看出具体是哪个channelId对不上，不能只看
+    // 币种加总后的大数字——按rechargeChannelId分桶，才能跟集团通道汇总表
+    // 逐行精确比对，而不是"全部渠道加总 vs 全部渠道加总"这种只看得出"差多少"
+    // 看不出"差在哪个渠道"的对比方式。
+    const thirdByChannel = {}; // channelId(string) -> {orderCount, successCount, failCount, successAmount}
+    function thirdChannelBucket(channelId) {
+        const key = String(channelId);
+        if (!thirdByChannel[key]) thirdByChannel[key] = { orderCount: 0, successCount: 0, failCount: 0, successAmount: 0 };
+        return thirdByChannel[key];
+    }
 
     const orders = fetchAllPages(page => sendRequest({
         startTime: startTs - WINDOW_PAD_MS, endTime: endTs, pageNo: page, pageSize: 500, dateType: 0, orderBy: 'Desc'
@@ -128,10 +138,10 @@ function aggregateRechargeOrders(adminToken, startTs, endTs) {
         if (o.createTime >= startTs && o.createTime <= endTs) {
             orderCount++;
             userIds.add(o.userId);
-            if (isThird) thirdOrderCount++;
+            if (isThird) { thirdOrderCount++; thirdChannelBucket(o.rechargeChannelId).orderCount++; }
             if (o.rechargeState !== 'Payed' && !RECHARGE_PENDING_STATES.has(o.rechargeState)) {
                 failCount++;
-                if (isThird) thirdFailCount++;
+                if (isThird) { thirdFailCount++; thirdChannelBucket(o.rechargeChannelId).failCount++; }
             }
         }
 
@@ -147,7 +157,11 @@ function aggregateRechargeOrders(adminToken, startTs, endTs) {
                 const amt = parseFloat(o.actualAmount || 0);
                 successAmount += amt;
                 if (o.rechargeType === 'LocalUSDT' || o.rechargeType === 'USDT') usdtSuccessAmount += amt;
-                if (isThird) { thirdSuccessCount++; thirdSuccessAmount += amt; }
+                if (isThird) {
+                    thirdSuccessCount++; thirdSuccessAmount += amt;
+                    const b = thirdChannelBucket(o.rechargeChannelId);
+                    b.successCount++; b.successAmount += amt;
+                }
             }
         }
     }
@@ -157,7 +171,8 @@ function aggregateRechargeOrders(adminToken, startTs, endTs) {
         rechargeSuccessUserCount: successUserCount, rechargeSuccessCount: successCount,
         rechargeFailCount: failCount, rechargeSuccessAmount: successAmount, rechargeUsdtSuccessAmount: usdtSuccessAmount,
         rechargeThirdOrderCount: thirdOrderCount, rechargeThirdSuccessCount: thirdSuccessCount,
-        rechargeThirdFailCount: thirdFailCount, rechargeThirdSuccessAmount: thirdSuccessAmount
+        rechargeThirdFailCount: thirdFailCount, rechargeThirdSuccessAmount: thirdSuccessAmount,
+        rechargeThirdByChannel: thirdByChannel
     };
 }
 
@@ -174,6 +189,13 @@ function aggregateWithdrawOrders(adminToken, startTs, endTs) {
     // 有渠道归属的部分去对比，双方都是0时天然判定一致，不需要单独写"断言为空"的分支；
     // 如果以后真的有提现走通了三方，这套字段依然能做精确的strict数字对比。
     let attributedOrderCount = 0, attributedSuccessCount = 0, attributedSuccessAmount = 0;
+    // 同充值侧，按withdrawChannelId分桶，支持逐渠道精确对比(2026-10-27用户要求)。
+    const attributedByChannel = {}; // channelId(string) -> {orderCount, successCount, successAmount}
+    function attributedChannelBucket(channelId) {
+        const key = String(channelId);
+        if (!attributedByChannel[key]) attributedByChannel[key] = { orderCount: 0, successCount: 0, successAmount: 0 };
+        return attributedByChannel[key];
+    }
 
     const orders = fetchAllPages(page => sendRequest({
         startTime: startTs - WINDOW_PAD_MS, endTime: endTs, pageNo: page, pageSize: 500, dateType: 1, orderBy: 'Desc'
@@ -187,7 +209,7 @@ function aggregateWithdrawOrders(adminToken, startTs, endTs) {
         if (o.createTime >= startTs && o.createTime <= endTs) {
             orderCount++;
             userIds.add(o.userId);
-            if (hasChannel) attributedOrderCount++;
+            if (hasChannel) { attributedOrderCount++; attributedChannelBucket(o.withdrawChannelId).orderCount++; }
         }
         // 提现没有failCount对应字段(GetTenantPageList本身就没提供)，这里不统计失败数
 
@@ -202,7 +224,11 @@ function aggregateWithdrawOrders(adminToken, startTs, endTs) {
                 const amt = parseFloat(o.actualAmount || 0);
                 successAmount += amt;
                 if (o.withdrawType === 'USDT') usdtSuccessAmount += amt;
-                if (hasChannel) { attributedSuccessCount++; attributedSuccessAmount += amt; }
+                if (hasChannel) {
+                    attributedSuccessCount++; attributedSuccessAmount += amt;
+                    const b = attributedChannelBucket(o.withdrawChannelId);
+                    b.successCount++; b.successAmount += amt;
+                }
             }
         }
     }
@@ -212,7 +238,8 @@ function aggregateWithdrawOrders(adminToken, startTs, endTs) {
         withdrawSuccessUserCount: successUserCount, withdrawSuccessCount: successCount,
         withdrawSuccessAmount: successAmount, withdrawUsdtSuccessAmount: usdtSuccessAmount,
         withdrawAttributedOrderCount: attributedOrderCount, withdrawAttributedSuccessCount: attributedSuccessCount,
-        withdrawAttributedSuccessAmount: attributedSuccessAmount
+        withdrawAttributedSuccessAmount: attributedSuccessAmount,
+        withdrawAttributedByChannel: attributedByChannel
     };
 }
 

@@ -1,5 +1,5 @@
 import http from 'k6/http';
-import { getApiUrl } from '../../config/environment.js';
+import { resolveApiRoute } from '../../config/environment.js';
 import { getLogger } from '../utils/logger.js';
 import { SignedHttpClient } from '../utils/signature.js';
 import { getBaseUrl } from './core.js';
@@ -60,23 +60,32 @@ export class HttpClient extends SignedHttpClient {
   // 最简请求：直接返回 k6 原生 response
 
   request(method, endpoint, data = null, config = {}, isDesk = true) {
-    const url = config.fullUrl || getApiUrl(endpoint, isDesk);
-    //logger.info(`请求的url:  ${url}`);
-
-    // 为前后端请求的时候添加不同的headers
     // 租户/域名规则与 tenantRequest 一致（libs/http/core.js）：以前这里只认 TENANT_ID，与 URL 用的 TENANT 不一致
-    let domainUrl;
+    // 2026-10-30：默认优先走集团查询，集团登录失败时自动降级为商户自己的域名（见
+    // config/environment.js 的 resolveApiRoute / libs/http/groupRouting.js）。
+    // config.fullUrl 是调用方明确指定域名的逃生舱口——这种场景不套集团的 tenantId
+    // 头，调用方既然手动指定了域名，就不该被自动画蛇添足。
+    let url, domainUrl, extraHeaders = {};
     if (config.fullUrl) {
+      url = config.fullUrl;
       const match = config.fullUrl.match(/^(https?:\/\/[^\/]+)/);
       domainUrl = match ? match[1] : getBaseUrl(isDesk);
     } else {
-      domainUrl = getBaseUrl(isDesk);
+      // config.forceTenant：强制走商户自己的域名，不套集团路由（2026-10-30 新增）。
+      // 给已经用商户 token 登录的调用方用，否则 token 和路由会不同步，报 "Account
+      // type does not match the admin site"（已实测踩坑，见 resolveQueryRoute 注释）。
+      const route = resolveApiRoute(endpoint, isDesk, config.forceTenant === true);
+      url = route.url;
+      domainUrl = route.baseUrl;
+      extraHeaders = route.extraHeaders;
     }
+    //logger.info(`请求的url:  ${url}`);
 
     config.headers = generateRequestBody(config, domainUrl);
 
-    // 添加默认 headers
-    const headers = { ...this.defaultHeaders, ...config.headers };
+    // 添加默认 headers；extraHeaders（集团模式下的 tenantId 头）放最后，确保不会
+    // 被 defaultHeaders / config.headers 意外覆盖
+    const headers = { ...this.defaultHeaders, ...config.headers, ...extraHeaders };
 
     let body = null;
     if (data) {
@@ -89,10 +98,18 @@ export class HttpClient extends SignedHttpClient {
       ? this._signIfNeeded(config.params || {}, config)
       : {};
 
+    // 2026-10-29发现：项目里20多处调用点(signinApi.js/rechargeWheelExecution.js/
+    // rptDashboardApi.js/各性能测试脚本等)都把tags错塞进了 config.params.tags，
+    // 但config.params只在GET/DELETE分支才会被读取(见上面的params变量)，POST场景
+    // 下从未被用到——这些tags从来没有真正传给k6底层，一直在空转。这里做兼容读取，
+    // 不改调用点(改动面太大)，只在底层统一打一个补丁：优先取规范的顶层config.tags，
+    // 没有就退回历史上这种错误但被广泛复制的config.params.tags写法。
+    const tags = config.tags || (config.params && config.params.tags) || {};
+
     const options = {
       headers,
       timeout: `${this.timeout}ms`,
-      tags: config.tags || {},
+      tags,
       // Only include body if it's not null
       ...(body !== null && { body })
     };

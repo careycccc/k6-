@@ -1,0 +1,15 @@
+2026/10/30-16:25:57.178 e8f0 Reusing MANIFEST D:\project\k6-\k6\playwrith\.browser_profiles\profile_3169107094\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/MANIFEST-000001
+2026/10/30-16:25:57.178 e8f0 Recovering log #18
+2026/10/30-16:25:57.178 e8f0 Reusing old log D:\project\k6-\k6\playwrith\.browser_profiles\profile_3169107094\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/000018.log 
+2026/10/30-16:25:57.178 e8f0 Delete type=2 #17
+2026/10/30-16:25:57.260 26ac4 Level-0 table #23: started
+2026/10/30-16:25:57.265 26ac4 Level-0 table #23: 925 bytes OK
+2026/10/30-16:25:57.269 26ac4 Delete type=0 #18
+2026/10/30-16:25:57.269 26ac4 Manual compaction at level-0 from '\x00\x0e\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0f\x00\x00\x00' @ 0 : 0; will stop at '\x00\x0e\x00\x00\x05' @ 671 : 1
+2026/10/30-16:25:57.269 26ac4 Compacting 1@0 + 1@1 files
+2026/10/30-16:25:57.272 26ac4 Generated table #24@0: 215 keys, 43105 bytes
+2026/10/30-16:25:57.272 26ac4 Compacted 1@0 + 1@1 files => 43105 bytes
+2026/10/30-16:25:57.276 26ac4 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-16:25:57.276 26ac4 Delete type=2 #23
+2026/10/30-16:25:57.276 26ac4 Manual compaction at level-0 from '\x00\x0e\x00\x00\x05' @ 671 : 1 .. '\x00\x0f\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-16:25:57.280 26ac4 Manual compaction at level-0 from '\x00\x0f\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x10\x00\x00\x00' @ 0 : 0; will stop at (end)

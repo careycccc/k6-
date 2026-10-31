@@ -9,6 +9,7 @@
  *
  * 参数说明：
  *   TENANT   租户 ID（默认 3004）
+ *   REMARK   后台备注（可选，不传自动生成"批量导入自动化测试备注<时间戳>"）
  */
 
 import { tenantAdminLogin, tenantRequest } from '../../../../libs/http/tenantRequest.js';
@@ -60,7 +61,12 @@ export function setup() {
     console.log(`[${TAG}] 租户: ${TENANT_ID}`);
 
     // 1. 后台登录
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    // 2026-10-30：显式强制商户模式(第二参数true)，不走集团默认登录——本脚本后续
+    // 图片上传(uploadFactory.js)硬编码走 ENV_CONFIG.BASE_ADMIN_URL(商户域名)，
+    // 如果 token 是集团token 会域名/token 错配，报 "Account type does not
+    // match the admin site"（已实测踩坑）。AddUserMsg 本身也是写操作，不应该
+    // 默认套集团token。
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) {
         throw new Error(`[${TAG}] 后台登录失败，终止测试`);
     }
@@ -106,6 +112,8 @@ export default function (data) {
     const ts      = Date.now();
     const title   = `批量导入${ts}`;
     const content = `批量导入${ts}`;
+    // 2026-10-30：接口新增 remark(后台备注)字段，可选，不传给默认值；-e REMARK=xxx 可覆盖
+    const remark  = __ENV.REMARK || `批量导入自动化测试备注${ts}`;
 
     // targetDetail：每个 userId 以 \r\n 结尾，最后一个不加
     const targetDetail = userIds.join('\r\n');
@@ -115,6 +123,7 @@ export default function (data) {
     console.log(`[${TAG}] imageUrl:      ${imageUrl}`);
     console.log(`[${TAG}] userId 数量:   ${userIds.length}`);
     console.log(`[${TAG}] sendTime:      ${ts}`);
+    console.log(`[${TAG}] remark:        ${remark}`);
 
     const res = tenantRequest('/api/Firebase/AddUserMsg', {
         firebaseId:    FIREBASE_ID,
@@ -127,8 +136,9 @@ export default function (data) {
         sendTime:      ts,
         pushPriority:  1,
         survivalTime:  3600,
-        targetDetail:  targetDetail
-    }, { token: adminToken, isDesk: false });
+        targetDetail:  targetDetail,
+        remark:        remark
+    }, { token: adminToken, isDesk: false, forceTenant: true });
 
     if (!res || res.msgCode !== 0) {
         console.error(`[${TAG}] ❌ AddUserMsg 失败: msgCode=${res ? res.msgCode : 'null'} msg=${res ? res.msg : ''}`);

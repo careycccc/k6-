@@ -1,0 +1,26 @@
+2026/10/30-16:30:27.766 282ac Reusing MANIFEST D:\project\k6-\k6\playwrith\.browser_profiles\profile_9214155420\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/MANIFEST-000001
+2026/10/30-16:30:27.766 282ac Recovering log #16
+2026/10/30-16:30:27.766 282ac Reusing old log D:\project\k6-\k6\playwrith\.browser_profiles\profile_9214155420\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/000016.log 
+2026/10/30-16:30:27.766 282ac Delete type=2 #15
+2026/10/30-16:30:27.885 23108 Level-0 table #21: started
+2026/10/30-16:30:27.889 23108 Level-0 table #21: 80375 bytes OK
+2026/10/30-16:30:27.893 23108 Delete type=0 #16
+2026/10/30-16:30:27.894 21ee0 Manual compaction at level-0 from '\x00\x10\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x11\x00\x00\x00' @ 0 : 0; will stop at '\x00\x10\x00\x00\x05' @ 793 : 1
+2026/10/30-16:30:27.895 21ee0 Compacting 1@0 + 1@1 files
+2026/10/30-16:30:27.898 21ee0 Generated table #22@0: 218 keys, 43092 bytes
+2026/10/30-16:30:27.899 21ee0 Compacted 1@0 + 1@1 files => 43092 bytes
+2026/10/30-16:30:27.900 21ee0 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-16:30:27.900 21ee0 Delete type=2 #21
+2026/10/30-16:30:27.901 282ac Manual compaction at level-0 from '\x00\x10\x00\x00\x05' @ 793 : 1 .. '\x00\x11\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-16:30:27.903 178fc Level-0 table #24: started
+2026/10/30-16:30:27.911 178fc Level-0 table #24: 660 bytes OK
+2026/10/30-16:30:27.913 178fc Delete type=2 #18
+2026/10/30-16:30:27.913 178fc Delete type=0 #20
+2026/10/30-16:30:27.914 282ac Manual compaction at level-0 from '\x00\x11\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x12\x00\x00\x00' @ 0 : 0; will stop at '\x00\x11\x00\x00\x05' @ 810 : 1
+2026/10/30-16:30:27.914 282ac Compacting 1@0 + 1@1 files
+2026/10/30-16:30:27.917 282ac Generated table #25@0: 218 keys, 43093 bytes
+2026/10/30-16:30:27.917 282ac Compacted 1@0 + 1@1 files => 43093 bytes
+2026/10/30-16:30:27.919 282ac compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-16:30:27.919 282ac Delete type=2 #24
+2026/10/30-16:30:27.920 282ac Manual compaction at level-0 from '\x00\x11\x00\x00\x05' @ 810 : 1 .. '\x00\x12\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-16:30:31.080 178fc Manual compaction at level-0 from '\x00\x12\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x13\x00\x00\x00' @ 0 : 0; will stop at (end)

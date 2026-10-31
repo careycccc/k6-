@@ -1,0 +1,29 @@
+2026/10/30-15:49:41.068 1dad8 Reusing MANIFEST D:\project\k6-\k6\playwrith\.browser_profiles\profile_6016041660\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/MANIFEST-000001
+2026/10/30-15:49:41.069 1dad8 Recovering log #6
+2026/10/30-15:49:41.081 1dad8 Reusing old log D:\project\k6-\k6\playwrith\.browser_profiles\profile_6016041660\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/000006.log 
+2026/10/30-15:49:41.084 1dad8 Delete type=2 #5
+2026/10/30-15:49:41.648 1f444 Level-0 table #11: started
+2026/10/30-15:49:41.674 1f444 Level-0 table #11: 44742 bytes OK
+2026/10/30-15:49:41.679 1f444 Delete type=0 #6
+2026/10/30-15:49:41.680 1dad8 Manual compaction at level-0 from '\x00\x0b\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0c\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-15:49:41.681 1dad8 Level-0 table #13: started
+2026/10/30-15:49:41.697 1dad8 Level-0 table #13: 670 bytes OK
+2026/10/30-15:49:41.706 1dad8 Delete type=0 #10
+2026/10/30-15:49:41.709 1dad8 Manual compaction at level-0 from '\x00\x0c\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0d\x00\x00\x00' @ 0 : 0; will stop at '\x00\x0c\x00\x00\x05' @ 547 : 1
+2026/10/30-15:49:41.709 1dad8 Compacting 1@0 + 1@1 files
+2026/10/30-15:49:41.714 1dad8 Generated table #14@0: 98 keys, 42834 bytes
+2026/10/30-15:49:41.714 1dad8 Compacted 1@0 + 1@1 files => 42834 bytes
+2026/10/30-15:49:41.720 1dad8 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-15:49:41.721 1dad8 Delete type=2 #13
+2026/10/30-15:49:41.727 1dad8 Manual compaction at level-0 from '\x00\x0c\x00\x00\x05' @ 547 : 1 .. '\x00\x0d\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-15:54:50.989 1f444 Level-0 table #16: started
+2026/10/30-15:54:50.994 1f444 Level-0 table #16: 81925 bytes OK
+2026/10/30-15:54:51.013 1f444 Delete type=2 #11
+2026/10/30-15:54:51.013 1f444 Delete type=0 #12
+2026/10/30-15:54:51.017 1f66c Manual compaction at level-0 from '\x00\x0d\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0e\x00\x00\x00' @ 0 : 0; will stop at '\x00\x0d\x00\x00\x05' @ 640 : 1
+2026/10/30-15:54:51.017 1f66c Compacting 1@0 + 1@1 files
+2026/10/30-15:54:51.026 1f66c Generated table #17@0: 128 keys, 42009 bytes
+2026/10/30-15:54:51.026 1f66c Compacted 1@0 + 1@1 files => 42009 bytes
+2026/10/30-15:54:51.030 1f66c compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-15:54:51.031 1f66c Delete type=2 #16
+2026/10/30-15:54:51.033 1f66c Manual compaction at level-0 from '\x00\x0d\x00\x00\x05' @ 640 : 1 .. '\x00\x0e\x00\x00\x00' @ 0 : 0; will stop at (end)

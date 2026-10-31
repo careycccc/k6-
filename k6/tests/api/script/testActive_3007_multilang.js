@@ -89,7 +89,7 @@ export function setup() {
             throw new Error(`未找到租户 ${tenantId} 的配置`);
         }
 
-        const token = AdminLogin();
+        const token = AdminLogin(true);
         if (!token) {
             logger.error('AdminLogin 返回空值，登录失败');
             throw new Error('AdminLogin 返回空 token');

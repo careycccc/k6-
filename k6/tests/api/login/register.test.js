@@ -1,6 +1,6 @@
 import { sendToGetVerCode } from './SendVerifiyCode.test.js';
 import { httpClient } from '../../../libs/http/client.js';
-import { getTimeRandom, generateCryptoRandomString } from '../../utils/utils.js';
+import { getTimeRandom, generateCryptoRandomString, generateFbp, generateFbc } from '../../utils/utils.js';
 import { ENV_CONFIG } from '../../../config/envconfig.js';
 import { probeResponse } from '../../../libs/monitor/perfIntegration.js';
 import { PERF_METRICS, ERROR_COUNTERS } from '../../../libs/monitor/perfMetrics.js';
@@ -346,12 +346,32 @@ export function eventIdentityRegister(userName, data, options = {}) {
 
 /**
  * 游客注册/登录 (AutoLogin)
+ *
+ * 2026-10-27新增FB归因支持：游客注册这个接口原本的payload契约里完全没有归因
+ * 字段的位置(不同于 facebookRegister.js 的 /api/Home/Register，那边payload
+ * 顶层本来就有 campaignId/adSetId/adId)。这次新增的 adAttribution 顶层对象
+ * 是针对3003商户真实抓包实测确认的结构——不是文档里 ad.campaignId 那种点号
+ * 扁平写法，是独立的嵌套对象，字段名也是小写的 adsetId/adsetName(不是旧代码
+ * 风格的 adSetId/adSetName)。同时验证过落地页URL的真实来源：
+ *   https://3003.arplatsaassit3.club/indexpt1?fbclid=...&p1=campaignName&p2=campaignId
+ *   &p3=adsetName&p4=adsetId&p5=adName&p6=adId&...
+ * p1~p6 逐项对应 adAttribution 的6个字段，fbclid 则是 eventIdentityInfo.Fbc
+ * (格式 fb.1.<时间戳>.<fbclid>) 的真实来源——这套映射关系已用真实数据核对过，
+ * 不是猜测。
+ *
  * @param {object} options - 额外参数
  *   - packageName: 包名 (必需，如 'com.ar3007.fb.app')
  *   - inviteCode: 邀请码 (默认空)
  *   - registerDevice: 设备号 (如果不传，将自动随机生成)
  *   - eventConfigId: 事件配置ID (默认 100061)
  *   - eventType: 事件类型 (默认 99)
+ *   - pixelId: Facebook Pixel ID (默认 "0"，即"无归因"的旧行为；传真实值才算走FB归因)
+ *   - fbp: Facebook Browser ID，不传且 pixelId!=="0" 时自动用 generateFbp() 生成
+ *   - fbclid: 从广告落地页URL拿到的真实点击ID原始值；连同 fbc 一起传时以 fbc 为准，
+ *     只传 fbclid 则用 generateFbc(fbclid) 自动拼出标准格式
+ *   - fbc: Facebook Click ID 完整值(fb.1.<ts>.<fbclid>)，优先级高于 fbclid
+ *   - adAttribution: { campaignId, campaignName, adsetId, adsetName, adId, adName } ——
+ *     不传则不带这个字段，保持无归因的纯游客注册老行为
  * @returns {object} 返回包含 token 和响应数据的对象
  */
 export function guestRegister(options = {}) {
@@ -360,7 +380,12 @@ export function guestRegister(options = {}) {
         inviteCode = "",
         registerDevice = generateCryptoRandomString(16),
         eventConfigId = 100061,
-        eventType = 99
+        eventType = 99,
+        pixelId = "0",
+        fbp,
+        fbclid,
+        fbc,
+        adAttribution = null
     } = options;
 
     // console.log(`[GuestRegister] ========== 开始游客注册/登录流程 ==========`);
@@ -377,33 +402,62 @@ export function guestRegister(options = {}) {
     const timeData = getTimeRandom();
     const lang = timeData.language || ENV_CONFIG.LANGUAGE || "ur";
 
-    // 实际发送的完整 payload
+    // pixelId传了真实值(不是旧默认"0")才视为"要走FB归因"，这时才需要Fbp兜底生成——
+    // 不要在调用方根本没打算测归因的场景(pixelId仍是默认"0")下也悄悄生成一个假Fbp，
+    // 那会让"无归因"的老用例意外带上追踪数据，破坏既有行为。
+    const resolvedFbp = fbp !== undefined ? fbp : (pixelId !== "0" ? generateFbp() : "");
+    const resolvedFbc = fbc !== undefined ? fbc : (fbclid ? generateFbc(fbclid) : "");
+
+    // 实际发送的完整 payload（字段顺序贴近3003真实抓包，方便对照排查）
     const payload = {
         registerDevice: registerDevice,
         registerFingerprint: "",
         inviteCode: inviteCode,
-        packageName: packageName,
         eventIdentity: [
             {
                 eventConfigId: eventConfigId,
                 eventType: eventType,
                 eventIdentityInfo: JSON.stringify({
-                    PixelId: "0",
-                    Fbp: "",
-                    Fbc: "",
+                    PixelId: pixelId,
+                    Fbp: resolvedFbp,
+                    Fbc: resolvedFbc,
                     Ttcsid: "",
                     AdjustDeviceId: ""
                 })
             }
         ],
+        packageName: packageName,
         language: lang,
         random: timeData.random,
         signature: "",
         timestamp: timeData.timestamp
     };
+    if (adAttribution) {
+        payload.adAttribution = {
+            campaignName: adAttribution.campaignName || "",
+            campaignId: adAttribution.campaignId || "",
+            adsetName: adAttribution.adsetName || "",
+            adsetId: adAttribution.adsetId || "",
+            adName: adAttribution.adName || "",
+            adId: adAttribution.adId || ""
+        };
+    }
 
-    // 因为 eventIdentity 是数组对象，可能导致后端验签规则不一致
-    // 参照本项目其他包含 eventIdentity 的注册接口，需要将其从签名参数中剔除
+    // eventIdentity 不参与签名(沿用本项目其他含eventIdentity的注册接口的既有
+    // 规则：数组+内部还套了一层JSON字符串化，复杂度高，容易和后端JSON序列化
+    // 对不上)。
+    //
+    // adAttribution 必须参与签名——2026-10-27用3003真实抓包的签名值离线反推
+    // 确认过(拿真实signature倒推字段组合方式，而不是靠一次次发请求试错)：
+    // 后端的验签算法会"递归"排序嵌套对象，但本项目 SignatureUtil.sortObject
+    // (libs/utils/signature.js)只对顶层键排序，不会进嵌套对象内部排序——这
+    // 正是最初两次尝试("整体嵌套不排内部"、"拍平到顶层")都报 Wrong signature
+    // 的根因。必须手动把 adAttribution 内部的6个字段也按字母顺序排好，再整体
+    // 作为嵌套对象塞进signPayload，顶层sortObject处理adAttribution这个键时
+    // 才不会再去打乱已经排好的内部顺序。已用真实签名值核对一致：
+    //   JSON.stringify应为 {"adAttribution":{"adId":...,"adName":...,
+    //   "adsetId":...,"adsetName":...,"campaignId":...,"campaignName":...},
+    //   "language":...,"packageName":...,"random":...,"registerDevice":...}
     const signPayload = {
         registerDevice: registerDevice,
         registerFingerprint: "",
@@ -412,6 +466,13 @@ export function guestRegister(options = {}) {
         language: lang,
         random: timeData.random
     };
+    if (adAttribution) {
+        const a = payload.adAttribution;
+        signPayload.adAttribution = {
+            adId: a.adId, adName: a.adName, adsetId: a.adsetId,
+            adsetName: a.adsetName, campaignId: a.campaignId, campaignName: a.campaignName
+        };
+    }
 
     const signClient = new httpClient.constructor();
     const signedParams = signClient.signData(signPayload);
@@ -426,6 +487,34 @@ export function guestRegister(options = {}) {
     return handleRegisterResponseWithToken(httpResponse, "Guest_" + registerDevice);
 }
 
+/**
+ * 3003商户「游客注册+FB归因」真实验证过的参数组合——2026-10-27从开发提供的
+ * 真实落地页URL + 真实套壳包抓包逐项核对确认，不是编造的测试数据：
+ *   落地页：https://3003.arplatsaassit3.club/indexpt1?originhost=2rvupe85.com
+ *           &fbclid=...&p1=campaignName&p2=campaignId&p3=adsetName&p4=adsetId
+ *           &p5=adName&p6=adId&utm_source=fb&utm_medium=paid...
+ *   抓包：POST /api/Home/AutoLogin，响应 code:0 成功创建新用户，adAttribution
+ *         的6个字段和落地页 p1~p6 逐项比对完全一致。
+ * campaignId/adsetId/adId 是真实FB广告后台的ID，不是 fbAdConfig.js 里那种虚拟
+ * 造数用的假数据——如果广告在FB后台下线/改名，这组值可能过期，需要重新核对。
+ * 用法：guestRegister({ ...TENANT_3003_FB_ATTRIBUTION, fbclid: '<新抓的fbclid>' })
+ * （fbclid每次点击都不同，不要一直复用同一个旧值，仅复用 adAttribution/pixelId/
+ * eventConfigId/packageName 这几项相对稳定的配置）。
+ */
+export const TENANT_3003_FB_ATTRIBUTION = {
+    packageName: 'com.ar3003.fb.app',
+    eventConfigId: 100052,
+    eventType: 1,
+    pixelId: '4183253858586287',
+    adAttribution: {
+        campaignName: 'CL102-FBW2A-06',
+        campaignId: '120250189821190498',
+        adsetName: '新销量广告组',
+        adsetId: '120250189821180498',
+        adName: '新销量广告 - 广告副本',
+        adId: '120250189851160498'
+    }
+};
 
 // ============================================================
 // 带验证码版本（保留备用，后缀 WithCode）

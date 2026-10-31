@@ -54,7 +54,10 @@ export function getRechargeCategoryList(token) {
                 'Authorization': `Bearer ${token}`,
                 'Domainurl': ENV_CONFIG.BASE_DESK_URL,
                 'Referrer': ENV_CONFIG.BASE_DESK_URL
-            }
+            },
+            // 2026-10-29补：直接裸调k6原生http，绕开libs/http/client.js，单独打tag，
+            // 否则在接口耗时排行榜里只能退化成按URL path兜底分组。
+            tags: { name: 'GetRechargeCategoryList' }
         });
 
         console.log('[Recharge] 响应状态:', response.status);

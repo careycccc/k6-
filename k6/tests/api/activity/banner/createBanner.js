@@ -182,7 +182,7 @@ function createBanners(data) {
             }
 
             try {
-                const result = sendRequest(payload, api, createBannerTag, false, token);
+                const result = sendRequest(payload, api, createBannerTag, false, token, true);
 
                 if (result && result.msgCode === 0) {
                     logger.info(`[${createBannerTag}] 创建轮播图成功: sort=${config.sort} (${lang})`);
@@ -233,7 +233,7 @@ function queryBannerIds(data, expectedCount) {
         };
 
         try {
-            let result = sendQueryRequest(payload, api, createBannerTag, false, token);
+            let result = sendQueryRequest(payload, api, createBannerTag, false, token, true);
 
             if (typeof result !== 'object') {
                 result = JSON.parse(result);
@@ -283,7 +283,7 @@ function startBanners(data, ids) {
         };
 
         try {
-            const result = sendRequest(payload, api, createBannerTag, false, token);
+            const result = sendRequest(payload, api, createBannerTag, false, token, true);
 
             if (result && result.msgCode === 0) {
                 logger.info(`[${createBannerTag}] 启动轮播图成功 ID: ${id}`);

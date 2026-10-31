@@ -23,7 +23,7 @@ export function setup() {
  * 返回：登录类接口返回 token 字符串；有 data 返回 data；否则返回整个响应体；
  *       请求异常 / 响应体解析失败 / 空响应体且非 2xx → null；空响应体且 2xx → { emptyBody: true, status }
  */
-export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
+export function testCommonRequest(data, api, tag, isDesk = true, token = '', forceTenant = false) {
   //logger.info('本次请求测试数据:', data);
   checkCounter = 0;
   // 每次请求独立：以前是模块级变量不清空，失败时会返回上一个请求的结果
@@ -48,7 +48,8 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
         {
           params: {
             tags: { type: tag, name: `${tag}_request` }
-          }
+          },
+          forceTenant
         },
         isDesk
       );
@@ -172,8 +173,11 @@ export function testCommonRequest(data, api, tag, isDesk = true, token = '') {
 @param {object} payload - 请求的参数
 @param {string} tag - 请求的标签
 @param {string} token - 请求体的token
+@param {boolean} [forceTenant=false] - 强制走商户自己的域名，不套集团路由（2026-10-30
+  新增）。给已经用商户 token 登录的调用方用，详见 libs/http/groupRouting.js 的
+  resolveQueryRoute 注释。
 **/
-export function sendRequest(payload, api, tag, isDesk, token) {
+export function sendRequest(payload, api, tag, isDesk, token, forceTenant = false) {
   const timeData = getTimeRandom();
   const data = {
     random: timeData.random,
@@ -182,7 +186,7 @@ export function sendRequest(payload, api, tag, isDesk, token) {
     timestamp: timeData.timestamp,
     ...payload
   };
-  const Reponsetoken = testCommonRequest(data, api, tag, isDesk, token);
+  const Reponsetoken = testCommonRequest(data, api, tag, isDesk, token, forceTenant);
   return Reponsetoken;
 }
 
@@ -192,8 +196,9 @@ export function sendRequest(payload, api, tag, isDesk, token) {
 @param {object} payload - 请求的参数
 @param {string} tag - 请求的标签
 @param {string} token - 请求体的token
+@param {boolean} [forceTenant=false] - 同 sendRequest 的 forceTenant
 **/
-export function sendQueryRequest(payload, api, tag, isDesk, token) {
+export function sendQueryRequest(payload, api, tag, isDesk, token, forceTenant = false) {
   const timeData = getTimeRandom();
   const data = {
     pageNo: ENV_CONFIG.PAGENO,
@@ -208,7 +213,7 @@ export function sendQueryRequest(payload, api, tag, isDesk, token) {
   // 调试：检查 random 值
   // console.log(`[sendQueryRequest] Debug - random: ${data.random}, 类型: ${typeof data.random}, 长度: ${String(data.random).length}`);
 
-  const Reponsetoken = testCommonRequest(data, api, tag, isDesk, token);
+  const Reponsetoken = testCommonRequest(data, api, tag, isDesk, token, forceTenant);
   return Reponsetoken;
 }
 

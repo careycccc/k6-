@@ -55,11 +55,11 @@ const COMPARE_FIELDS = [
     { label: '提现USDT成功金额', local: 'withdrawUsdtSuccessAmount', group: 'withdrawUsdtSuccessAmount', kind: 'amount' }
 ];
 
-// ============== 通道汇总维度：按币种加总后与本地tenant总量对比 ==============
+// ============== 通道汇总维度：逐channelId精确对比 ==============
 // 字段名来自 groupAdminApi.js 的 getRechargeChannelSummaryPageList/
 // getWithdrawChannelSummaryPageList 实测JSDoc——充值比提现多orderUserCount/
 // failCount两个字段(接口本身不对称设计，已用PRD文档确认过，不是漏看)。
-// 只挑"数量/金额类"字段参与加总对比，"人数"类字段(orderUserCount/
+// 只挑"数量/金额类"字段参与对比，"人数"类字段(orderUserCount/
 // successUserCount)天然不可加总——同一账号跨渠道重试会被多个channelId行
 // 各计一次，这不是币种共享才有的限制，是数学上的限制，所以人数类字段
 // 不参与这里的强校验，只在per-tenant报告里展示供参考。
@@ -69,21 +69,28 @@ const COMPARE_FIELDS = [
 // 确认类型)、提现靠"人工确认"兜底完成的(withdrawChannelId=0)，即使本地有
 // 自己的channelId，也天然不出现在这两张表里。之前直接拿rechargeOrderCount/
 // withdrawOrderCount(全部类型都算)去跟"通道汇总"对比，比较的对象范围本来
-// 就不对等，差异不代表数据错——所以这里改成只用verifyLocalTenant.day.js里
-// 新增的"仅三方/仅归属渠道"口径字段(rechargeThird*/withdrawAttributed*)，
-// 统计范围才和集团这两张表真正对齐，能做strict数字对比(哪怕两边都是0也算
-// 一致，不需要为提现单独写"断言为空"的分支)。
-const CHANNEL_ADDITIVE_FIELDS = {
+// 就不对等，差异不代表数据错——所以本地只用verifyLocalTenant.day.js里的
+// "仅三方/仅归属渠道"口径字段，统计范围才和集团这两张表真正对齐。
+//
+// 2026-10-27用户进一步要求：之前是把本地+集团各自的全部渠道行加总成一个
+// 整体数字再比较，只能看出"差多少"看不出"差在哪个渠道"——改成逐channelId
+// 比对，diff条目里标注[tenantId-channelId]，才能定位到具体哪个渠道的数据
+// 对不上。local字段名对应verifyLocalTenant.day.js分桶对象(rechargeThirdByChannel/
+// withdrawAttributedByChannel)内部的字段，不是之前那种聚合层字段名。
+// label不带"充值通道-"/"提现通道-"前缀——2026-10-27第三轮用户反馈：打印
+// 时每个渠道的组标题已经写明"充值通道"/"提现通道"，字段行再重复一遍前缀
+// 纯属视觉噪音，拖慢阅读。
+const CHANNEL_FIELD_DEFS = {
     recharge: [
-        { label: '充值通道-订单数', group: 'orderCount', local: 'rechargeThirdOrderCount', kind: 'count' },
-        { label: '充值通道-成功订单数', group: 'successCount', local: 'rechargeThirdSuccessCount', kind: 'count' },
-        { label: '充值通道-失败订单数', group: 'failCount', local: 'rechargeThirdFailCount', kind: 'count' },
-        { label: '充值通道-成功金额', group: 'successAmount', local: 'rechargeThirdSuccessAmount', kind: 'amount' }
+        { label: '订单数', group: 'orderCount', local: 'orderCount', kind: 'count' },
+        { label: '成功订单数', group: 'successCount', local: 'successCount', kind: 'count' },
+        { label: '失败订单数', group: 'failCount', local: 'failCount', kind: 'count' },
+        { label: '成功金额', group: 'successAmount', local: 'successAmount', kind: 'amount' }
     ],
     withdraw: [
-        { label: '提现通道-订单数', group: 'orderCount', local: 'withdrawAttributedOrderCount', kind: 'count' },
-        { label: '提现通道-成功订单数', group: 'successCount', local: 'withdrawAttributedSuccessCount', kind: 'count' },
-        { label: '提现通道-成功金额', group: 'successAmount', local: 'withdrawAttributedSuccessAmount', kind: 'amount' }
+        { label: '订单数', group: 'orderCount', local: 'orderCount', kind: 'count' },
+        { label: '成功订单数', group: 'successCount', local: 'successCount', kind: 'count' },
+        { label: '成功金额', group: 'successAmount', local: 'successAmount', kind: 'amount' }
     ]
 };
 
@@ -100,12 +107,78 @@ function amountClose(a, b) {
     return diff <= tol;
 }
 
-/** 把某币种下所有通道行的指定字段加总 */
-function sumChannelByCurrency(channelRows, currency, fieldDefs) {
-    const rows = (channelRows || []).filter(r => r.sysCurrency === currency);
-    const sum = {};
-    for (const f of fieldDefs) sum[f.group] = rows.reduce((s, r) => s + (parseFloat(r[f.group]) || 0), 0);
-    return sum;
+/**
+ * 2026-10-27用户用后台截图实测指出：channelId不是商户独占的——INR下的
+ * 26001(ArUpi)同时被3004和范围外的3001使用，当天那笔差异其实是3001的
+ * 真实订单，不是3004漏算。之前"[3004-26001] 本地=0 集团=6"这种标签容易
+ * 让人误以为3004在这个渠道少算了6笔，必须补一句明确说明：共享币种下，
+ * 如果本商户在这个渠道本来就是0笔，差异100%来自同币种下的其他商户，
+ * 不是本商户数据遗漏；如果本商户有一部分，差额也可能包含别的商户的份额，
+ * 不能直接断定是遗漏。strict(独占)币种不存在这个问题，不需要加说明。
+ *
+ * 2026-10-27第二轮用户反馈：之前只看localVal===0二选一文案，没管"差异
+ * 方向"(local比group大还是小)、也没管集团是否压根没有这一行记录，结果
+ * 两种真正异常的情况被误套上"可能来自其他商户"的说法——
+ *   ①local>group：不可能是"其他商户叠加"造成的，叠加只会让集团数字
+ *     更大，不会更小(集团汇总=本商户+其他商户，恒 >= 本商户自己的数)；
+ *   ②集团该渠道完全没有记录(groupRowExists=false)：连"存在其他商户"
+ *     这个前提都不成立，不是数字被占了，是压根没出现过。
+ * 这两种情况都和"币种共享"无关，是真实需要排查的异常，由下面的
+ * isChannelDiffReal()统一判定、提级进mismatches，不再被"仅供参考"掩盖。
+ */
+function channelDeviationNote(isStrict, lv, gv, groupRowExists) {
+    if (!groupRowExists) return '集团压根没有这个渠道的记录(不是数字小，是完全没有)，不能用"其他商户"解释，需单独确认是否渠道归类/口径问题';
+    if (lv > gv) return '本地反而比集团多，这种方向不可能是其他商户造成的(其他商户只会让集团数字更大)，是真实异常，需要排查';
+    if (isStrict) return null;
+    if (lv === 0) return '本商户在此渠道没有订单，这些数字全部来自同币种下的其他商户，不是数据遗漏';
+    return '本商户在此渠道只有部分订单，差额可能来自同币种下的其他商户，不代表一定是遗漏';
+}
+
+/**
+ * 决定一条渠道维度差异该计入mismatches(强校验失败/计入最终判定)还是
+ * referenceOnlyDeviations(仅供参考)——不能只看商户币种是否独占(isStrict)：
+ * 集团完全没这一行、或者local>group，这两种情况不管是否共享币种，都不是
+ * "其他商户叠加"能解释的，一律当真异常处理；只有"local<group 且 币种
+ * 共享"才是真正可以安心归因为噪音、放进"仅供参考"的场景。
+ */
+function isChannelDiffReal(isStrict, lv, gv, groupRowExists) {
+    if (!groupRowExists) return true;
+    if (lv > gv) return true;
+    return isStrict;
+}
+
+/**
+ * 把集团该币种下的渠道行，和本地按channelId分桶的数据逐一比较(取代旧的
+ * sumChannelByCurrency整体加总对比)——双向收集channelId(集团有的∪本地
+ * 有的)，这样"本地有统计但集团没这一行"或反过来，都能被发现，不会因为
+ * 只遍历集团行而漏掉本地独有的渠道。返回值按channelId分组的明细行，供
+ * printReport的per-tenant详细展示和diff摘要共用同一份数据，不会出现
+ * "汇总对比"和"明细diff"两种粒度对不上号的问题。
+ * @returns {Array<{channelId, channelName, fields: Array<{label, local, group, lv, gv, ok}>}>}
+ */
+function diffByChannel(currency, groupChannelRows, localByChannel, fieldDefs) {
+    const rowsForCurrency = (groupChannelRows || []).filter(r => r.sysCurrency === currency);
+    const groupByChannelId = new Map(rowsForCurrency.map(r => [String(r.channelId), r]));
+    const allChannelIds = new Set([...groupByChannelId.keys(), ...Object.keys(localByChannel || {})]);
+
+    const out = [];
+    for (const channelId of Array.from(allChannelIds).sort()) {
+        const groupRow = groupByChannelId.get(channelId);
+        const localRow = (localByChannel || {})[channelId] || {};
+        const fields = fieldDefs.map(f => {
+            const lv = localRow[f.local] || 0;
+            const gv = groupRow ? (parseFloat(groupRow[f.group]) || 0) : 0;
+            const ok = f.kind === 'amount' ? amountClose(lv, gv) : lv === gv;
+            return { label: f.label, local: f.local, lv, gv, ok };
+        });
+        // channelName不再塞"集团此渠道无记录"这种提示字符串占位(会导致
+        // 展示层拼出"[3004-10474]((本地有订单，集团此渠道无记录))"这种
+        // 双层括号)——groupRowExists单独带出"集团是否压根没有这一行"的
+        // 事实，channelName为null时统一由展示层拼成"(集团无此渠道记录)"，
+        // 详细原因交给note文案解释，不在名字字段里重复。
+        out.push({ channelId, channelName: groupRow ? groupRow.channelName : null, groupRowExists: !!groupRow, fields });
+    }
+    return out;
 }
 
 function spawnK6(script, envs, label) {
@@ -173,8 +246,9 @@ function diff(localByTenant, groupData) {
         if (!group) { rows.push({ ok: false, label: '(集团报表里没有这个商户，跳过)', localVal: null, groupVal: null }); perTenantRows[tenantId] = rows; continue; }
 
         // source标注这条差异具体是"本地统计"跟集团哪张表的哪一行在比——
-        // 2026-10-27用户指出之前的摘要看不出是哪两个表对比的，必须明确标注。
-        const SRC_TENANT = `本地聚合(verifyLocalTenant查该商户后台订单) vs 商户明细(GetTenantPageList第${tenantId}行)`;
+        // 2026-10-27用户指出之前的摘要看不出是哪两个表对比的，必须明确标注；
+        // 第三轮反馈：这句话不能带API名字/实现细节，要让非开发背景的人也看懂。
+        const SRC_TENANT = '商户整体数据（本商户后台订单 vs 集团商户明细）';
         for (const f of COMPARE_FIELDS) {
             const lv = local[f.local];
             const gv = group[f.group];
@@ -183,35 +257,41 @@ function diff(localByTenant, groupData) {
             if (!ok) mismatches.push({ tenantId, source: SRC_TENANT, label: f.label, field: f.local, localVal: lv, groupVal: gv, diffVal: (typeof lv === 'number' && typeof gv === 'number') ? Math.abs(lv - gv) : null });
         }
 
-        // 通道汇总维度：按币种加总后与本地tenant总量对比。3006/3007币种独占，
-        // 计入强校验(mismatches)；3004(INR)和不受控的3001共享，结果无论对错
-        // 都只进referenceOnlyDeviations，不影响失败判定。
-        // 本地这边只用"仅三方/仅归属渠道"口径(见CHANNEL_ADDITIVE_FIELDS顶部注释)，
-        // 不是该商户全部订单——两张表统计范围本来就只覆盖走第三方的那部分。
+        // 通道汇总维度：逐channelId精确对比(2026-10-27改为逐渠道，不再加总)。
+        // 3006/3007币种独占，计入强校验(mismatches)；3004(INR)和不受控的3001
+        // 共享，结果无论对错都只进referenceOnlyDeviations，不影响失败判定。
+        // 本地这边只用"仅三方/仅归属渠道"按channelId分桶的数据(见
+        // CHANNEL_FIELD_DEFS顶部注释)，不是该商户全部订单。
         const currency = CURRENCY_BY_TENANT[tenantId];
         const isStrict = STRICT_CURRENCY_TENANTS.has(tenantId);
         if (currency) {
-            rows.push({ label: `── 通道汇总(币种=${currency}${isStrict ? '，独占可强校验' : '，与其他商户共享，仅供参考'}) ──` });
-            const rSum = sumChannelByCurrency(rchannel, currency, CHANNEL_ADDITIVE_FIELDS.recharge);
-            const wSum = sumChannelByCurrency(wchannel, currency, CHANNEL_ADDITIVE_FIELDS.withdraw);
-            const SRC_RCHANNEL = `本地聚合(该商户后台订单里rechargeChannelType=ThirdRecharge的子集) vs 充值通道汇总(GetRechargeChannelSummaryPageList，币种=${currency}全部渠道行加总)`;
-            const SRC_WCHANNEL = `本地聚合(该商户后台订单里withdrawChannelId!=0的子集) vs 提现通道汇总(GetWithdrawChannelSummaryPageList，币种=${currency}全部渠道行加总)`;
-            for (const f of CHANNEL_ADDITIVE_FIELDS.recharge) {
-                const lv = local[f.local]; const gv = rSum[f.group];
-                const ok = f.kind === 'amount' ? amountClose(lv, gv) : lv === gv;
-                rows.push({ ok, label: f.label, field: f.local, localVal: lv, groupVal: gv });
-                if (!ok) {
-                    const item = { tenantId, source: SRC_RCHANNEL, label: f.label, field: f.local, localVal: lv, groupVal: gv, diffVal: (typeof lv === 'number' && typeof gv === 'number') ? Math.abs(lv - gv) : null };
-                    (isStrict ? mismatches : referenceOnlyDeviations).push(item);
+            rows.push({ label: `── 通道明细（币种${currency}${isStrict ? '，独占可强校验' : '，与其他商户共享，仅供参考'}） ──` });
+            const SRC_RCHANNEL = `充值通道对比（币种${currency}，本商户三方充值订单 vs 集团充值通道汇总）`;
+            const SRC_WCHANNEL = `提现通道对比（币种${currency}，本商户三方提现订单 vs 集团提现通道汇总）`;
+
+            const rByChannel = diffByChannel(currency, rchannel, local.rechargeThirdByChannel, CHANNEL_FIELD_DEFS.recharge);
+            for (const ch of rByChannel) {
+                rows.push({ label: `  充值渠道 ${ch.channelId} ${ch.channelName || '（集团无此渠道记录）'}` });
+                for (const f of ch.fields) {
+                    rows.push({ ok: f.ok, label: f.label, field: f.local, localVal: f.lv, groupVal: f.gv });
+                    if (!f.ok) {
+                        const real = isChannelDiffReal(isStrict, f.lv, f.gv, ch.groupRowExists);
+                        const item = { tenantId, channelId: ch.channelId, channelName: ch.channelName, source: SRC_RCHANNEL, label: f.label, field: f.local, localVal: f.lv, groupVal: f.gv, diffVal: Math.abs(f.lv - f.gv), note: channelDeviationNote(isStrict, f.lv, f.gv, ch.groupRowExists) };
+                        (real ? mismatches : referenceOnlyDeviations).push(item);
+                    }
                 }
             }
-            for (const f of CHANNEL_ADDITIVE_FIELDS.withdraw) {
-                const lv = local[f.local]; const gv = wSum[f.group];
-                const ok = f.kind === 'amount' ? amountClose(lv, gv) : lv === gv;
-                rows.push({ ok, label: f.label, field: f.local, localVal: lv, groupVal: gv });
-                if (!ok) {
-                    const item = { tenantId, source: SRC_WCHANNEL, label: f.label, field: f.local, localVal: lv, groupVal: gv, diffVal: (typeof lv === 'number' && typeof gv === 'number') ? Math.abs(lv - gv) : null };
-                    (isStrict ? mismatches : referenceOnlyDeviations).push(item);
+
+            const wByChannel = diffByChannel(currency, wchannel, local.withdrawAttributedByChannel, CHANNEL_FIELD_DEFS.withdraw);
+            for (const ch of wByChannel) {
+                rows.push({ label: `  提现渠道 ${ch.channelId} ${ch.channelName || '（集团无此渠道记录）'}` });
+                for (const f of ch.fields) {
+                    rows.push({ ok: f.ok, label: f.label, field: f.local, localVal: f.lv, groupVal: f.gv });
+                    if (!f.ok) {
+                        const real = isChannelDiffReal(isStrict, f.lv, f.gv, ch.groupRowExists);
+                        const item = { tenantId, channelId: ch.channelId, channelName: ch.channelName, source: SRC_WCHANNEL, label: f.label, field: f.local, localVal: f.lv, groupVal: f.gv, diffVal: Math.abs(f.lv - f.gv), note: channelDeviationNote(isStrict, f.lv, f.gv, ch.groupRowExists) };
+                        (real ? mismatches : referenceOnlyDeviations).push(item);
+                    }
                 }
             }
         }
@@ -270,10 +350,26 @@ function buildOverviewRows(localByTenant, overviewByCurrency) {
  * 让用户当场就能看到"是否不一致、差在哪"，不用等完整报告或者自己翻JSON。
  */
 /**
+ * 数字格式化——整数不带小数点("差=1.00"这种对订单数/人数字段很不自然)，
+ * 只有真的带小数的金额才保留2位。2026-10-27第三轮用户反馈专门针对
+ * 可读性，".00"这类多余视觉噪音一并清理掉。
+ */
+function fmtNum(n) {
+    if (n == null) return '';
+    if (typeof n !== 'number') return String(n);
+    return Number.isInteger(n) ? String(n) : n.toFixed(2);
+}
+
+/**
  * 按source(数据来源对比关系)分组打印差异列表——2026-10-27用户指出：不分组
  * 平铺列出时，看不出每条差异具体是"本地"跟集团哪张表在比(商户明细？充值
  * 通道汇总？提现通道汇总？)。每个来源只打印一次完整说明，下面列具体字段，
  * 不用每行都重复一遍来源文字。
+ *
+ * 2026-10-27第三轮用户反馈("这种打印的结果，我能看懂？？")：纯文字堆叠、
+ * 每行重复一遍完整的渠道标签、"差=1.00"这种格式，读起来很吃力。重写成：
+ * 渠道名只在组标题出现一次，note紧跟标题换行展示一次，字段名对齐，数字
+ * 用"本地X → 集团Y"代替生硬的"本地=X 集团=Y"，更符合阅读习惯。
  */
 function printGroupedBySource(items, headerPrefix, headerSuffix) {
     if (items.length === 0) return;
@@ -285,10 +381,31 @@ function printGroupedBySource(items, headerPrefix, headerSuffix) {
         bySource.get(key).push(m);
     }
     for (const [source, list] of bySource) {
-        console.log(`  【${source}】`);
+        console.log(`\n  ▸ ${source}`);
+        // 按渠道/商户二级分组——同一渠道下好几个字段有差异时，渠道名和
+        // channelDeviationNote的说明只在该组第一行打印一次，不每个字段都重复。
+        const byChannel = new Map();
         for (const m of list) {
-            const diffStr = m.diffVal != null ? `差=${m.diffVal.toFixed(2)}` : '';
-            console.log(`    [${m.tenantId}] ${m.label}   本地=${m.localVal}  集团=${m.groupVal}  ${diffStr}`);
+            const key = m.channelId != null ? `${m.tenantId}-${m.channelId}` : m.tenantId;
+            if (!byChannel.has(key)) byChannel.set(key, []);
+            byChannel.get(key).push(m);
+        }
+        for (const groupItems of byChannel.values()) {
+            const first = groupItems[0];
+            const name = first.channelId != null
+                ? `商户${first.tenantId} 渠道${first.channelId} ${first.channelName || '（集团无此渠道记录）'}`
+                : `商户${first.tenantId}`;
+            console.log(`    ${name}`);
+            if (first.note) console.log(`      ⚠️ ${first.note}`);
+            for (const m of groupItems) {
+                const diffStr = m.diffVal != null ? `　(差 ${fmtNum(m.diffVal)})` : '';
+                // 2026-10-27：这里混用了两种label来源——渠道维度的短名字(3~5字，
+                // 如"订单数")和商户整体维度的长名字(6~9字，如"充值USDT成功金额")，
+                // 固定padEnd宽度对短label够用、对长label不够(超过宽度就不填充，
+                // 导致"充值成功人数"和后面的"本地"直接贴在一起)——改用冒号分隔，
+                // 不管label多长都有明确间隔，不追求视觉对齐。
+                console.log(`      ${m.label}：本地 ${fmtNum(m.localVal)}　→　集团 ${fmtNum(m.groupVal)}${diffStr}`);
+            }
         }
     }
 }
@@ -323,7 +440,7 @@ function printReport(perTenantRows, mismatches, referenceOnlyDeviations, overvie
         for (const r of rows) {
             if (r.field === undefined) { console.log(`   ${r.label}`); continue; }
             const mark = r.ok ? '✅' : '❌';
-            console.log(`${mark} ${r.label.padEnd(10, '　')} | 本地: ${r.localVal}  | 集团: ${r.groupVal}`);
+            console.log(`${mark} ${r.label.padEnd(10, '　')} | 本地: ${fmtNum(r.localVal)}  | 集团: ${fmtNum(r.groupVal)}`);
         }
     }
 
@@ -334,7 +451,7 @@ function printReport(perTenantRows, mismatches, referenceOnlyDeviations, overvie
         console.log(`\n──── 币种 ${currency} ${'─'.repeat(40)}`);
         for (const r of overviewRows[currency]) {
             if (r.field === undefined) { console.log(`   ${r.label}`); continue; }
-            console.log(`📊 ${r.label.padEnd(10, '　')} | 商户明细累加: ${r.localVal}  | 集团概览: ${r.groupVal}`);
+            console.log(`📊 ${r.label.padEnd(10, '　')} | 商户明细累加: ${fmtNum(r.localVal)}  | 集团概览: ${fmtNum(r.groupVal)}`);
         }
     }
 

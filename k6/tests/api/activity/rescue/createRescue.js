@@ -279,7 +279,7 @@ function createRescueActivity1(data) {
         };
 
         logger.info(`[${tag}] 发送创建请求...`);
-        const result = sendRequest(payload, api, tag, false, token);
+        const result = sendRequest(payload, api, tag, false, token, true);
 
         // 检查返回结果
         const isSuccess = result === true || (result && result.msgCode === 0);
@@ -478,7 +478,7 @@ export function createRescue2(data) {
         };
 
         logger.info(`[${createRescue2Tag}] 发送创建请求...`);
-        const result = sendRequest(payload, api, createRescue2Tag, false, token);
+        const result = sendRequest(payload, api, createRescue2Tag, false, token, true);
 
         // 检查返回结果
         const isSuccess = result === true || (result && result.msgCode === 0);
@@ -533,7 +533,7 @@ function queryRescueActivity(data, activityName) {
             "orderBy": "Desc"
         };
 
-        const result = sendQueryRequest(payload, api, tag, false, token);
+        const result = sendQueryRequest(payload, api, tag, false, token, true);
 
         if (!result) {
             logger.error(`[${tag}] 查询活动失败: 响应为空`);
@@ -611,7 +611,7 @@ function enableRescueActivity(data, activityId) {
             "state": 1
         };
 
-        const result = sendRequest(payload, api, tag, false, token);
+        const result = sendRequest(payload, api, tag, false, token, true);
 
         //logger.info(`[${tag}] 启用响应: ${JSON.stringify(result)}`);
 

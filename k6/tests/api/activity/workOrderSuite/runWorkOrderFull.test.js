@@ -131,7 +131,9 @@ export function setup() {
         { label: `${TAG}:AdminLogin`, errorCounter: ERROR_COUNTERS.BUSINESS_ERROR, silent: true }
     );
     // AdminLogin() 返回的是 token 字符串（非 k6 response），用普通调用即可
-    const adminToken = AdminLogin();
+    // forceTenant=true：本文件后续图片上传(uploadFactory.js)硬编码走商户域名，必须
+    // 保持登录和请求同步商户模式，见 tests/api/login/adminlogin.test.js 的注释
+    const adminToken = AdminLogin(true);
     if (!adminToken) throw new Error(`[${TAG}] 管理员登录失败，终止测试`);
 
     const accountCount = parseInt(__ENV.ACCOUNT_COUNT || '1', 10);
@@ -147,7 +149,8 @@ export function setup() {
         '/api/Users/GetPageList',
         TAG,
         false,
-        adminToken
+        adminToken,
+        true
     );
 
     if (!userListRes || !userListRes.list || userListRes.list.length === 0) {
@@ -383,7 +386,8 @@ function _runInspection(adminToken) {
             '/api/TenantForm/GetPageList',
             TAG,
             false,
-            adminToken
+            adminToken,
+            true
         );
 
         if (res && res.msgCode === 13) {
@@ -394,7 +398,8 @@ function _runInspection(adminToken) {
                 '/api/TenantForm/GetPageList',
                 TAG,
                 false,
-                adminToken
+                adminToken,
+                true
             );
         }
 
@@ -406,10 +411,10 @@ function _runInspection(adminToken) {
             if (allDisabled) {
                 const firstId = res.list[0].id;
                 logger.info(`[${TAG}] [全关闭] "${config.name}"，正在开启 ID: ${firstId}...`);
-                let switchRes = sendRequest({ id: firstId, state: 1 }, '/api/TenantForm/SwitchState', TAG, false, adminToken);
+                let switchRes = sendRequest({ id: firstId, state: 1 }, '/api/TenantForm/SwitchState', TAG, false, adminToken, true);
                 if (switchRes && switchRes.msgCode === 13) {
                     sleep(1);
-                    switchRes = sendRequest({ id: firstId, state: 1 }, '/api/TenantForm/SwitchState', TAG, false, adminToken);
+                    switchRes = sendRequest({ id: firstId, state: 1 }, '/api/TenantForm/SwitchState', TAG, false, adminToken, true);
                 }
                 if (switchRes && switchRes.code === 0) {
                     logger.info(`[${TAG}] ✅ "${config.name}" 开启成功`);
@@ -487,13 +492,13 @@ function _createWorkOrderType(config, adminToken) {
     // ── 监控：工单类型创建耗时（归入 FILE_UPLOAD 类型，属于 setup 操作） ────
     let createRes = measure(
         PERF_METRICS.FILE_UPLOAD,
-        () => sendRequest(createPayload, '/api/TenantForm/Create', TAG, false, adminToken),
+        () => sendRequest(createPayload, '/api/TenantForm/Create', TAG, false, adminToken, true),
         { label: `${TAG}:CreateOrderType`, successCheck: (b) => b && (b.code === 0 || b.msgCode === 0) }
     ).body;
 
     if (createRes && createRes.msgCode === 13) {
         sleep(1);
-        createRes = sendRequest(createPayload, '/api/TenantForm/Create', TAG, false, adminToken);
+        createRes = sendRequest(createPayload, '/api/TenantForm/Create', TAG, false, adminToken, true);
     }
 
     if (createRes && createRes.code === 0) {

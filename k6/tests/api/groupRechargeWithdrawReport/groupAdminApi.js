@@ -1,12 +1,16 @@
 /**
- * 集团后台(Group Admin) API 封装 —— 登录 + 充提报表查询
+ * 集团后台(Group Admin) API 封装 —— 充提报表查询
  *
  * 和租户后台是两套完全独立的系统：域名/账号/密钥见 config/groupAdminConfig.js
  * 的 GROUP_ADMIN_TEST/GROUP_ADMIN_UAT。登录协议(userName/pwd/vCode + 签名)和
- * 租户后台一致，复用 libs/http/tenantRequest.js 的 totpVCode 和
- * libs/http/core.js 的 signPayload/buildBaseHeaders；但域名解析不能用
- * getBaseUrl(走 envconfig 的 ENV_MAP 按 tenantId 查)，因为集团后台不在那张表
- * 里，要用配置里写死的 BASE_URL 直接拼。
+ * 租户后台一致，复用 libs/http/primitives.js 的 signPayload/buildBaseHeaders；
+ * 但域名解析不能用 getBaseUrl(走 envconfig 的 ENV_MAP 按 tenantId 查)，因为
+ * 集团后台不在那张表里，要用配置里写死的 BASE_URL 直接拼。
+ *
+ * 2026-10-30：groupAdminPost/groupAdminLogin 这两个通用函数搬到了
+ * libs/http/groupRouting.js（整个项目"默认登录集团、集团查询"改造的核心路由
+ * 模块，所有查询路径都经过它判断要不要走集团），这里改为直接复用，避免两份
+ * 几乎一样的登录逻辑分叉走偏。本文件只保留集团报表特有的业务查询函数。
  *
  * 2026-10-26 三个查询接口均已实测确认可用：
  *   - GetTenantPageList：商户充提明细(按tenantId逐行，周期内一次性去重口径)
@@ -19,15 +23,19 @@
  */
 
 import http from 'k6/http';
-import { buildBaseHeaders, signPayload } from '../../../libs/http/core.js';
-import { totpVCode } from '../../../libs/http/tenantRequest.js';
+import { buildBaseHeaders, signPayload } from '../../../libs/http/primitives.js';
+import { groupAdminLogin } from '../../../libs/http/groupRouting.js';
 import { getTimeRandom } from '../../utils/utils.js';
+
+// 集团登录(TOTP多窗口重试)直接复用 groupRouting.js 的实现，避免两份登录重试
+// 逻辑分叉走偏；转发导出保持本文件原有的 import 路径不变。
+export { groupAdminLogin };
 
 /**
  * 发一个已签名的集团后台请求。
  * @param {string} baseUrl - 不带末尾斜杠
  * @param {string|null} token - 登录后的token，登录请求本身传null
- * @param {string} api - 形如 '/api/Login/Login'
+ * @param {string} api - 形如 '/api/GroupRechargeWithdrawReport/GetTenantPageList'
  * @param {object} payload - 业务参数，不含random/language/timestamp(这里统一补)
  * @returns {object} 解析后的响应体 {code, msg, msgCode, data, ...}
  */
@@ -43,29 +51,6 @@ function groupAdminPost(baseUrl, token, api, payload) {
         console.error(`[GroupAdminApi] 响应解析失败 api=${api}: ${e.message} body=${String(resp.body).slice(0, 200)}`);
         return null;
     }
-}
-
-/**
- * 集团后台登录，TOTP 多窗口重试(容忍客户端/服务端时钟偏差)，照抄
- * tenantRequest.js 的 backendLogin 同款逻辑。
- * @param {object} g - GROUP_ADMIN_TEST 或 GROUP_ADMIN_UAT 配置对象
- * @returns {string|null} token
- */
-export function groupAdminLogin(g) {
-    const baseUrl = g.BASE_URL.replace(/\/$/, '');
-    const baseSec = Math.floor(Date.now() / 1000);
-    let lastResp = null;
-    for (const off of [0, -1, 1, -2, 2]) {
-        const vCode = totpVCode(g.GOOGLE_SECRET, off, baseSec);
-        const resp = groupAdminPost(baseUrl, null, '/api/Login/Login', { userName: g.ADMIN_USERNAME, pwd: g.ADMIN_PASSWORD, vCode });
-        lastResp = resp;
-        if (resp && resp.code === 0 && resp.data && resp.data.token) {
-            console.log(`[GroupAdminApi] ✅ 集团后台登录成功: ${g.ADMIN_USERNAME}`);
-            return resp.data.token;
-        }
-    }
-    console.error(`[GroupAdminApi] ❌ 集团后台登录失败: ${g.ADMIN_USERNAME} 最后响应=${JSON.stringify(lastResp)}`);
-    return null;
 }
 
 /**

@@ -27,6 +27,7 @@ export const ENV_3001 = {
     START_TIME: "2026-01-08 00:00:00",
     END_TIME: "2026-01-08 23:59:59",
     TENANTID: 3001,
+    AGENT_MODE: 0, // 代理模式：0=6级代理，1=3级代理。2026-10-30 总控 /api/Tenant/GetPageList 实测确认
     GOOGLE_SECRET: "", // 后台谷歌验证码(TOTP)密钥，待补充
     LimitedPermissions: "carey3001_001",
     LimitedPermissionsPassWord: "qwer1234",
@@ -49,6 +50,7 @@ export const ENV_3002 = {
     START_TIME: "2026-01-08 00:00:00",
     END_TIME: "2026-01-08 23:59:59",
     TENANTID: 3002,
+    AGENT_MODE: 0, // 代理模式：0=6级代理，1=3级代理。2026-10-30 总控 /api/Tenant/GetPageList 实测确认
     GOOGLE_SECRET: "", // 后台谷歌验证码(TOTP)密钥，待补充
     LimitedPermissions: "carey3002_001",
     LimitedPermissionsPassWord: "qwer1234",
@@ -71,6 +73,7 @@ export const ENV_3003 = {
     START_TIME: "2026-01-08 00:00:00",
     END_TIME: "2026-01-08 23:59:59",
     TENANTID: 3003,
+    AGENT_MODE: 0, // 代理模式：0=6级代理，1=3级代理。2026-10-30 总控 /api/Tenant/GetPageList 实测确认
     GOOGLE_SECRET: "GYZTQOBZGEYDGNJQHEYTKNBSGMZTSMLIPFRA", // 后台谷歌验证码(TOTP)密钥，待补充
     LimitedPermissions: "carey3003_001",
     LimitedPermissionsPassWord: "qwer1234",
@@ -93,6 +96,7 @@ export const ENV_3004 = {
     START_TIME: "2026-01-08 00:00:00",
     END_TIME: "2026-01-08 23:59:59",
     TENANTID: 3004,
+    AGENT_MODE: 1, // 代理模式：0=6级代理，1=3级代理。2026-10-30 总控 /api/Tenant/GetPageList 实测确认，3004是目前唯一的3级代理商户
     GOOGLE_SECRET: "GYZTSMRTGIZTGNBVGYYTQMRTGMZDAZDKNBWA", // 后台谷歌验证码(TOTP)密钥
     LimitedPermissions: "carey3004_001",
     LimitedPermissionsPassWord: "qwer1234",
@@ -115,6 +119,7 @@ export const ENV_3005 = {
     START_TIME: "2026-01-08 00:00:00",
     END_TIME: "2026-01-08 23:59:59",
     TENANTID: 3005,
+    AGENT_MODE: 0, // 代理模式：0=6级代理，1=3级代理。2026-10-30 总控 /api/Tenant/GetPageList 实测确认
     GOOGLE_SECRET: "", // 后台谷歌验证码(TOTP)密钥，待补充
     LimitedPermissions: "carey3005_001",
     LimitedPermissionsPassWord: "qwer1234",
@@ -137,6 +142,7 @@ export const ENV_3006 = {
     START_TIME: "2026-01-08 00:00:00",
     END_TIME: "2026-01-08 23:59:59",
     TENANTID: 3006,
+    AGENT_MODE: 0, // 代理模式：0=6级代理，1=3级代理。2026-10-30 总控 /api/Tenant/GetPageList 实测确认
     GOOGLE_SECRET: "GYZTSMJQGUZDSNBYGAYDGMZZGI2DQOJSNZSA", // 后台谷歌验证码(TOTP)密钥，待补充
     LimitedPermissions: "carey3006_001",
     LimitedPermissionsPassWord: "qwer1234",
@@ -159,6 +165,7 @@ export const ENV_3007 = {
     START_TIME: "2026-01-08 00:00:00",
     END_TIME: "2026-01-08 23:59:59",
     TENANTID: 3007,
+    AGENT_MODE: 0, // 代理模式：0=6级代理，1=3级代理。2026-10-30 总控 /api/Tenant/GetPageList 实测确认
     GOOGLE_SECRET: "GYZTSMRUGUZDQOBYGQ4DCOBXG4YTK6LDNNYQ", // 后台谷歌验证码(TOTP)密钥，待补充
     LimitedPermissions: "carey3007_001",
     LimitedPermissionsPassWord: "qwer1234",
@@ -181,6 +188,7 @@ export const ENV_3101 = {
     START_TIME: "2026-01-08 00:00:00",
     END_TIME: "2026-01-08 23:59:59",
     TENANTID: 3101,
+    AGENT_MODE: 0, // 代理模式：0=6级代理，1=3级代理。UAT环境未核实，暂按6级默认处理
     GOOGLE_SECRET: "GYZTQOBYG42TGNRQGA3TONJYGEZDM43RMFSA", // 后台谷歌验证码(TOTP)密钥，待补充
     LimitedPermissions: "carey_3101d",
     LimitedPermissionsPassWord: "qwer1234",

@@ -1,0 +1,9 @@
+2026/10/30-15:48:59.054 22b84 Reusing MANIFEST D:\project\k6-\k6\playwrith\.browser_profiles\profile_9087024745\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/MANIFEST-000001
+2026/10/30-15:48:59.055 22b84 Recovering log #4
+2026/10/30-15:48:59.056 22b84 Reusing old log D:\project\k6-\k6\playwrith\.browser_profiles\profile_9087024745\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/000004.log 
+2026/10/30-15:48:59.361 1385c Manual compaction at level-0 from '\x00\x0b\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0c\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-15:48:59.392 22b84 Manual compaction at level-0 from '\x00\x0c\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0d\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-15:54:51.024 22b84 Level-0 table #8: started
+2026/10/30-15:54:51.192 22b84 Level-0 table #8: 127844 bytes OK
+2026/10/30-15:54:51.229 22b84 Delete type=0 #4
+2026/10/30-15:54:51.243 22b84 Manual compaction at level-0 from '\x00\x0d\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0e\x00\x00\x00' @ 0 : 0; will stop at (end)

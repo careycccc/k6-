@@ -57,7 +57,12 @@ export function getAccountBalance(token) {
                 'Authorization': `Bearer ${token}`,
                 'Domainurl': currentEnv.BASE_DESK_URL,
                 'Referrer': currentEnv.BASE_DESK_URL
-            }
+            },
+            // 2026-10-29补：这个模块直接裸调k6原生http，绕开了libs/http/client.js，
+            // 不受那边tags传递bug修复的影响，单独打tag——不然在接口耗时排行榜里只能
+            // 退化成按URL path兜底分组。api本身是 RecoverSaasBalance(触发游戏余额
+            // 同步到主钱包)，不是字面意义的"查余额"，tag名字如实对应真实接口。
+            tags: { name: 'RecoverSaasBalance' }
         });
 
         console.log('[Balance] 响应状态:', response.status);

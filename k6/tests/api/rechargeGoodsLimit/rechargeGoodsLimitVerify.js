@@ -52,7 +52,7 @@ import { getFrontUserInfo } from '../user/userManagement.js';
 import { getRechargeBasicInfo } from '../recharge/rechargeLevel.service.js';
 import { assembleFiatRechargeNoUsdt } from '../groupRechargeWithdrawReport/rechargeAssembler.js';
 
-const TENANT_ID = '3007';
+const TENANT_ID = '3101';
 
 // 截图确认的3007商户"首二三充配置"——档位/赠送金额/打码倍数，用于精确断言
 const STAGE_CONFIG = {

@@ -340,7 +340,7 @@ function createGiftPackActivity(data, giftPackName, timestamp, couponId, pack) {
     }
 
     try {
-        const result = sendRequest(payload, api, createGiftPackTag, false, token);
+        const result = sendRequest(payload, api, createGiftPackTag, false, token, true);
 
         if (result && result.msgCode === 0) {
             logger.info(`[${createGiftPackTag}] 礼包创建成功 - 名称: ${giftPackName}, 模式: ${pack.rewardMode}`);

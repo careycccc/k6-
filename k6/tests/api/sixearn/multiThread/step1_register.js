@@ -3,7 +3,12 @@ import exec from 'k6/execution';
 import { AdminLogin } from '../../login/adminlogin.test.js';
 import { phoneRegister, phoneRegisterByInvite, getLastRegisterError, isRateLimitError } from '../../login/register.test.js';
 import { getFrontUserInfo } from '../../user/userManagement.js';
-import { generateRandomPhone } from '../../../utils/accountGeneratorFaker.js';
+// 这里只用 generateRandomPhone(纯JS实现，和Faker版完全同名同逻辑，Faker版
+// 本身也是直接透传自本文件)，改走不带Faker后缀的版本——避免仅仅因为import了
+// accountGeneratorFaker.js这一个文件，就连带触发k6对k6/x/faker扩展的依赖
+// 检测(该文件顶部无条件 import faker from 'k6/x/faker')，导致普通k6二进制
+// 在没联网权限/xk6自定义编译的环境下，触发"自动扩展解析"联网构建超时失败。
+import { generateRandomPhone } from '../../../utils/accountGenerator.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../../config/envconfig.js';
 import { extractToken, randomPick } from '../../../../libs/common/index.js';
 

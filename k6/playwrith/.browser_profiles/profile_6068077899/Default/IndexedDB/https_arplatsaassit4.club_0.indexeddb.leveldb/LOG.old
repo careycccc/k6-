@@ -1,0 +1,18 @@
+2026/10/30-15:38:55.138 14c14 Creating DB D:\project\k6-\k6\playwrith\.browser_profiles\profile_6068077899\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb since it was missing.
+2026/10/30-15:38:55.165 14c14 Reusing MANIFEST D:\project\k6-\k6\playwrith\.browser_profiles\profile_6068077899\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/MANIFEST-000001
+2026/10/30-15:39:01.294 14c48 Manual compaction at level-0 from '\x00\x04\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x05\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-15:39:02.311 14c44 Level-0 table #5: started
+2026/10/30-15:39:02.407 14c44 Level-0 table #5: 5325 bytes OK
+2026/10/30-15:39:02.417 14c44 Delete type=0 #3
+2026/10/30-15:39:02.418 14c44 Manual compaction at level-0 from '\x00\x06\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x07\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-15:39:02.424 14c44 Level-0 table #7: started
+2026/10/30-15:39:02.432 14c44 Level-0 table #7: 1867 bytes OK
+2026/10/30-15:39:02.446 14c44 Delete type=0 #4
+2026/10/30-15:39:02.449 14c44 Manual compaction at level-0 from '\x00\x07\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x08\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-15:39:02.450 14d8c Manual compaction at level-1 from '\x00\x07\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x08\x00\x00\x00' @ 0 : 0; will stop at '\x00\x08\x01\x02\x013\x00[\x00D\x00E\x00F\x00A\x00U\x00L\x00T\x00]\x00!\x001\x00:\x007\x004\x007\x008\x009\x001\x007\x000\x006\x008\x002\x008\x00:\x00w\x00e\x00b\x00:\x008\x005\x009\x00a\x00c\x00c\x00b\x000\x008\x004\x000\x001\x008\x005\x003\x00e\x008\x005\x00e\x00b\x006\x009' @ 294 : 1
+2026/10/30-15:39:02.450 14d8c Compacting 1@1 + 1@2 files
+2026/10/30-15:39:02.466 14d8c Generated table #8@1: 101 keys, 3453 bytes
+2026/10/30-15:39:02.466 14d8c Compacted 1@1 + 1@2 files => 3453 bytes
+2026/10/30-15:39:02.472 14d8c compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/10/30-15:39:02.473 14d8c Delete type=2 #7
+2026/10/30-15:39:02.502 14d8c Manual compaction at level-1 from '\x00\x08\x01\x02\x013\x00[\x00D\x00E\x00F\x00A\x00U\x00L\x00T\x00]\x00!\x001\x00:\x007\x004\x007\x008\x009\x001\x007\x000\x006\x008\x002\x008\x00:\x00w\x00e\x00b\x00:\x008\x005\x009\x00a\x00c\x00c\x00b\x000\x008\x004\x000\x001\x008\x005\x003\x00e\x008\x005\x00e\x00b\x006\x009' @ 294 : 1 .. '\x00\x08\x00\x00\x00' @ 0 : 0; will stop at (end)

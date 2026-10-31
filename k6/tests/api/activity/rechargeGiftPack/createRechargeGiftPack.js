@@ -162,7 +162,7 @@ function createRechargeGiftPackActivity(data, imagePath) {
 
         //logger.info(`[${createRechargeGiftPackTag}] 创建充值礼包payload: ${JSON.stringify(payload)}`);
 
-        const result = sendRequest(payload, api, createRechargeGiftPackTag, false, token);
+        const result = sendRequest(payload, api, createRechargeGiftPackTag, false, token, true);
 
         logger.info(`[${createRechargeGiftPackTag}] 创建响应: ${JSON.stringify(result)}`);
 
@@ -206,7 +206,7 @@ function queryRechargeGiftPackList(data, notificationText) {
 
         const payload = {};
 
-        const result = sendQueryRequest(payload, api, createRechargeGiftPackTag, false, token);
+        const result = sendQueryRequest(payload, api, createRechargeGiftPackTag, false, token, true);
 
         if (!result) {
             logger.error(`[${createRechargeGiftPackTag}] 查询充值礼包列表失败: 响应为空`);
@@ -295,7 +295,7 @@ function updateRechargeGiftPackState(data, giftPackId) {
             "state": 0
         };
 
-        const closeResult = sendRequest(closePayload, api, createRechargeGiftPackTag, false, token);
+        const closeResult = sendRequest(closePayload, api, createRechargeGiftPackTag, false, token, true);
 
         logger.info(`[${createRechargeGiftPackTag}] 关闭响应: ${JSON.stringify(closeResult)}`);
 
@@ -318,7 +318,7 @@ function updateRechargeGiftPackState(data, giftPackId) {
             "state": 1
         };
 
-        const openResult = sendRequest(openPayload, api, createRechargeGiftPackTag, false, token);
+        const openResult = sendRequest(openPayload, api, createRechargeGiftPackTag, false, token, true);
 
         logger.info(`[${createRechargeGiftPackTag}] 开启响应: ${JSON.stringify(openResult)}`);
 
@@ -424,7 +424,7 @@ function createActivityRecharge(data, imagePath, giftPackId) {
 
         //logger.info(`[${createRechargeGiftPackTag}] 惊喜礼包活动payload: ${JSON.stringify(payload)}`);
 
-        const result = sendRequest(payload, api, createRechargeGiftPackTag, false, token);
+        const result = sendRequest(payload, api, createRechargeGiftPackTag, false, token, true);
 
         //logger.info(`[${createRechargeGiftPackTag}] 惊喜礼包活动创建响应: ${JSON.stringify(result)}`);
 

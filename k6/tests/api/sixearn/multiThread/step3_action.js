@@ -1,7 +1,7 @@
 import { sleep } from 'k6';
 import exec from 'k6/execution';
 import { AdminLogin } from '../../login/adminlogin.test.js';
-import { getAllRelatedUserIds, updateUserAgentRebateMode } from '../../invite/agentApi.js';
+import { getAllRelatedUserIdsAuto, updateUserAgentRebateMode } from '../../invite/agentApi.js';
 import { batchGetUserAccounts, autoLoginByAccount } from '../../user/userAccountApi.js';
 import { hybridRecharge, getConfigRechargeAmount } from '../../recharge/rechargeService.js';
 import { betRun } from '../../runbet/betRun.js';
@@ -59,7 +59,7 @@ export function setup() {
 
     const rootId = parseInt(__ENV.ROOT_ID);
     console.log(`\n[Setup] 获取 ${__ENV.TEAM_NAME} 全树名单 (ROOT_ID: ${rootId}) ...`);
-    const userIds = getAllRelatedUserIds(adminToken, rootId);
+    const userIds = getAllRelatedUserIdsAuto(adminToken, rootId, tenantId);
     console.log(`[Setup] ${__ENV.TEAM_NAME} 共找到 ${userIds.length} 名成员`);
     
     return { token: adminToken, envConfig, userIds };

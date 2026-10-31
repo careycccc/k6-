@@ -178,7 +178,7 @@ function updateRechargeWheelSwitch(data) {
             "value1": "0"
         };
 
-        const closeResult = sendRequest(closePayload, api, createRechargeWheelTag, false, token);
+        const closeResult = sendRequest(closePayload, api, createRechargeWheelTag, false, token, true);
 
         logger.info(`[${createRechargeWheelTag}] 关闭响应: ${JSON.stringify(closeResult)}`);
 
@@ -201,7 +201,7 @@ function updateRechargeWheelSwitch(data) {
             "value1": "1"
         };
 
-        const openResult = sendRequest(openPayload, api, createRechargeWheelTag, false, token);
+        const openResult = sendRequest(openPayload, api, createRechargeWheelTag, false, token, true);
 
         logger.info(`[${createRechargeWheelTag}] 开启响应: ${JSON.stringify(openResult)}`);
 
@@ -246,7 +246,7 @@ function updateFirstRechargeSwitch(data) {
             "value1": "1"
         };
 
-        const result = sendRequest(payload, api, createRechargeWheelTag, false, token);
+        const result = sendRequest(payload, api, createRechargeWheelTag, false, token, true);
 
         logger.info(`[${createRechargeWheelTag}] 首充配置响应: ${JSON.stringify(result)}`);
 
@@ -397,7 +397,7 @@ function configureNormalWheel(data, imageMap) {
             ]
         };
 
-        const result = sendRequest(payload, api, createRechargeWheelTag, false, token);
+        const result = sendRequest(payload, api, createRechargeWheelTag, false, token, true);
 
         logger.info(`[${createRechargeWheelTag}] 普通转盘配置响应: ${JSON.stringify(result)}`);
 
@@ -460,7 +460,7 @@ function configureGoldWheel(data, imageMap) {
             ]
         };
 
-        const result = sendRequest(payload, api, createRechargeWheelTag, false, token);
+        const result = sendRequest(payload, api, createRechargeWheelTag, false, token, true);
 
         logger.info(`[${createRechargeWheelTag}] 黄金转盘配置响应: ${JSON.stringify(result)}`);
 
@@ -524,7 +524,7 @@ function configureDiamondWheel(data, imageMap) {
             ]
         };
 
-        const result = sendRequest(payload, api, createRechargeWheelTag, false, token);
+        const result = sendRequest(payload, api, createRechargeWheelTag, false, token, true);
 
         logger.info(`[${createRechargeWheelTag}] 钻石转盘配置响应: ${JSON.stringify(result)}`);
 
@@ -589,7 +589,7 @@ function configureSpecialWheel(data, imageMap) {
             ]
         };
 
-        const result = sendRequest(payload, api, createRechargeWheelTag, false, token);
+        const result = sendRequest(payload, api, createRechargeWheelTag, false, token, true);
 
         logger.info(`[${createRechargeWheelTag}] 特殊转盘配置响应: ${JSON.stringify(result)}`);
 

@@ -62,7 +62,11 @@ export function betWingo(gameCode, amount, betMultiple, betContent, issueNumber,
     //console.log('[Bet] 投注请求 URL:', lotteryBaseUrl + api);
     //console.log('[Bet] 投注参数:', JSON.stringify(signedData));
 
-    const response = http.post(lotteryBaseUrl + api, JSON.stringify(signedData), { headers });
+    // 2026-10-29补：直接裸调k6原生http，绕开libs/http/client.js，单独打tag——
+    // 用apiArg(WinGoBet/K3Bet/TrxWinGoBet等，已经做了动态路由匹配)而不是写死
+    // 一个"Bet"，否则接口耗时排行榜里会把不同游戏类型的投注全部混在一起统计，
+    // 丢失"哪种游戏投注慢"这个细分信息。
+    const response = http.post(lotteryBaseUrl + api, JSON.stringify(signedData), { headers, tags: { name: apiArg } });
 
     //console.log('[Bet] 投注响应状态:', response.status);
     //console.log('[Bet] 投注响应体:', response.body);

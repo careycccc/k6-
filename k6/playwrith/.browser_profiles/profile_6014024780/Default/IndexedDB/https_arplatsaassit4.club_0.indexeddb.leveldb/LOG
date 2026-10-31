@@ -1,0 +1,21 @@
+2026/10/30-15:49:56.306 25d50 Reusing MANIFEST D:\project\k6-\k6\playwrith\.browser_profiles\profile_6014024780\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/MANIFEST-000001
+2026/10/30-15:49:56.307 25d50 Recovering log #3
+2026/10/30-15:49:56.308 25d50 Reusing old log D:\project\k6-\k6\playwrith\.browser_profiles\profile_6014024780\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/000003.log 
+2026/10/30-15:50:27.538 26500 Level-0 table #5: started
+2026/10/30-15:50:27.544 26500 Level-0 table #5: 43124 bytes OK
+2026/10/30-15:50:27.547 26500 Delete type=0 #3
+2026/10/30-15:50:27.548 26500 Manual compaction at level-0 from '\x00\x05\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x06\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-15:50:28.485 25d50 Level-0 table #7: started
+2026/10/30-15:50:28.511 25d50 Level-0 table #7: 2894 bytes OK
+2026/10/30-15:50:28.528 25d50 Delete type=0 #4
+2026/10/30-15:50:28.531 26500 Manual compaction at level-0 from '\x00\x07\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x08\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-15:50:28.534 241ac Level-0 table #9: started
+2026/10/30-15:50:28.538 241ac Level-0 table #9: 1169 bytes OK
+2026/10/30-15:50:28.541 241ac Delete type=0 #6
+2026/10/30-15:50:28.541 241ac Manual compaction at level-0 from '\x00\x08\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x09\x00\x00\x00' @ 0 : 0; will stop at '\x00\x09\x00\x00\xc8\x1c\x00f\x00i\x00r\x00e\x00b\x00a\x00s\x00e\x00-\x00i\x00n\x00s\x00t\x00a\x00l\x00l\x00a\x00t\x00i\x00o\x00n\x00s\x00-\x00s\x00t\x00o\x00r\x00e' @ 383 : 1
+2026/10/30-15:50:28.541 241ac Compacting 1@0 + 1@1 files
+2026/10/30-15:50:28.546 241ac Generated table #10@0: 79 keys, 2603 bytes
+2026/10/30-15:50:28.546 241ac Compacted 1@0 + 1@1 files => 2603 bytes
+2026/10/30-15:50:28.548 241ac compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-15:50:28.548 241ac Delete type=2 #9
+2026/10/30-15:50:28.549 241ac Manual compaction at level-0 from '\x00\x09\x00\x00\xc8\x1c\x00f\x00i\x00r\x00e\x00b\x00a\x00s\x00e\x00-\x00i\x00n\x00s\x00t\x00a\x00l\x00l\x00a\x00t\x00i\x00o\x00n\x00s\x00-\x00s\x00t\x00o\x00r\x00e' @ 383 : 1 .. '\x00\x09\x00\x00\x00' @ 0 : 0; will stop at (end)

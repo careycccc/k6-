@@ -298,7 +298,7 @@ const TAG = 'OrderTrigger';
 
 export function setup() {
     logger.info(`[${TAG}] ========== 阶段 1：后台环境巡检与自动修复 ==========`);
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) throw new Error('管理员登录失败');
 
     // 巡检配置中的所有活动
@@ -311,13 +311,13 @@ export function setup() {
             pageSize: 20
         };
         
-        let res = sendQueryRequest(payload, '/api/TenantForm/GetPageList', TAG, false, adminToken);
+        let res = sendQueryRequest(payload, '/api/TenantForm/GetPageList', TAG, false, adminToken, true);
         
         // 防御性：如果是查询太频繁(msgCode: 13)，也会导致拿不到 res.list，会误判为未创建
         if (res && res.msgCode === 13) {
             logger.warn(`[${TAG}] 查询太频繁 (msgCode 13)，等待 1s 后重试查询...`);
             sleep(1);
-            res = sendQueryRequest(payload, '/api/TenantForm/GetPageList', TAG, false, adminToken);
+            res = sendQueryRequest(payload, '/api/TenantForm/GetPageList', TAG, false, adminToken, true);
         }
         
         if (!res || !res.list || res.list.length === 0) {
@@ -384,11 +384,11 @@ export function setup() {
                 "fieldIdsToRemove": []
             };
 
-            let createRes = sendRequest(createPayload, '/api/TenantForm/Create', TAG, false, adminToken);
+            let createRes = sendRequest(createPayload, '/api/TenantForm/Create', TAG, false, adminToken, true);
             if (createRes && createRes.msgCode === 13) {
                 logger.warn(`[${TAG}] 请求太频繁 (msgCode 13)，等待 1s 后重试新建...`);
                 sleep(1);
-                createRes = sendRequest(createPayload, '/api/TenantForm/Create', TAG, false, adminToken);
+                createRes = sendRequest(createPayload, '/api/TenantForm/Create', TAG, false, adminToken, true);
             }
 
             if (createRes && createRes.code === 0) {
@@ -405,12 +405,12 @@ export function setup() {
             const firstId = res.list[0].id;
             logger.info(`[${TAG}] [全部关闭] 活动 "${config.name}" (sort: ${config.oderby}, typeId: ${config.queryId}) 全被关闭，正在开启 ID: ${firstId}...`);
             const switchPayload = { id: firstId, state: 1 };
-            let switchRes = sendRequest(switchPayload, '/api/TenantForm/SwitchState', TAG, false, adminToken);
+            let switchRes = sendRequest(switchPayload, '/api/TenantForm/SwitchState', TAG, false, adminToken, true);
             
             if (switchRes && switchRes.msgCode === 13) {
                 logger.warn(`[${TAG}] 请求太频繁 (msgCode 13)，等待 1s 后重试开启...`);
                 sleep(1);
-                switchRes = sendRequest(switchPayload, '/api/TenantForm/SwitchState', TAG, false, adminToken);
+                switchRes = sendRequest(switchPayload, '/api/TenantForm/SwitchState', TAG, false, adminToken, true);
             }
 
             if (switchRes && switchRes.code === 0) {
@@ -447,7 +447,7 @@ export default function (data) {
     // 随机准备一个通用测试账号供填充 UserName 字段
     logger.info(`[${TAG}] 准备抓取真实测试账号数据...`);
     let randomUserAccount = '916003199726'; // 兜底账号
-    const userListRes = sendQueryRequest({}, '/api/Users/GetPageList', TAG, false, adminToken);
+    const userListRes = sendQueryRequest({}, '/api/Users/GetPageList', TAG, false, adminToken, true);
     if (userListRes && userListRes.list && userListRes.list.length > 0) {
         const randomUser = userListRes.list[Math.floor(Math.random() * userListRes.list.length)];
         const account = getUserAccount(adminToken, randomUser.userId);
@@ -474,7 +474,7 @@ export default function (data) {
         logger.info(`\n[${TAG}] 👉 开始处理目标工单: [${displayName}] (formId: ${formId}, workOrderTypeId: ${workOrderTypeId})`);
         
         // 动态查后台获取该工单的字段结构
-        const formDetailData = sendRequest({ id: formId }, '/api/TenantForm/Get', TAG, false, adminToken);
+        const formDetailData = sendRequest({ id: formId }, '/api/TenantForm/Get', TAG, false, adminToken, true);
         if (!formDetailData || !formDetailData.translationData || formDetailData.translationData.length === 0) {
             logger.error(`[${TAG}] ❌ 获取工单 ${formId} 详情失败，跳过`);
             continue;

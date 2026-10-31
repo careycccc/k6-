@@ -125,7 +125,7 @@ function checkAndConfigureChampionSettings(data) {
     try {
         // 1. 获取当前配置
         logger.info(`[${createChampionTag}] 获取锦标赛配置`);
-        const settingsResult = sendRequest({}, getSettingApi, createChampionTag, false, token);
+        const settingsResult = sendRequest({}, getSettingApi, createChampionTag, false, token, true);
 
         logger.info(`[${createChampionTag}] 配置响应: ${JSON.stringify(settingsResult)}`);
 
@@ -176,7 +176,8 @@ function checkAndConfigureChampionSettings(data) {
             settings,
             configRules,
             updateApi: updateSettingApi,
-            tag: createChampionTag
+            tag: createChampionTag,
+            forceTenant: true
         });
 
         return result;
@@ -249,7 +250,7 @@ function createChampionActivity(data, imagePath) {
     };
 
     try {
-        const result = sendRequest(payload, api, createChampionTag, false, token);
+        const result = sendRequest(payload, api, createChampionTag, false, token, true);
 
         // 检查返回结果 - sendRequest 返回的是完整响应体，使用 msgCode
         if (result && result.msgCode === 0) {

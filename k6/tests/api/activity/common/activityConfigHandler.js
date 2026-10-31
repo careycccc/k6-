@@ -36,6 +36,8 @@ export const ConfigType = {
  * @param {string} params.tag - 日志标签
  * @param {string|null} params.targetValue - 目标值（仅用于string类型）
  * @param {string|null} params.value2 - value2字段（可选）
+ * @param {boolean} [params.forceTenant=false] - 强制走商户自己的域名，不套集团路由
+ *   （2026-10-30 新增，透传给内部的 sendRequest 调用）
  * @returns {Object} 处理结果 { success, message }
  */
 export function handleConfigSetting(params) {
@@ -47,7 +49,8 @@ export function handleConfigSetting(params) {
         updateApi,
         tag,
         targetValue = null,
-        value2 = ""
+        value2 = "",
+        forceTenant = false
     } = params;
 
     try {
@@ -64,13 +67,13 @@ export function handleConfigSetting(params) {
 
         switch (configType) {
             case ConfigType.SWITCH:
-                return handleSwitchConfig(token, settingKey, currentValue, updateApi, tag, value2);
+                return handleSwitchConfig(token, settingKey, currentValue, updateApi, tag, value2, forceTenant);
 
             case ConfigType.NUMBER:
-                return handleNumberConfig(token, settingKey, currentValue, updateApi, tag, value2);
+                return handleNumberConfig(token, settingKey, currentValue, updateApi, tag, value2, forceTenant);
 
             case ConfigType.STRING:
-                return handleStringConfig(token, settingKey, currentValue, targetValue, updateApi, tag, value2);
+                return handleStringConfig(token, settingKey, currentValue, targetValue, updateApi, tag, value2, forceTenant);
 
             default:
                 logger.error(`[${tag}] 未知的配置类型: ${configType}`);
@@ -95,7 +98,7 @@ export function handleConfigSetting(params) {
  * - 如果当前是"1"（已开启）：先关闭，等1s，再开启
  * - 如果当前是"0"（已关闭）：等1s，再开启
  */
-function handleSwitchConfig(token, settingKey, currentValue, updateApi, tag, value2) {
+function handleSwitchConfig(token, settingKey, currentValue, updateApi, tag, value2, forceTenant = false) {
     if (currentValue === "1") {
         // 已开启，先关闭
         logger.info(`[${tag}] ${settingKey} 已开启，先关闭...`);
@@ -104,7 +107,7 @@ function handleSwitchConfig(token, settingKey, currentValue, updateApi, tag, val
             value1: "0",
             value2: value2
         };
-        const closeResult = sendRequest(closePayload, updateApi, tag, false, token);
+        const closeResult = sendRequest(closePayload, updateApi, tag, false, token, forceTenant);
 
         if (!closeResult || (closeResult.msgCode !== undefined && closeResult.msgCode !== 0)) {
             return {
@@ -128,7 +131,7 @@ function handleSwitchConfig(token, settingKey, currentValue, updateApi, tag, val
         value1: "1",
         value2: value2
     };
-    const openResult = sendRequest(openPayload, updateApi, tag, false, token);
+    const openResult = sendRequest(openPayload, updateApi, tag, false, token, forceTenant);
 
     if (!openResult || (openResult.msgCode !== undefined && openResult.msgCode !== 0)) {
         return {
@@ -147,7 +150,7 @@ function handleSwitchConfig(token, settingKey, currentValue, updateApi, tag, val
  * 处理数字类配置
  * 规则：读取value1的值后进行+2操作再设置
  */
-function handleNumberConfig(token, settingKey, currentValue, updateApi, tag, value2) {
+function handleNumberConfig(token, settingKey, currentValue, updateApi, tag, value2, forceTenant = false) {
     const currentNumber = parseFloat(currentValue) || 0;
     const newValue = currentNumber + 2;
 
@@ -158,7 +161,7 @@ function handleNumberConfig(token, settingKey, currentValue, updateApi, tag, val
         value1: String(newValue),
         value2: value2
     };
-    const result = sendRequest(payload, updateApi, tag, false, token);
+    const result = sendRequest(payload, updateApi, tag, false, token, forceTenant);
 
     if (!result || (result.msgCode !== undefined && result.msgCode !== 0)) {
         return {
@@ -177,7 +180,7 @@ function handleNumberConfig(token, settingKey, currentValue, updateApi, tag, val
  * 处理字符类配置
  * 规则：原封不动使用提供的targetValue
  */
-function handleStringConfig(token, settingKey, currentValue, targetValue, updateApi, tag, value2) {
+function handleStringConfig(token, settingKey, currentValue, targetValue, updateApi, tag, value2, forceTenant = false) {
     if (targetValue === null) {
         logger.warn(`[${tag}] ${settingKey} 未提供目标值，跳过设置`);
         return { success: true };
@@ -190,7 +193,7 @@ function handleStringConfig(token, settingKey, currentValue, targetValue, update
         value1: targetValue,
         value2: value2
     };
-    const result = sendRequest(payload, updateApi, tag, false, token);
+    const result = sendRequest(payload, updateApi, tag, false, token, forceTenant);
 
     if (!result || (result.msgCode !== undefined && result.msgCode !== 0)) {
         return {
@@ -213,8 +216,10 @@ function handleStringConfig(token, settingKey, currentValue, targetValue, update
  * @param {Array} params.configRules - 配置规则数组
  * @param {string} params.updateApi - 更新配置的API路径
  * @param {string} params.tag - 日志标签
+ * @param {boolean} [params.forceTenant=false] - 强制走商户自己的域名，不套集团路由
+ *   （2026-10-30 新增，透传给每个 handleConfigSetting 调用）
  * @returns {Object} 处理结果 { success, message, failedConfigs }
- * 
+ *
  * configRules 格式示例：
  * [
  *   { settingKey: 'IsOpenChampion', configType: 'switch' },
@@ -223,7 +228,7 @@ function handleStringConfig(token, settingKey, currentValue, targetValue, update
  * ]
  */
 export function handleMultipleConfigs(params) {
-    const { token, settings, configRules, updateApi, tag } = params;
+    const { token, settings, configRules, updateApi, tag, forceTenant = false } = params;
 
     const failedConfigs = [];
     let successCount = 0;
@@ -242,7 +247,8 @@ export function handleMultipleConfigs(params) {
             updateApi,
             tag,
             targetValue,
-            value2
+            value2,
+            forceTenant
         });
 
         if (result.success) {

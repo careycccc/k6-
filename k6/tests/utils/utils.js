@@ -23,6 +23,35 @@ export function generateCryptoRandomString(length) {
 }
 
 /**
+ * 生成 Facebook Fbp 参数（浏览器/设备级追踪ID，标识"这次访问"本身，和有没有
+ * 点过广告无关——哪怕是自然流量/直接打开，Fbp 也会生成）。
+ * 格式：fb.1.<毫秒时间戳>.<随机整数>
+ * 参考：https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/fbp-and-fbc
+ * 2026-10-27从 facebookRegister.js 提取成共享工具，供 guestRegister 等场景复用，
+ * 避免同一段逻辑在多处重复定义。
+ */
+export function generateFbp() {
+  const ts = Date.now();
+  const rand = Math.floor(Math.random() * 1e18);
+  return `fb.1.${ts}.${rand}`;
+}
+
+/**
+ * 生成 Facebook Fbc 参数（点击ID，承载"用户点击了哪条广告"这个具体事件，
+ * 和 Fbp 不同——没有真实点击来源就不该有 Fbc，所以 fbclid 必须由调用方传入，
+ * 本函数不会凭空编造一个假的 fbclid）。
+ * 格式：fb.1.<毫秒时间戳>.<fbclid>
+ * 2026-10-27用3003真实落地页URL(indexpt1?...&fbclid=...)和真实抓包的Fbc字段
+ * 逐项核对过这个拼接规则，不是猜测。
+ * @param {string} fbclid - 从广告落地页URL的fbclid参数拿到的原始值
+ * @returns {string}
+ */
+export function generateFbc(fbclid) {
+  const ts = Date.now();
+  return `fb.1.${ts}.${fbclid}`;
+}
+
+/**
  * 生成一个 12 位的随机整数（范围：100000000 ~ 999999999）
  * @returns {number} 12 位随机数
  */

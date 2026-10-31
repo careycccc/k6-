@@ -41,7 +41,7 @@ export function setup() {
         }
     }
 
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) {
         throw new Error('管理员登录失败');
     }

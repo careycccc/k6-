@@ -1,0 +1,25 @@
+2026/10/30-16:30:32.157 11c0c Reusing MANIFEST D:\project\k6-\k6\playwrith\.browser_profiles\profile_5194136479\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/MANIFEST-000001
+2026/10/30-16:30:32.158 11c0c Recovering log #7
+2026/10/30-16:30:32.158 11c0c Reusing old log D:\project\k6-\k6\playwrith\.browser_profiles\profile_5194136479\Default\IndexedDB\https_arplatsaassit4.club_0.indexeddb.leveldb/000007.log 
+2026/10/30-16:30:32.273 14cf8 Level-0 table #11: started
+2026/10/30-16:30:32.278 14cf8 Level-0 table #11: 159328 bytes OK
+2026/10/30-16:30:32.286 14cf8 Delete type=0 #7
+2026/10/30-16:30:32.287 19ca0 Manual compaction at level-0 from '\x00\x10\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x11\x00\x00\x00' @ 0 : 0; will stop at '\x00\x10\x00\x00\x05' @ 793 : 1
+2026/10/30-16:30:32.288 19ca0 Compacting 1@0 + 1@1 files
+2026/10/30-16:30:32.291 19ca0 Generated table #12@0: 182 keys, 42663 bytes
+2026/10/30-16:30:32.291 19ca0 Compacted 1@0 + 1@1 files => 42663 bytes
+2026/10/30-16:30:32.295 19ca0 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-16:30:32.295 19ca0 Delete type=2 #11
+2026/10/30-16:30:32.296 11c0c Manual compaction at level-0 from '\x00\x10\x00\x00\x05' @ 793 : 1 .. '\x00\x11\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-16:30:32.296 11c0c Level-0 table #14: started
+2026/10/30-16:30:32.299 11c0c Level-0 table #14: 1769 bytes OK
+2026/10/30-16:30:32.303 11c0c Delete type=2 #8
+2026/10/30-16:30:32.303 11c0c Delete type=0 #10
+2026/10/30-16:30:32.303 11c0c Manual compaction at level-0 from '\x00\x11\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x12\x00\x00\x00' @ 0 : 0; will stop at '\x00\x11\x00\x00\x05' @ 810 : 1
+2026/10/30-16:30:32.303 11c0c Compacting 1@0 + 1@1 files
+2026/10/30-16:30:32.305 11c0c Generated table #15@0: 182 keys, 44202 bytes
+2026/10/30-16:30:32.305 11c0c Compacted 1@0 + 1@1 files => 44202 bytes
+2026/10/30-16:30:32.309 11c0c compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/10/30-16:30:32.309 11c0c Delete type=2 #14
+2026/10/30-16:30:32.310 11c0c Manual compaction at level-0 from '\x00\x11\x00\x00\x05' @ 810 : 1 .. '\x00\x12\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/10/30-16:30:35.440 1b330 Manual compaction at level-0 from '\x00\x12\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x13\x00\x00\x00' @ 0 : 0; will stop at (end)

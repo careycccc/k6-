@@ -3,6 +3,8 @@
  */
 
 import { sendRequest } from '../common/request.js';
+import { getEnvByTenantId } from '../../../config/envconfig.js';
+import { getAllTeamMembersL3 } from '../agentL3/agentL3Api.js';
 
 const tag = 'AgentApi';
 
@@ -206,5 +208,52 @@ export function getL3AllRelatedUserIds(adminToken, agentId) {
     const userIds = agentList.map(agent => agent.userId).filter(id => id);
     console.log(`[AgentApi] 找到 ${userIds.length} 个相关用户`);
 
+    return userIds;
+}
+
+/**
+ * 自适应获取团队成员（根据 tenantId 对应的 AGENT_MODE 自动选 6级/3级查询）。
+ * 2026-10-30 新增：不同商户的代理层级体系不同（见 config/envconfig.js 的
+ * AGENT_MODE，0=6级代理走本文件 getAgentHierarchyList，1=3级代理走
+ * agentL3Api.js 的 getAllTeamMembersL3），用错接口会被后端判"No operation
+ * permission"（已通过对照实验确认：和集团/商户登录模式无关，纯粹是接口选错）。
+ *
+ * 只新增这个分发函数，不改动 getAgentHierarchyList/getAllRelatedUserIds 本身
+ * ——这两个函数在全项目还有其他 14+3 处调用，大概率都固定跑在6级代理商户上，
+ * 不应该被这次改动波及。
+ *
+ * 统一输出 [{userId, hierarchy, ...}]：hierarchy 是相对 rootId 的相对层级，
+ * root 自己不含在返回列表内，直接下级=1，和 getAgentHierarchyList 原有字段
+ * 兼容，调用方现有的 `member.hierarchy >= 1` 这类过滤逻辑不用改。
+ * @param {string} adminToken
+ * @param {number} rootId
+ * @param {string|number} tenantId
+ * @returns {Array<{userId:number, hierarchy:number}>}
+ */
+export function getTeamMembersAuto(adminToken, rootId, tenantId) {
+    const envConfig = getEnvByTenantId(String(tenantId));
+    if (envConfig.AGENT_MODE === 1) {
+        console.log(`[AgentApi] 租户 ${tenantId} 是3级代理(AGENT_MODE=1)，走 AgentL3 递归查询`);
+        return getAllTeamMembersL3({ token: adminToken }, rootId);
+    }
+    return getAgentHierarchyList(adminToken, rootId);
+}
+
+/**
+ * 自适应版的"查全部下级 userId 扁平数组"，给需要纯 userId 列表的场景用
+ * （如 multiThread/step3_action.js）。
+ * @param {string} adminToken
+ * @param {number} rootId
+ * @param {string|number} tenantId
+ * @returns {Array<number>}
+ */
+export function getAllRelatedUserIdsAuto(adminToken, rootId, tenantId) {
+    const members = getTeamMembersAuto(adminToken, rootId, tenantId);
+    if (!members || members.length === 0) {
+        console.warn(`[AgentApi] 未找到用户 ${rootId} 的代理关系`);
+        return [];
+    }
+    const userIds = members.map(m => m.userId).filter(id => id);
+    console.log(`[AgentApi] (自适应) 找到 ${userIds.length} 个相关用户`);
     return userIds;
 }

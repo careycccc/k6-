@@ -148,7 +148,7 @@ function createPopups(data) {
             };
 
             try {
-                const result = sendRequest(payload, api, createLoginPopupTag, false, token);
+                const result = sendRequest(payload, api, createLoginPopupTag, false, token, true);
 
                 if (result && result.msgCode === 0) {
                     logger.info(`[${createLoginPopupTag}] 创建弹窗成功: ${config.title} (${lang})`);
@@ -204,7 +204,7 @@ function queryPopupIds(data) {
         };
 
         try {
-            let result = sendQueryRequest(payload, api, createLoginPopupTag, false, token);
+            let result = sendQueryRequest(payload, api, createLoginPopupTag, false, token, true);
 
             if (typeof result !== 'object') {
                 result = JSON.parse(result);
@@ -254,7 +254,7 @@ function startPopups(data, ids) {
         };
 
         try {
-            const result = sendRequest(payload, api, createLoginPopupTag, false, token);
+            const result = sendRequest(payload, api, createLoginPopupTag, false, token, true);
 
             if (result && result.msgCode === 0) {
                 logger.info(`[${createLoginPopupTag}] 启动弹窗成功 ID: ${id}`);
