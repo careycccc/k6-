@@ -27,27 +27,39 @@
 //   (`if (idx < 0) continue`)，不会报错也不会中断解码，"4"被自动忽略，
 //   不影响算出来的验证码。记录这一点是提醒：以后遇到"密钥里有不像
 //   Base32的字符"，不代表密钥一定错，不能只凭字符集判断，要实际登录验证。
+//
+// 2026-11-02：BASE_URL / ADMIN_USERNAME / ADMIN_PASSWORD / GOOGLE_SECRET
+//   已迁移到项目根目录的 .env（不进 git），本文件只负责读取 + 组装。
+//   NAME、COVERS_TENANT_IDS 不是敏感信息、也不适合塞进 .env 的扁平
+//   键值对格式（后者是数组），继续留在代码里。
 // ============================================
 
+import { getEnvValue } from './envFileLoader.js';
+
+function buildGroupAdmin(prefix, name, coversTenantIds) {
+    return {
+        NAME: name,
+        BASE_URL: getEnvValue(`${prefix}_BASE_URL`),
+        ADMIN_USERNAME: getEnvValue(`${prefix}_ADMIN_USERNAME`),
+        ADMIN_PASSWORD: getEnvValue(`${prefix}_ADMIN_PASSWORD`),
+        GOOGLE_SECRET: getEnvValue(`${prefix}_GOOGLE_SECRET`), // 含非标准字符"4"但实测有效，见文件头注释
+        COVERS_TENANT_IDS: coversTenantIds
+    };
+}
+
 // 测试环境集团后台（收集 3001~3007 数据）
-export const GROUP_ADMIN_TEST = {
-    NAME: "测试环境集团后台",
-    BASE_URL: "https://g1002.mggametransit.com/",
-    ADMIN_USERNAME: "carey_jt_admin",
-    ADMIN_PASSWORD: "qwer1234",
-    GOOGLE_SECRET: "GEYDAMJQGAYDEMJWGM4TEOBUGQYTONJQGMYTCMJQGUYDEMTJMQ", // 含非标准字符"4"但实测有效，见文件头注释
-    COVERS_TENANT_IDS: [3001, 3002, 3003, 3004, 3005, 3006, 3007]
-};
+export const GROUP_ADMIN_TEST = buildGroupAdmin(
+    'GROUP_ADMIN_TEST',
+    "测试环境集团后台",
+    [3001, 3002, 3003, 3004, 3005, 3006, 3007]
+);
 
 // 预发布(UAT)环境集团后台（收集 3101 数据）
-export const GROUP_ADMIN_UAT = {
-    NAME: "预发布环境集团后台",
-    BASE_URL: "https://uatgroup-manger.arplatsaasuat.com/",
-    ADMIN_USERNAME: "carey_uat_jt_admin",
-    ADMIN_PASSWORD: "qwer1234",
-    GOOGLE_SECRET: "GY3DGOJSHA2DIMJZGEYTEMBUGIZTSNTKMZTXS",
-    COVERS_TENANT_IDS: [3101]
-};
+export const GROUP_ADMIN_UAT = buildGroupAdmin(
+    'GROUP_ADMIN_UAT',
+    "预发布环境集团后台",
+    [3101]
+);
 
 // 全部集团后台列表，供需要遍历"所有集团后台"的场景使用
 export const GROUP_ADMIN_LIST = [GROUP_ADMIN_TEST, GROUP_ADMIN_UAT];

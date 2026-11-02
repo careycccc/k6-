@@ -105,61 +105,58 @@
 
 ## 🚀 快速开始
 
-### 前置要求
+### 前置条件
 
-- Docker & Docker Compose（推荐）
-- Node.js 14+ 和 npm 6+（本地开发）
-- K6（本地运行测试脚本）
+- **Node.js** >= 14、**npm** >= 6
+- **k6**：本地需要全局安装 k6 才能跑 `k6/` 目录下的测试脚本（[安装指南](https://k6.io/docs/getting-started/installation/)）。装完用 `k6 version` 确认能跑；本仓库在 k6 v1.7+ 下验证通过。
+- **测试环境**：不需要自己从零搭后端——仓库 `k6/config/envconfig.js` 里已经配好了 3001~3007 等多个真实租户的后台地址和管理员账号，按租户 ID 传参数就能跑，正常不需要改这个文件。
 
-### 方式一：Docker 部署（推荐）
+### 安装依赖
 
 ```bash
-# 1. 克隆项目
-git clone <your-repo-url>
-cd k6-performance-framework
+npm install
+```
 
-# 2. 启动所有服务（InfluxDB + Grafana + Viz Platform）
+### 运行一个测试脚本
+
+仓库里的脚本分两类，运行方式不一样，先分清楚再跑：
+
+**1. k6 脚本**（文件名以 `.test.js` 结尾，放在 `k6/tests/api/` 下，是仓库里绝大多数脚本的形式）—— 用 `k6 run` 执行，一般通过 `-e KEY=VALUE` 传租户 ID、账号等参数：
+
+```bash
+# 查询 3004 租户某个会员的充值订单（只读查询，安全，几秒内跑完）
+k6 run -e TENANT_ID=3004 -e USER_ID=110655 k6/tests/api/recharge/queryRechargeOrder.test.js
+```
+
+**2. 纯 Node 脚本**（没有 k6 的 `export default function`，常见于批量采集账号、Telegram 监听这类辅助工具）—— 直接用 `node` 执行：
+
+```bash
+node k6/playwrith/collect-users.js
+```
+
+每个脚本具体接受什么参数，看文件开头的注释——仓库里的脚本基本都在头部写了"运行方式"示例，照着抄命令即可，不需要额外猜。
+
+### 运行效果
+
+以上面那条 `queryRechargeOrder.test.js` 为例，实际跑起来是这样：
+
+![运行效果截图](assets/readme-preview/run-example.jpg)
+
+几个关键信息：
+- `[GroupRouting] ✅ 集团后台登录成功`：查询类接口默认优先登录"集团"后台，集团登录失败才会降级到租户自己的后台
+- 中间那段业务日志是脚本自己 `console.log` 打出来的，不同脚本内容不一样，看不到也不代表出错
+- 最后的 `TOTAL RESULTS` 是 k6 自带的统计（请求耗时、成功率、吞吐量），所有 k6 脚本跑完都会有这一段；这次查询恰好查到 0 条订单，是真实业务结果（示例账号在该时间段没有符合条件的订单），不是运行失败
+
+### 可选：可视化监控平台（Docker）
+
+如果要给大并发/长耗时压测配实时监控面板，仓库里还带了一套 Grafana + InfluxDB + 自建管理界面（Viz Platform）的 Docker Compose 配置。这是可选的辅助工具，**不是**运行单个测试脚本的必要条件：
+
+```bash
 docker-compose up -d
-
-# 3. 等待服务启动（约 30 秒）
 docker-compose ps
 
-# 4. 访问服务
 open http://localhost:8080    # Viz 平台
 open http://localhost:3000    # Grafana 监控（admin/admin123）
-```
-
-### 方式二：本地开发
-
-```bash
-# 1. 安装项目依赖
-npm install
-
-# 2. 配置环境变量（可选）
-cp k6/config/envconfig.js k6/config/envconfig.local.js
-# 编辑 envconfig.local.js 配置你的测试环境
-
-# 3. 运行单个测试脚本
-k6 run index.js
-
-# 4. 运行测试并输出到 InfluxDB
-k6 run --out influxdb=http://localhost:8086/k6 index.js
-
-# 5. 启动 Viz 平台（可选）
-npm run viz:setup
-```
-
-### 快速测试
-
-```bash
-# 冒烟测试
-npm run test:smoke
-
-# API 测试
-npm run test:api
-
-# 负载测试
-npm run test:load
 ```
 
 ---
@@ -517,29 +514,20 @@ services:
    - 点击"开始测试"
 
 4. **查看报告**
-   - 测试完成后在 `viz/reports/` 目录查看 HTML 报告
+   - 接入了 `handleSummary`（`k6/tests/api/common/request.js` 里统一提供）的脚本，跑完会自动在根目录 `reports/` 下生成一份带时间戳的 HTML 报告；没接入的脚本（比如上面示例里的 `queryRechargeOrder.test.js`）就只有命令行输出，不产出文件，这是正常的，不代表没配置好
    - 报告包含：性能指标、成功率、响应时间分布
 
 ### 通过命令行运行测试
 
 ```bash
-# 运行单个测试文件
-k6 run index.js
+# 跑一个具体测试文件（见上方"运行一个测试脚本"）
+k6 run -e TENANT_ID=3004 -e USER_ID=110655 k6/tests/api/recharge/queryRechargeOrder.test.js
 
-# 运行并输出到 InfluxDB
-k6 run --out influxdb=http://localhost:8086/k6 index.js
+# 运行并把数据同时推给 InfluxDB（需要先 docker-compose up -d 启动 InfluxDB）
+k6 run --out influxdb=http://localhost:8086/k6 k6/tests/api/recharge/queryRechargeOrder.test.js
 
-# 使用预定义场景
-npm run test:smoke    # 冒烟测试
-npm run test:load     # 负载测试
-npm run test:stress   # 压力测试
-
-# 自定义 VU 和持续时间
-k6 run --vus 10 --duration 30s index.js
-
-# 生成 HTML 报告
-k6 run --out json=results.json index.js
-npm run report
+# 覆盖脚本里写死的 VU 数 / 持续时间（不是所有脚本都用得上，看脚本的 options 是否写死了 scenarios）
+k6 run --vus 10 --duration 30s k6/tests/api/recharge/queryRechargeOrder.test.js
 ```
 
 ### 查看实时监控（Grafana）
@@ -715,13 +703,9 @@ npm run viz:install            # 安装 Viz 依赖
 npm run viz:start              # 启动 Viz 平台
 npm run viz:dev                # 开发模式启动
 
-# 测试执行
-npm run test:smoke             # 冒烟测试
-npm run test:api               # API 测试
-npm run test:load              # 负载测试
-npm run test:stress            # 压力测试
-npm run test:endurance         # 耐力测试
-npm run test:all               # 运行所有测试
+# 测试执行：这个仓库没有统一的"一键跑全部"命令，都是针对具体测试文件执行
+# 用法见上方「🚀 快速开始 > 运行一个测试脚本」
+k6 run k6/tests/api/<module>/<xxx>.test.js
 
 # 安全检查
 npm run security:check         # 检查依赖漏洞

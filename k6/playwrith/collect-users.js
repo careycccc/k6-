@@ -15,57 +15,74 @@
  *
  * 签名口径复刻 libs/utils/signature.js：排除 signature/timestamp/track + 空值 → key 排序
  *   → JSON.stringify → MD5 大写（secret 空）；timestamp 不参与签名。
+ *
+ * 2026-11-02：管理后台地址/账号/密码/GOOGLE_SECRET 已迁移到项目根目录的
+ *   .env（不进 git，见 .env.example 模板），不再在本文件里硬编码真实值。
  */
 
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-// ───── 多租户后台配置（管理后台地址 + 管理员账号），摘自 k6/config/envconfig.js ─────
+// ───── 读取项目根目录 .env（真实账号密码/密钥，不进 git） ─────
+function loadEnvFile() {
+  const envPath = path.join(__dirname, '..', '..', '.env');
+  if (!fs.existsSync(envPath)) {
+    console.error(`[采集] ❌ 找不到 ${envPath}`);
+    console.error('[采集]    请复制 .env.example 为 .env 并填入真实配置值后重试。');
+    process.exit(1);
+  }
+  const map = {};
+  const lines = fs.readFileSync(envPath, 'utf-8').split(/\r?\n/);
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t || t.startsWith('#')) continue;
+    const idx = t.indexOf('=');
+    if (idx < 0) continue;
+    const key = t.slice(0, idx).trim();
+    let value = t.slice(idx + 1).trim();
+    if (value.length >= 2) {
+      const f = value[0], l = value[value.length - 1];
+      if ((f === '"' && l === '"') || (f === "'" && l === "'")) value = value.slice(1, -1);
+    }
+    map[key] = value;
+  }
+  return map;
+}
+const ENV_FILE = loadEnvFile();
+
+// ───── 多租户后台配置（管理后台地址 + 管理员账号），读取自 .env ─────
 const TENANTS = {
-  '3001': { admin: 'https://ar666999.club',                      user: 'carey3001'  },
-  '3002': { admin: 'https://arsitasdfghjklg.com',                user: 'carey3002'  },
-  '3003': { admin: 'https://3003-tenantadmin.ar666999.club',     user: 'carey3003'  },
-  '3004': { admin: 'https://arsitasdfghjklusa.com',              user: 'carey3004'  },
-  '3005': { admin: 'https://arsitasdfghj.com',                   user: 'carey3005'  },
-  '3006': { admin: 'https://3006-tenantadmin.ar666999.club',     user: 'carey3006'  },
-  '3007': { admin: 'https://3007-tenantadmin.ar666999.club',     user: 'carey3007'  },
-  '3101': { admin: 'https://3101-tenantadmin.arplatsaasuat.com', user: 'carey_3101' },
+  '3001': { admin: ENV_FILE['ENV_3001_BASE_ADMIN_URL'], user: ENV_FILE['ENV_3001_ADMIN_USERNAME'] },
+  '3002': { admin: ENV_FILE['ENV_3002_BASE_ADMIN_URL'], user: ENV_FILE['ENV_3002_ADMIN_USERNAME'] },
+  '3003': { admin: ENV_FILE['ENV_3003_BASE_ADMIN_URL'], user: ENV_FILE['ENV_3003_ADMIN_USERNAME'] },
+  '3004': { admin: ENV_FILE['ENV_3004_BASE_ADMIN_URL'], user: ENV_FILE['ENV_3004_ADMIN_USERNAME'] },
+  '3005': { admin: ENV_FILE['ENV_3005_BASE_ADMIN_URL'], user: ENV_FILE['ENV_3005_ADMIN_USERNAME'] },
+  '3006': { admin: ENV_FILE['ENV_3006_BASE_ADMIN_URL'], user: ENV_FILE['ENV_3006_ADMIN_USERNAME'] },
+  '3007': { admin: ENV_FILE['ENV_3007_BASE_ADMIN_URL'], user: ENV_FILE['ENV_3007_ADMIN_USERNAME'] },
+  '3101': { admin: ENV_FILE['ENV_3101_BASE_ADMIN_URL'], user: ENV_FILE['ENV_3101_ADMIN_USERNAME'] },
 };
 
 const TENANT     = String(process.env.TENANT || process.env.TENANT_ID || '3004');
 const T          = TENANTS[TENANT] || TENANTS['3004'];
 const ADMIN_URL  = process.env.ADMIN_URL  || T.admin;
 const ADMIN_USER = process.env.ADMIN_USER || T.user;
-const ADMIN_PWD  = process.env.ADMIN_PWD  || 'qwer1234';
+const ADMIN_PWD  = process.env.ADMIN_PWD  || ENV_FILE[`ENV_${TENANT}_ADMIN_PASSWORD`] || '';
 const TARGET     = parseInt(process.env.TARGET || '50', 10);
 const PAGE_SIZE  = Math.min(parseInt(process.env.PAGE_SIZE || '500', 10), 500);
 const PACKAGE_ID = process.env.PACKAGE_ID || '';              // 渠道过滤：只采某渠道会员（GetPageList packageId），空=全部渠道
 const LANG       = process.env.LANG_CODE || 'zh';
 const SET_PWD    = process.env.SETPWD === 'true';              // SETPWD=true：采集后把这批账号登录密码重置为 NEW_PWD
-const NEW_PWD    = process.env.NEW_PWD || 'qwer1234';
+const NEW_PWD    = process.env.NEW_PWD || ENV_FILE['DEFAULT_TEST_PASSWORD'] || '';
 const OUT_DIR    = process.env.OUT_DIR
   ? path.resolve(process.env.OUT_DIR)
   : path.join(__dirname, '..', 'tests', 'api', 'activity', 'firebase');
 
 // ───── 后台谷歌验证码(TOTP) ─────
-// 密钥统一维护在 config/envconfig.js 的 GOOGLE_SECRET（按租户）；此处读取，可用 GOOGLE_SECRET 环境变量覆盖。
+// 密钥统一维护在 .env 的 ENV_<租户>_GOOGLE_SECRET；此处读取，可用 GOOGLE_SECRET 环境变量覆盖。
 function readGoogleSecret(tenant) {
   if (process.env.GOOGLE_SECRET) return process.env.GOOGLE_SECRET.trim();
-  try {
-    const txt = fs.readFileSync(path.join(__dirname, '..', 'config', 'envconfig.js'), 'utf-8');
-    const s = txt.indexOf('ENV_' + tenant);
-    if (s < 0) return '';
-    const block = txt.slice(s, txt.indexOf('};', s));
-    const ki = block.indexOf('GOOGLE_SECRET');
-    if (ki < 0) return '';
-    const after = block.slice(ki + 'GOOGLE_SECRET'.length);
-    const q1 = after.search(/["']/);
-    if (q1 < 0) return '';
-    const quote = after[q1];
-    const q2 = after.indexOf(quote, q1 + 1);
-    return q2 < 0 ? '' : after.slice(q1 + 1, q2);
-  } catch (e) { return ''; }
+  return ENV_FILE[`ENV_${tenant}_GOOGLE_SECRET`] || '';
 }
 const GOOGLE_SECRET = readGoogleSecret(TENANT);
 
@@ -207,6 +224,6 @@ async function setPassword(userId, token) {
       fails.slice(0, 20).forEach(f => console.log(`   userId=${f.userId}  code=${f.code}  msg=${f.msg}`));
     }
   } else {
-    console.log('[采集] 提示：加 $env:SETPWD="true" 可把这批账号密码统一重置为 qwer1234');
+    console.log(`[采集] 提示：加 $env:SETPWD="true" 可把这批账号密码统一重置为「${NEW_PWD}」`);
   }
 })().catch((e) => { console.error('[采集] 运行失败:', e.message); process.exit(1); });

@@ -55,6 +55,10 @@ k6/tests/api/activity/inviteTurntable/state/
 docs/工作.txt
 **/工作.txt
 
+# Telegram 客户端会话（等同于账号登录凭据，绝不能提交）
+k6/telegram/.session
+k6/telegram/*.session
+
 # Docker
 *.dockerignore
 docker-compose.override.yml

@@ -48,22 +48,51 @@ const crypto = require('crypto');
 // ============================================================
 // 配置
 // ============================================================
-// ───── 多租户配置（前台地址 + 区号），摘自 k6/config/envconfig.js ─────
+// ───── 读取项目根目录 .env（真实域名/测试账号密码，不进 git） ─────
+// 2026-11-02：前台地址/区号/测试密码已迁移到 .env（见 .env.example 模板），
+// 不再在本文件里硬编码真实值。
+function loadEnvFile() {
+  const envPath = path.join(__dirname, '..', '..', '.env');
+  if (!fs.existsSync(envPath)) {
+    console.error(`[配置] ❌ 找不到 ${envPath}`);
+    console.error('[配置]    请复制 .env.example 为 .env 并填入真实配置值后重试。');
+    process.exit(1);
+  }
+  const map = {};
+  const lines = fs.readFileSync(envPath, 'utf-8').split(/\r?\n/);
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t || t.startsWith('#')) continue;
+    const idx = t.indexOf('=');
+    if (idx < 0) continue;
+    const key = t.slice(0, idx).trim();
+    let value = t.slice(idx + 1).trim();
+    if (value.length >= 2) {
+      const f = value[0], l = value[value.length - 1];
+      if ((f === '"' && l === '"') || (f === "'" && l === "'")) value = value.slice(1, -1);
+    }
+    map[key] = value;
+  }
+  return map;
+}
+const ENV_FILE = loadEnvFile();
+
+// ───── 多租户配置（前台地址 + 区号），读取自 .env ─────
 const TENANTS = {
-  '3001': { desk: 'https://arplatsaassit1.club',      code: '91'  },
-  '3002': { desk: 'https://arplatsaassit2.club',      code: '92'  },
-  '3003': { desk: 'https://3003.arplatsaassit3.club', code: '91'  },
-  '3004': { desk: 'https://arplatsaassit4.club',      code: '91'  },
-  '3005': { desk: 'https://arplatsaassit3.club',      code: '52'  },
-  '3006': { desk: 'https://3006.arplatsaassit4.club', code: '880' },
-  '3007': { desk: 'https://3007.arplatsaassit4.club', code: '92'  },
-  '3101': { desk: 'https://arplatsaaspagesuat.club',  code: '91'  },
+  '3001': { desk: ENV_FILE['ENV_3001_BASE_DESK_URL'], code: ENV_FILE['ENV_3001_COUNTRY_CODE'] },
+  '3002': { desk: ENV_FILE['ENV_3002_BASE_DESK_URL'], code: ENV_FILE['ENV_3002_COUNTRY_CODE'] },
+  '3003': { desk: ENV_FILE['ENV_3003_BASE_DESK_URL'], code: ENV_FILE['ENV_3003_COUNTRY_CODE'] },
+  '3004': { desk: ENV_FILE['ENV_3004_BASE_DESK_URL'], code: ENV_FILE['ENV_3004_COUNTRY_CODE'] },
+  '3005': { desk: ENV_FILE['ENV_3005_BASE_DESK_URL'], code: ENV_FILE['ENV_3005_COUNTRY_CODE'] },
+  '3006': { desk: ENV_FILE['ENV_3006_BASE_DESK_URL'], code: ENV_FILE['ENV_3006_COUNTRY_CODE'] },
+  '3007': { desk: ENV_FILE['ENV_3007_BASE_DESK_URL'], code: ENV_FILE['ENV_3007_COUNTRY_CODE'] },
+  '3101': { desk: ENV_FILE['ENV_3101_BASE_DESK_URL'], code: ENV_FILE['ENV_3101_COUNTRY_CODE'] },
 };
 const TENANT        = String(process.env.TENANT || process.env.TENANT_ID || '3004');
 const TCFG          = TENANTS[TENANT] || TENANTS['3004'];
 const BASE_URL      = process.env.BASE_URL || TCFG.desk;      // 前台地址（BASE_URL 显式覆盖优先）
 const LOGIN_URL     = `${BASE_URL}/login`;
-const PASSWORD      = process.env.PASSWORD || 'qwer1234';
+const PASSWORD      = process.env.PASSWORD || ENV_FILE['DEFAULT_TEST_PASSWORD'] || '';
 const COUNTRY_CODE  = process.env.COUNTRY_CODE || TCFG.code;  // loadAccounts 去区号用
 // 账号文件：多租户用 ACCOUNTS_FILE 指定对应租户的 2.txt；默认 firebase/2.txt
 const ACCOUNTS_FILE = process.env.ACCOUNTS_FILE

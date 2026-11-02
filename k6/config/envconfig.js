@@ -2,6 +2,10 @@
 // 环境配置文件 - 多租户配置
 // ============================================
 //
+// 2026-11-02：真实账号密码 / GOOGLE_SECRET 等敏感信息已迁移到项目根目录的
+// .env 文件（不进 git，见 .env.example 模板），本文件只负责读取 + 组装，
+// 不再写死任何真实凭据。解析逻辑在 envFileLoader.js。
+//
 // 地址说明:
 //   BASE_DESK_URL        前台地址（普通注册/总代注册/登录等）
 //   BASE_ADMIN_URL       管理后台地址
@@ -15,191 +19,63 @@
 //   详见 config/languageConfig.js
 // ============================================
 
+import { getEnvValue, getEnvInt } from './envFileLoader.js';
+
+/**
+ * 按 ENV_<prefix>_<FIELD> 的命名约定，从 .env 组装出一个租户配置对象。
+ * 字段名、默认值跟改造前的字面量完全对应，保证下游引用方不用改。
+ */
+function buildTenantEnv(prefix) {
+    return {
+        BASE_ADMIN_URL: getEnvValue(`${prefix}_BASE_ADMIN_URL`),
+        BASE_DESK_URL: getEnvValue(`${prefix}_BASE_DESK_URL`),
+        INVITE_REGISTER_URL: getEnvValue(`${prefix}_INVITE_REGISTER_URL`),
+        PAGESIZE: getEnvInt(`${prefix}_PAGESIZE`, 200),
+        PAGENO: getEnvInt(`${prefix}_PAGENO`, 1),
+        ADMIN_USERNAME: getEnvValue(`${prefix}_ADMIN_USERNAME`),
+        ADMIN_PASSWORD: getEnvValue(`${prefix}_ADMIN_PASSWORD`),
+        START_TIME: getEnvValue(`${prefix}_START_TIME`),
+        END_TIME: getEnvValue(`${prefix}_END_TIME`),
+        TENANTID: getEnvInt(`${prefix}_TENANTID`),
+        AGENT_MODE: getEnvInt(`${prefix}_AGENT_MODE`), // 代理模式：0=6级代理，1=3级代理。2026-10-30 总控 /api/Tenant/GetPageList 实测确认
+        GOOGLE_SECRET: getEnvValue(`${prefix}_GOOGLE_SECRET`), // 后台谷歌验证码(TOTP)密钥
+        LimitedPermissions: getEnvValue(`${prefix}_LIMITED_PERMISSIONS`),
+        LimitedPermissionsPassWord: getEnvValue(`${prefix}_LIMITED_PERMISSIONS_PASSWORD`),
+        WorkOrderRole: getEnvValue(`${prefix}_WORK_ORDER_ROLE`),
+        WorkOrderRolePasswrod: getEnvValue(`${prefix}_WORK_ORDER_ROLE_PASSWORD`), // 字段名含历史拼写 "Passwrod"，下游有引用，不能改名
+        COUNTRY_CODE: getEnvValue(`${prefix}_COUNTRY_CODE`),
+        RECHARGE_AMOUNT_MIN: getEnvInt(`${prefix}_RECHARGE_AMOUNT_MIN`, 2000),
+        RECHARGE_AMOUNT_MAX: getEnvInt(`${prefix}_RECHARGE_AMOUNT_MAX`, 5000),
+    };
+}
+
 // 3001 环境配置
-export const ENV_3001 = {
-    BASE_ADMIN_URL: "https://ar666999.club",          // 管理后台地址
-    BASE_DESK_URL: "https://arplatsaassit1.club",     // 前台地址（普通注册/总代注册）
-    INVITE_REGISTER_URL: "https://3001.zc-arplatsaassit.com",
-    PAGESIZE: 200,
-    PAGENO: 1,
-    ADMIN_USERNAME: "carey3001",
-    ADMIN_PASSWORD: "qwer1234",
-    START_TIME: "2026-01-08 00:00:00",
-    END_TIME: "2026-01-08 23:59:59",
-    TENANTID: 3001,
-    AGENT_MODE: 0, // 代理模式：0=6级代理，1=3级代理。2026-10-30 总控 /api/Tenant/GetPageList 实测确认
-    GOOGLE_SECRET: "", // 后台谷歌验证码(TOTP)密钥，待补充
-    LimitedPermissions: "carey3001_001",
-    LimitedPermissionsPassWord: "qwer1234",
-    WorkOrderRole: "carey3001_001",
-    WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "91",
-    RECHARGE_AMOUNT_MIN: 2000,
-    RECHARGE_AMOUNT_MAX: 5000
-};
+export const ENV_3001 = buildTenantEnv('ENV_3001');
 
 // 3002 环境配置
-export const ENV_3002 = {
-    BASE_ADMIN_URL: "https://arsitasdfghjklg.com",    // 管理后台地址
-    BASE_DESK_URL: "https://arplatsaassit2.club",     // 前台地址（普通注册/总代注册）
-    INVITE_REGISTER_URL: "https://arplatsaassit2.club",
-    PAGESIZE: 200,
-    PAGENO: 1,
-    ADMIN_USERNAME: "carey3002",
-    ADMIN_PASSWORD: "qwer1234",
-    START_TIME: "2026-01-08 00:00:00",
-    END_TIME: "2026-01-08 23:59:59",
-    TENANTID: 3002,
-    AGENT_MODE: 0, // 代理模式：0=6级代理，1=3级代理。2026-10-30 总控 /api/Tenant/GetPageList 实测确认
-    GOOGLE_SECRET: "", // 后台谷歌验证码(TOTP)密钥，待补充
-    LimitedPermissions: "carey3002_001",
-    LimitedPermissionsPassWord: "qwer1234",
-    WorkOrderRole: "carey3002_001",
-    WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "92",
-    RECHARGE_AMOUNT_MIN: 2000,
-    RECHARGE_AMOUNT_MAX: 5000
-};
+export const ENV_3002 = buildTenantEnv('ENV_3002');
 
 // 3003 环境配置
-export const ENV_3003 = {
-    BASE_ADMIN_URL: "https://3003-tenantadmin.ar666999.club",       // 管理后台地址
-    BASE_DESK_URL: "https://3003.arplatsaassit3.club",     // 前台地址（普通注册/总代注册）
-    INVITE_REGISTER_URL: "https://3003.zc-arplatsaassit.com",  // 邀请注册地址
-    PAGESIZE: 200,
-    PAGENO: 1,
-    ADMIN_USERNAME: "carey3003",
-    ADMIN_PASSWORD: "qwer1234",
-    START_TIME: "2026-01-08 00:00:00",
-    END_TIME: "2026-01-08 23:59:59",
-    TENANTID: 3003,
-    AGENT_MODE: 0, // 代理模式：0=6级代理，1=3级代理。2026-10-30 总控 /api/Tenant/GetPageList 实测确认
-    GOOGLE_SECRET: "GYZTQOBZGEYDGNJQHEYTKNBSGMZTSMLIPFRA", // 后台谷歌验证码(TOTP)密钥，待补充
-    LimitedPermissions: "carey3003_001",
-    LimitedPermissionsPassWord: "qwer1234",
-    WorkOrderRole: "carey3003_001",
-    WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "91",
-    RECHARGE_AMOUNT_MIN: 2000,
-    RECHARGE_AMOUNT_MAX: 5000
-};
+export const ENV_3003 = buildTenantEnv('ENV_3003');
 
-// 3004 环境配置（当前默认）
-export const ENV_3004 = {
-    BASE_ADMIN_URL: "https://arsitasdfghjklusa.com",  // 管理后台地址
-    BASE_DESK_URL: "https://arplatsaassit4.club",     // 前台地址（普通注册/总代注册）
-    INVITE_REGISTER_URL: "https://3004.zc-arplatsaassit.com",  // 邀请注册地址
-    PAGESIZE: 200,
-    PAGENO: 1,
-    ADMIN_USERNAME: "carey3004",
-    ADMIN_PASSWORD: "qwer1234",
-    START_TIME: "2026-01-08 00:00:00",
-    END_TIME: "2026-01-08 23:59:59",
-    TENANTID: 3004,
-    AGENT_MODE: 1, // 代理模式：0=6级代理，1=3级代理。2026-10-30 总控 /api/Tenant/GetPageList 实测确认，3004是目前唯一的3级代理商户
-    GOOGLE_SECRET: "GYZTSMRTGIZTGNBVGYYTQMRTGMZDAZDKNBWA", // 后台谷歌验证码(TOTP)密钥
-    LimitedPermissions: "carey3004_001",
-    LimitedPermissionsPassWord: "qwer1234",
-    WorkOrderRole: "carey3004_001",
-    WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "91",
-    RECHARGE_AMOUNT_MIN: 2000,
-    RECHARGE_AMOUNT_MAX: 5000
-};
+// 3004 环境配置（当前默认）—— 3004 是目前唯一的 3 级代理商户（AGENT_MODE=1）
+export const ENV_3004 = buildTenantEnv('ENV_3004');
 
 // 3005 环境配置
-export const ENV_3005 = {
-    BASE_ADMIN_URL: "https://arsitasdfghj.com",  // 管理后台地址
-    BASE_DESK_URL: "https://arplatsaassit3.club",              // 前台地址
-    INVITE_REGISTER_URL: "https://3005.zc-arplatsaassit.com", // 邀请注册地址
-    PAGESIZE: 200,
-    PAGENO: 1,
-    ADMIN_USERNAME: "carey3005",
-    ADMIN_PASSWORD: "qwer1234",
-    START_TIME: "2026-01-08 00:00:00",
-    END_TIME: "2026-01-08 23:59:59",
-    TENANTID: 3005,
-    AGENT_MODE: 0, // 代理模式：0=6级代理，1=3级代理。2026-10-30 总控 /api/Tenant/GetPageList 实测确认
-    GOOGLE_SECRET: "", // 后台谷歌验证码(TOTP)密钥，待补充
-    LimitedPermissions: "carey3005_001",
-    LimitedPermissionsPassWord: "qwer1234",
-    WorkOrderRole: "carey3005_001",
-    WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "52",
-    RECHARGE_AMOUNT_MIN: 2000,
-    RECHARGE_AMOUNT_MAX: 5000
-};
+export const ENV_3005 = buildTenantEnv('ENV_3005');
 
-// 3006 环境配置
-export const ENV_3006 = {
-    BASE_ADMIN_URL: "https://3006-tenantadmin.ar666999.club",  // 管理后台地址
-    BASE_DESK_URL: "https://3006.arplatsaassit4.club",         // 前台地址
-    INVITE_REGISTER_URL: "https://3006.zc-arplatsaassit.com",   // 邀请注册地址
-    PAGESIZE: 200,
-    PAGENO: 1,
-    ADMIN_USERNAME: "carey3006",
-    ADMIN_PASSWORD: "qwer1234",
-    START_TIME: "2026-01-08 00:00:00",
-    END_TIME: "2026-01-08 23:59:59",
-    TENANTID: 3006,
-    AGENT_MODE: 0, // 代理模式：0=6级代理，1=3级代理。2026-10-30 总控 /api/Tenant/GetPageList 实测确认
-    GOOGLE_SECRET: "GYZTSMJQGUZDSNBYGAYDGMZZGI2DQOJSNZSA", // 后台谷歌验证码(TOTP)密钥，待补充
-    LimitedPermissions: "carey3006_001",
-    LimitedPermissionsPassWord: "qwer1234",
-    WorkOrderRole: "carey3006_001",
-    WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "880",  // 孟加拉国区号
-    RECHARGE_AMOUNT_MIN: 2000,
-    RECHARGE_AMOUNT_MAX: 5000
-};
+// 3006 环境配置（COUNTRY_CODE 880 = 孟加拉国区号）
+export const ENV_3006 = buildTenantEnv('ENV_3006');
 
-// 3007 环境配置
-export const ENV_3007 = {
-    BASE_ADMIN_URL: "https://3007-tenantadmin.ar666999.club",  // 管理后台地址
-    BASE_DESK_URL: "https://3007.arplatsaassit4.club",         // 前台地址
-    INVITE_REGISTER_URL: "https://3007.zc-arplatsaassit.com",   // 邀请注册地址
-    PAGESIZE: 200,
-    PAGENO: 1,
-    ADMIN_USERNAME: "carey3007",
-    ADMIN_PASSWORD: "qwer1234",
-    START_TIME: "2026-01-08 00:00:00",
-    END_TIME: "2026-01-08 23:59:59",
-    TENANTID: 3007,
-    AGENT_MODE: 0, // 代理模式：0=6级代理，1=3级代理。2026-10-30 总控 /api/Tenant/GetPageList 实测确认
-    GOOGLE_SECRET: "GYZTSMRUGUZDQOBYGQ4DCOBXG4YTK6LDNNYQ", // 后台谷歌验证码(TOTP)密钥，待补充
-    LimitedPermissions: "carey3007_001",
-    LimitedPermissionsPassWord: "qwer1234",
-    WorkOrderRole: "carey3007_001",
-    WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "92",  // 巴基斯坦区号
-    RECHARGE_AMOUNT_MIN: 2000,
-    RECHARGE_AMOUNT_MAX: 5000
-};
+// 3007 环境配置（COUNTRY_CODE 92 = 巴基斯坦区号）
+export const ENV_3007 = buildTenantEnv('ENV_3007');
 
 // 3101 UAT 环境配置
-export const ENV_3101 = {
-    BASE_ADMIN_URL: "https://3101-tenantadmin.arplatsaasuat.com",    // 管理后台地址
-    BASE_DESK_URL: "https://arplatsaaspagesuat.club",               // 前台地址
-    INVITE_REGISTER_URL: "https://3101-register-uat.arplatsaasuat.com", // 邀请注册地址
-    PAGESIZE: 200,
-    PAGENO: 1,
-    ADMIN_USERNAME: "carey_3101",
-    ADMIN_PASSWORD: "qwer1234",
-    START_TIME: "2026-01-08 00:00:00",
-    END_TIME: "2026-01-08 23:59:59",
-    TENANTID: 3101,
-    AGENT_MODE: 0, // 代理模式：0=6级代理，1=3级代理。UAT环境未核实，暂按6级默认处理
-    GOOGLE_SECRET: "GYZTQOBYG42TGNRQGA3TONJYGEZDM43RMFSA", // 后台谷歌验证码(TOTP)密钥，待补充
-    LimitedPermissions: "carey_3101d",
-    LimitedPermissionsPassWord: "qwer1234",
-    WorkOrderRole: "carey3101_kf",
-    WorkOrderRolePasswrod: "qwer1234",
-    COUNTRY_CODE: "91",
-    RECHARGE_AMOUNT_MIN: 2000,
-    RECHARGE_AMOUNT_MAX: 5000
-};
+export const ENV_3101 = buildTenantEnv('ENV_3101');
 
-// 默认使用 3004 环境
+// 默认使用 3004 环境 —— 必须是直接引用（不能写成 {...ENV_3004} 这种拷贝）：
+// 全仓约 100 余处代码会 Object.assign(ENV_CONFIG, 其他租户配置) 来运行时切租户，
+// 依赖 ENV_CONFIG/ENV_3004/ENV_MAP['3004'] 是同一个对象实例这个副作用。
 export const ENV_CONFIG = ENV_3004;
 
 // 环境映射表 - 用于根据租户ID获取配置
