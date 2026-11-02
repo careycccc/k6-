@@ -1,6 +1,6 @@
 /**
  * megaJackpotVerify 判定逻辑自测（模拟数据，不发请求）
- *   k6 run -e TENANT_ID=3004 k6/tests/unit/megaJackpotLogic.test.js
+ *   k6p -e TENANT_ID=3004 k6/tests/unit/megaJackpotLogic.test.js
  */
 import { normalizeConfig, matchConfigs, verifyUser } from '../api/activity/MegaJackpot/megaJackpotVerify.js';
 
@@ -9,15 +9,19 @@ let fail = 0;
 const eq = (n, g, w) => { const ok = JSON.stringify(g) === JSON.stringify(w); if (!ok) fail++; console.log(`${ok ? '✅' : '❌'} ${n} got=${JSON.stringify(g)}${ok ? '' : ' want=' + JSON.stringify(w)}`); };
 
 const T0 = 1791900000000;               // 配置生效时间
-const cfg = (o) => normalizeConfig(Object.assign({ state: 1, rangeType: 1, effectiveRange: '', gameScope: 0, effectiveGameList: [],
-    minMultiple: 2, maxMultiple: 100, minBetAmount: 10, maxBetAmount: 1000, awardAmount: 10, everyDayRewardLimitNum: 0, lastUpdateTime: T0 }, o));
+const cfg = (o) => normalizeConfig(Object.assign({
+    state: 1, rangeType: 1, effectiveRange: '', gameScope: 0, effectiveGameList: [],
+    minMultiple: 2, maxMultiple: 100, minBetAmount: 10, maxBetAmount: 1000, awardAmount: 10, everyDayRewardLimitNum: 0, lastUpdateTime: T0
+}, o));
 const A = cfg({ id: 1, awardAmount: 11, everyDayRewardLimitNum: 1 });
 const B = cfg({ id: 2, awardAmount: 22, everyDayRewardLimitNum: 0 });
 const P = cfg({ id: 3, rangeType: 2, effectiveRange: 'PG', gameScope: 1, effectiveGameList: [{ vendorCode: 'PG', gameList: [{ code: '88' }] }], awardAmount: 33 });
 let seq = 0;
 const bet = (o) => Object.assign({ orderNo: 'O' + (++seq), categoryType: 0, vendorCode: 'JILI', gameCode: '1', gameName: 'g', betAmount: 10, winAmount: 30, profit: '3.00', betTime: T0 + seq * 60000, settlementTime: T0 + seq * 60000 }, o);
-const rec = (b, c, state) => ({ orderNo: b.orderNo, userId: 1, betTime: b.betTime, vendorCode: b.vendorCode, gameName: b.gameName, betAmount: b.betAmount, multiple: b.profit,
-    minMultiple: c.minMultiple, maxMultiple: c.maxMultiple, minBetAmount: c.minBet, maxBetAmount: c.maxBet, awardAmount: c.award, receiveState: state });
+const rec = (b, c, state) => ({
+    orderNo: b.orderNo, userId: 1, betTime: b.betTime, vendorCode: b.vendorCode, gameName: b.gameName, betAmount: b.betAmount, multiple: b.profit,
+    minMultiple: c.minMultiple, maxMultiple: c.maxMultiple, minBetAmount: c.minBet, maxBetAmount: c.maxBet, awardAmount: c.award, receiveState: state
+});
 const run = (bets, recs, globalLimit, enabled = [A, B], now = T0 + 3600000) => verifyUser(1, bets, recs, { enabled, allConfigs: enabled, globalLimit, windowStart: T0, runStart: now }).items.map(i => i.status);
 
 export default function () {

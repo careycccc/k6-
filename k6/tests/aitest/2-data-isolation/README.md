@@ -132,7 +132,7 @@ const tenantId = req.body.tenantId;  // 不安全！
 ./k6/tests/aitest/run-data-isolation.sh
 
 # 或使用k6命令
-k6 run k6/tests/aitest/2-data-isolation/data-isolation.test.js
+k6p k6/tests/aitest/2-data-isolation/data-isolation.test.js
 ```
 
 ## 测试结果说明

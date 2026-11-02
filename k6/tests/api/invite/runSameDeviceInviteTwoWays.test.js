@@ -20,10 +20,10 @@
  *   - betRun 是随机金额，为满足"投注200"这里用固定金额投注 betFixed（复用 runbet 底层）。
  *
  * 用法：
- *   k6 run -e TENANT_ID=3004 runSameDeviceInviteTwoWays.test.js
- *   k6 run -e TENANT_ID=3006 -e SUB_COUNT=4 -e RECHARGE_AMOUNT=1000  runSameDeviceInviteTwoWays.test.js
- *   k6 run -e TENANT_ID=3101 -e SUB_COUNT=2 -e RECHARGE_AMOUNT=1000 -e B_L2=0 runSameDeviceInviteTwoWays.test.js   // 只A挂，B不挂
- *   k6 run -e TENANT_ID=3101 -e DEVICE_MODE=split -e B_L2=0 runSameDeviceInviteTwoWays.test.js   // 总代与所有下级不同设备
+ *   k6p -e TENANT_ID=3004 runSameDeviceInviteTwoWays.test.js
+ *   k6p -e TENANT_ID=3006 -e SUB_COUNT=4 -e RECHARGE_AMOUNT=1000  runSameDeviceInviteTwoWays.test.js
+ *   k6p -e TENANT_ID=3101 -e SUB_COUNT=2 -e RECHARGE_AMOUNT=1000 -e B_L2=0 runSameDeviceInviteTwoWays.test.js   // 只A挂，B不挂
+ *   k6p -e TENANT_ID=3101 -e DEVICE_MODE=split -e B_L2=0 runSameDeviceInviteTwoWays.test.js   // 总代与所有下级不同设备
  *
  * 环境变量：
  *   TENANT_ID        租户ID（默认 3004）

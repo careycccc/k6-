@@ -20,7 +20,7 @@
  *   RESTORE 把 3 条通过规则恢复成原始配置
  *
  * 用法：node auditG3Runner.js --tenant 3004        （runner 逐批调用本脚本并汇总报表）
- *       k6 run -e BATCH=OR -e CASES=OR_sub_eq auditG3Verify.js
+ *       k6p -e BATCH=OR -e CASES=OR_sub_eq auditG3Verify.js
  */
 
 import { sleep } from 'k6';
@@ -93,25 +93,31 @@ const ORIGINAL = {
 
 // ================= 拒绝规则(只配 1/2/3，保持开启) =================
 const REJECT_RULES = [
-    { id: 300020, state: 1, autoAuditState: 0, packageIds: [], packageNames: [],
-      detailDescription: '开启时，邀请人未曾首充且最近被邀请人未首充次数（最近的n个人）>=配置值时，自动审核拒绝',
-      auditCondition: [
-          { invitedWheelAuditType: 1, operatorType: 0, value: '', conditionLogic: 0, isGroupEnable: true },
-          { invitedWheelAuditType: 3, operatorType: 1, value: 1, conditionLogic: 0, isGroupEnable: true }],
-      rejectReason: { en: 'If the referrer has never made a first-time deposit and the number of times the most recent person they referred has not made a first-time deposit is greater than or equal to the configured value, the application will be automatically rejected.', es: '1', ru: '1', zh: 'If the referrer has never made a first-time deposit and the number of times the most recent person they referred has not made a first-time deposit is greater than or equal to the configured value, the application will be automatically rejected.', bn: '1', ur: '1', pt: '1', hi: '1' } },
-    { id: 300021, state: 1, autoAuditState: 0, packageIds: [], packageNames: [],
-      detailDescription: '开启时，邀请人不是充值用户，且所有下级用户都不是充值用户，且下级人数>=配置值时，自动审核拒绝',
-      auditCondition: [
-          { invitedWheelAuditType: 1, operatorType: 0, value: '', conditionLogic: 0, isGroupEnable: true },
-          { invitedWheelAuditType: 4, operatorType: 0, value: '', conditionLogic: 0, isGroupEnable: true },
-          { invitedWheelAuditType: 6, operatorType: 1, value: 5, conditionLogic: 0, isGroupEnable: true }],
-      rejectReason: { ur: '2', en: 'If the referrer is not a paying user, none of their downline users are paying users, and the number of downline users is greater than or equal to the configured value, the application will be automatically rejected.', ru: '2', pt: '2', bn: '1', es: '2', zh: '2', hi: '2' } },
-    { id: 300022, state: 1, autoAuditState: 0, packageIds: [], packageNames: [],
-      detailDescription: '开启时，邀请人充值金额<配置值且总邀请人数<配置值，自动审核拒绝',
-      auditCondition: [
-          { invitedWheelAuditType: 2, operatorType: 2, value: 100, conditionLogic: 0, isGroupEnable: true },
-          { invitedWheelAuditType: 5, operatorType: 2, value: 3, conditionLogic: 0, isGroupEnable: true }],
-      rejectReason: { ru: '3', pt: '3', es: '3', hi: '3', en: 'If the amount recharged by the referrer is less than the configured value and the total number of referrals is less than the configured value, the application will be automatically rejected.', bn: '2', zh: '3', ur: '3' } },
+    {
+        id: 300020, state: 1, autoAuditState: 0, packageIds: [], packageNames: [],
+        detailDescription: '开启时，邀请人未曾首充且最近被邀请人未首充次数（最近的n个人）>=配置值时，自动审核拒绝',
+        auditCondition: [
+            { invitedWheelAuditType: 1, operatorType: 0, value: '', conditionLogic: 0, isGroupEnable: true },
+            { invitedWheelAuditType: 3, operatorType: 1, value: 1, conditionLogic: 0, isGroupEnable: true }],
+        rejectReason: { en: 'If the referrer has never made a first-time deposit and the number of times the most recent person they referred has not made a first-time deposit is greater than or equal to the configured value, the application will be automatically rejected.', es: '1', ru: '1', zh: 'If the referrer has never made a first-time deposit and the number of times the most recent person they referred has not made a first-time deposit is greater than or equal to the configured value, the application will be automatically rejected.', bn: '1', ur: '1', pt: '1', hi: '1' }
+    },
+    {
+        id: 300021, state: 1, autoAuditState: 0, packageIds: [], packageNames: [],
+        detailDescription: '开启时，邀请人不是充值用户，且所有下级用户都不是充值用户，且下级人数>=配置值时，自动审核拒绝',
+        auditCondition: [
+            { invitedWheelAuditType: 1, operatorType: 0, value: '', conditionLogic: 0, isGroupEnable: true },
+            { invitedWheelAuditType: 4, operatorType: 0, value: '', conditionLogic: 0, isGroupEnable: true },
+            { invitedWheelAuditType: 6, operatorType: 1, value: 5, conditionLogic: 0, isGroupEnable: true }],
+        rejectReason: { ur: '2', en: 'If the referrer is not a paying user, none of their downline users are paying users, and the number of downline users is greater than or equal to the configured value, the application will be automatically rejected.', ru: '2', pt: '2', bn: '1', es: '2', zh: '2', hi: '2' }
+    },
+    {
+        id: 300022, state: 1, autoAuditState: 0, packageIds: [], packageNames: [],
+        detailDescription: '开启时，邀请人充值金额<配置值且总邀请人数<配置值，自动审核拒绝',
+        auditCondition: [
+            { invitedWheelAuditType: 2, operatorType: 2, value: 100, conditionLogic: 0, isGroupEnable: true },
+            { invitedWheelAuditType: 5, operatorType: 2, value: 3, conditionLogic: 0, isGroupEnable: true }],
+        rejectReason: { ru: '3', pt: '3', es: '3', hi: '3', en: 'If the amount recharged by the referrer is less than the configured value and the total number of referrals is less than the configured value, the application will be automatically rejected.', bn: '2', zh: '3', ur: '3' }
+    },
 ];
 
 // ================= 各批次通过规则配置 =================
@@ -203,183 +209,323 @@ function inWindowExpect(key, label) {
 
 const CASES = {
     // ---------- 批次 CH：渠道×轮次(老账号，核实提现历史后使用) ----------
-    CH_new_r0:       { batch: 'CH', acct: { type: 'new' }, desc: '新注册官网总代首次申请(成功轮次0)，本人新增≥X → 应匹配规则48(全部/轮次=0) → 通过',
-                       steps: [['round'], base3('r'), ['self', CH_X + 100], A('pass')] },
-    CH_carey_r0:     { batch: 'CH', acct: { type: 'pool', pool: 'carey', pass: { eq: 0 } }, desc: 'carey 轮次0(从未成功)，本人新增≥X → 渠道锁定规则49(轮次>0)不降级 → 拒绝',
-                       steps: [['self', CH_X + 100], ['round'], base3('r'), A('reject')] },
-    CH_carey_r1:     { batch: 'CH', acct: { type: 'pool', pool: 'carey', pass: { min: 1 } }, desc: 'carey 轮次≥1 命中规则49，本人新增≥X → 通过',
-                       steps: [['round'], ['self', CH_X + 100], base3('r'), A('pass')] },
-    CH_agent_r1:     { batch: 'CH', acct: { type: 'pool', pool: 'agent', pass: { eq: 1 } }, desc: 'agent 轮次=1，规则50要>1 → 拒绝(不降级)',
-                       steps: [['round'], ['self', CH_X + 100], base3('r'), A('reject')] },
-    CH_agent_r2:     { batch: 'CH', acct: { type: 'pool', pool: 'agent', pass: { min: 2 } }, desc: 'agent 轮次≥2 命中规则50，本人新增≥X → 通过',
-                       steps: [['round'], ['self', CH_X + 100], base3('r'), A('pass')] },
-    CH_wheel_r1:     { batch: 'CH', acct: { type: 'pool', pool: 'wheel', pass: { eq: 1 } }, desc: 'wheel 轮次=1，规则50要>1 → 拒绝',
-                       steps: [['round'], ['self', CH_X + 100], base3('r'), A('reject')] },
-    CH_wheel_r2:     { batch: 'CH', acct: { type: 'pool', pool: 'wheel', pass: { min: 2 } }, desc: 'wheel 轮次≥2 命中规则50 → 通过',
-                       steps: [['round'], ['self', CH_X + 100], base3('r'), A('pass')] },
-    CH_official_r1:  { batch: 'CH', acct: { type: 'pool', pool: 'official', pass: { min: 1 } }, desc: 'official 轮次≥1 无匹配规则(48只管轮次0) → 拒绝',
-                       steps: [['round'], ['self', CH_X + 100], base3('r'), A('reject')] },
-    CH_rejOnly_eq:   { batch: 'CH', acct: { type: 'pool', pool: 'rejOnly', rejOnly: true, cum: { gt: 0, lt: CH_X - 100, mod: 100 } }, desc: '只有拒绝的老号(起点=注册)：历史充值+补充=正好X → 通过(历史充值算新增)',
-                       steps: [['round'], base3('r'), ['selfNewTo', CH_X], A('pass')] },
-    CH_rejOnly_lt:   { batch: 'CH', acct: { type: 'pool', pool: 'rejOnly', rejOnly: true, cum: { gt: 0, lt: CH_X - 100, mod: 100 } }, desc: '只有拒绝的老号：历史充值+补充=X-100 → 拒绝',
-                       steps: [['round'], base3('r'), ['selfNewTo', CH_X - 100], A('reject')] },
-    CH_rejOnly_hist: { batch: 'CH', acct: { type: 'pool', pool: 'rejOnly', rejOnly: true, cum: { gte: CH_X } }, desc: '只有拒绝的老号：历史累计已≥X，本轮本人不充 → 通过(全部历史都算新增)',
-                       steps: [['round'], base3('r'), A('pass')] },
+    CH_new_r0: {
+        batch: 'CH', acct: { type: 'new' }, desc: '新注册官网总代首次申请(成功轮次0)，本人新增≥X → 应匹配规则48(全部/轮次=0) → 通过',
+        steps: [['round'], base3('r'), ['self', CH_X + 100], A('pass')]
+    },
+    CH_carey_r0: {
+        batch: 'CH', acct: { type: 'pool', pool: 'carey', pass: { eq: 0 } }, desc: 'carey 轮次0(从未成功)，本人新增≥X → 渠道锁定规则49(轮次>0)不降级 → 拒绝',
+        steps: [['self', CH_X + 100], ['round'], base3('r'), A('reject')]
+    },
+    CH_carey_r1: {
+        batch: 'CH', acct: { type: 'pool', pool: 'carey', pass: { min: 1 } }, desc: 'carey 轮次≥1 命中规则49，本人新增≥X → 通过',
+        steps: [['round'], ['self', CH_X + 100], base3('r'), A('pass')]
+    },
+    CH_agent_r1: {
+        batch: 'CH', acct: { type: 'pool', pool: 'agent', pass: { eq: 1 } }, desc: 'agent 轮次=1，规则50要>1 → 拒绝(不降级)',
+        steps: [['round'], ['self', CH_X + 100], base3('r'), A('reject')]
+    },
+    CH_agent_r2: {
+        batch: 'CH', acct: { type: 'pool', pool: 'agent', pass: { min: 2 } }, desc: 'agent 轮次≥2 命中规则50，本人新增≥X → 通过',
+        steps: [['round'], ['self', CH_X + 100], base3('r'), A('pass')]
+    },
+    CH_wheel_r1: {
+        batch: 'CH', acct: { type: 'pool', pool: 'wheel', pass: { eq: 1 } }, desc: 'wheel 轮次=1，规则50要>1 → 拒绝',
+        steps: [['round'], ['self', CH_X + 100], base3('r'), A('reject')]
+    },
+    CH_wheel_r2: {
+        batch: 'CH', acct: { type: 'pool', pool: 'wheel', pass: { min: 2 } }, desc: 'wheel 轮次≥2 命中规则50 → 通过',
+        steps: [['round'], ['self', CH_X + 100], base3('r'), A('pass')]
+    },
+    CH_official_r1: {
+        batch: 'CH', acct: { type: 'pool', pool: 'official', pass: { min: 1 } }, desc: 'official 轮次≥1 无匹配规则(48只管轮次0) → 拒绝',
+        steps: [['round'], ['self', CH_X + 100], base3('r'), A('reject')]
+    },
+    CH_rejOnly_eq: {
+        batch: 'CH', acct: { type: 'pool', pool: 'rejOnly', rejOnly: true, cum: { gt: 0, lt: CH_X - 100, mod: 100 } }, desc: '只有拒绝的老号(起点=注册)：历史充值+补充=正好X → 通过(历史充值算新增)',
+        steps: [['round'], base3('r'), ['selfNewTo', CH_X], A('pass')]
+    },
+    CH_rejOnly_lt: {
+        batch: 'CH', acct: { type: 'pool', pool: 'rejOnly', rejOnly: true, cum: { gt: 0, lt: CH_X - 100, mod: 100 } }, desc: '只有拒绝的老号：历史充值+补充=X-100 → 拒绝',
+        steps: [['round'], base3('r'), ['selfNewTo', CH_X - 100], A('reject')]
+    },
+    CH_rejOnly_hist: {
+        batch: 'CH', acct: { type: 'pool', pool: 'rejOnly', rejOnly: true, cum: { gte: CH_X } }, desc: '只有拒绝的老号：历史累计已≥X，本轮本人不充 → 通过(全部历史都算新增)',
+        steps: [['round'], base3('r'), A('pass')]
+    },
 
     // ---------- 批次 MATCH：轮次0/轮次>0 两条「全部渠道」规则各管各的 ----------
-    MATCH_r0:        { batch: 'MATCH', acct: { type: 'new' }, desc: '轮次0 应匹配48(可达：本人新增≥X)，不能用49(不可达) → 通过',
-                       steps: [['round'], base3('r1'), ['selfNewTo', X], A('pass')] },
-    MATCH_r1:        { batch: 'MATCH', acct: { type: 'new' }, desc: '第1次(轮次0)走48通过；第2次(轮次1)应匹配49(不可达) → 拒绝',
-                       steps: [['round'], base3('r1'), ['selfNewTo', X], A('pass'), ['round'], base3('r2'), ['selfNewTo', X], A('reject')] },
+    MATCH_r0: {
+        batch: 'MATCH', acct: { type: 'new' }, desc: '轮次0 应匹配48(可达：本人新增≥X)，不能用49(不可达) → 通过',
+        steps: [['round'], base3('r1'), ['selfNewTo', X], A('pass')]
+    },
+    MATCH_r1: {
+        batch: 'MATCH', acct: { type: 'new' }, desc: '第1次(轮次0)走48通过；第2次(轮次1)应匹配49(不可达) → 拒绝',
+        steps: [['round'], base3('r1'), ['selfNewTo', X], A('pass'), ['round'], base3('r2'), ['selfNewTo', X], A('reject')]
+    },
 
     // ---------- 批次 DISABLE：指定渠道规则停用 ----------
-    DIS_carey_r1:    { batch: 'DISABLE', acct: { type: 'pool', pool: 'carey', pass: { min: 1 } }, desc: 'carey 专属规则49已停用 → 应落到「全部渠道」规则48(轮次>0，本人新增≥X) → 通过',
-                       steps: [['round'], ['self', CH_X + 100], base3('r'), A('pass')] },
-    DIS_official_ctrl: { batch: 'DISABLE', acct: { type: 'pool', pool: 'official', pass: { min: 1 } }, desc: '对照：官网轮次≥1 走48(全部/轮次>0) → 通过',
-                       steps: [['round'], ['self', CH_X + 100], base3('r'), A('pass')] },
+    DIS_carey_r1: {
+        batch: 'DISABLE', acct: { type: 'pool', pool: 'carey', pass: { min: 1 } }, desc: 'carey 专属规则49已停用 → 应落到「全部渠道」规则48(轮次>0，本人新增≥X) → 通过',
+        steps: [['round'], ['self', CH_X + 100], base3('r'), A('pass')]
+    },
+    DIS_official_ctrl: {
+        batch: 'DISABLE', acct: { type: 'pool', pool: 'official', pass: { min: 1 } }, desc: '对照：官网轮次≥1 走48(全部/轮次>0) → 通过',
+        steps: [['round'], ['self', CH_X + 100], base3('r'), A('pass')]
+    },
 
     // ---------- 批次 AND：组三「且」(组一组二不勾) ----------
-    AND_both:      { batch: 'AND', acct: { type: 'new' }, desc: '本人新增=X 且 新增下级=Y → 通过',
-                     steps: [['round'], base3('r1'), ['selfNewTo', X], ['subsTo', Y], A('pass')] },
-    AND_self_only: { batch: 'AND', acct: { type: 'new' }, desc: '本人新增=X，下级<Y → 拒绝',
-                     steps: [['round'], base3('r1'), ['selfNewTo', X], A('reject')] },
-    AND_sub_only:  { batch: 'AND', acct: { type: 'new' }, desc: '下级=Y，本人新增100<X → 拒绝',
-                     steps: [['round'], base3('r1'), ['self', 100], ['subsTo', Y], A('reject')] },
-    AND_sub_lt:    { batch: 'AND', acct: { type: 'new' }, desc: '本人新增=X，下级=Y-100 → 拒绝',
-                     steps: [['round'], base3('r1'), ['selfNewTo', X], ['subsTo', Y - 100], A('reject')] },
-    AND_self_lt:   { batch: 'AND', acct: { type: 'new' }, desc: '本人新增=X-100，下级=Y → 拒绝',
-                     steps: [['round'], base3('r1'), ['selfNewTo', X - 100], ['subsTo', Y], A('reject')] },
+    AND_both: {
+        batch: 'AND', acct: { type: 'new' }, desc: '本人新增=X 且 新增下级=Y → 通过',
+        steps: [['round'], base3('r1'), ['selfNewTo', X], ['subsTo', Y], A('pass')]
+    },
+    AND_self_only: {
+        batch: 'AND', acct: { type: 'new' }, desc: '本人新增=X，下级<Y → 拒绝',
+        steps: [['round'], base3('r1'), ['selfNewTo', X], A('reject')]
+    },
+    AND_sub_only: {
+        batch: 'AND', acct: { type: 'new' }, desc: '下级=Y，本人新增100<X → 拒绝',
+        steps: [['round'], base3('r1'), ['self', 100], ['subsTo', Y], A('reject')]
+    },
+    AND_sub_lt: {
+        batch: 'AND', acct: { type: 'new' }, desc: '本人新增=X，下级=Y-100 → 拒绝',
+        steps: [['round'], base3('r1'), ['selfNewTo', X], ['subsTo', Y - 100], A('reject')]
+    },
+    AND_self_lt: {
+        batch: 'AND', acct: { type: 'new' }, desc: '本人新增=X-100，下级=Y → 拒绝',
+        steps: [['round'], base3('r1'), ['selfNewTo', X - 100], ['subsTo', Y], A('reject')]
+    },
 
     // ---------- 批次 OFF：组三不勾(组一 300且2000，组二不可达) + 本轮定义 ----------
-    OFF_g3data:    { batch: 'OFF', acct: { type: 'new' }, desc: '组三不勾，数据只满足组三(下级≥Y，本人不充) → 拒绝',
-                     steps: [['round'], base3('r1'), ['subsTo', Y + 100], A('reject')] },
-    OFF_g1_ctrl:   { batch: 'OFF', acct: { type: 'new' }, desc: '对照：满足组一(点礼物盒后本人300 且 本轮下级2100) → 通过',
-                     steps: [['round'], ['self', 300], base3('r1'), ['roundSubsTo', 2100], A('pass')] },
-    G1_pre_giftbox_first: { batch: 'OFF', acct: { type: 'new' }, desc: '【组一本轮=点礼物盒起】新号点礼物盒前本人充300，点礼物盒后本人不充 → 组一本轮本人=0 → 拒绝',
-                     steps: [['self', 300], ['round'], base3('r1'), ['roundSubsTo', 2100], A('reject')] },
-    G1_between_click_and_giftbox: { batch: 'OFF', acct: { type: 'new' }, desc: '【组一本轮=点礼物盒起】第1次被拒后、下次点礼物盒前本人充300 → 不算第2轮组一 → 拒绝',
-                     steps: [['round'], base3('r1'), A('reject'), ['self', 300], ['round'], base3('r2'), ['roundSubsTo', 2100], A('reject')] },
+    OFF_g3data: {
+        batch: 'OFF', acct: { type: 'new' }, desc: '组三不勾，数据只满足组三(下级≥Y，本人不充) → 拒绝',
+        steps: [['round'], base3('r1'), ['subsTo', Y + 100], A('reject')]
+    },
+    OFF_g1_ctrl: {
+        batch: 'OFF', acct: { type: 'new' }, desc: '对照：满足组一(点礼物盒后本人300 且 本轮下级2100) → 通过',
+        steps: [['round'], ['self', 300], base3('r1'), ['roundSubsTo', 2100], A('pass')]
+    },
+    G1_pre_giftbox_first: {
+        batch: 'OFF', acct: { type: 'new' }, desc: '【组一本轮=点礼物盒起】新号点礼物盒前本人充300，点礼物盒后本人不充 → 组一本轮本人=0 → 拒绝',
+        steps: [['self', 300], ['round'], base3('r1'), ['roundSubsTo', 2100], A('reject')]
+    },
+    G1_between_click_and_giftbox: {
+        batch: 'OFF', acct: { type: 'new' }, desc: '【组一本轮=点礼物盒起】第1次被拒后、下次点礼物盒前本人充300 → 不算第2轮组一 → 拒绝',
+        steps: [['round'], base3('r1'), A('reject'), ['self', 300], ['round'], base3('r2'), ['roundSubsTo', 2100], A('reject')]
+    },
 
     // ---------- 批次 ALL：三组全开，组三为补充(组一300且2000 / 组二1000且1000 / 组三 X或Y) ----------
-    ALL_only_g1:   { batch: 'ALL', acct: { type: 'new' }, desc: '只命中组一(本轮本人300 且 本轮下级2100；累计人300<1000) → 通过',
-                     steps: [['round'], ['self', 300], base3('r1'), ['roundSubsTo', 2100], A('pass')] },
-    ALL_only_g2:   { batch: 'ALL', acct: { type: 'new' }, desc: '只命中组二(本人累计1000 且 下级累计1100；组一下级<2000) → 通过',
-                     steps: [['self', 1000], ['round'], base3('r1'), ['subsTo', 1100], A('pass')] },
-    ALL_only_g3:   { batch: 'ALL', acct: { type: 'new' }, desc: '组一组二都不中(本人0)，组三下级≥Y → 通过(组三补充)',
-                     steps: [['round'], base3('r1'), ['subsTo', Y + 100], A('pass')] },
-    ALL_none:      { batch: 'ALL', acct: { type: 'new' }, desc: '三组都不中(本人100，下级基础充值) → 拒绝',
-                     steps: [['round'], ['self', 100], base3('r1'), A('reject')] },
-    R_g1_reset_g3_carry: { batch: 'ALL', acct: { type: 'new' }, desc: '【本轮定义】第1轮下级2100被拒 → 第2轮本人300+本轮下级300：组一不带上轮(拒)；组三继续累计 → 第3轮新增补到Y → 通过',
-                     steps: [['round'], base3('r1'), ['roundSubsTo', 2100], A('reject'),
-                             ['round'], ['self', 300], base3('r2'), A('reject'),
-                             ['round'], base3('r3'), ['subsTo', Y], A('pass')] },
+    ALL_only_g1: {
+        batch: 'ALL', acct: { type: 'new' }, desc: '只命中组一(本轮本人300 且 本轮下级2100；累计人300<1000) → 通过',
+        steps: [['round'], ['self', 300], base3('r1'), ['roundSubsTo', 2100], A('pass')]
+    },
+    ALL_only_g2: {
+        batch: 'ALL', acct: { type: 'new' }, desc: '只命中组二(本人累计1000 且 下级累计1100；组一下级<2000) → 通过',
+        steps: [['self', 1000], ['round'], base3('r1'), ['subsTo', 1100], A('pass')]
+    },
+    ALL_only_g3: {
+        batch: 'ALL', acct: { type: 'new' }, desc: '组一组二都不中(本人0)，组三下级≥Y → 通过(组三补充)',
+        steps: [['round'], base3('r1'), ['subsTo', Y + 100], A('pass')]
+    },
+    ALL_none: {
+        batch: 'ALL', acct: { type: 'new' }, desc: '三组都不中(本人100，下级基础充值) → 拒绝',
+        steps: [['round'], ['self', 100], base3('r1'), A('reject')]
+    },
+    R_g1_reset_g3_carry: {
+        batch: 'ALL', acct: { type: 'new' }, desc: '【本轮定义】第1轮下级2100被拒 → 第2轮本人300+本轮下级300：组一不带上轮(拒)；组三继续累计 → 第3轮新增补到Y → 通过',
+        steps: [['round'], base3('r1'), ['roundSubsTo', 2100], A('reject'),
+        ['round'], ['self', 300], base3('r2'), A('reject'),
+        ['round'], base3('r3'), ['subsTo', Y], A('pass')]
+    },
 
     // ---------- 批次 RESET：靠组一/组二通过后，组三起点也要重置 ----------
-    RESET_after_g1: { batch: 'RESET', acct: { type: 'new' }, desc: '第1次靠组一通过 → 老下级再充≥Y、新下级只有基础充值 → 第2次(只看组三)拒绝',
-                     steps: [['round'], ['self', 300], base3('r1'), ['roundSubsTo', 2100], A('pass'),
-                             ['topTag', 'r1', Y + 100], ['round'], base3('r2'), A('reject')] },
-    RESET_after_g2: { batch: 'RESET', acct: { type: 'new' }, desc: '第1次靠组二通过 → 老下级再充≥Y、新下级只有基础充值 → 第2次(只看组三)拒绝',
-                     steps: [['self', 1000], ['round'], base3('r1'), ['subsTo', 1100], A('pass'),
-                             ['topTag', 'r1', Y + 100], ['round'], base3('r2'), A('reject')] },
-    RESET_ctrl:    { batch: 'RESET', acct: { type: 'new' }, desc: '对照：第1次靠组一通过 → 新下级合计=Y → 第2次组三通过',
-                     steps: [['round'], ['self', 300], base3('r1'), ['roundSubsTo', 2100], A('pass'),
-                             ['round'], base3('r2'), ['subsTo', Y], A('pass')] },
+    RESET_after_g1: {
+        batch: 'RESET', acct: { type: 'new' }, desc: '第1次靠组一通过 → 老下级再充≥Y、新下级只有基础充值 → 第2次(只看组三)拒绝',
+        steps: [['round'], ['self', 300], base3('r1'), ['roundSubsTo', 2100], A('pass'),
+        ['topTag', 'r1', Y + 100], ['round'], base3('r2'), A('reject')]
+    },
+    RESET_after_g2: {
+        batch: 'RESET', acct: { type: 'new' }, desc: '第1次靠组二通过 → 老下级再充≥Y、新下级只有基础充值 → 第2次(只看组三)拒绝',
+        steps: [['self', 1000], ['round'], base3('r1'), ['subsTo', 1100], A('pass'),
+        ['topTag', 'r1', Y + 100], ['round'], base3('r2'), A('reject')]
+    },
+    RESET_ctrl: {
+        batch: 'RESET', acct: { type: 'new' }, desc: '对照：第1次靠组一通过 → 新下级合计=Y → 第2次组三通过',
+        steps: [['round'], ['self', 300], base3('r1'), ['roundSubsTo', 2100], A('pass'),
+        ['round'], base3('r2'), ['subsTo', Y], A('pass')]
+    },
 
     // ---------- 批次 EDGE：阈值 X+1 / Y+1，充正好 X / Y → 差1 ----------
-    EDGE_sub_eq_minus1:  { batch: 'EDGE', acct: { type: 'new' }, desc: `新增下级=${Y}，阈值${EY}(差1) → 拒绝`,
-                     steps: [['round'], base3('r1'), ['subsTo', Y], A('reject')] },
-    EDGE_self_eq_minus1: { batch: 'EDGE', acct: { type: 'new' }, desc: `本人新增=${X}，阈值${EX}(差1) → 拒绝`,
-                     steps: [['round'], base3('r1'), ['selfNewTo', X], A('reject')] },
-    EDGE_sub_over:  { batch: 'EDGE', acct: { type: 'new' }, desc: `对照：新增下级=${Y + 100}≥${EY} → 通过`,
-                     steps: [['round'], base3('r1'), ['subsTo', Y + 100], A('pass')] },
+    EDGE_sub_eq_minus1: {
+        batch: 'EDGE', acct: { type: 'new' }, desc: `新增下级=${Y}，阈值${EY}(差1) → 拒绝`,
+        steps: [['round'], base3('r1'), ['subsTo', Y], A('reject')]
+    },
+    EDGE_self_eq_minus1: {
+        batch: 'EDGE', acct: { type: 'new' }, desc: `本人新增=${X}，阈值${EX}(差1) → 拒绝`,
+        steps: [['round'], base3('r1'), ['selfNewTo', X], A('reject')]
+    },
+    EDGE_sub_over: {
+        batch: 'EDGE', acct: { type: 'new' }, desc: `对照：新增下级=${Y + 100}≥${EY} → 通过`,
+        steps: [['round'], base3('r1'), ['subsTo', Y + 100], A('pass')]
+    },
 
     // ---------- 批次 OR：组三「或」核心 + 统计准确性 + 拒绝优先 ----------
-    OR_sub_eq:     { batch: 'OR', acct: { type: 'new' }, desc: '新增下级合计=Y(边界) → 通过',
-                     steps: [['round'], base3('r1'), ['subsTo', Y], A('pass')] },
-    OR_sub_lt:     { batch: 'OR', acct: { type: 'new' }, desc: '新增下级合计=Y-100 → 拒绝',
-                     steps: [['round'], base3('r1'), ['subsTo', Y - 100], A('reject')] },
-    OR_self_eq:    { batch: 'OR', acct: { type: 'new' }, desc: '本人新增=X(边界) → 通过',
-                     steps: [['round'], base3('r1'), ['selfNewTo', X], A('pass')] },
-    OR_self_lt:    { batch: 'OR', acct: { type: 'new' }, desc: '本人新增=X-100，下级基础充值 → 拒绝',
-                     steps: [['round'], base3('r1'), ['selfNewTo', X - 100], A('reject')] },
-    OR_none:       { batch: 'OR', acct: { type: 'new' }, desc: '两项都不达标(本人100，下级300) → 拒绝',
-                     steps: [['round'], ['self', 100], base3('r1'), A('reject')] },
-    OR_pre_round_self: { batch: 'OR', acct: { type: 'new' }, desc: '新号点礼物盒前本人充X+100(起点=注册，开发已修) → 通过',
-                     steps: [['self', X + 100], ['round'], base3('r1'), A('pass')] },
-    OR_unpaid:     { batch: 'OR', acct: { type: 'new' }, desc: '新下级另下单≥Y但不支付 → 不算成功充值 → 拒绝',
-                     steps: [['round'], ['invite', 3, SUB_BASE, 'r1', { unpaid: Y + 100 }], A('reject')] },
-    OR_after_apply: { batch: 'OR', acct: { type: 'new' }, desc: '申请后(审核前)下级到账≥Y → 终点是申请时间，不算 → 拒绝',
-                     steps: [['round'], base3('r1'), A('reject', { after: [['topTag', 'r1', Y + 100]] })] },
-    N_code_counts: { batch: 'OR', acct: { type: 'new' }, desc: '普通码(N)邀请的下级也算新增下级：3个W码下级300 + 1个N码下级4700 = Y → 通过',
-                     steps: [['round'], base3('r1'), ['invite', 1, Y - 3 * SUB_BASE, 'n', { code: 'N' }], A('pass')] },
-    D_many_subs:   { batch: 'OR', acct: { type: 'new' }, desc: '11个新增下级每人充300，最后一人补到合计正好=Y → 11人必须全部算上(少算任何1人都<Y) → 通过',
-                     steps: [['round'], ['invite', 11, 300, 'm'], ['subsTo', Y], A('pass')] },
-    D_same_sub_multi: { batch: 'OR', acct: { type: 'new' }, desc: '同一个新下级分3次到账(2000+2000+700)，加上基础300=Y → 多次充值要累加 → 通过',
-                     steps: [['round'], base3('r1'), ['topTag', 'r1', 2000], ['topTag', 'r1', 2000], ['topTag', 'r1', Y - 4000 - 3 * SUB_BASE], A('pass')] },
-    D_apply_now:   { batch: 'OR', acct: { type: 'new' }, desc: '新增下级补到Y-100后，最后100到账立刻申请(不等待统计) → 通过',
-                     steps: [['round'], base3('r1'), ['subsTo', Y - 100], ['topTag', 'r1', 100], A('pass', { now: true })] },
-    REJ1_priority: { batch: 'OR', acct: { type: 'new' }, desc: '组三满足，但本人未首充 且 最近被邀请人未首充 → 命中拒绝1 → 拒绝',
-                     steps: [['round'], ['invite', 2, SUB_BASE, 'r1'], ['subsTo', Y + 100], ['invite', 1, 0, 'last'], A('reject', { by: 'rule' })] },
-    REJ3_priority: { batch: 'OR', acct: { type: 'new' }, desc: '组三满足(下级≥Y)，但本人累计0<100 且 总邀请2<3 → 命中拒绝3 → 拒绝',
-                     steps: [['round'], ['invite', 2, SUB_BASE, 'r1'], ['subsTo', Y + 100], A('reject', { by: 'rule', mayNotFull: true })] },
-    REJ3_cum100:   { batch: 'OR', acct: { type: 'new' }, desc: '本人累计正好100(不<100)、只邀请2人、组三满足 → 拒绝3不命中 → 通过',
-                     steps: [['self', 100], ['round'], ['invite', 2, SUB_BASE, 'r1'], ['subsTo', Y + 100], A('pass', { mayNotFull: true })] },
+    OR_sub_eq: {
+        batch: 'OR', acct: { type: 'new' }, desc: '新增下级合计=Y(边界) → 通过',
+        steps: [['round'], base3('r1'), ['subsTo', Y], A('pass')]
+    },
+    OR_sub_lt: {
+        batch: 'OR', acct: { type: 'new' }, desc: '新增下级合计=Y-100 → 拒绝',
+        steps: [['round'], base3('r1'), ['subsTo', Y - 100], A('reject')]
+    },
+    OR_self_eq: {
+        batch: 'OR', acct: { type: 'new' }, desc: '本人新增=X(边界) → 通过',
+        steps: [['round'], base3('r1'), ['selfNewTo', X], A('pass')]
+    },
+    OR_self_lt: {
+        batch: 'OR', acct: { type: 'new' }, desc: '本人新增=X-100，下级基础充值 → 拒绝',
+        steps: [['round'], base3('r1'), ['selfNewTo', X - 100], A('reject')]
+    },
+    OR_none: {
+        batch: 'OR', acct: { type: 'new' }, desc: '两项都不达标(本人100，下级300) → 拒绝',
+        steps: [['round'], ['self', 100], base3('r1'), A('reject')]
+    },
+    OR_pre_round_self: {
+        batch: 'OR', acct: { type: 'new' }, desc: '新号点礼物盒前本人充X+100(起点=注册，开发已修) → 通过',
+        steps: [['self', X + 100], ['round'], base3('r1'), A('pass')]
+    },
+    OR_unpaid: {
+        batch: 'OR', acct: { type: 'new' }, desc: '新下级另下单≥Y但不支付 → 不算成功充值 → 拒绝',
+        steps: [['round'], ['invite', 3, SUB_BASE, 'r1', { unpaid: Y + 100 }], A('reject')]
+    },
+    OR_after_apply: {
+        batch: 'OR', acct: { type: 'new' }, desc: '申请后(审核前)下级到账≥Y → 终点是申请时间，不算 → 拒绝',
+        steps: [['round'], base3('r1'), A('reject', { after: [['topTag', 'r1', Y + 100]] })]
+    },
+    N_code_counts: {
+        batch: 'OR', acct: { type: 'new' }, desc: '普通码(N)邀请的下级也算新增下级：3个W码下级300 + 1个N码下级4700 = Y → 通过',
+        steps: [['round'], base3('r1'), ['invite', 1, Y - 3 * SUB_BASE, 'n', { code: 'N' }], A('pass')]
+    },
+    D_many_subs: {
+        batch: 'OR', acct: { type: 'new' }, desc: '11个新增下级每人充300，最后一人补到合计正好=Y → 11人必须全部算上(少算任何1人都<Y) → 通过',
+        steps: [['round'], ['invite', 11, 300, 'm'], ['subsTo', Y], A('pass')]
+    },
+    D_same_sub_multi: {
+        batch: 'OR', acct: { type: 'new' }, desc: '同一个新下级分3次到账(2000+2000+700)，加上基础300=Y → 多次充值要累加 → 通过',
+        steps: [['round'], base3('r1'), ['topTag', 'r1', 2000], ['topTag', 'r1', 2000], ['topTag', 'r1', Y - 4000 - 3 * SUB_BASE], A('pass')]
+    },
+    D_apply_now: {
+        batch: 'OR', acct: { type: 'new' }, desc: '新增下级补到Y-100后，最后100到账立刻申请(不等待统计) → 通过',
+        steps: [['round'], base3('r1'), ['subsTo', Y - 100], ['topTag', 'r1', 100], A('pass', { now: true })]
+    },
+    REJ1_priority: {
+        batch: 'OR', acct: { type: 'new' }, desc: '组三满足，但本人未首充 且 最近被邀请人未首充 → 命中拒绝1 → 拒绝',
+        steps: [['round'], ['invite', 2, SUB_BASE, 'r1'], ['subsTo', Y + 100], ['invite', 1, 0, 'last'], A('reject', { by: 'rule' })]
+    },
+    REJ3_priority: {
+        batch: 'OR', acct: { type: 'new' }, desc: '组三满足(下级≥Y)，但本人累计0<100 且 总邀请2<3 → 命中拒绝3 → 拒绝',
+        steps: [['round'], ['invite', 2, SUB_BASE, 'r1'], ['subsTo', Y + 100], A('reject', { by: 'rule', mayNotFull: true })]
+    },
+    REJ3_cum100: {
+        batch: 'OR', acct: { type: 'new' }, desc: '本人累计正好100(不<100)、只邀请2人、组三满足 → 拒绝3不命中 → 通过',
+        steps: [['self', 100], ['round'], ['invite', 2, SUB_BASE, 'r1'], ['subsTo', Y + 100], A('pass', { mayNotFull: true })]
+    },
 
     // ---------- 批次 ORX：跨轮累计 + 到账时间口径 + 本轮定义 ----------
-    OR_old_sub_excl: { batch: 'ORX', acct: { type: 'new' }, desc: '通过后老下级再充≥Y，新下级只有基础充值 → 老下级不算 → 拒绝(起点已重置)',
-                     steps: [['round'], base3('r1'), ['subsTo', Y + 100], A('pass'),
-                             ['topTag', 'r1', Y + 100], ['round'], base3('r2'), A('reject')] },
-    OR_old_new_mix: { batch: 'ORX', acct: { type: 'new' }, desc: '通过后老下级再充≥Y，新下级合计正好=Y → 只算新下级 → 通过',
-                     steps: [['round'], base3('r1'), ['subsTo', Y + 100], A('pass'),
-                             ['topTag', 'r1', Y + 100], ['round'], base3('r2'), ['subsTo', Y], A('pass')] },
-    OR_old_self_excl: { batch: 'ORX', acct: { type: 'new' }, desc: '通过后本人新增=X-100(总累计远超X) → 通过前的本人充值不算 → 拒绝',
-                     steps: [['round'], base3('r1'), ['selfNewTo', X + 100], A('pass'),
-                             ['round'], base3('r2'), ['selfNewTo', X - 100], A('reject')] },
-    OR_pre_round_sub: { batch: 'ORX', acct: { type: 'new' }, desc: '通过后、下一轮点礼物盒前邀请的下级也算新增(充≥Y) → 通过',
-                     steps: [['round'], base3('r1'), ['subsTo', Y + 100], A('pass'),
-                             ['code'], ['invite', 1, Y + 100, 'pre'], ['round'], base3('r2'), A('pass')] },
-    X_before_next: { batch: 'ORX', acct: { type: 'new' }, desc: '被拒后、下一轮点礼物盒前，上轮下级到账Y → 累计 → 通过',
-                     steps: [['round'], base3('r1'), A('reject'), ['topTag', 'r1', Y], ['round'], base3('r2'), A('pass')] },
-    X_after_next:  { batch: 'ORX', acct: { type: 'new' }, desc: '被拒后、下一轮点礼物盒后，上轮下级到账Y → 累计 → 通过',
-                     steps: [['round'], base3('r1'), A('reject'), ['round'], ['topTag', 'r1', Y], base3('r2'), A('pass')] },
-    X_both:        { batch: 'ORX', acct: { type: 'new' }, desc: '下一轮点礼物盒前/后各到账Y/2(单独不够) → 两段都算 → 通过',
-                     steps: [['round'], base3('r1'), A('reject'),
-                             ['topTag', 'r1', Y / 2], ['round'], ['topTag', 'r1', Y / 2], base3('r2'), A('pass')] },
-    X_multi:       { batch: 'ORX', acct: { type: 'new' }, desc: '连续被拒2轮，第3轮把全部新增补到正好Y(第3轮单独<Y) → 通过',
-                     steps: [['round'], base3('r1'), A('reject'), ['round'], base3('r2'), A('reject'),
-                             ['round'], base3('r3'), ['subsTo', Y], A('pass')] },
-    X_reject_new_multi: { batch: 'ORX', acct: { type: 'new' }, desc: '被拒后下一轮只新增基础充值(累计仍<Y) → 仍拒绝',
-                     steps: [['round'], base3('r1'), A('reject'), ['round'], base3('r2'), A('reject')] },
-    REJ_rule_keep_start: { batch: 'ORX', acct: { type: 'new' }, desc: '第1次被拒绝规则1拦(组三其实满足) → 起点不重置 → 解除拒绝条件后第2次，第1轮下级的充值仍算 → 通过',
-                     steps: [['round'], ['invite', 2, SUB_BASE, 'r1'], ['subsTo', Y + 100], ['invite', 1, 0, 'last'], A('reject', { by: 'rule' }),
-                             ['self', 100], ['topTag', 'last', 100], ['round'], base3('r2'), A('pass')] },
-    A1_sub_arrive_after_apply: { batch: 'ORX', acct: { type: 'new' }, desc: '【下单/到账】新下级申请前下单Y、第1次被拒后才到账 → 第1次不算(未到账)；被拒不重置起点，第2次下单和到账都在窗口内 → 通过',
-                     steps: [['round'], base3('r1'), ['order', 'r1', Y, 'k1'], A('reject'),
-                             ['arrive', 'k1'], ['round'], base3('r2'), A(inWindowExpect('k1', '下级'))] },
-    A2_self_order_before_pass: { batch: 'ORX', acct: { type: 'new' }, desc: '【下单/到账】本人在上次成功领取前下单X、审核完成后才到账 → 下单早于新窗口起点 → 第2次不计入 → 拒绝',
-                     steps: [['round'], base3('r1'), ['subsTo', Y + 100], ['order', 'self', X, 'k2'], A('pass'),
-                             ['arrive', 'k2'], ['round'], base3('r2'), A(inWindowExpect('k2', '本人'))] },
-    A2b_self_arrive_after_round: { batch: 'ORX', acct: { type: 'new' }, desc: '【下单/到账】本人在上次成功领取前下单X、下一轮点礼物盒后才到账 → 下单早于起点 → 不计入 → 拒绝',
-                     steps: [['round'], base3('r1'), ['subsTo', Y + 100], ['order', 'self', X, 'k2b'], A('pass'),
-                             ['round'], ['arrive', 'k2b'], base3('r2'), A(inWindowExpect('k2b', '本人'))] },
-    A3_self_gap:   { batch: 'ORX', acct: { type: 'new' }, desc: '【下单/到账】本人申请前下单X、提交申请后立刻到账(审核完成前后) → 第1次到账晚于终点、第2次下单早于起点 → 两次都不计入 → 拒绝',
-                     steps: [['round'], base3('r1'), ['subsTo', Y + 100], ['order', 'self', X, 'gap'], A('pass', { after: [['arrive', 'gap']] }),
-                             ['round'], base3('r2'), A(inWindowExpect('gap', '本人'))] },
-    A6_sub_arrive_right_after_apply: { batch: 'ORX', acct: { type: 'new' }, desc: '【下单/到账·终点】新下级申请前下单Y(在窗口内)、提交申请后立刻到账(自动审核约1s，抢在审核前) → 到账晚于终点 → 不计入 → 拒绝',
-                     steps: [['round'], base3('r1'), ['order', 'r1', Y, 'k6'], A(inWindowExpect('k6', '下级'), { after: [['arrive', 'k6']] })] },
-    A6_self_arrive_right_after_apply: { batch: 'ORX', acct: { type: 'new' }, desc: '【下单/到账·终点】本人申请前下单X、提交申请后立刻到账 → 到账晚于终点 → 不计入 → 拒绝',
-                     steps: [['round'], base3('r1'), ['order', 'self', X, 'k6s'], A(inWindowExpect('k6s', '本人'), { after: [['arrive', 'k6s']] })] },
-    A7_self_order_before_reject: { batch: 'ORX', acct: { type: 'new' }, desc: '【下单/到账】本人在第1次(被拒)申请前下单X、被拒后才到账 → 被拒不重置起点，第2次下单和到账都在窗口内 → 通过（对照A2：同样的时序，前一次是通过就不计入）',
-                     steps: [['round'], base3('r1'), ['order', 'self', X, 'k7'], A('reject'),
-                             ['arrive', 'k7'], ['round'], base3('r2'), A(inWindowExpect('k7', '本人'))] },
-    A4_self_after_pass_before_round: { batch: 'ORX', acct: { type: 'new' }, desc: '【起点】通过后、下一轮点礼物盒前本人充X(下单+到账都在审核完成之后) → 算新增 → 第2次通过',
-                     steps: [['round'], base3('r1'), ['subsTo', Y + 100], A('pass'),
-                             ['self', X], ['round'], base3('r2'), A('pass')] },
-    A5_self_after_round_ctrl: { batch: 'ORX', acct: { type: 'new' }, desc: '【对照】通过后、下一轮点礼物盒后本人新增补到正好X → 第2次通过（验证通过后本人新增确实会被统计）',
-                     steps: [['round'], base3('r1'), ['subsTo', Y + 100], A('pass'),
-                             ['round'], base3('r2'), ['selfNewTo', X], A('pass')] },
-    R_full_more:   { batch: 'ORX', acct: { type: 'new' }, desc: '【本轮定义】转盘已转满500但没点提现，继续邀请3人并充值 → 仍是本轮/新增 → 6人合计=Y → 通过',
-                     steps: [['round'], base3('r1'), ['wheelFull'], base3('more'), ['subsTo', Y], A('pass')] },
+    OR_old_sub_excl: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '通过后老下级再充≥Y，新下级只有基础充值 → 老下级不算 → 拒绝(起点已重置)',
+        steps: [['round'], base3('r1'), ['subsTo', Y + 100], A('pass'),
+        ['topTag', 'r1', Y + 100], ['round'], base3('r2'), A('reject')]
+    },
+    OR_old_new_mix: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '通过后老下级再充≥Y，新下级合计正好=Y → 只算新下级 → 通过',
+        steps: [['round'], base3('r1'), ['subsTo', Y + 100], A('pass'),
+        ['topTag', 'r1', Y + 100], ['round'], base3('r2'), ['subsTo', Y], A('pass')]
+    },
+    OR_old_self_excl: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '通过后本人新增=X-100(总累计远超X) → 通过前的本人充值不算 → 拒绝',
+        steps: [['round'], base3('r1'), ['selfNewTo', X + 100], A('pass'),
+        ['round'], base3('r2'), ['selfNewTo', X - 100], A('reject')]
+    },
+    OR_pre_round_sub: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '通过后、下一轮点礼物盒前邀请的下级也算新增(充≥Y) → 通过',
+        steps: [['round'], base3('r1'), ['subsTo', Y + 100], A('pass'),
+        ['code'], ['invite', 1, Y + 100, 'pre'], ['round'], base3('r2'), A('pass')]
+    },
+    X_before_next: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '被拒后、下一轮点礼物盒前，上轮下级到账Y → 累计 → 通过',
+        steps: [['round'], base3('r1'), A('reject'), ['topTag', 'r1', Y], ['round'], base3('r2'), A('pass')]
+    },
+    X_after_next: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '被拒后、下一轮点礼物盒后，上轮下级到账Y → 累计 → 通过',
+        steps: [['round'], base3('r1'), A('reject'), ['round'], ['topTag', 'r1', Y], base3('r2'), A('pass')]
+    },
+    X_both: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '下一轮点礼物盒前/后各到账Y/2(单独不够) → 两段都算 → 通过',
+        steps: [['round'], base3('r1'), A('reject'),
+        ['topTag', 'r1', Y / 2], ['round'], ['topTag', 'r1', Y / 2], base3('r2'), A('pass')]
+    },
+    X_multi: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '连续被拒2轮，第3轮把全部新增补到正好Y(第3轮单独<Y) → 通过',
+        steps: [['round'], base3('r1'), A('reject'), ['round'], base3('r2'), A('reject'),
+        ['round'], base3('r3'), ['subsTo', Y], A('pass')]
+    },
+    X_reject_new_multi: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '被拒后下一轮只新增基础充值(累计仍<Y) → 仍拒绝',
+        steps: [['round'], base3('r1'), A('reject'), ['round'], base3('r2'), A('reject')]
+    },
+    REJ_rule_keep_start: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '第1次被拒绝规则1拦(组三其实满足) → 起点不重置 → 解除拒绝条件后第2次，第1轮下级的充值仍算 → 通过',
+        steps: [['round'], ['invite', 2, SUB_BASE, 'r1'], ['subsTo', Y + 100], ['invite', 1, 0, 'last'], A('reject', { by: 'rule' }),
+        ['self', 100], ['topTag', 'last', 100], ['round'], base3('r2'), A('pass')]
+    },
+    A1_sub_arrive_after_apply: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '【下单/到账】新下级申请前下单Y、第1次被拒后才到账 → 第1次不算(未到账)；被拒不重置起点，第2次下单和到账都在窗口内 → 通过',
+        steps: [['round'], base3('r1'), ['order', 'r1', Y, 'k1'], A('reject'),
+        ['arrive', 'k1'], ['round'], base3('r2'), A(inWindowExpect('k1', '下级'))]
+    },
+    A2_self_order_before_pass: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '【下单/到账】本人在上次成功领取前下单X、审核完成后才到账 → 下单早于新窗口起点 → 第2次不计入 → 拒绝',
+        steps: [['round'], base3('r1'), ['subsTo', Y + 100], ['order', 'self', X, 'k2'], A('pass'),
+        ['arrive', 'k2'], ['round'], base3('r2'), A(inWindowExpect('k2', '本人'))]
+    },
+    A2b_self_arrive_after_round: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '【下单/到账】本人在上次成功领取前下单X、下一轮点礼物盒后才到账 → 下单早于起点 → 不计入 → 拒绝',
+        steps: [['round'], base3('r1'), ['subsTo', Y + 100], ['order', 'self', X, 'k2b'], A('pass'),
+        ['round'], ['arrive', 'k2b'], base3('r2'), A(inWindowExpect('k2b', '本人'))]
+    },
+    A3_self_gap: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '【下单/到账】本人申请前下单X、提交申请后立刻到账(审核完成前后) → 第1次到账晚于终点、第2次下单早于起点 → 两次都不计入 → 拒绝',
+        steps: [['round'], base3('r1'), ['subsTo', Y + 100], ['order', 'self', X, 'gap'], A('pass', { after: [['arrive', 'gap']] }),
+        ['round'], base3('r2'), A(inWindowExpect('gap', '本人'))]
+    },
+    A6_sub_arrive_right_after_apply: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '【下单/到账·终点】新下级申请前下单Y(在窗口内)、提交申请后立刻到账(自动审核约1s，抢在审核前) → 到账晚于终点 → 不计入 → 拒绝',
+        steps: [['round'], base3('r1'), ['order', 'r1', Y, 'k6'], A(inWindowExpect('k6', '下级'), { after: [['arrive', 'k6']] })]
+    },
+    A6_self_arrive_right_after_apply: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '【下单/到账·终点】本人申请前下单X、提交申请后立刻到账 → 到账晚于终点 → 不计入 → 拒绝',
+        steps: [['round'], base3('r1'), ['order', 'self', X, 'k6s'], A(inWindowExpect('k6s', '本人'), { after: [['arrive', 'k6s']] })]
+    },
+    A7_self_order_before_reject: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '【下单/到账】本人在第1次(被拒)申请前下单X、被拒后才到账 → 被拒不重置起点，第2次下单和到账都在窗口内 → 通过（对照A2：同样的时序，前一次是通过就不计入）',
+        steps: [['round'], base3('r1'), ['order', 'self', X, 'k7'], A('reject'),
+        ['arrive', 'k7'], ['round'], base3('r2'), A(inWindowExpect('k7', '本人'))]
+    },
+    A4_self_after_pass_before_round: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '【起点】通过后、下一轮点礼物盒前本人充X(下单+到账都在审核完成之后) → 算新增 → 第2次通过',
+        steps: [['round'], base3('r1'), ['subsTo', Y + 100], A('pass'),
+        ['self', X], ['round'], base3('r2'), A('pass')]
+    },
+    A5_self_after_round_ctrl: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '【对照】通过后、下一轮点礼物盒后本人新增补到正好X → 第2次通过（验证通过后本人新增确实会被统计）',
+        steps: [['round'], base3('r1'), ['subsTo', Y + 100], A('pass'),
+        ['round'], base3('r2'), ['selfNewTo', X], A('pass')]
+    },
+    R_full_more: {
+        batch: 'ORX', acct: { type: 'new' }, desc: '【本轮定义】转盘已转满500但没点提现，继续邀请3人并充值 → 仍是本轮/新增 → 6人合计=Y → 通过',
+        steps: [['round'], base3('r1'), ['wheelFull'], base3('more'), ['subsTo', Y], A('pass')]
+    },
 };
 
 const BATCH_CASES = Object.keys(CASES).filter(k => CASES[k].batch === BATCH);
@@ -812,9 +958,11 @@ function sumCum(ctx, subs) { let s = 0; for (const x of subs) { s += cumOf(ctx.a
 function measureSelfNew(st, ctx) { return cumOf(ctx.adminToken, st.userId) - st.selfBase; }
 function snapshot(st, ctx) {
     const selfCum = cumOf(ctx.adminToken, st.userId);
-    return { selfCum, selfNew: selfCum - st.selfBase, roundSelf: selfCum - st.selfRoundBase,
-             subNew: sumCum(ctx, newSubs(st)), newSubCount: newSubs(st).length,
-             roundSub: sumCum(ctx, roundSubs(st)), roundSubCount: roundSubs(st).length };
+    return {
+        selfCum, selfNew: selfCum - st.selfBase, roundSelf: selfCum - st.selfRoundBase,
+        subNew: sumCum(ctx, newSubs(st)), newSubCount: newSubs(st).length,
+        roundSub: sumCum(ctx, roundSubs(st)), roundSubCount: roundSubs(st).length
+    };
 }
 /** 把 本人新增 / 新增下级合计 / 本轮下级合计 补到正好 target（前台面额，差额须为100的倍数） */
 function topUpTo(kind, target, st, ctx) {
@@ -850,8 +998,10 @@ function reasonSource(reason) {
 
 function runCase(name, cfg, ctx, pooled) {
     const adminToken = ctx.adminToken;
-    const st = { name, subs: [], gen: 0, roundNo: 0, inRound: false, selfBase: 0, selfRoundBase: 0, lastApplyAt: 0, log: [], dataErr: [], warn: [], recIssues: [],
-                 phases: [], seenOrders: new Set(), pending: {}, arrivals: {}, known: {}, dupOrders: 0, dupAccts: new Set(), token: null, loginAt: 0, wheelCode: '', normalCode: '', reset: false, trail: [] };
+    const st = {
+        name, subs: [], gen: 0, roundNo: 0, inRound: false, selfBase: 0, selfRoundBase: 0, lastApplyAt: 0, log: [], dataErr: [], warn: [], recIssues: [],
+        phases: [], seenOrders: new Set(), pending: {}, arrivals: {}, known: {}, dupOrders: 0, dupAccts: new Set(), token: null, loginAt: 0, wheelCode: '', normalCode: '', reset: false, trail: []
+    };
 
     // ---- 账号 ----
     if (cfg.acct.type === 'new') {

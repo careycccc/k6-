@@ -11,22 +11,22 @@
  * ════════════════════════════════════════════════════════════
  *
  *   # 默认分层，多线程模式（根据层级自动计算线程数）
- *   k6 run -e TENANT_ID=3004 -e TARGET_UID=138413 runTeamRechargeAndBetV2.test.js
+ *   k6p -e TENANT_ID=3004 -e TARGET_UID=138413 runTeamRechargeAndBetV2.test.js
  *
  *   # 自定义线程数
- *   k6 run -e TENANT_ID=3004 -e TARGET_UID=138413 -e VUS=4 runTeamRechargeAndBetV2.test.js
+ *   k6p -e TENANT_ID=3004 -e TARGET_UID=138413 -e VUS=4 runTeamRechargeAndBetV2.test.js
  *
  *   # 自定义分层比例
- *   k6 run -e TENANT_ID=3004 -e TARGET_UID=138413 -e INACTIVE_RATE=0 -e RECHARGE_ONLY_RATE=0 runTeamRechargeAndBetV2.test.js
+ *   k6p -e TENANT_ID=3004 -e TARGET_UID=138413 -e INACTIVE_RATE=0 -e RECHARGE_ONLY_RATE=0 runTeamRechargeAndBetV2.test.js
  *
  *   # 自定义提现几率
- *   k6 run -e TENANT_ID=3004 -e TARGET_UID=163353 -e WITHDRAW_CHANCE=0.9 runTeamRechargeAndBetV2.test.js
+ *   k6p -e TENANT_ID=3004 -e TARGET_UID=163353 -e WITHDRAW_CHANCE=0.9 runTeamRechargeAndBetV2.test.js
  *
  *   # 提现 + 后台审核出款（默认不审核）,WITHDRAW_AUDIT=true后台要审核
- *   k6 run -e TENANT_ID=3004 -e TARGET_UID=164320 -e WITHDRAW_CHANCE=0.9 -e WITHDRAW_AUDIT=true runTeamRechargeAndBetV2.test.js
+ *   k6p -e TENANT_ID=3004 -e TARGET_UID=164320 -e WITHDRAW_CHANCE=0.9 -e WITHDRAW_AUDIT=true runTeamRechargeAndBetV2.test.js
  *
  *   # 只针对于L3团队的方式进行整个团队的充值投注
- *   k6 run -e TENANT_ID=3101 -e TARGET_UID=112821 -e IS_L3=true -e VUS=3 runTeamRechargeAndBetV2.test.js
+ *   k6p -e TENANT_ID=3101 -e TARGET_UID=112821 -e IS_L3=true -e VUS=3 runTeamRechargeAndBetV2.test.js
  *
  * ════════════════════════════════════════════════════════════
  * 环境变量

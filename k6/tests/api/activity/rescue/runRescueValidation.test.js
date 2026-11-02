@@ -2,8 +2,8 @@
  * 亏损救援金 (Rescue) 验证入口脚本
  * 
  * 使用方法：
- * k6 run -e TENANT_ID=3101 tests/api/activity/rescue/runRescueValidation.test.js
- * k6 run -e TENANT_ID=3101 -e USER_COUNT=2 runRescueValidation.test.js
+ * k6p -e TENANT_ID=3101 tests/api/activity/rescue/runRescueValidation.test.js
+ * k6p -e TENANT_ID=3101 -e USER_COUNT=2 runRescueValidation.test.js
 
  */
 
@@ -47,15 +47,15 @@ export function setup() {
     // 在 setup 中先分析活动目标和条件
     logger.info(`[RescueValidationTest] 分析活动配置...`);
     const activityData = getRescueActivityDetail({ token: adminToken, envConfig: ENV_CONFIG });
-    
+
     if (!activityData) {
         throw new Error('获取活动详情失败，请检查环境配置和活动状态');
     }
 
     logger.info(`[RescueValidationTest] ========== Setup 完成 ==========`);
-    return { 
-        token: adminToken, 
-        tenantId, 
+    return {
+        token: adminToken,
+        tenantId,
         envConfig: ENV_CONFIG,
         strategy: {
             targetIncludesZero: activityData.targetIncludesZero,

@@ -6,7 +6,7 @@
  *   总充值、总提现、总打码量、代理佣金、佣金贡献比、活跃会员、活跃率
  *
  * 运行示例：
- *   k6 run -e TENANT_ID=3101 -e ROOT_UIDS=112529,112513 -e DATE_RANGE=2026-05-04~2026-05-05 -e AGENT_TYPE=L6 -e REBATE_LEVEL=L0 agentTeamReport.test.js
+ *   k6p -e TENANT_ID=3101 -e ROOT_UIDS=112529,112513 -e DATE_RANGE=2026-05-04~2026-05-05 -e AGENT_TYPE=L6 -e REBATE_LEVEL=L0 agentTeamReport.test.js
  *
  * 
  * 
@@ -34,10 +34,10 @@ import { fetchAllPages } from '../../../libs/common/paging.js';
 // ============================================================
 // 环境变量解析
 // ============================================================
-const TENANT_ID   = __ENV.TENANT_ID    || '3004';
-const ROOT_UIDS   = (__ENV.ROOT_UIDS   || '').split(',').map(s => parseInt(s.trim(), 10)).filter(Boolean);
-const DATE_RANGE  = __ENV.DATE_RANGE   || '';
-const AGENT_TYPE  = (__ENV.AGENT_TYPE  || 'L6').toUpperCase();   // L3 | L6
+const TENANT_ID = __ENV.TENANT_ID || '3004';
+const ROOT_UIDS = (__ENV.ROOT_UIDS || '').split(',').map(s => parseInt(s.trim(), 10)).filter(Boolean);
+const DATE_RANGE = __ENV.DATE_RANGE || '';
+const AGENT_TYPE = (__ENV.AGENT_TYPE || 'L6').toUpperCase();   // L3 | L6
 const REBATE_LEVEL = (__ENV.REBATE_LEVEL !== undefined && __ENV.REBATE_LEVEL !== '')
     ? parseInt(__ENV.REBATE_LEVEL.replace(/[Ll]/, ''), 10)
     : -1;  // -1 表示不过滤层级，统计全团队
@@ -74,7 +74,7 @@ function parseDateRange(rangeStr) {
 function enumerateDates(startDate, endDate) {
     const dates = [];
     const cur = new Date(startDate + 'T00:00:00Z');
-    const end = new Date(endDate   + 'T00:00:00Z');
+    const end = new Date(endDate + 'T00:00:00Z');
     while (cur <= end) {
         const y = cur.getUTCFullYear();
         const m = String(cur.getUTCMonth() + 1).padStart(2, '0');
@@ -238,9 +238,9 @@ function calcAgentCommission(adminToken, rootUid, memberList, dates) {
  */
 function calcRootAgentStats(adminToken, rootUid, startDate, endDate, dates) {
     const startTs = dateStartTs(startDate);
-    const endTs   = dateEndTs(endDate);
+    const endTs = dateEndTs(endDate);
     const startDateStr = `${startDate} 00:00:00`;
-    const endDateStr   = `${endDate} 23:59:59`;
+    const endDateStr = `${endDate} 23:59:59`;
 
     // ── Step 1: 获取团队成员列表 ──────────────────────────────
     console.log(`\n  [${rootUid}] 查询团队成员列表...`);
@@ -248,7 +248,7 @@ function calcRootAgentStats(adminToken, rootUid, startDate, endDate, dates) {
     const totalMembers = memberList.filter(m => m.userId !== rootUid).length; // 不含总代自身
 
     // 确定总代自身的绝对层级
-    const rootRecord    = memberList.find(m => m.userId === rootUid);
+    const rootRecord = memberList.find(m => m.userId === rootUid);
     const rootHierarchy = rootRecord ? rootRecord.hierarchy : 0;
 
     // 确定"新增会员"的统计范围：
@@ -278,12 +278,12 @@ function calcRootAgentStats(adminToken, rootUid, startDate, endDate, dates) {
     // 总充值/总提现/总打码量/活跃：始终统计全团队（nonRootMembers）
     // 首充：只统计新增会员（newMemberIdSet）
 
-    let totalRecharge      = 0;
-    let totalWithdraw      = 0;
-    let totalBet           = 0;
+    let totalRecharge = 0;
+    let totalWithdraw = 0;
+    let totalBet = 0;
     let firstRechargeCount = 0;
-    let firstRechargeAmt   = 0;
-    let activeMembers      = 0; // 有投注行为
+    let firstRechargeAmt = 0;
+    let activeMembers = 0; // 有投注行为
 
     // 新增会员中首充的 userId 集合（用于首充金额统计）
     const newMemberIdSet = new Set(newMembers.map(m => m.userId));
@@ -338,16 +338,16 @@ function calcRootAgentStats(adminToken, rootUid, startDate, endDate, dates) {
     const agentCommission = calcAgentCommission(adminToken, rootUid, memberList, dates);
 
     // ── Step 4: 计算派生指标 ──────────────────────────────────
-    const firstRechargeRate    = newMemberCount > 0
+    const firstRechargeRate = newMemberCount > 0
         ? ((firstRechargeCount / newMemberCount) * 100).toFixed(2) + '%'
         : '0.00%';
-    const avgFirstRecharge     = firstRechargeCount > 0
+    const avgFirstRecharge = firstRechargeCount > 0
         ? (firstRechargeAmt / firstRechargeCount).toFixed(2)
         : '0.00';
     const commissionContribRate = totalRecharge > 0
         ? ((agentCommission / totalRecharge) * 100).toFixed(4) + '%'
         : '0.0000%';
-    const activeRate           = totalMembers > 0
+    const activeRate = totalMembers > 0
         ? ((activeMembers / totalMembers) * 100).toFixed(2) + '%'
         : '0.00%';
 
@@ -357,12 +357,12 @@ function calcRootAgentStats(adminToken, rootUid, startDate, endDate, dates) {
         newMemberCount,
         firstRechargeCount,
         firstRechargeRate,
-        firstRechargeAmt:       firstRechargeAmt.toFixed(2),
+        firstRechargeAmt: firstRechargeAmt.toFixed(2),
         avgFirstRecharge,
-        totalRecharge:          totalRecharge.toFixed(2),
-        totalWithdraw:          totalWithdraw.toFixed(2),
-        totalBet:               totalBet.toFixed(2),
-        agentCommission:        agentCommission.toFixed(4),
+        totalRecharge: totalRecharge.toFixed(2),
+        totalWithdraw: totalWithdraw.toFixed(2),
+        totalBet: totalBet.toFixed(2),
+        agentCommission: agentCommission.toFixed(4),
         commissionContribRate,
         activeMembers,
         activeRate
@@ -379,21 +379,21 @@ function printReport(statsArr, startDate, endDate) {
 
     // 列定义：label 是表头显示文字，key 是数据字段
     const cols = [
-        { label: '名',      key: '_rank',                  },
-        { label: 'UID',     key: 'rootUid',                },
-        { label: '总人数',  key: 'totalMembers',           },
-        { label: '新增',    key: 'newMemberCount',         },
-        { label: '首充数',  key: 'firstRechargeCount',     },
-        { label: '首充率',  key: 'firstRechargeRate',      },
-        { label: '首充额',  key: 'firstRechargeAmt',       },
-        { label: '人均首充',key: 'avgFirstRecharge',       },
-        { label: '总充值',  key: 'totalRecharge',          },
-        { label: '总提现',  key: 'totalWithdraw',          },
-        { label: '打码量',  key: 'totalBet',               },
+        { label: '名', key: '_rank', },
+        { label: 'UID', key: 'rootUid', },
+        { label: '总人数', key: 'totalMembers', },
+        { label: '新增', key: 'newMemberCount', },
+        { label: '首充数', key: 'firstRechargeCount', },
+        { label: '首充率', key: 'firstRechargeRate', },
+        { label: '首充额', key: 'firstRechargeAmt', },
+        { label: '人均首充', key: 'avgFirstRecharge', },
+        { label: '总充值', key: 'totalRecharge', },
+        { label: '总提现', key: 'totalWithdraw', },
+        { label: '打码量', key: 'totalBet', },
         { label: `佣金(${AGENT_TYPE}${REBATE_LEVEL === -1 ? '全' : 'L' + REBATE_LEVEL})`, key: 'agentCommission' },
-        { label: '佣金占比',key: 'commissionContribRate',  },
-        { label: '活跃数',  key: 'activeMembers',          },
-        { label: '活跃率',  key: 'activeRate',             }
+        { label: '佣金占比', key: 'commissionContribRate', },
+        { label: '活跃数', key: 'activeMembers', },
+        { label: '活跃率', key: 'activeRate', }
     ];
 
     // 给每列赋初始宽度 = max(表头长度, 各行数据长度) + 1
@@ -439,13 +439,13 @@ function printReport(statsArr, startDate, endDate) {
     console.log(sep);
 
     // 汇总行
-    const sumRecharge   = statsArr.reduce((s, r) => s + parseFloat(r.totalRecharge),  0).toFixed(2);
-    const sumWithdraw   = statsArr.reduce((s, r) => s + parseFloat(r.totalWithdraw),  0).toFixed(2);
-    const sumBet        = statsArr.reduce((s, r) => s + parseFloat(r.totalBet),        0).toFixed(2);
+    const sumRecharge = statsArr.reduce((s, r) => s + parseFloat(r.totalRecharge), 0).toFixed(2);
+    const sumWithdraw = statsArr.reduce((s, r) => s + parseFloat(r.totalWithdraw), 0).toFixed(2);
+    const sumBet = statsArr.reduce((s, r) => s + parseFloat(r.totalBet), 0).toFixed(2);
     const sumCommission = statsArr.reduce((s, r) => s + parseFloat(r.agentCommission), 0).toFixed(4);
-    const sumNew        = statsArr.reduce((s, r) => s + r.newMemberCount,              0);
-    const sumFirst      = statsArr.reduce((s, r) => s + r.firstRechargeCount,          0);
-    const sumActive     = statsArr.reduce((s, r) => s + r.activeMembers,               0);
+    const sumNew = statsArr.reduce((s, r) => s + r.newMemberCount, 0);
+    const sumFirst = statsArr.reduce((s, r) => s + r.firstRechargeCount, 0);
+    const sumActive = statsArr.reduce((s, r) => s + r.activeMembers, 0);
 
     console.log(`  汇总: ${statsArr.length}个总代 | 新增:${sumNew} | 首充:${sumFirst} | 充值:${sumRecharge} | 提现:${sumWithdraw} | 打码:${sumBet} | 佣金:${sumCommission} | 活跃:${sumActive}`);
     console.log(`${'═'.repeat(sep.length)}\n`);
@@ -457,7 +457,7 @@ function printReport(statsArr, startDate, endDate) {
 
 export function setup() {
     if (ROOT_UIDS.length === 0) throw new Error('请通过 -e ROOT_UIDS=uid1,uid2,... 传入总代 userId');
-    if (!DATE_RANGE)            throw new Error('请通过 -e DATE_RANGE=YYYY-MM-DD~YYYY-MM-DD 传入时间段');
+    if (!DATE_RANGE) throw new Error('请通过 -e DATE_RANGE=YYYY-MM-DD~YYYY-MM-DD 传入时间段');
 
     console.log(`\n[Setup] 租户: ${TENANT_ID} | 总代: ${ROOT_UIDS.join(',')} | 时间段: ${DATE_RANGE} | 代理类型: ${AGENT_TYPE} | 佣金层级: L${REBATE_LEVEL}`);
     const adminToken = tenantAdminLogin(TENANT_ID);

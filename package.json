@@ -3,6 +3,9 @@
     "version": "1.0.0",
     "description": "企业级 K6 性能测试与自动化接口测试框架",
     "main": "index.js",
+    "bin": {
+        "k6p": "./k6/libs/monitor/runWithPerf.js"
+    },
     "scripts": {
         "test:smoke": "node scripts/run-test.js --type smoke",
         "test:api": "node scripts/run-test.js --type api",

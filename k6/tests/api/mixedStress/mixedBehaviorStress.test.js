@@ -8,7 +8,7 @@
  * 三种行为按权重随机穿插，模拟真实用户交叉操作，而不是固定脚本顺序。
  *
  * 运行：
- *   k6 run -e TENANT=3004 -e ROUNDS=6 tests/api/mixedStress/mixedBehaviorStress.test.js
+ *   k6p -e TENANT=3004 -e ROUNDS=6 tests/api/mixedStress/mixedBehaviorStress.test.js
  *
  * 可选参数：
  *   -e ROUNDS=6             每个账号跑几轮随机行为（默认 6，"少量"压测）

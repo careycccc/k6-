@@ -11,7 +11,7 @@
  *   对"转入本团队"的会员：新上级在团队内、新上级层级==newHierarchy-1、本人团队内层级==newHierarchy
  *
  * 运行：
- *   k6 run -e TENANT_ID=3004 -e USER_ID=163318  agentHierarchyValidation.test.js
+ *   k6p -e TENANT_ID=3004 -e USER_ID=163318  agentHierarchyValidation.test.js
  *   # 时间默认今天当天 00:00–23:59（机器本地时区）；可覆盖：-e TIME_FROM=..(ms) -e TIME_TO=..(ms)
  *
  * k6 check 绿 = 验证通过；红 = 发现层级/人数/转线不一致。

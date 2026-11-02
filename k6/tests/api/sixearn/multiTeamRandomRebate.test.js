@@ -8,16 +8,16 @@
  * 4. 生成精简版报表
  * 
  * 使用方法：每个团队的总人数和总层级一样
- * k6 run -e TENANT_ID=3006 -e TEAM_COUNT=2 -e TEAM_TOTAL=5000 -e TEAM_LEVELS=120 multiTeamRandomRebate.test.js
+ * k6p -e TENANT_ID=3006 -e TEAM_COUNT=2 -e TEAM_TOTAL=5000 -e TEAM_LEVELS=120 multiTeamRandomRebate.test.js
  * 
  * 每个团队的人数和总层级可以不一样
- * k6 run -e TENANT_ID=3006 -e TEAM_COUNT=2 -e TEAM1_TOTAL=2000 -e TEAM1_LEVELS=59 -e TEAM2_TOTAL=4000 -e TEAM2_LEVELS=78 multiTeamRandomRebate.test.js
+ * k6p -e TENANT_ID=3006 -e TEAM_COUNT=2 -e TEAM1_TOTAL=2000 -e TEAM1_LEVELS=59 -e TEAM2_TOTAL=4000 -e TEAM2_LEVELS=78 multiTeamRandomRebate.test.js
  * 
  * # 多租户 + 混合团队规模
  * # 团队1 是 10人2级
  * # 团队2 是 80人6级
  * # 团队3 和 团队4 没有单独指定，就会自动使用默认的 20人3级
- * k6 run -e TENANT_ID=3101 -e TEAM_COUNT=4 \
+ * k6p -e TENANT_ID=3101 -e TEAM_COUNT=4 \
  *   -e TEAM_TOTAL=20 -e TEAM_LEVELS=3 \
  *   -e TEAM1_TOTAL=10 -e TEAM1_LEVELS=2 \
  *   -e TEAM2_TOTAL=80 -e TEAM2_LEVELS=6 \

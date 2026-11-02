@@ -10,7 +10,7 @@
  *   🟡 customPath/fileType 被原样拼进路径(可控子目录)   → 部分可控
  *   🟢 服务端忽略注入、固定前缀+服务端生成名           → 通过
  *
- * 运行：k6 run -e TENANT_ID=3004 4_path_traversal.test.js
+ * 运行：k6p -e TENANT_ID=3004 4_path_traversal.test.js
  */
 import { sleep } from 'k6';
 import { getSafeEnv, tenantId } from './lib/env.js';
@@ -36,12 +36,12 @@ export function runCase(env, token) {
 
     // 全部用合法 PNG 内容，确保能过图片校验，只变 customPath/fileType/文件名
     const list = [
-        { desc: 'customPath = ../../',        fileName: `k6st_${run}.png`,           fileType: 'other',       customPath: '../../' },
-        { desc: 'customPath = ../../../../',   fileName: `k6st_${run}.png`,           fileType: 'other',       customPath: '../../../../' },
-        { desc: 'customPath 反斜杠 ..\\..\\',  fileName: `k6st_${run}.png`,           fileType: 'other',       customPath: '..\\..\\' },
-        { desc: 'fileType 注入 ../../evil',    fileName: `k6st_${run}.png`,           fileType: '../../evil',  customPath: '' },
-        { desc: '文件名内遍历 ../../x.png',    fileName: `../../k6st_${run}fn.png`,    fileType: 'other',       customPath: '' },
-        { desc: 'customPath 普通子目录(基线)', fileName: `k6st_${run}b.png`,          fileType: 'other',       customPath: 'k6sttrav' },
+        { desc: 'customPath = ../../', fileName: `k6st_${run}.png`, fileType: 'other', customPath: '../../' },
+        { desc: 'customPath = ../../../../', fileName: `k6st_${run}.png`, fileType: 'other', customPath: '../../../../' },
+        { desc: 'customPath 反斜杠 ..\\..\\', fileName: `k6st_${run}.png`, fileType: 'other', customPath: '..\\..\\' },
+        { desc: 'fileType 注入 ../../evil', fileName: `k6st_${run}.png`, fileType: '../../evil', customPath: '' },
+        { desc: '文件名内遍历 ../../x.png', fileName: `../../k6st_${run}fn.png`, fileType: 'other', customPath: '' },
+        { desc: 'customPath 普通子目录(基线)', fileName: `k6st_${run}b.png`, fileType: 'other', customPath: 'k6sttrav' },
     ];
 
     let traversed = false;

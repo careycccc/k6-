@@ -1,5 +1,5 @@
 /** 临时排查：查某 userId 的 首充/设备/IP 及同设备、同IP 关联数（判断触发哪条拒绝规则）。用完删。
- *   k6 run -e TENANT_ID=3004 -e UID=166191 auditProbe.js
+ *   k6p -e TENANT_ID=3004 -e UID=166191 auditProbe.js
  */
 import { tenantAdminLogin } from '../../../../libs/http/tenantRequest.js';
 import { getEnvByTenantId, ENV_CONFIG } from '../../../../config/envconfig.js';

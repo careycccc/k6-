@@ -18,7 +18,7 @@ const subordinates = [2, 3, 2];
 ### 步骤2: 运行测试
 
 ```bash
-k6 run k6/tests/api/invite/runInvite.test.js
+k6p k6/tests/api/invite/runInvite.test.js
 ```
 
 就这么简单！

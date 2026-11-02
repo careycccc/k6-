@@ -63,7 +63,7 @@ function runK6(script, envs, capture = false) {
     const allArgs = ['run', '--summary-mode=disabled', '-q', ...envArgs, '-e', `TENANT_ID=${tenantId}`, script];
 
     // 构建用于日志展示的命令字符串（仅用于打印）
-    const displayCmd = `k6 run --summary-mode=disabled -q ${Object.keys(envs).map(k => `-e ${k}=${envs[k]}`).join(' ')} -e TENANT_ID=${tenantId} ${script} 2>&1`;
+    const displayCmd = `k6p --summary-mode=disabled -q ${Object.keys(envs).map(k => `-e ${k}=${envs[k]}`).join(' ')} -e TENANT_ID=${tenantId} ${script} 2>&1`;
     console.log(`\n▶️ 执行阶段: ${script}`);
     console.log(`💻 运行命令: ${displayCmd}\n`);
 

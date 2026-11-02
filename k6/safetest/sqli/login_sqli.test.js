@@ -7,10 +7,10 @@
  * 安全：vus=1、串行、仅非破坏性 payload、内置限流退避；【仅在授权 SIT/UAT 环境运行】。
  *
  * 运行（在 k6/safetest 目录下）：
- *   k6 run sqli/login_sqli.test.js                     # 默认 3004 SIT，前台+后台
- *   k6 run -e TARGET=frontend sqli/login_sqli.test.js  # 只测前台
- *   k6 run -e TARGET=backend  sqli/login_sqli.test.js  # 只测后台
- *   k6 run -e TENANT_ID=3101  sqli/login_sqli.test.js  # 切换到 3101 UAT
+ *   k6p sqli/login_sqli.test.js                     # 默认 3004 SIT，前台+后台
+ *   k6p -e TARGET=frontend sqli/login_sqli.test.js  # 只测前台
+ *   k6p -e TARGET=backend  sqli/login_sqli.test.js  # 只测后台
+ *   k6p -e TENANT_ID=3101  sqli/login_sqli.test.js  # 切换到 3101 UAT
  *
  * k6 check「通过(绿)」= 该项防御有效（无中危及以上）；check 变红 = 发现潜在注入风险。
  */

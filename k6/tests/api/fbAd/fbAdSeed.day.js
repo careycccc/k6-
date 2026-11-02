@@ -217,7 +217,7 @@ export function setup() {
     console.log('[FbAdSeed] ✅ 管理员登录成功');
 
     if (!__ENV.VIA_RUNNER) {
-        console.warn('[FbAdSeed] ⚠️ 直接 k6 run 不会写状态文件（沙箱限制），请用: node fbAdSeedRunner.js --tenant ' + TENANT_ID);
+        console.warn('[FbAdSeed] ⚠️ 直接 k6p 不会写状态文件（沙箱限制），请用: node fbAdSeedRunner.js --tenant ' + TENANT_ID);
     }
 
     return { adminToken, envConfig, today: getDayRange(0, TENANT_ID).dateStr };

@@ -65,13 +65,13 @@ chmod +x run-verify-invite-turntable.sh
 
 ```bash
 # 基本测试（1个总代，1轮）
-k6 run \
+k6p \
   -e TENANT_ID=3004 \
   -e LANGUAGE=en \
   verifyInviteTurntable.test.js
 
 # 多个总代，多轮测试
-k6 run \
+k6p \
   -e TENANT_ID=3004 \
   -e LANGUAGE=en \
   -e GENERAL_AGENT_COUNT=3 \
@@ -84,7 +84,7 @@ k6 run \
   verifyInviteTurntable.test.js
 
 # 3003平台（西班牙语）
-k6 run \
+k6p \
   -e TENANT_ID=3003 \
   -e LANGUAGE=es \
   -e GENERAL_AGENT_COUNT=2 \

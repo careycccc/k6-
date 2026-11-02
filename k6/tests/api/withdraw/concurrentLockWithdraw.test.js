@@ -7,7 +7,7 @@
  * 前提：目标用户已有一笔"待审核"状态的提现订单（不负责创建订单）。
  *
  * 使用方式：
- *   k6 run \
+ *   k6p \
  *     -e TENANT=3004 \
  *     -e TARGET_USER=918048050116 \
  *     -e WITHDRAW_AMOUNT=500 \
@@ -21,13 +21,13 @@
  * 
  * 
 # 推荐用法：直接传 userId，精确可靠
-    k6 run -e TENANT=3004 -e TARGET_USER_ID=139084 concurrentLockWithdraw.test.js
+    k6p -e TENANT=3004 -e TARGET_USER_ID=139084 concurrentLockWithdraw.test.js
 
 # 精确匹配金额
-    k6 run -e TENANT=3004 -e TARGET_USER_ID=139187 -e WITHDRAW_AMOUNT=1000 concurrentLockWithdraw.test.js
+    k6p -e TENANT=3004 -e TARGET_USER_ID=139187 -e WITHDRAW_AMOUNT=1000 concurrentLockWithdraw.test.js
 
 # 兼容用法：传手机号（注意后台为模糊匹配，可能查到错误的 userId）
-    k6 run -e TENANT=3004 -e TARGET_USER=916154156993 concurrentLockWithdraw.test.js
+    k6p -e TENANT=3004 -e TARGET_USER=916154156993 concurrentLockWithdraw.test.js
 
  * 
  */
@@ -41,12 +41,12 @@ import { getUserIdByAccount } from '../user/userManagement.js';
 // ==================== 参数 ==================================
 // ============================================================
 
-const TENANT_ID     = __ENV.TENANT || __ENV.TENANT_ID || '3004';
-const TARGET_PHONE  = __ENV.TARGET_USER;          // 前台用户手机号
-const TARGET_UID    = __ENV.TARGET_USER_ID        // 直接传 userId，优先级高于手机号查询
+const TENANT_ID = __ENV.TENANT || __ENV.TENANT_ID || '3004';
+const TARGET_PHONE = __ENV.TARGET_USER;          // 前台用户手机号
+const TARGET_UID = __ENV.TARGET_USER_ID        // 直接传 userId，优先级高于手机号查询
     ? parseInt(__ENV.TARGET_USER_ID, 10)
     : null;
-const AMOUNT        = parseFloat(__ENV.WITHDRAW_AMOUNT || '0'); // 0 = 不限金额
+const AMOUNT = parseFloat(__ENV.WITHDRAW_AMOUNT || '0'); // 0 = 不限金额
 
 const TAG = 'ConcurrentLock';
 
@@ -57,9 +57,9 @@ const TAG = 'ConcurrentLock';
 export const options = {
     scenarios: {
         concurrent_lock: {
-            executor:    'per-vu-iterations',
-            vus:         2,          // VU1 = 主账号，VU2 = 受限账号
-            iterations:  1,          // 每个 VU 只锁一次
+            executor: 'per-vu-iterations',
+            vus: 2,          // VU1 = 主账号，VU2 = 受限账号
+            iterations: 1,          // 每个 VU 只锁一次
             maxDuration: '5m'
         }
     },
@@ -88,18 +88,18 @@ function queryPendingWithdrawOrder(adminToken, userId, amount) {
     const api = '/api/WithdrawOrder/GetWithdrawLockPageList';
 
     // 计算今天的开始/结束时间戳（毫秒），覆盖当天所有订单
-    const now       = new Date();
+    const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-    const todayEnd   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
     const payload = {
-        userId:    userId,
+        userId: userId,
         startTime: todayStart.getTime(),
-        endTime:   todayEnd.getTime(),
-        dateType:  0,
-        pageNo:    1,
-        pageSize:  20,
-        orderBy:   'Desc'
+        endTime: todayEnd.getTime(),
+        dateType: 0,
+        pageNo: 1,
+        pageSize: 20,
+        orderBy: 'Desc'
     };
 
     // 有指定金额才加上精确匹配
@@ -125,7 +125,7 @@ function queryPendingWithdrawOrder(adminToken, userId, amount) {
     const order = response.data.list[0];
     console.log(`[${TAG}] 找到订单: ${order.orderNo}，金额: ${order.withdrawAmount}，状态: ${order.withdrawState}`);
     return {
-        orderNo:    order.orderNo,
+        orderNo: order.orderNo,
         createTime: order.createTime
     };
 }
@@ -234,8 +234,8 @@ export default function (data) {
     const { adminToken, limitedToken, orderInfo, userId } = data;
 
     // 根据 VU 编号选择 token
-    const isAdminVu   = __VU === 1;
-    const token       = isAdminVu ? adminToken : limitedToken;
+    const isAdminVu = __VU === 1;
+    const token = isAdminVu ? adminToken : limitedToken;
     const accountName = isAdminVu ? 'ADMIN（主账号）' : 'LIMITED（受限账号）';
 
     console.log(`[${TAG}][VU${__VU}] ===== 开始锁单竞争 =====`);

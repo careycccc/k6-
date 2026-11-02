@@ -10,10 +10,10 @@
  *   4. 按循环方案充值：buildRechargePlans 分档(30/25/20/15/10 + 30% 冲 paid) + rechargeToTarget
  *      （商品模式下由充值层用固定面额组合凑；经典模式单笔）
  *
- * 成员来自后台查询、不需跨天 txt 桥接 → 直接 k6 run 即可，无需 Node 包装器。
+ * 成员来自后台查询、不需跨天 txt 桥接 → 直接 k6p 即可，无需 Node 包装器。
  *
  * 运行：
- *   k6 run -e TENANT_ID=3004 -e ROOT_UID=165641 cycleRewardByTeam.js
+ *   k6p -e TENANT_ID=3004 -e ROOT_UID=165641 cycleRewardByTeam.js
  *
  * 参数（-e）：
  *   TENANT_ID   租户ID（默认 3004）

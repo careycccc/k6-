@@ -32,8 +32,8 @@
  * 时间范围：租户时区，今天往前共 DAYS 天（默认 15，含今天）00:00:00 ~ 今天 23:59:59
  *
  * 运行：1002199769
- *   k6 run -e TENANT_ID=3004 -e USER_ID=137479 autoWithdrawBetRatioVerify.js
- *   k6 run -e TENANT_ID=3101 -e ACCOUNT=919028199762 autoWithdrawBetRatioVerify.js   （账号前台登录取 userId，密码默认 qwer1234）
+ *   k6p -e TENANT_ID=3004 -e USER_ID=137479 autoWithdrawBetRatioVerify.js
+ *   k6p -e TENANT_ID=3101 -e ACCOUNT=919028199762 autoWithdrawBetRatioVerify.js   （账号前台登录取 userId，密码默认 qwer1234）
  *   可选：-e DAYS=15  -e PASSWORD=xxx
  */
 

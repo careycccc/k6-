@@ -34,7 +34,7 @@ echo "========================================="
 echo ""
 
 # 执行K6测试
-k6 run \
+k6p \
   -e TENANT_ID=$TENANT_ID \
   -e LANGUAGE=$LANGUAGE \
   -e GENERAL_AGENT_COUNT=$GENERAL_AGENT_COUNT \

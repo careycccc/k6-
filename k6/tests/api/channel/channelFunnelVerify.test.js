@@ -9,8 +9,8 @@
  *   Step 5: 本地计算值 vs 系统值逐字段对比，生成竖向报表
  *
  * 运行命令：
- *   k6 run -e TENANT_ID=3004 -e PACKAGE_ID=1 -e DATE_RANGE=2026-05-01~2026-05-05 channelFunnelVerify.test.js
- *   k6 run -e TENANT_ID=3101 -e PACKAGE_ID=0,1,2 -e DATE_RANGE=2026-05-06~2026-05-06 channelFunnelVerify.test.js
+ *   k6p -e TENANT_ID=3004 -e PACKAGE_ID=1 -e DATE_RANGE=2026-05-01~2026-05-05 channelFunnelVerify.test.js
+ *   k6p -e TENANT_ID=3101 -e PACKAGE_ID=0,1,2 -e DATE_RANGE=2026-05-06~2026-05-06 channelFunnelVerify.test.js
  *
  * 参数说明：
  *   TENANT_ID    租户ID（必填）

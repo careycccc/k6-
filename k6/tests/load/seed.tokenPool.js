@@ -5,17 +5,17 @@
  * 本脚本使用前台原生注册接口（手机/邮箱），并提供了两种截然不同的拓扑模式，满足普通压测和多级返佣邀请的需求。
  *
  * 模式一：前台总代平行预热（无极）
- *   k6 run -e TENANT_ID=3004 -e SEED_MODE=flat -e USER_COUNT=10 -e INVITE_CODE=3EPLRGN seed.tokenPool.js 测试前台注册（支持可选邀请码）
+ *   k6p -e TENANT_ID=3004 -e SEED_MODE=flat -e USER_COUNT=10 -e INVITE_CODE=3EPLRGN seed.tokenPool.js 测试前台注册（支持可选邀请码）
  * 
  * 模式二：单线团队网状邀请预热（带上下级）
- *   k6 run -e TENANT_ID=3004 -e SEED_MODE=invite -e INVITE_CODE=W5LU89N -e TEAM_TOTAL=50 -e TEAM_LEVELS=3 tests/load/seed.tokenPool.js
+ *   k6p -e TENANT_ID=3004 -e SEED_MODE=invite -e INVITE_CODE=W5LU89N -e TEAM_TOTAL=50 -e TEAM_LEVELS=3 tests/load/seed.tokenPool.js
  */
 
 import { sleep } from 'k6';
 import { Counter } from 'k6/metrics';
 import { AdminLogin } from '../api/login/adminlogin.test.js';
-import { 
-    phoneRegister, 
+import {
+    phoneRegister,
     emailRegister,
     phoneRegisterByInvite,
     emailRegisterByInvite
@@ -90,11 +90,11 @@ function distributePeople(totalPeople, levels) {
 function executeFallbackRegister(data, parentInviteCode, isInviteMode) {
     const { envConfig } = data;
     const countryCode = envConfig.COUNTRY_CODE || '91';
-    
+
     // 生成一套账号数据供尝试
     const phone = generateRandomPhone(countryCode);
     const email = generateRandomEmails(1)[0];
-    
+
     const customUrls = {
         frontUrl: envConfig.INVITE_REGISTER_URL || envConfig.BASE_DESK_URL,
         adminUrl: envConfig.BASE_ADMIN_URL,
@@ -184,10 +184,10 @@ export async function setup() {
     if (!adminToken) {
         throw new Error('[SeedTokenPool] ❌ 后台管理员登录失败，无法建立环境授权');
     }
-    
+
     const envConfig = getEnvByTenantId(tenantId);
     console.log(`[SeedTokenPool] ✅ 基础环境授权成功，准备执行注入`);
-    
+
     return { token: adminToken, envConfig, tenantId };
 }
 
@@ -196,14 +196,14 @@ export async function setup() {
 // ============================================================
 export default async function (data) {
     // 缓和并非，特别是 flat 多并发情况
-    const staggerTime = (__VU - 1) * 1.5; 
+    const staggerTime = (__VU - 1) * 1.5;
     sleep(Math.min(staggerTime, 10));
 
     if (seedMode === 'flat') {
         // 模式一：前台总代平行无极造数
         const flatInviteCode = __ENV.INVITE_CODE || '';
         const result = executeFallbackRegister(data, flatInviteCode, false);
-        
+
         if (result) {
             try {
                 await injectUserTokens(data.tenantId, [{ userId: result.userId, token: result.token }]);
@@ -232,7 +232,7 @@ export default async function (data) {
         console.log(`\n[SeedTokenPool] 层级自动算法：团队 ${total}人, 深度 ${levels}级 => 每级分布: [ ${distribution.join(' -> ')} ]`);
 
         let currentParentCodes = [rootInviteCode];
-        
+
         for (let lvl = 0; lvl < distribution.length; lvl++) {
             const count = distribution[lvl];
             console.log(`\n🚀 === 正在衍生 第 ${lvl + 1} 层网络: 共 ${count} 节点 ===`);
@@ -243,7 +243,7 @@ export default async function (data) {
             for (let i = 0; i < count; i++) {
                 // 网格随机挂载挂靠父类
                 const parentCode = currentParentCodes[Math.floor(Math.random() * currentParentCodes.length)];
-                
+
                 const result = executeFallbackRegister(data, parentCode, true);
                 if (result) {
                     validUsersToInject.push({ userId: result.userId, token: result.token });
@@ -262,7 +262,7 @@ export default async function (data) {
                 try {
                     await injectUserTokens(data.tenantId, validUsersToInject);
                     console.log(`  └─ 📦 本层 ${validUsersToInject.length} 个 Token 已推入预热池`);
-                } catch(e) {
+                } catch (e) {
                     console.error(`  └─ ❌ Redis 层级批量写入失败: ${e.message}`);
                 }
             } else {

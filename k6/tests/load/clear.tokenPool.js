@@ -3,13 +3,13 @@
  *
  * 用法：
  *   # 清除指定租户
- *   k6 run -e TENANT_ID=3004 clear.tokenPool.js
+ *   k6p -e TENANT_ID=3004 clear.tokenPool.js
  *
  *   # 清除多个租户（逗号分隔）
- *   k6 run -e TENANT_ID=3004,3001,3006 clear.tokenPool.js
+ *   k6p -e TENANT_ID=3004,3001,3006 clear.tokenPool.js
  *
  *   # 清除所有租户（不传 TENANT_ID）
- *   k6 run clear.tokenPool.js
+ *   k6p clear.tokenPool.js
  */
 
 import { clearPool, getPoolSize, checkRedisConnection } from '../../libs/redis/tokenPool.js';

@@ -69,13 +69,13 @@
 ### 1. 基本用法（查询昨天的数据）
 
 ```bash
-k6 run -e TENANT_ID=3004 k6/tests/api/recharge/getRechargeOrderPageList.test.js
+k6p -e TENANT_ID=3004 k6/tests/api/recharge/getRechargeOrderPageList.test.js
 ```
 
 ### 2. 指定用户ID
 
 ```bash
-k6 run -e TENANT_ID=3004 -e USER_ID=110655 k6/tests/api/recharge/getRechargeOrderPageList.test.js
+k6p -e TENANT_ID=3004 -e USER_ID=110655 k6/tests/api/recharge/getRechargeOrderPageList.test.js
 ```
 
 ### 3. 在代码中调用

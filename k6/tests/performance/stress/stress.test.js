@@ -10,9 +10,9 @@
  *   50 → 100 → 200 → 300 → 400 → 500 VU（每阶段3分钟）
  *
  * 运行命令（示例）：
- *   k6 run k6/tests/performance/stress/stress.test.js -e TENANT=3004
- *   k6 run k6/tests/performance/stress/stress.test.js -e TENANT=3004 -e MAX_VUS=500
- *   k6 run k6/tests/performance/stress/stress.test.js -e TENANT=3004 -e ACCOUNTS_CSV=./k6/data/csv/accounts.csv
+ *   k6p k6/tests/performance/stress/stress.test.js -e TENANT=3004
+ *   k6p k6/tests/performance/stress/stress.test.js -e TENANT=3004 -e MAX_VUS=500
+ *   k6p k6/tests/performance/stress/stress.test.js -e TENANT=3004 -e ACCOUNTS_CSV=./k6/data/csv/accounts.csv
  */
 
 import http from 'k6/http';
@@ -29,18 +29,18 @@ import { AdminLogin } from '../../api/login/adminlogin.test.js';
 import { phoneRegister } from '../../api/login/register.test.js';
 
 // ============ 自定义指标 ============
-const stressLoginSuccessRate    = new Rate('stress_login_success_rate');
+const stressLoginSuccessRate = new Rate('stress_login_success_rate');
 const stressRegisterSuccessRate = new Rate('stress_register_success_rate');
-const stressLoginDuration       = new Trend('stress_login_duration_ms', true);
-const stressRegisterDuration    = new Trend('stress_register_duration_ms', true);
-const stressTotalReqs           = new Counter('stress_total_requests');
-const stressErrorCount          = new Counter('stress_error_count');
+const stressLoginDuration = new Trend('stress_login_duration_ms', true);
+const stressRegisterDuration = new Trend('stress_register_duration_ms', true);
+const stressTotalReqs = new Counter('stress_total_requests');
+const stressErrorCount = new Counter('stress_error_count');
 
 // ============ 环境 & 参数 ============
-const TENANT      = __ENV.TENANT || '3004';
+const TENANT = __ENV.TENANT || '3004';
 const ENVIRONMENT = __ENV.ENVIRONMENT || 'local';
-const MAX_VUS     = parseInt(__ENV.MAX_VUS || '500', 10);
-const envConfig   = getEnvByTenantId(TENANT);
+const MAX_VUS = parseInt(__ENV.MAX_VUS || '500', 10);
+const envConfig = getEnvByTenantId(TENANT);
 
 // ============ 从 CSV 加载账号池（SharedArray，跨 VU 共享内存）============
 // CSV 路径优先级：-e ACCOUNTS_CSV=xxx > 默认 ./k6/data/csv/accounts.csv
@@ -54,22 +54,22 @@ export const options = {
       startVUs: 5,
       stages: [
         // === 阶梯递增加压（每阶段先爬升再持续） ===
-        { duration: '1m',  target: Math.floor(MAX_VUS * 0.1)  },  // Level 1: 10%
-        { duration: '3m',  target: Math.floor(MAX_VUS * 0.1)  },  // 持续观测
-        { duration: '1m',  target: Math.floor(MAX_VUS * 0.2)  },  // Level 2: 20%
-        { duration: '3m',  target: Math.floor(MAX_VUS * 0.2)  },  // 持续观测
-        { duration: '1m',  target: Math.floor(MAX_VUS * 0.4)  },  // Level 3: 40%
-        { duration: '3m',  target: Math.floor(MAX_VUS * 0.4)  },  // 持续观测
-        { duration: '1m',  target: Math.floor(MAX_VUS * 0.6)  },  // Level 4: 60%
-        { duration: '3m',  target: Math.floor(MAX_VUS * 0.6)  },  // 持续观测
-        { duration: '1m',  target: Math.floor(MAX_VUS * 0.8)  },  // Level 5: 80%
-        { duration: '3m',  target: Math.floor(MAX_VUS * 0.8)  },  // 持续观测
-        { duration: '1m',  target: MAX_VUS                    },  // Level 6: 100% 极限
-        { duration: '3m',  target: MAX_VUS                    },  // 持续极限压力
+        { duration: '1m', target: Math.floor(MAX_VUS * 0.1) },  // Level 1: 10%
+        { duration: '3m', target: Math.floor(MAX_VUS * 0.1) },  // 持续观测
+        { duration: '1m', target: Math.floor(MAX_VUS * 0.2) },  // Level 2: 20%
+        { duration: '3m', target: Math.floor(MAX_VUS * 0.2) },  // 持续观测
+        { duration: '1m', target: Math.floor(MAX_VUS * 0.4) },  // Level 3: 40%
+        { duration: '3m', target: Math.floor(MAX_VUS * 0.4) },  // 持续观测
+        { duration: '1m', target: Math.floor(MAX_VUS * 0.6) },  // Level 4: 60%
+        { duration: '3m', target: Math.floor(MAX_VUS * 0.6) },  // 持续观测
+        { duration: '1m', target: Math.floor(MAX_VUS * 0.8) },  // Level 5: 80%
+        { duration: '3m', target: Math.floor(MAX_VUS * 0.8) },  // 持续观测
+        { duration: '1m', target: MAX_VUS },  // Level 6: 100% 极限
+        { duration: '3m', target: MAX_VUS },  // 持续极限压力
         // === 恢复阶段 ===
-        { duration: '1m',  target: Math.floor(MAX_VUS * 0.3)  },  // 快速降压
-        { duration: '2m',  target: Math.floor(MAX_VUS * 0.3)  },  // 恢复期观测
-        { duration: '30s', target: 0                           },  // 归零
+        { duration: '1m', target: Math.floor(MAX_VUS * 0.3) },  // 快速降压
+        { duration: '2m', target: Math.floor(MAX_VUS * 0.3) },  // 恢复期观测
+        { duration: '30s', target: 0 },  // 归零
       ],
       gracefulRampDown: '1m',
       exec: 'stressLoginScenario',
@@ -81,12 +81,12 @@ export const options = {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '5m',  target: 0  },  // 等待系统达到中等压力
-        { duration: '2m',  target: Math.floor(MAX_VUS * 0.05) },  // 5% 峰值做注册
-        { duration: '6m',  target: Math.floor(MAX_VUS * 0.05) },  // 持续
-        { duration: '4m',  target: Math.floor(MAX_VUS * 0.08) },  // 极限期间的注册
-        { duration: '3m',  target: Math.floor(MAX_VUS * 0.08) },  // 持续
-        { duration: '3m',  target: 0  },  // 收尾
+        { duration: '5m', target: 0 },  // 等待系统达到中等压力
+        { duration: '2m', target: Math.floor(MAX_VUS * 0.05) },  // 5% 峰值做注册
+        { duration: '6m', target: Math.floor(MAX_VUS * 0.05) },  // 持续
+        { duration: '4m', target: Math.floor(MAX_VUS * 0.08) },  // 极限期间的注册
+        { duration: '3m', target: Math.floor(MAX_VUS * 0.08) },  // 持续
+        { duration: '3m', target: 0 },  // 收尾
       ],
       gracefulRampDown: '1m',
       exec: 'stressRegisterScenario',
@@ -96,13 +96,13 @@ export const options = {
 
   thresholds: {
     // 压力测试阈值（比正常负载宽松，重在找极限而非强制通过）
-    http_req_failed:                  ['rate<0.10'],          // 全局错误率 < 10%
-    http_req_duration:                ['p(95)<10000'],        // p95 < 10s（压力下允许较慢）
+    http_req_failed: ['rate<0.10'],          // 全局错误率 < 10%
+    http_req_duration: ['p(95)<10000'],        // p95 < 10s（压力下允许较慢）
 
-    'stress_login_success_rate':      ['rate>0.90'],          // 登录成功率 > 90%
-    'stress_login_duration_ms':       ['p(95)<8000'],         // 登录 p95 < 8s
-    'stress_register_success_rate':   ['rate>0.85'],          // 注册成功率 > 85%
-    'stress_register_duration_ms':    ['p(95)<15000'],        // 注册 p95 < 15s
+    'stress_login_success_rate': ['rate>0.90'],          // 登录成功率 > 90%
+    'stress_login_duration_ms': ['p(95)<8000'],         // 登录 p95 < 8s
+    'stress_register_success_rate': ['rate>0.85'],          // 注册成功率 > 85%
+    'stress_register_duration_ms': ['p(95)<15000'],        // 注册 p95 < 15s
   },
 
   tags: {
@@ -173,7 +173,7 @@ export function stressLoginScenario(data) {
     stressLoginDuration.add(duration);
 
     const ok = check(resp, {
-      '压力登录-HTTP200':  (r) => r && r.status === 200,
+      '压力登录-HTTP200': (r) => r && r.status === 200,
       '压力登录-业务成功': (r) => {
         if (!r || !r.body) return false;
         try {
@@ -243,11 +243,11 @@ export function handleSummary(data) {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const reportName = `stress-${ENVIRONMENT}-${TENANT}-max${MAX_VUS}-${timestamp}`;
 
-  const loginRate    = (data.metrics['stress_login_success_rate']?.values?.rate * 100 || 0).toFixed(2);
+  const loginRate = (data.metrics['stress_login_success_rate']?.values?.rate * 100 || 0).toFixed(2);
   const registerRate = (data.metrics['stress_register_success_rate']?.values?.rate * 100 || 0).toFixed(2);
-  const errors       = data.metrics['stress_error_count']?.values?.count || 0;
-  const totalReqs    = data.metrics['stress_total_requests']?.values?.count || 0;
-  const httpErrRate  = (data.metrics['http_req_failed']?.values?.rate * 100 || 0).toFixed(2);
+  const errors = data.metrics['stress_error_count']?.values?.count || 0;
+  const totalReqs = data.metrics['stress_total_requests']?.values?.count || 0;
+  const httpErrRate = (data.metrics['http_req_failed']?.values?.rate * 100 || 0).toFixed(2);
 
   console.log(`\n[Stress] ===== 压力测试完成 =====`);
   console.log(`[Stress] 最大VU数: ${MAX_VUS}`);

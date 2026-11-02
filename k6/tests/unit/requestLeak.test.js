@@ -1,6 +1,6 @@
 /**
  * sendRequest 状态泄漏回归测试（真实请求，只读）
- *   k6 run -e TENANT_ID=3101 -e TENANT=3101 -e ACCOUNT=919028199762 k6/tests/unit/requestLeak.test.js
+ *   k6p -e TENANT_ID=3101 -e TENANT=3101 -e ACCOUNT=919028199762 k6/tests/unit/requestLeak.test.js
  */
 import { sendRequest } from '../api/common/request.js';
 import { adminLogin, loginByPassword } from '../api/common/auth.js';

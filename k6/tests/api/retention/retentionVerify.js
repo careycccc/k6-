@@ -36,7 +36,7 @@
  * 运行（推荐 Node runner，收集 marker 后按表/按天打印对比）：
  *   node retentionVerifyRunner.js --start 2026-09-07 --end 2026-09-08 --tenant 3004
  * 也可直接跑（日志交错、不汇总；仅调试看数据）：
- *   k6 run -e TENANT_ID=3004 -e START_DATE=2026-09-07 -e END_DATE=2026-09-08 retentionVerify.js
+ *   k6p -e TENANT_ID=3004 -e START_DATE=2026-09-07 -e END_DATE=2026-09-08 retentionVerify.js
  *
  * 参数：
  *   TENANT_ID    租户ID（默认 3004）
@@ -282,7 +282,7 @@ export function setup() {
     console.log(`[${TAG}] ✅ 管理员登录成功`);
 
     if (__ENV.VIA_RUNNER !== '1') {
-        console.warn(`[${TAG}] ⚠️ 直接 k6 run 日志会交错、不汇总；建议：node retentionVerifyRunner.js --start ${START_DATE} --end ${END_DATE} --tenant ${TENANT_ID}`);
+        console.warn(`[${TAG}] ⚠️ 直接 k6p 日志会交错、不汇总；建议：node retentionVerifyRunner.js --start ${START_DATE} --end ${END_DATE} --tenant ${TENANT_ID}`);
     }
     return { token, envConfig };
 }

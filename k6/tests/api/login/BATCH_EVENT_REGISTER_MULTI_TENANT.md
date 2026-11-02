@@ -18,38 +18,38 @@
 
 ```bash
 # 基础用法（与原版完全一致）
-k6 run -e TENANT_ID=3004 -e USER_COUNT=30 -e PACKAGE_TYPE=22 batchEventRegister.multi-tenant.test.js
+k6p -e TENANT_ID=3004 -e USER_COUNT=30 -e PACKAGE_TYPE=22 batchEventRegister.multi-tenant.test.js
 
-k6 run -e TENANT_ID=3101 -e USER_COUNT=3 batchEventRegister.multi-tenant.test.js
+k6p -e TENANT_ID=3101 -e USER_COUNT=3 batchEventRegister.multi-tenant.test.js
 
 
 # 指定邀请码
-k6 run -e TENANT_ID=3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 -e INVITE_CODE=CUSTOM123 batchEventRegister.multi-tenant.test.js
+k6p -e TENANT_ID=3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 -e INVITE_CODE=CUSTOM123 batchEventRegister.multi-tenant.test.js
 
 # 使用老包（ID: 21）carey_tiktok_002   （id:22）carey_tiktok_022
-k6 run -e TENANT_ID=3004 -e USER_COUNT=1 -e PACKAGE_TYPE=22 batchEventRegister.multi-tenant.test.js
+k6p -e TENANT_ID=3004 -e USER_COUNT=1 -e PACKAGE_TYPE=22 batchEventRegister.multi-tenant.test.js
 ```
 
 ### 多租户并行
 
 ```bash
 # 同时在 3001、3002、3004 三个租户各注册 300 人
-k6 run -e TENANTS=3001,3002,3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 batchEventRegister.multi-tenant.test.js
+k6p -e TENANTS=3001,3002,3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 batchEventRegister.multi-tenant.test.js
 
 # 多租户 + 自定义邀请码
-k6 run -e TENANTS=3001,3002 -e USER_COUNT=100 -e PACKAGE_TYPE=22 -e INVITE_CODE=MYCODE batchEventRegister.multi-tenant.test.js
+k6p -e TENANTS=3001,3002 -e USER_COUNT=100 -e PACKAGE_TYPE=22 -e INVITE_CODE=MYCODE batchEventRegister.multi-tenant.test.js
 ```
 
 ### 高级配置
 
 ```bash
 # 覆盖 tiktok 域名（优先级高于租户配置）
-k6 run -e TENANT_ID=3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 \
+k6p -e TENANT_ID=3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 \
        -e TIKTOK_DOMAIN=https://custom.tiktok.domain.com \
        batchEventRegister.multi-tenant.test.js
 
 # 指定环境标识（用于 Grafana 面板区分）
-k6 run -e TENANT_ID=3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 \
+k6p -e TENANT_ID=3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 \
        -e ENVIRONMENT=production \
        batchEventRegister.multi-tenant.test.js
 ```
@@ -172,10 +172,10 @@ k6 run -e TENANT_ID=3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 \
 
 ```bash
 # 原版命令
-k6 run -e USER_COUNT=300 -e PACKAGE_TYPE=22 batchEventRegister.test.js
+k6p -e USER_COUNT=300 -e PACKAGE_TYPE=22 batchEventRegister.test.js
 
 # 多租户版命令（完全兼容）
-k6 run -e TENANT_ID=3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 batchEventRegister.multi-tenant.test.js
+k6p -e TENANT_ID=3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 batchEventRegister.multi-tenant.test.js
 ```
 
 无需修改任何参数，直接替换文件名即可。

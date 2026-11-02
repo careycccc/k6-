@@ -28,7 +28,7 @@ services:
     environment:
       - INFLUXDB_DB=k6
       - INFLUXDB_USER=k6
-      - INFLUXDB_USER_PASSWORD=k6password
+      - INFLUXDB_USER_PASSWORD=k6p assword
     ports:
       - "8086:8086"
     volumes:

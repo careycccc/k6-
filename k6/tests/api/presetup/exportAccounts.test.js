@@ -2,7 +2,7 @@
  * 导出租户会员账号为 CSV
  * 
  * 用法：
- *   k6 run -e TENANT_ID=3004 -e PAGE_SIZE=100 exportAccounts.test.js
+ *   k6p -e TENANT_ID=3004 -e PAGE_SIZE=100 exportAccounts.test.js
  * 
  * 说明：
  *   - 从 /api/Users/GetPageList 查询会员账号
@@ -95,7 +95,7 @@ export default function () {
         console.log(`💡 自动写入方法:`);
         console.log(`   PowerShell: .\\exportAccounts.ps1 -TenantId ${tenantId}`);
         console.log(`   批处理:     exportAccounts.bat ${tenantId}`);
-        console.log(`   手动重定向: k6 run -e TENANT_ID=${tenantId} -e OUTPUT_MODE=csv exportAccounts.test.js > ..\\..\\..\\data\\csv\\accounts.csv`);
+        console.log(`   手动重定向: k6p -e TENANT_ID=${tenantId} -e OUTPUT_MODE=csv exportAccounts.test.js > ..\\..\\..\\data\\csv\\accounts.csv`);
         console.log(`${'='.repeat(70)}\n`);
     }
 }

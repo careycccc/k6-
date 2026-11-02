@@ -10,7 +10,7 @@
  *   5. 打印转正的手机号，供人工核验
  *
  * 运行方式：
- *   k6 run -e TENANT=3101 guestToMember.test.js
+ *   k6p -e TENANT=3101 guestToMember.test.js
  *
  * 参数说明：
  *   TENANT   租户 ID（默认 3004）

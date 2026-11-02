@@ -10,16 +10,16 @@
  * 使用方法：
  *
  *   # 单租户（兼容原版）
- *   k6 run -e TENANT_ID=3101 -e USER_COUNT=1 -e PACKAGE_TYPE=4 batchEventRegister.multi-tenant.test.js
+ *   k6p -e TENANT_ID=3101 -e USER_COUNT=1 -e PACKAGE_TYPE=4 batchEventRegister.multi-tenant.test.js
  *
  *   # 多租户并行
- *   k6 run -e TENANTS=3001,3002,3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 batchEventRegister.multi-tenant.test.js
+ *   k6p -e TENANTS=3001,3002,3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 batchEventRegister.multi-tenant.test.js
  *
  *   # 自定义邀请码
- *   k6 run -e TENANT_ID=3004 -e USER_COUNT=30 -e PACKAGE_TYPE=22 -e INVITE_CODE=137016 batchEventRegister.multi-tenant.test.js
+ *   k6p -e TENANT_ID=3004 -e USER_COUNT=30 -e PACKAGE_TYPE=22 -e INVITE_CODE=137016 batchEventRegister.multi-tenant.test.js
  *
  *   # 指定 tiktok 域名（覆盖租户配置）
- *   k6 run -e TENANT_ID=3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 -e TIKTOK_DOMAIN=https://custom.domain.com batchEventRegister.multi-tenant.test.js
+ *   k6p -e TENANT_ID=3004 -e USER_COUNT=300 -e PACKAGE_TYPE=22 -e TIKTOK_DOMAIN=https://custom.domain.com batchEventRegister.multi-tenant.test.js
  */
 
 import { group, sleep } from 'k6';

@@ -7,9 +7,9 @@
  *   - 验证系统在突刺压力下的 响应时间、错误率、恢复能力
  *
  * 运行命令（示例）：
- *   k6 run k6/tests/performance/load/spike.test.js -e TENANT=3004
- *   k6 run k6/tests/performance/load/spike.test.js -e TENANT=3004 -e SPIKE_VUS=300
- *   k6 run k6/tests/performance/load/spike.test.js -e TENANT=3004 -e ACCOUNTS_CSV=./k6/data/csv/accounts.csv
+ *   k6p k6/tests/performance/load/spike.test.js -e TENANT=3004
+ *   k6p k6/tests/performance/load/spike.test.js -e TENANT=3004 -e SPIKE_VUS=300
+ *   k6p k6/tests/performance/load/spike.test.js -e TENANT=3004 -e ACCOUNTS_CSV=./k6/data/csv/accounts.csv
  */
 
 import http from 'k6/http';
@@ -27,19 +27,19 @@ import { mobileAutoLoginFlow } from '../../api/login/MobileAutoLogin.test.js';
 import { phoneRegister } from '../../api/login/register.test.js';
 
 // ============ 自定义指标 ============
-const spikeLoginSuccessRate    = new Rate('spike_login_success_rate');
+const spikeLoginSuccessRate = new Rate('spike_login_success_rate');
 const spikeRegisterSuccessRate = new Rate('spike_register_success_rate');
-const spikeLoginDuration       = new Trend('spike_login_duration_ms', true);
-const spikeRegisterDuration    = new Trend('spike_register_duration_ms', true);
-const spikeTotalLoginReqs      = new Counter('spike_login_total');
-const spikeTotalRegisterReqs   = new Counter('spike_register_total');
-const spikeErrors              = new Counter('spike_error_count');
+const spikeLoginDuration = new Trend('spike_login_duration_ms', true);
+const spikeRegisterDuration = new Trend('spike_register_duration_ms', true);
+const spikeTotalLoginReqs = new Counter('spike_login_total');
+const spikeTotalRegisterReqs = new Counter('spike_register_total');
+const spikeErrors = new Counter('spike_error_count');
 
 // ============ 环境 & 参数 ============
-const TENANT      = __ENV.TENANT || '3004';
+const TENANT = __ENV.TENANT || '3004';
 const ENVIRONMENT = __ENV.ENVIRONMENT || 'local';
-const SPIKE_VUS   = parseInt(__ENV.SPIKE_VUS || '200', 10);  // 峰值VU数，可覆盖
-const envConfig   = getEnvByTenantId(TENANT);
+const SPIKE_VUS = parseInt(__ENV.SPIKE_VUS || '200', 10);  // 峰值VU数，可覆盖
+const envConfig = getEnvByTenantId(TENANT);
 
 // ============ 从 CSV 加载账号池（SharedArray，跨 VU 共享内存）============
 // CSV 路径优先级：-e ACCOUNTS_CSV=xxx > 默认 ./k6/data/csv/accounts.csv
@@ -52,12 +52,12 @@ export const options = {
       executor: 'ramping-vus',
       startVUs: 5,
       stages: [
-        { duration: '20s', target: 5           },  // 基线：少量正常用户
-        { duration: '30s', target: SPIKE_VUS   },  // 💥 突刺：活动上线，瞬间爆量
-        { duration: '1m',  target: SPIKE_VUS   },  // 持续高压：活动高峰期
-        { duration: '30s', target: 20          },  // 消退：活动热度下降
-        { duration: '1m',  target: 20          },  // 恢复期：验证系统恢复能力
-        { duration: '20s', target: 0           },  // 收尾
+        { duration: '20s', target: 5 },  // 基线：少量正常用户
+        { duration: '30s', target: SPIKE_VUS },  // 💥 突刺：活动上线，瞬间爆量
+        { duration: '1m', target: SPIKE_VUS },  // 持续高压：活动高峰期
+        { duration: '30s', target: 20 },  // 消退：活动热度下降
+        { duration: '1m', target: 20 },  // 恢复期：验证系统恢复能力
+        { duration: '20s', target: 0 },  // 收尾
       ],
       gracefulRampDown: '30s',
       exec: 'spikeLoginScenario',
@@ -69,10 +69,10 @@ export const options = {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '50s', target: 0                          },  // 等待突刺开始
+        { duration: '50s', target: 0 },  // 等待突刺开始
         { duration: '30s', target: Math.floor(SPIKE_VUS * 0.1) }, // 注册高峰（峰值的10%）
-        { duration: '1m',  target: Math.floor(SPIKE_VUS * 0.1) }, // 持续
-        { duration: '40s', target: 0                          },  // 收尾
+        { duration: '1m', target: Math.floor(SPIKE_VUS * 0.1) }, // 持续
+        { duration: '40s', target: 0 },  // 收尾
       ],
       gracefulRampDown: '30s',
       exec: 'spikeRegisterScenario',
@@ -82,14 +82,14 @@ export const options = {
 
   thresholds: {
     // 突刺期间允许容错范围比正常负载宽松
-    http_req_failed:                ['rate<0.05'],           // 错误率 < 5%（突刺期间适当放宽）
-    http_req_duration:              ['p(95)<8000', 'p(99)<15000'], // 突刺下 p95 < 8s
+    http_req_failed: ['rate<0.05'],           // 错误率 < 5%（突刺期间适当放宽）
+    http_req_duration: ['p(95)<8000', 'p(99)<15000'], // 突刺下 p95 < 8s
 
-    'spike_login_success_rate':     ['rate>0.95'],           // 登录成功率 > 95%
-    'spike_login_duration_ms':      ['p(95)<6000'],          // 登录 p95 < 6s
+    'spike_login_success_rate': ['rate>0.95'],           // 登录成功率 > 95%
+    'spike_login_duration_ms': ['p(95)<6000'],          // 登录 p95 < 6s
 
-    'spike_register_success_rate':  ['rate>0.90'],           // 注册成功率 > 90%
-    'spike_register_duration_ms':   ['p(95)<12000'],         // 注册 p95 < 12s（突刺时验证码可能较慢）
+    'spike_register_success_rate': ['rate>0.90'],           // 注册成功率 > 90%
+    'spike_register_duration_ms': ['p(95)<12000'],         // 注册 p95 < 12s（突刺时验证码可能较慢）
   },
 
   tags: {
@@ -160,8 +160,8 @@ export function spikeLoginScenario(data) {
     spikeLoginDuration.add(duration);
 
     const ok = check(resp, {
-      '突刺登录-状态码200':  (r) => r && r.status === 200,
-      '突刺登录-业务成功':   (r) => {
+      '突刺登录-状态码200': (r) => r && r.status === 200,
+      '突刺登录-业务成功': (r) => {
         if (!r || !r.body) return false;
         try {
           const body = JSON.parse(r.body);
@@ -235,9 +235,9 @@ export function handleSummary(data) {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const reportName = `spike-${ENVIRONMENT}-${TENANT}-peak${SPIKE_VUS}-${timestamp}`;
 
-  const loginRate    = (data.metrics['spike_login_success_rate']?.values?.rate * 100 || 0).toFixed(2);
+  const loginRate = (data.metrics['spike_login_success_rate']?.values?.rate * 100 || 0).toFixed(2);
   const registerRate = (data.metrics['spike_register_success_rate']?.values?.rate * 100 || 0).toFixed(2);
-  const errors       = data.metrics['spike_error_count']?.values?.count || 0;
+  const errors = data.metrics['spike_error_count']?.values?.count || 0;
 
   console.log(`\n[Spike] ===== 突刺压测完成 =====`);
   console.log(`[Spike] 峰值VU数: ${SPIKE_VUS}`);

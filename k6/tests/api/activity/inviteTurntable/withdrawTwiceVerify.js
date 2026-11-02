@@ -10,7 +10,7 @@
  *
  * 用法（在本目录运行）：
  *   node withdrawTwiceRunner.js --tenant 3004        # 推荐，拿干净报表 + 落档
- *   k6 run -e TENANT_ID=3004 withdrawTwiceVerify.js  # 直接看 k6 输出
+ *   k6p -e TENANT_ID=3004 withdrawTwiceVerify.js  # 直接看 k6 输出
  *
  * 可选 -e：SUBS(默认3) SUB_RECHARGE(默认1000) GAP(两次提现间隔秒,默认3)
  */

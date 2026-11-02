@@ -13,27 +13,27 @@
  *      （绑定提现信息 = 满足活动「下级绑定提现信息」前置条件）
  *
  * 使用方法：
- *   k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=EM2V2AN -e TOTAL_USERS=2 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+ *   k6p -e TENANT_ID=3004 -e ROOT_INVITE_CODE=EM2V2AN -e TOTAL_USERS=2 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
  
 * 场景一：要求下级注册指纹与上级完全相同
-  k6 run -e TENANT_ID=3004 -e ROOT_USER_ID=139265 -e MATCH_MODE=FINGERPRINT -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+  k6p -e TENANT_ID=3004 -e ROOT_USER_ID=139265 -e MATCH_MODE=FINGERPRINT -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
  
 * 场景二：要求下级注册设备与上级完全相同
-* k6 run -e TENANT_ID=3004 -e ROOT_USER_ID=139099 -e MATCH_MODE=DEVICE -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+* k6p -e TENANT_ID=3004 -e ROOT_USER_ID=139099 -e MATCH_MODE=DEVICE -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
 
 * 场景三：要求下级注册指纹与设备都与上级完全相同
-* k6 run -e TENANT_ID=3004 -e ROOT_USER_ID=139236 -e MATCH_MODE=BOTH -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+* k6p -e TENANT_ID=3004 -e ROOT_USER_ID=139236 -e MATCH_MODE=BOTH -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
  * 
  * 
  * 
  * 场景四：所有直属下级共享相同 deviceId（随机生成，每次跑不同）
- * k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=CZZNQ8N -e MATCH_MODE=vanwioxzlw39hbca -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+ * k6p -e TENANT_ID=3004 -e ROOT_INVITE_CODE=CZZNQ8N -e MATCH_MODE=vanwioxzlw39hbca -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
  *
  * 场景五：所有直属下级共享相同 browserId（浏览器指纹）
- * k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=QAVEXPN -e MATCH_MODE=zvetxex3tk16lkdxv1uuvhixe3ts2lc1 -e TOTAL_USERS=2 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+ * k6p -e TENANT_ID=3004 -e ROOT_INVITE_CODE=QAVEXPN -e MATCH_MODE=zvetxex3tk16lkdxv1uuvhixe3ts2lc1 -e TOTAL_USERS=2 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
  *
  * 场景六：所有直属下级共享相同 deviceId 和 browserId
- * k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=RVWM9RN -e MATCH_MODE=SAME_BOTH -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+ * k6p -e TENANT_ID=3004 -e ROOT_INVITE_CODE=RVWM9RN -e MATCH_MODE=SAME_BOTH -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
  * 
  * 
  * 环境变量：
@@ -50,16 +50,16 @@
  * SUB_FINGERPRINT    所有直属下级注册时的 browserId（不传则各自随机）
  *
  * 场景七：上级用指定设备号注册，下级各自随机
- * k6 run -e TENANT_ID=3004 -e ROOT_DEVICE=pv0cihr7acnkl0hm -e TOTAL_USERS=1 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+ * k6p -e TENANT_ID=3004 -e ROOT_DEVICE=pv0cihr7acnkl0hm -e TOTAL_USERS=1 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
  *
  * 场景八：上级用指定指纹注册，下级共享指定设备号
- * k6 run -e TENANT_ID=3004 -e ROOT_FINGERPRINT=vn3m43ws1rwxre7ifn7871nbc6dc41mf -e SUB_DEVICE=vanwioxzlw39hbcb -e TOTAL_USERS=2 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
+ * k6p -e TENANT_ID=3004 -e ROOT_FINGERPRINT=vn3m43ws1rwxre7ifn7871nbc6dc41mf -e SUB_DEVICE=vanwioxzlw39hbcb -e TOTAL_USERS=2 -e LEVELS=1 -e VUS=1 runPartnerBonusExec.test.js
  *
  * 场景九：上级用指定设备号+指纹，下级共享指定设备号+指纹
- * k6 run -e TENANT_ID=3004 -e ROOT_DEVICE=rootDev16chars -e ROOT_FINGERPRINT=rootFingerprint32c -e SUB_DEVICE=subDev16chars -e SUB_FINGERPRINT=subFingerprint32ch -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=2 runPartnerBonusExec.test.js
+ * k6p -e TENANT_ID=3004 -e ROOT_DEVICE=rootDev16chars -e ROOT_FINGERPRINT=rootFingerprint32c -e SUB_DEVICE=subDev16chars -e SUB_FINGERPRINT=subFingerprint32ch -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=2 runPartnerBonusExec.test.js
  *
  * 场景十：只传下级设备号（不创建新上级，用已有邀请码），下级共享设备号
- * k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=RVWM9RN -e SUB_DEVICE=subDev16chars -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=2 runPartnerBonusExec.test.js
+ * k6p -e TENANT_ID=3004 -e ROOT_INVITE_CODE=RVWM9RN -e SUB_DEVICE=subDev16chars -e TOTAL_USERS=3 -e LEVELS=1 -e VUS=2 runPartnerBonusExec.test.js
  */
 
 import { sleep } from 'k6';
@@ -97,8 +97,8 @@ const levels = parseInt(__ENV.LEVELS || '2', 10);
 // 说明上级已存在或会在 setup 里新建，TOTAL_USERS 直接等于下级总数，不需要再减 1
 const hasExternalRoot = !!(
     __ENV.ROOT_INVITE_CODE ||
-    __ENV.ROOT_USER_ID     ||
-    __ENV.ROOT_DEVICE      ||
+    __ENV.ROOT_USER_ID ||
+    __ENV.ROOT_DEVICE ||
     __ENV.ROOT_FINGERPRINT
 );
 const subUsers = hasExternalRoot ? totalUsers : Math.max(1, totalUsers - 1);
@@ -121,10 +121,10 @@ export const options = {
     // 熔断阈值：合伙人奖励属于练数测试，默认宽松模式防止过早熔断
     thresholds: buildThresholdsByPreset(PERF_PRESET, {
         // 根据合伙人奖励业务特点，允许较高的单步耗时
-        'trend_register':  [{ threshold: 'p(95)<5000' }],  // 注册包含指纹设备签名，5s内
-        'trend_recharge':  [{ threshold: 'p(95)<3000' }],  // 充値包含后台审核
-        'trend_bet':       [{ threshold: 'p(95)<3000' }],
-        'trend_withdraw':  [{ threshold: 'p(95)<5000' }],
+        'trend_register': [{ threshold: 'p(95)<5000' }],  // 注册包含指纹设备签名，5s内
+        'trend_recharge': [{ threshold: 'p(95)<3000' }],  // 充値包含后台审核
+        'trend_bet': [{ threshold: 'p(95)<3000' }],
+        'trend_withdraw': [{ threshold: 'p(95)<5000' }],
     }),
 };
 
@@ -236,7 +236,7 @@ export function setup() {
         requiredDevice = sourceData.requiredDevice;
         rootInviteCode = rootUserId;
 
-    // ── 模式二：所有直属下级共享同一套随机设备/指纹（SAME_DEVICE / SAME_FINGERPRINT / SAME_BOTH） ──
+        // ── 模式二：所有直属下级共享同一套随机设备/指纹（SAME_DEVICE / SAME_FINGERPRINT / SAME_BOTH） ──
     } else if (matchMode === 'SAME_DEVICE' || matchMode === 'SAME_FINGERPRINT' || matchMode === 'SAME_BOTH') {
         if (matchMode === 'SAME_DEVICE' || matchMode === 'SAME_BOTH') {
             requiredDevice = generateCryptoRandomString(16);
@@ -245,35 +245,35 @@ export function setup() {
             requiredFingerprint = generateCryptoRandomString(32);
         }
         console.log(`[Setup] 🔀 直属下级共享模式: ${matchMode}`);
-        console.log(`[Setup]    共享 deviceId  : ${requiredDevice   || '(各自随机)'}`);
+        console.log(`[Setup]    共享 deviceId  : ${requiredDevice || '(各自随机)'}`);
         console.log(`[Setup]    共享 browserId : ${requiredFingerprint || '(各自随机)'}`);
 
     } else {
         // ── 模式三：显式传入上级/下级的设备号和指纹（ROOT_DEVICE / ROOT_FINGERPRINT / SUB_DEVICE / SUB_FINGERPRINT） ──
         // 只要传了 ROOT_DEVICE 或 ROOT_FINGERPRINT，就在此处注册一个新上级（使用指定的设备信息），
         // 拿到它的邀请码作为 rootInviteCode，TOTAL_USERS 仍然是下级总数
-        const rootDeviceParam       = __ENV.ROOT_DEVICE       || '';
-        const rootFingerprintParam  = __ENV.ROOT_FINGERPRINT  || '';
-        const subDeviceParam        = __ENV.SUB_DEVICE        || '';
-        const subFingerprintParam   = __ENV.SUB_FINGERPRINT   || '';
+        const rootDeviceParam = __ENV.ROOT_DEVICE || '';
+        const rootFingerprintParam = __ENV.ROOT_FINGERPRINT || '';
+        const subDeviceParam = __ENV.SUB_DEVICE || '';
+        const subFingerprintParam = __ENV.SUB_FINGERPRINT || '';
 
         // 下级的共享设备/指纹（传了就全部直属下级用同一个，不传则各自随机）
-        requiredDevice      = subDeviceParam;
+        requiredDevice = subDeviceParam;
         requiredFingerprint = subFingerprintParam;
 
         if (rootDeviceParam || rootFingerprintParam) {
             // 需要注册一个指定设备/指纹的上级
             console.log(`[Setup] 🆕 模式三：注册指定设备/指纹的上级节点`);
-            console.log(`[Setup]    上级 deviceId  : ${rootDeviceParam      || '(随机)'}`);
+            console.log(`[Setup]    上级 deviceId  : ${rootDeviceParam || '(随机)'}`);
             console.log(`[Setup]    上级 browserId : ${rootFingerprintParam || '(随机)'}`);
-            console.log(`[Setup]    下级 deviceId  : ${subDeviceParam       || '(各自随机)'}`);
-            console.log(`[Setup]    下级 browserId : ${subFingerprintParam  || '(各自随机)'}`);
+            console.log(`[Setup]    下级 deviceId  : ${subDeviceParam || '(各自随机)'}`);
+            console.log(`[Setup]    下级 browserId : ${subFingerprintParam || '(各自随机)'}`);
 
-            const rootPhone   = generateRandomPhone(ENV_CONFIG.COUNTRY_CODE || '91');
-            const adminData   = { token: adminToken, envConfig: ENV_CONFIG };
+            const rootPhone = generateRandomPhone(ENV_CONFIG.COUNTRY_CODE || '91');
+            const adminData = { token: adminToken, envConfig: ENV_CONFIG };
             // 上级用前台总代注册（无邀请码），携带指定的设备/指纹
-            const rootRes     = phoneRegister(rootPhone, adminData, 'qwer1234', '', null, rootDeviceParam, rootFingerprintParam);
-            const rootToken   = extractToken(rootRes);
+            const rootRes = phoneRegister(rootPhone, adminData, 'qwer1234', '', null, rootDeviceParam, rootFingerprintParam);
+            const rootToken = extractToken(rootRes);
             if (!rootToken) {
                 throw new Error(`[Setup] ❌ 上级节点注册失败 | 账号: ${rootPhone}`);
             }
@@ -288,14 +288,14 @@ export function setup() {
         } else if (!rootInviteCode) {
             // 既没有传设备参数，也没有提供邀请码 → 走普通随机上级注册
             console.log('[Setup] 未提供 ROOT_INVITE_CODE，自动创建邀请人根节点...');
-            const phone     = generateRandomPhone(ENV_CONFIG.COUNTRY_CODE || '91');
+            const phone = generateRandomPhone(ENV_CONFIG.COUNTRY_CODE || '91');
             const adminData = { token: adminToken, envConfig: ENV_CONFIG };
             const urls = {
-                frontUrl:    ENV_CONFIG.BASE_DESK_URL,
-                adminUrl:    ENV_CONFIG.BASE_ADMIN_URL,
+                frontUrl: ENV_CONFIG.BASE_DESK_URL,
+                adminUrl: ENV_CONFIG.BASE_ADMIN_URL,
                 registerUrl: ENV_CONFIG.BASE_DESK_URL,
             };
-            const res   = phoneRegisterByInvite(phone, '', adminData, 'qwer1234', '', urls);
+            const res = phoneRegisterByInvite(phone, '', adminData, 'qwer1234', '', urls);
             const token = extractToken(res);
             sleep(1);
             const userInfo = getFrontUserInfo(token);
@@ -704,7 +704,7 @@ function printVuReport(reports, rootInviteCode, vuId) {
 // ================================================================
 export function handleSummary(data) {
     return buildHandleSummary(data, {
-        testName:    'PartnerBonusExec',
+        testName: 'PartnerBonusExec',
         environment: __ENV.TENANT_ID || '3004',
     });
 }

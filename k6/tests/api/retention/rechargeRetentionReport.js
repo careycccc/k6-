@@ -20,7 +20,7 @@
  *    每个 VU 把当天结果 base64 编码成 ##RETRPT## 行输出，runner 收集后按天依次打印）
  *
  * 也可直接跑（单天看数据即可；多天会日志交错、不汇总）：
- *   k6 run -e TENANT_ID=3101 -e REPORT_DATE=2026-09-07 rechargeRetentionReport.js
+ *   k6p -e TENANT_ID=3101 -e REPORT_DATE=2026-09-07 rechargeRetentionReport.js
  *
  * 参数：
  *   TENANT_ID         租户ID（默认 3004）
@@ -211,7 +211,7 @@ export function setup() {
     console.log(`[${TAG}] ✅ 管理员登录成功`);
     console.log(`[${TAG}] 多天并发：${DAY_LIST.join(', ')}（共 ${DAY_COUNT} 天，${DAY_COUNT} 个 VU 并发；起始 ${REPORT_DATE} → 今天 ${TODAY}）`);
     if (__ENV.VIA_RUNNER !== '1') {
-        console.warn(`[${TAG}] ⚠️ 直接用 k6 run 多天时日志会交错、不会按天汇总；建议改用：node retentionRunner.js --date ${REPORT_DATE} --tenant ${TENANT_ID}`);
+        console.warn(`[${TAG}] ⚠️ 直接用 k6p 多天时日志会交错、不会按天汇总；建议改用：node retentionRunner.js --date ${REPORT_DATE} --tenant ${TENANT_ID}`);
     }
 
     return { token: adminToken, envConfig };

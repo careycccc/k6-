@@ -20,22 +20,22 @@
  *
  * 【使用方式】
  *   # 注册新账号从零开始（余额为0，最直接验证拦截）：
- *   k6 run -e TENANT=3004 -e IS_REGISTER=true negativeBalanceWithdraw.test.js
+ *   k6p -e TENANT=3004 -e IS_REGISTER=true negativeBalanceWithdraw.test.js
  *
  *   # 对指定账号（已有余额）执行：
- *   k6 run -e TENANT=3004 -e TARGET_USER=918048050116 negativeBalanceWithdraw.test.js
+ *   k6p -e TENANT=3004 -e TARGET_USER=918048050116 negativeBalanceWithdraw.test.js
  *
  *   # 并发竞争测试：
- *   k6 run -e TENANT=3004 -e TARGET_USER=918048050116 -e ENABLE_RACE_TEST=true negativeBalanceWithdraw.test.js
+ *   k6p -e TENANT=3004 -e TARGET_USER=918048050116 -e ENABLE_RACE_TEST=true negativeBalanceWithdraw.test.js
  *
  *   # 指定固定提现金额：
- *   k6 run -e TENANT=3004 -e TARGET_USER=918165802117 -e WITHDRAW_AMOUNT=200 negativeBalanceWithdraw.test.js
+ *   k6p -e TENANT=3004 -e TARGET_USER=918165802117 -e WITHDRAW_AMOUNT=200 negativeBalanceWithdraw.test.js
  * 
  *   # 场景一：合计 = 余额（800=500+300，两笔都应成功）
-    k6 run -e TENANT=3004 -e TARGET_USER=917458000546 -e ENABLE_DUAL_CHANNEL_TEST=true -e CHANNEL1_AMOUNT=600 -e CHANNEL2_AMOUNT=600 negativeBalanceWithdraw.test.js
+    k6p -e TENANT=3004 -e TARGET_USER=917458000546 -e ENABLE_DUAL_CHANNEL_TEST=true -e CHANNEL1_AMOUNT=600 -e CHANNEL2_AMOUNT=600 negativeBalanceWithdraw.test.js
 
     # 场景二：合计 > 余额（1100>800，至少一笔应被拒）
-    k6 run -e TENANT=3004 -e TARGET_USER=918165802117 -e ENABLE_DUAL_CHANNEL_TEST=true -e CHANNEL1_AMOUNT=600 -e CHANNEL2_AMOUNT=600 negativeBalanceWithdraw.test.js
+    k6p -e TENANT=3004 -e TARGET_USER=918165802117 -e ENABLE_DUAL_CHANNEL_TEST=true -e CHANNEL1_AMOUNT=600 -e CHANNEL2_AMOUNT=600 negativeBalanceWithdraw.test.js
  */
 
 import { sleep } from 'k6';
@@ -55,19 +55,19 @@ import { getEnvByTenantId } from '../../../config/envconfig.js';
 // ==================== 参数解析 ==============================
 // ============================================================
 
-const TENANT_ID               = __ENV.TENANT || __ENV.TENANT_ID || '3004';
-const TARGET_USER             = __ENV.TARGET_USER;
-const IS_REGISTER             = __ENV.IS_REGISTER === 'true';
-const ENABLE_RACE_TEST        = __ENV.ENABLE_RACE_TEST === 'true';
+const TENANT_ID = __ENV.TENANT || __ENV.TENANT_ID || '3004';
+const TARGET_USER = __ENV.TARGET_USER;
+const IS_REGISTER = __ENV.IS_REGISTER === 'true';
+const ENABLE_RACE_TEST = __ENV.ENABLE_RACE_TEST === 'true';
 const ENABLE_DUAL_CHANNEL_TEST = __ENV.ENABLE_DUAL_CHANNEL_TEST === 'true';
-const WITHDRAW_AMOUNT         = parseFloat(__ENV.WITHDRAW_AMOUNT || '0');
+const WITHDRAW_AMOUNT = parseFloat(__ENV.WITHDRAW_AMOUNT || '0');
 // Case 5 双通道并发参数
-const CHANNEL1_AMOUNT         = parseFloat(__ENV.CHANNEL1_AMOUNT || '0');
-const CHANNEL2_AMOUNT         = parseFloat(__ENV.CHANNEL2_AMOUNT || '0');
+const CHANNEL1_AMOUNT = parseFloat(__ENV.CHANNEL1_AMOUNT || '0');
+const CHANNEL2_AMOUNT = parseFloat(__ENV.CHANNEL2_AMOUNT || '0');
 // Case 5 可手动指定两个通道类型（如 BankCard、EWallet、USDT）
 // 不指定时脚本自动从 withdrawCategoryList 中选取前两个不同类型
-const CHANNEL1_TYPE           = __ENV.CHANNEL1_TYPE || '';   // 如 'BankCard'
-const CHANNEL2_TYPE           = __ENV.CHANNEL2_TYPE || '';   // 如 'USDT'
+const CHANNEL1_TYPE = __ENV.CHANNEL1_TYPE || '';   // 如 'BankCard'
+const CHANNEL2_TYPE = __ENV.CHANNEL2_TYPE || '';   // 如 'USDT'
 
 const TAG = 'NegativeBalanceTest';
 
@@ -80,8 +80,8 @@ export const options = {
         negative_balance_verify: {
             executor: 'per-vu-iterations',
             // Case4 同通道并发=2VU；Case5 双通道并发=2VU；普通=1VU
-            vus:         (ENABLE_RACE_TEST || ENABLE_DUAL_CHANNEL_TEST) ? 2 : 1,
-            iterations:  1,
+            vus: (ENABLE_RACE_TEST || ENABLE_DUAL_CHANNEL_TEST) ? 2 : 1,
+            iterations: 1,
             maxDuration: '15m'
         }
     },
@@ -107,11 +107,11 @@ export const options = {
  */
 function rawWithdrawApply(token, amount, walletId, withdrawCategoryId, withdrawType) {
     const payload = {
-        amount:             amount,
-        walletId:           walletId,
+        amount: amount,
+        walletId: walletId,
         withdrawCategoryId: withdrawCategoryId,
-        withdrawType:       withdrawType,
-        withdrawPassword:   '123456'
+        withdrawType: withdrawType,
+        withdrawPassword: '123456'
     };
 
     console.log(`[${TAG}] 提现请求参数: amount=${amount}, walletId=${walletId}, type=${withdrawType}`);
@@ -223,10 +223,10 @@ function doWithdraw(token, amount, withdrawInfo, forceType = null) {
     }
 
     return {
-        withdrew:     resp.msgCode === 0,
-        msgCode:      resp.msgCode,
-        msg:          resp.msg || '',
-        skipReason:   null,
+        withdrew: resp.msgCode === 0,
+        msgCode: resp.msgCode,
+        msg: resp.msg || '',
+        skipReason: null,
         withdrawType: category.withdrawType
     };
 }
@@ -247,7 +247,7 @@ export function setup() {
 
     // 2. 前台会话
     const userName = (TARGET_USER && TARGET_USER !== 'undefined') ? TARGET_USER : null;
-    const session  = getTestSession(userName, IS_REGISTER || !userName);
+    const session = getTestSession(userName, IS_REGISTER || !userName);
     if (!session) throw new Error(`[${TAG}] 前台会话建立失败`);
     console.log(`[${TAG}] ✅ 前台会话建立成功: userId=${session.userId}, userName=${session.userName}`);
 
@@ -264,7 +264,7 @@ export function setup() {
 
     // 4. 查询余额
     const balanceInfo = getAccountBalance(session.userToken);
-    const balance     = balanceInfo ? balanceInfo.balance : 0;
+    const balance = balanceInfo ? balanceInfo.balance : 0;
     console.log(`[${TAG}] 当前账户余额: ${balance}`);
 
     // 5. 设置提现密码
@@ -312,15 +312,15 @@ export function setup() {
 
     return {
         adminToken,
-        userToken:        session.userToken,
-        userId:           session.userId,
-        userName:         session.userName,
+        userToken: session.userToken,
+        userId: session.userId,
+        userName: session.userName,
         balance,
         withdrawInfo,
         testAmount,
         // Case 5 专用：实际分配的通道类型
-        dualCh1Type:      ch1Type,
-        dualCh2Type:      ch2Type
+        dualCh1Type: ch1Type,
+        dualCh2Type: ch2Type
     };
 }
 
@@ -527,23 +527,22 @@ function case5_dualChannelRace(data, vuIndex) {
 
     // ── 计算每个VU的通道和金额 ──
     // VU1: dualCh1Type，VU2: dualCh2Type
-    const isVU1      = vuIndex === 0;
-    const myType     = isVU1 ? dualCh1Type : dualCh2Type;
+    const isVU1 = vuIndex === 0;
+    const myType = isVU1 ? dualCh1Type : dualCh2Type;
 
     // 金额：优先用参数，否则按余额各取约 62.5% / 37.5% 分配
     let ch1Amount = CHANNEL1_AMOUNT > 0 ? CHANNEL1_AMOUNT : Math.floor(balance * 0.625 / 100) * 100 || 500;
     let ch2Amount = CHANNEL2_AMOUNT > 0 ? CHANNEL2_AMOUNT : Math.floor(balance * 0.375 / 100) * 100 || 300;
-    const myAmount   = isVU1 ? ch1Amount : ch2Amount;
+    const myAmount = isVU1 ? ch1Amount : ch2Amount;
     const totalAmount = ch1Amount + ch2Amount;
 
     console.log(`[${TAG}][VU${vuIndex + 1}] ===== Case 5: 双通道并发提现 =====`);
     console.log(`[${TAG}][VU${vuIndex + 1}] 通道: ${myType}, 提现金额: ${myAmount}`);
     console.log(`[${TAG}][VU${vuIndex + 1}] 账户余额: ${balance}, 两笔合计: ${totalAmount}`);
-    console.log(`[${TAG}][VU${vuIndex + 1}] 预期结论: ${
-        totalAmount <= balance
-            ? '合计<=余额，两笔都应成功'
-            : '合计>余额，至少一笔应被拒绝'
-    }`);
+    console.log(`[${TAG}][VU${vuIndex + 1}] 预期结论: ${totalAmount <= balance
+        ? '合计<=余额，两笔都应成功'
+        : '合计>余额，至少一笔应被拒绝'
+        }`);
 
     // ── 执行提现（强制指定通道类型）──
     const result = doWithdraw(userToken, myAmount, withdrawInfo, myType);
@@ -553,7 +552,7 @@ function case5_dualChannelRace(data, vuIndex) {
     if (result.skipReason) {
         console.error(`[${TAG}][VU${vuIndex + 1}] ❌ 前置条件不满足: ${result.skipReason}`);
         check(result, {
-            [`[Case5-VU${vuIndex+1}(${myType})] ⚠️ 前置条件满足`]: () => false
+            [`[Case5-VU${vuIndex + 1}(${myType})] ⚠️ 前置条件满足`]: () => false
         });
         return;
     }
@@ -562,7 +561,7 @@ function case5_dualChannelRace(data, vuIndex) {
     // k6 VU间不能直接共享变量，所以每个VU只做自身的基础check，
     // 综合判断（两VU结果对比）在日志层面输出，由 handleSummary 汇总
     check(result, {
-        [`[Case5-VU${vuIndex+1}(${myType})] 有明确后端响应（非前置异常）`]:
+        [`[Case5-VU${vuIndex + 1}(${myType})] 有明确后端响应（非前置异常）`]:
             () => result.skipReason === null && result.msgCode !== null
     });
 
@@ -577,7 +576,7 @@ function case5_dualChannelRace(data, vuIndex) {
     } else {
         // 合计不超余额场景：两笔都应成功
         check(result, {
-            [`[Case5-VU${vuIndex+1}(${myType})] 合计<=余额，本笔应成功`]: () => result.withdrew
+            [`[Case5-VU${vuIndex + 1}(${myType})] 合计<=余额，本笔应成功`]: () => result.withdrew
         });
         if (result.withdrew) {
             console.log(`[${TAG}][VU${vuIndex + 1}] ✅ [PASS] 提现成功，符合预期`);
@@ -643,8 +642,8 @@ export default function (data) {
 
 export function handleSummary(data) {
     const checks = data.metrics?.checks;
-    const total  = checks?.values?.count  ?? 'N/A';
-    const rate   = checks?.values?.rate   != null
+    const total = checks?.values?.count ?? 'N/A';
+    const rate = checks?.values?.rate != null
         ? (checks.values.rate * 100).toFixed(1) + '%'
         : 'N/A';
 

@@ -3,7 +3,7 @@
  * 注册新用户并随机充值1-2次
  *
  * 使用方法：
- *   k6 run -e TENANT_ID=3004 -e USER_COUNT=100 day1_seed.test.js
+ *   k6p -e TENANT_ID=3004 -e USER_COUNT=100 day1_seed.test.js
  *
  * 参数：
  *   TENANT_ID     租户ID（必需）

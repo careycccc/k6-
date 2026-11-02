@@ -74,7 +74,7 @@ echo    INVITE_CODE= %INVITE_CODE%
 echo    REDIS_URL  = %REDIS_URL%
 echo.
 
-k6 run ^
+k6p ^
     -e TENANT_ID=%TENANT_ID% ^
     -e SEED_MODE=%SEED_MODE% ^
     -e USER_COUNT=%USER_COUNT% ^

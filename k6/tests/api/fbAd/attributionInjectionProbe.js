@@ -18,7 +18,7 @@
  * 帮助发现并修复问题，不是攻击生产系统。
  *
  * 用法：
- *   k6 run -e TENANT_ID=3003 attributionInjectionProbe.js
+ *   k6p -e TENANT_ID=3003 attributionInjectionProbe.js
  *   可选: -e FIELD=campaignName (默认，也可选 adsetName / adName)
  */
 import { sleep } from 'k6';

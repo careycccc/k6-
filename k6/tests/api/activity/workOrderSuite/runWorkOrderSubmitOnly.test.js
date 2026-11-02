@@ -10,16 +10,16 @@
  *
  * 运行示例：
  *   # 单账号单轮
- *   k6 run -e TENANT_ID=3007 -e ACCOUNT_COUNT=1 -e VUS=1 -e ITERATIONS=1 runWorkOrderSubmitOnly.test.js
+ *   k6p -e TENANT_ID=3007 -e ACCOUNT_COUNT=1 -e VUS=1 -e ITERATIONS=1 runWorkOrderSubmitOnly.test.js
  *
  *   # 多账号多线程
- *   k6 run -e TENANT_ID=3004 -e ACCOUNT_COUNT=5 -e VUS=2 -e ITERATIONS=2 runWorkOrderSubmitOnly.test.js
+ *   k6p -e TENANT_ID=3004 -e ACCOUNT_COUNT=5 -e VUS=2 -e ITERATIONS=2 runWorkOrderSubmitOnly.test.js
  *
  *   # 只触发已登录工单
- *   k6 run -e TENANT_ID=3004 -e ACCOUNT_COUNT=2 -e VUS=2 -e TRIGGER_MODE=login runWorkOrderSubmitOnly.test.js
+ *   k6p -e TENANT_ID=3004 -e ACCOUNT_COUNT=2 -e VUS=2 -e TRIGGER_MODE=login runWorkOrderSubmitOnly.test.js
  *
  *   # 只触发未登录工单
- *   k6 run -e TENANT_ID=3004 -e ACCOUNT_COUNT=2 -e VUS=2 -e TRIGGER_MODE=nologin runWorkOrderSubmitOnly.test.js
+ *   k6p -e TENANT_ID=3004 -e ACCOUNT_COUNT=2 -e VUS=2 -e TRIGGER_MODE=nologin runWorkOrderSubmitOnly.test.js
  *
  * 参数说明：
  *   TENANT_ID      租户 ID（默认读环境配置）
@@ -43,7 +43,7 @@ import { generateRandomPhone } from '../../../utils/accountGeneratorFaker.js';
 import { generateCryptoRandomString } from '../../../utils/utils.js';
 
 // 复用已有触发逻辑，不做任何修改
-import { triggerAllForAccount }   from './lib/triggerAll.js';
+import { triggerAllForAccount } from './lib/triggerAll.js';
 import { triggerLoginForAccount } from './lib/triggerLogin.js';
 
 // ============================================================
@@ -57,7 +57,7 @@ import { extractToken } from '../../../../libs/common/index.js';
 // ============================================================
 // K6 Options
 // ============================================================
-const VUS        = parseInt(__ENV.VUS        || '1', 10);
+const VUS = parseInt(__ENV.VUS || '1', 10);
 const ITERATIONS = parseInt(__ENV.ITERATIONS || '1', 10);
 
 // 性能阈值预设：strict（生产红线）/ normal（日常回归）/ relaxed（开发调试）
@@ -67,16 +67,16 @@ export const options = {
     setupTimeout: '10m',
     scenarios: {
         work_order_submit_only: {
-            executor:    'per-vu-iterations',
-            vus:         VUS,
-            iterations:  ITERATIONS,
+            executor: 'per-vu-iterations',
+            vus: VUS,
+            iterations: ITERATIONS,
             maxDuration: '4h',
         },
     },
     // 熔断阈值：超标自动停止压测
     thresholds: buildThresholdsByPreset(PERF_PRESET, {
-        'trend_work_order_submit':   [{ threshold: 'p(95)<3000' }],  // 触发工单允许 3s（含表单构建）
-        'trend_create_work_order':   [{ threshold: 'p(95)<1000' }],  // 纯后端交互允许 1s
+        'trend_work_order_submit': [{ threshold: 'p(95)<3000' }],  // 触发工单允许 3s（含表单构建）
+        'trend_create_work_order': [{ threshold: 'p(95)<1000' }],  // 纯后端交互允许 1s
     }),
 };
 
@@ -102,14 +102,14 @@ function getCurrentEnv() {
 export function setup() {
     logger.info(`[${TAG}] ========== Setup：账号预分配 ==========`);
 
-    const adminToken   = AdminLogin();
+    const adminToken = AdminLogin();
     if (!adminToken) throw new Error(`[${TAG}] 管理员登录失败，终止测试`);
 
     const accountCount = parseInt(__ENV.ACCOUNT_COUNT || '1', 10);
-    const tenantId     = getTenantId();
-    const env          = getCurrentEnv();
-    const adminData    = { token: adminToken, envConfig: env };
-    const countryCode  = env.COUNTRY_CODE || '91';
+    const tenantId = getTenantId();
+    const env = getCurrentEnv();
+    const adminData = { token: adminToken, envConfig: env };
+    const countryCode = env.COUNTRY_CODE || '91';
 
     // ---- 新注册 accountCount 个账号,每个绑全钱包并记录 ----
     // 目的:保证账号有 银行卡/USDT/PIX/电子钱包 数据,后续"删除USDT/删除银行卡/修改银行"等工单才有数据可操作
@@ -169,15 +169,15 @@ export function setup() {
 // ============================================================
 export default function (data) {
     const { adminToken, accountsByVu, tenantId, memberTokenMap } = data;
-    const env         = getCurrentEnv();
+    const env = getCurrentEnv();
     const triggerMode = (__ENV.TRIGGER_MODE || 'all').toLowerCase();
-    const runNoLogin  = triggerMode === 'all' || triggerMode === 'nologin';
-    const runLogin    = triggerMode === 'all' || triggerMode === 'login';
+    const runNoLogin = triggerMode === 'all' || triggerMode === 'nologin';
+    const runLogin = triggerMode === 'all' || triggerMode === 'login';
 
-    const vuId    = exec.vu.idInInstance;
+    const vuId = exec.vu.idInInstance;
     const vuIndex = (vuId - 1) % VUS;
     const myAccounts = accountsByVu[vuIndex] || [];
-    const iter    = exec.vu.iterationInScenario; // 0-based
+    const iter = exec.vu.iterationInScenario; // 0-based
 
     if (myAccounts.length === 0) {
         logger.warn(`[${TAG}] VU${vuId} 没有分配到账号，跳过`);
@@ -215,7 +215,7 @@ export default function (data) {
 // ============================================================
 export function handleSummary(data) {
     return buildHandleSummary(data, {
-        testName:    'WorkOrderSubmitOnly',
+        testName: 'WorkOrderSubmitOnly',
         environment: __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID),
     });
 }

@@ -46,7 +46,7 @@ export const options = {
 };
 
 // 执行命令
-// k6 run -e USER_COUNT=300 -e PACKAGE_TYPE=22 batchEventRegister.test.js
+// k6p -e USER_COUNT=300 -e PACKAGE_TYPE=22 batchEventRegister.test.js
 
 
 /**

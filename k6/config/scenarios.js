@@ -17,6 +17,17 @@ export const scenarios = {
 
   // 负载测试场景
   load: {
+    // 基准测试：恒定并发，摸清正常负载下的性能基线（不是渐进加压，用于建立对比基准）
+    baseline: {
+      executor: 'constant-vus',
+      vus: 10,
+      duration: '5m',
+      tags: {
+        test_type: 'load',
+        load_level: 'baseline'
+      }
+    },
+
     normal: {
       executor: 'ramping-vus',
       startVUs: 1,

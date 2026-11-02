@@ -13,7 +13,7 @@
  *   🟠 被接受且存储名保留 .aspx/.php 等可执行扩展名   → 扩展名防御缺失（当前 OSS 静态托管不执行，换存储/执行目录即 getshell）
  *   🟢 危险内容被拒 / 存储时强制改为图片扩展名        → 通过
  *
- * 运行：k6 run -e TENANT_ID=3004 1_rce_webshell.test.js
+ * 运行：k6p -e TENANT_ID=3004 1_rce_webshell.test.js
  */
 import { sleep } from 'k6';
 import { getSafeEnv, classifyOrigin, absoluteUrl, tenantId } from './lib/env.js';
@@ -40,10 +40,10 @@ export function runCase(env, token) {
     const polyglot = appendAscii(BASE_PNG, `\n${code}`);
 
     const variants = [
-        { desc: '合法PNG + 文件名.aspx（扩展名保留探测）', content: BASE_PNG,  fileName: `k6st_${run}.aspx`, contentType: 'image/png' },
-        { desc: '合法PNG + 文件名.php',                    content: BASE_PNG,  fileName: `k6st_${run}.php`,  contentType: 'image/png' },
-        { desc: 'PNG+ASPX polyglot + 文件名.aspx',         content: polyglot,  fileName: `k6st_${run}p.aspx`, contentType: 'image/png' },
-        { desc: '纯ASPX文本（对照，应被拒）',              content: code,      fileName: `k6st_${run}.aspx`, contentType: 'image/png' },
+        { desc: '合法PNG + 文件名.aspx（扩展名保留探测）', content: BASE_PNG, fileName: `k6st_${run}.aspx`, contentType: 'image/png' },
+        { desc: '合法PNG + 文件名.php', content: BASE_PNG, fileName: `k6st_${run}.php`, contentType: 'image/png' },
+        { desc: 'PNG+ASPX polyglot + 文件名.aspx', content: polyglot, fileName: `k6st_${run}p.aspx`, contentType: 'image/png' },
+        { desc: '纯ASPX文本（对照，应被拒）', content: code, fileName: `k6st_${run}.aspx`, contentType: 'image/png' },
     ];
 
     let anyExecuted = false;

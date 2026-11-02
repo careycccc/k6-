@@ -1,6 +1,6 @@
 /**
  * 统一登录入口实测（会真实登录，不写业务数据）
- *   k6 run -e TENANT_ID=3101 -e PWD_ACCOUNT=919028199762 -e CODE_ACCOUNT=919028199762 k6/tests/unit/authLive.test.js
+ *   k6p -e TENANT_ID=3101 -e PWD_ACCOUNT=919028199762 -e CODE_ACCOUNT=919028199762 k6/tests/unit/authLive.test.js
  */
 import { adminLogin, loginByPassword, loginByPasswordRetry, loginByCode } from '../api/common/auth.js';
 

@@ -3,7 +3,7 @@
  * 使用 K6 运行时执行
  * 
  * 用法：
- *   k6 run -e TENANT=3002 -e TYPE=phone -e COUNT=1 scripts/register-account-k6.js
+ *   k6p -e TENANT=3002 -e TYPE=phone -e COUNT=1 scripts/register-account-k6.js
  * 
  * 环境变量说明：
  *   TENANT: 租户ID (如 3001, 3002, 3003, 3004)

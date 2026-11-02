@@ -198,4 +198,4 @@ export default function (data) {
 }
 
 // 创建指定的活动
-// k6 run -e ACTIVITIES=champion testActive_3006_multilang.js
+// k6p -e ACTIVITIES=champion testActive_3006_multilang.js

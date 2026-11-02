@@ -2,10 +2,10 @@
  * 站内信创建功能测试脚本
  * 
  * 使用方法：
- * k6 run k6/tests/api/activity/inmail/test_createInmail.js
+ * k6p k6/tests/api/activity/inmail/test_createInmail.js
  * 
  * 或者带环境变量：
- * k6 run -e TOKEN=your-token-here \
+ * k6p -e TOKEN=your-token-here \
  *        -e IMAGE_SRC=https://example.com/image.jpg \
  *        -e IMAGE_URL=/image.jpg \
  *        k6/tests/api/activity/inmail/test_createInmail.js

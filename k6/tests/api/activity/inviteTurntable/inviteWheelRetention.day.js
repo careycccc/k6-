@@ -386,7 +386,7 @@ export function setup() {
 
     ensureWheelConfig(adminToken); // 确保活动开启
     console.log(`[InviteWheel] ${SKIP_REGISTER ? '(跳过新总代造数)' : `新总代=${AGENTS} × 每轮${SUBS}下级 × ${ROUNDS}轮`} | ${SKIP_RETENTION ? '(跳过老账号留存检查)' : `老账号=${OLD_RECORDS.length}个，${RUN_RETENTION_VUS} VU分片`}`);
-    if (!__ENV.VIA_RUNNER) console.warn(`[InviteWheel] ⚠️ 直接 k6 run 不会落盘状态(沙箱限制)，请用：node inviteWheelRunner.js --tenant ${TENANT_ID}`);
+    if (!__ENV.VIA_RUNNER) console.warn(`[InviteWheel] ⚠️ 直接 k6p 不会落盘状态(沙箱限制)，请用：node inviteWheelRunner.js --tenant ${TENANT_ID}`);
 
     return { token: adminToken, envConfig };
 }

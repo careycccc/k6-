@@ -7,7 +7,7 @@
  * 才能对比)。
  *
  * 用法（在本目录内运行，推荐走 Runner）：
- *   k6 run -e START=2026-10-01 -e END=2026-10-26 verifyGroupAdmin.day.js
+ *   k6p -e START=2026-10-01 -e END=2026-10-26 verifyGroupAdmin.day.js
  */
 
 import { GROUP_ADMIN_TEST } from '../../../config/groupAdminConfig.js';

@@ -20,12 +20,12 @@
  * └──────┴────────┴────────┴──────────────────────────────────────────┘
  *
  * ============ 每个用例的独立执行命令(把 ASDCR8N 换成你的邀请码)============
- *   用例1: k6 run -e TENANT_ID=3004 -e INVITE_CODE=ASDCR8N -e CASE=1 inviteDownlineCases.test.js
- *   用例2: k6 run -e TENANT_ID=3004 -e INVITE_CODE=ASDCR8N -e CASE=2 inviteDownlineCases.test.js
- *   用例3: k6 run -e TENANT_ID=3004 -e INVITE_CODE=ASDCR8N -e CASE=3 inviteDownlineCases.test.js
- *   用例4: k6 run -e TENANT_ID=3004 -e INVITE_CODE=ASDCR8N -e CASE=4 inviteDownlineCases.test.js
- *   用例5: k6 run -e TENANT_ID=3004 -e INVITE_CODE=ASDCR8N -e CASE=5 inviteDownlineCases.test.js
- *   用例6: k6 run -e TENANT_ID=3004 -e INVITE_CODE=ASDCR8N -e CASE=6 inviteDownlineCases.test.js
+ *   用例1: k6p -e TENANT_ID=3004 -e INVITE_CODE=ASDCR8N -e CASE=1 inviteDownlineCases.test.js
+ *   用例2: k6p -e TENANT_ID=3004 -e INVITE_CODE=ASDCR8N -e CASE=2 inviteDownlineCases.test.js
+ *   用例3: k6p -e TENANT_ID=3004 -e INVITE_CODE=ASDCR8N -e CASE=3 inviteDownlineCases.test.js
+ *   用例4: k6p -e TENANT_ID=3004 -e INVITE_CODE=ASDCR8N -e CASE=4 inviteDownlineCases.test.js
+ *   用例5: k6p -e TENANT_ID=3004 -e INVITE_CODE=ASDCR8N -e CASE=5 inviteDownlineCases.test.js
+ *   用例6: k6p -e TENANT_ID=3004 -e INVITE_CODE=ASDCR8N -e CASE=6 inviteDownlineCases.test.js
  *
  * 可选参数:
  *   -e TOTAL=50          用例5/6 的总人数(默认 50)

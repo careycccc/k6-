@@ -118,7 +118,7 @@ npm run viz:start
 3. 导入 Grafana 仪表板
 
 ```bash
-k6 run --out influxdb=http://localhost:8086/k6 script.js
+k6p --out influxdb=http://localhost:8086/k6 script.js
 ```
 
 ## 注意事项

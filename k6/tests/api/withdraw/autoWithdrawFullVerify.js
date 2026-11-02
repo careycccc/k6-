@@ -17,7 +17,7 @@
  *     并在输出里注明是假设。
  *
  * 运行：
- *   k6 run -e TENANT_ID=3004 -e USER_ID=168603 autoWithdrawFullVerify.js
+ *   k6p -e TENANT_ID=3004 -e USER_ID=168603 autoWithdrawFullVerify.js
  *   可选：-e WITHDRAW_AMOUNT=500   本次要提现的金额，用于核对"提款金额"这一项；不传则该项跳过
  *   可选：-e DAYS=15               注单比例检测的统计天数，默认 15
  */
@@ -252,9 +252,11 @@ function checkLowOddsOrder(cfg, allOrders) {
     const low = orders.filter(o => profitOf(o) < num(cfg.lowOdds));
     const ratio = pct(low.length, orders.length);
     const threshold = num(cfg.lowOddsOrderRatio);
-    return { name: '低赔率注单比例', games: gamesText(cfg.lowOddsOrderLimitGames),
+    return {
+        name: '低赔率注单比例', games: gamesText(cfg.lowOddsOrderLimitGames),
         actual: ratio, unit: '%', cmp: '>', threshold, blocked: ratio > threshold,
-        note: `profit<${num(cfg.lowOdds)}的单数${low.length}/总单数${orders.length}` };
+        note: `profit<${num(cfg.lowOdds)}的单数${low.length}/总单数${orders.length}`
+    };
 }
 
 function checkSmallAmount(cfg, orders) {
@@ -263,16 +265,20 @@ function checkSmallAmount(cfg, orders) {
     // 用真实账号(userId=168568)对照后台真实拒绝原因列表验证过：后台在这种情况下根本不会把这条列入拒绝原因，
     // 说明真实逻辑是"阈值<=0时这项检查不生效"，不是机械按公式算。
     if (smallThresholdAmount <= 0) {
-        return { name: '小额注单比例', games: gamesText(cfg.smallAmountOrderLimitGames),
+        return {
+            name: '小额注单比例', games: gamesText(cfg.smallAmountOrderLimitGames),
             actual: 0, unit: '%', cmp: '≥', threshold: num(cfg.smallAmountOrderRatio), blocked: false,
-            note: `投注金额阈值配置为${smallThresholdAmount}，该检查对任何注单都不可能触发，视为不生效（已用真实后台数据验证）` };
+            note: `投注金额阈值配置为${smallThresholdAmount}，该检查对任何注单都不可能触发，视为不生效（已用真实后台数据验证）`
+        };
     }
     const small = orders.filter(o => num(o.betAmount) < smallThresholdAmount);
     const ratio = pct(small.length, orders.length);
     const threshold = num(cfg.smallAmountOrderRatio);
-    return { name: '小额注单比例', games: gamesText(cfg.smallAmountOrderLimitGames),
+    return {
+        name: '小额注单比例', games: gamesText(cfg.smallAmountOrderLimitGames),
         actual: ratio, unit: '%', cmp: '≥', threshold, blocked: orders.length > 0 && ratio >= threshold,
-        note: `betAmount<${smallThresholdAmount}的单数${small.length}/总单数${orders.length}` };
+        note: `betAmount<${smallThresholdAmount}的单数${small.length}/总单数${orders.length}`
+    };
 }
 
 function checkLowOddsAmount(cfg, allOrders) {
@@ -284,9 +290,11 @@ function checkLowOddsAmount(cfg, allOrders) {
     const low = sumBet(lowWin), total = sumBet(win);
     const ratio = pct(low, total);
     const threshold = num(cfg.lowOddsAmountRatio);
-    return { name: '低赔率注单金额比例', games: gamesText(cfg.lowOddsAmountLimitGames),
+    return {
+        name: '低赔率注单金额比例', games: gamesText(cfg.lowOddsAmountLimitGames),
         actual: ratio, unit: '%', cmp: '≥', threshold, blocked: total > 0 && ratio >= threshold,
-        note: `低赔率中奖单betAmount ${f2(low)}(${lowWin.length}单)/总中奖单betAmount ${f2(total)}(${win.length}单)` };
+        note: `低赔率中奖单betAmount ${f2(low)}(${lowWin.length}单)/总中奖单betAmount ${f2(total)}(${win.length}单)`
+    };
 }
 
 // ============================================================

@@ -11,7 +11,7 @@
  *   VU阶段 → 每个 VU 共用同一个 token，各持一个邀请码，同时发起绑定
  *
  * 用法：
- *   k6 run -e TENANT_ID=3004  -e USERNAME=916001199743 -e INVITE_CODES=LX7ZUPN,G5TZ64N,BCFYFHN userInviteBindMultiCode.test.js
+ *   k6p -e TENANT_ID=3004  -e USERNAME=916001199743 -e INVITE_CODES=LX7ZUPN,G5TZ64N,BCFYFHN userInviteBindMultiCode.test.js
  *
  * 环境变量：
  *   TENANT_ID    租户ID（默认 3004）
@@ -31,7 +31,7 @@ import { getTimeRandom } from '../../../utils/utils.js';
 // 解析邀请码列表，动态决定 VU 数
 // ================================================================
 
-const rawCodes    = __ENV.INVITE_CODES || '';
+const rawCodes = __ENV.INVITE_CODES || '';
 const inviteCodeList = rawCodes
   .split(',')
   .map((s) => s.trim())
@@ -50,9 +50,9 @@ if (vuCount < 2) {
 export const options = {
   scenarios: {
     concurrent_multi_code_bind: {
-      executor:    'per-vu-iterations',
-      vus:         vuCount,
-      iterations:  1,
+      executor: 'per-vu-iterations',
+      vus: vuCount,
+      iterations: 1,
       maxDuration: '10m',
     },
   },
@@ -83,7 +83,7 @@ function printResponse(label, response) {
 
 export function setup() {
   const tenantId = __ENV.TENANT_ID || '3004';
-  const userName = __ENV.USERNAME  || '';
+  const userName = __ENV.USERNAME || '';
 
   if (!userName) throw new Error('[Setup] 请通过 -e USERNAME=<账号> 指定前台账号');
 
@@ -131,7 +131,7 @@ export default function (data) {
   }
 
   // VU id 从 1 开始，映射到邀请码数组 index
-  const idx        = exec.vu.idInInstance - 1;
+  const idx = exec.vu.idInInstance - 1;
   const inviteCode = inviteCodes[idx];
 
   if (!inviteCode) {
@@ -145,7 +145,7 @@ export default function (data) {
   const startMs = Date.now();
   console.log(`[VU ${exec.vu.idInInstance}] → 发起绑定 | 账号: ${userName} | inviteCode: ${inviteCode} | t=${startMs}`);
 
-  const res    = postWithToken('/api/User/UserInviteBind', { inviteCode }, userToken);
+  const res = postWithToken('/api/User/UserInviteBind', { inviteCode }, userToken);
   const costMs = Date.now() - startMs;
 
   printResponse(`VU${exec.vu.idInInstance} UserInviteBind(${inviteCode})`, res);
@@ -153,8 +153,8 @@ export default function (data) {
 
   const body = JSON.parse(res.body);
   check(body, {
-    [`VU${exec.vu.idInInstance}(${inviteCode}) HTTP 200`]:  () => res.status === 200,
-    [`VU${exec.vu.idInInstance}(${inviteCode}) code=1`]:    (b) => b.code === 1,
+    [`VU${exec.vu.idInInstance}(${inviteCode}) HTTP 200`]: () => res.status === 200,
+    [`VU${exec.vu.idInInstance}(${inviteCode}) code=1`]: (b) => b.code === 1,
     [`VU${exec.vu.idInInstance}(${inviteCode}) msgCode=0`]: (b) => b.msgCode === 0,
   });
 }

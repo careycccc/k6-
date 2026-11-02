@@ -32,7 +32,6 @@
 - [功能特性](#-功能特性)
 - [系统架构](#-系统架构)
 - [快速开始](#-快速开始)
-- [核心能力](#-核心能力)
 - [项目结构](#-项目结构)
 - [测试场景](#-测试场景)
 - [配置说明](#-配置说明)
@@ -125,7 +124,7 @@ npm install
 
 ```bash
 # 查询 3004 租户某个会员的充值订单（只读查询，安全，几秒内跑完）
-k6 run -e TENANT_ID=3004 -e USER_ID=110655 k6/tests/api/recharge/queryRechargeOrder.test.js
+k6p -e TENANT_ID=3004 -e USER_ID=110655 k6/tests/api/recharge/queryRechargeOrder.test.js
 ```
 
 **2. 纯 Node 脚本**（没有 k6 的 `export default function`，常见于批量采集账号、Telegram 监听这类辅助工具）—— 直接用 `node` 执行：
@@ -521,13 +520,13 @@ services:
 
 ```bash
 # 跑一个具体测试文件（见上方"运行一个测试脚本"）
-k6 run -e TENANT_ID=3004 -e USER_ID=110655 k6/tests/api/recharge/queryRechargeOrder.test.js
+k6p -e TENANT_ID=3004 -e USER_ID=110655 k6/tests/api/recharge/queryRechargeOrder.test.js
 
 # 运行并把数据同时推给 InfluxDB（需要先 docker-compose up -d 启动 InfluxDB）
-k6 run --out influxdb=http://localhost:8086/k6 k6/tests/api/recharge/queryRechargeOrder.test.js
+k6p --out influxdb=http://localhost:8086/k6 k6/tests/api/recharge/queryRechargeOrder.test.js
 
 # 覆盖脚本里写死的 VU 数 / 持续时间（不是所有脚本都用得上，看脚本的 options 是否写死了 scenarios）
-k6 run --vus 10 --duration 30s k6/tests/api/recharge/queryRechargeOrder.test.js
+k6p --vus 10 --duration 30s k6/tests/api/recharge/queryRechargeOrder.test.js
 ```
 
 ### 查看实时监控（Grafana）
@@ -705,7 +704,7 @@ npm run viz:dev                # 开发模式启动
 
 # 测试执行：这个仓库没有统一的"一键跑全部"命令，都是针对具体测试文件执行
 # 用法见上方「🚀 快速开始 > 运行一个测试脚本」
-k6 run k6/tests/api/<module>/<xxx>.test.js
+k6p k6/tests/api/<module>/<xxx>.test.js
 
 # 安全检查
 npm run security:check         # 检查依赖漏洞

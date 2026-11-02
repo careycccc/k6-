@@ -12,7 +12,7 @@
  *             所有 VU 在 startTime 倒计时结束后同时发起绑定请求
  *
  * 用法：
- *   k6 run -e TENANT_ID=3004 -e USERNAMES=915257296098 -e INVITE_CODE=138351 userInviteBindConcurrent.test.js
+ *   k6p -e TENANT_ID=3004 -e USERNAMES=915257296098 -e INVITE_CODE=138351 userInviteBindConcurrent.test.js
  *
  * 环境变量：
  *   TENANT_ID   租户ID（默认 3004）
@@ -51,9 +51,9 @@ if (vuCount < 2) {
 export const options = {
   scenarios: {
     concurrent_invite_bind: {
-      executor:    'per-vu-iterations',
-      vus:         vuCount,
-      iterations:  1,
+      executor: 'per-vu-iterations',
+      vus: vuCount,
+      iterations: 1,
       maxDuration: '10m',
     },
   },
@@ -83,7 +83,7 @@ function printResponse(label, response) {
 // ================================================================
 
 export function setup() {
-  const tenantId  = __ENV.TENANT_ID   || '3004';
+  const tenantId = __ENV.TENANT_ID || '3004';
   const inviteCode = __ENV.INVITE_CODE || '';
 
   if (!inviteCode) throw new Error('[Setup] 请通过 -e INVITE_CODE=<邀请码> 指定目标邀请码');
@@ -143,9 +143,9 @@ export default function (data) {
   }
 
   // VU id 从 1 开始，映射到数组 index
-  const idx       = exec.vu.idInInstance - 1;
+  const idx = exec.vu.idInInstance - 1;
   const userToken = userTokens[idx];
-  const userName  = usernames[idx];
+  const userName = usernames[idx];
 
   if (!userToken) {
     console.error(`[VU ${exec.vu.idInInstance}] token 不存在，跳过`);
@@ -162,7 +162,7 @@ export default function (data) {
 
   const res = postWithToken('/api/User/UserInviteBind', { inviteCode }, userToken);
 
-  const endMs  = Date.now();
+  const endMs = Date.now();
   const costMs = endMs - startMs;
 
   printResponse(`VU${exec.vu.idInInstance} UserInviteBind`, res);
@@ -170,8 +170,8 @@ export default function (data) {
 
   const body = JSON.parse(res.body);
   check(body, {
-    [`VU${exec.vu.idInInstance}(${userName}) HTTP 200`]:  () => res.status === 200,
-    [`VU${exec.vu.idInInstance}(${userName}) code=1`]:    (b) => b.code === 1,
+    [`VU${exec.vu.idInInstance}(${userName}) HTTP 200`]: () => res.status === 200,
+    [`VU${exec.vu.idInInstance}(${userName}) code=1`]: (b) => b.code === 1,
     [`VU${exec.vu.idInInstance}(${userName}) msgCode=0`]: (b) => b.msgCode === 0,
   });
 }

@@ -22,7 +22,7 @@
  *   - 结算不足 GRACE_SEC 秒的注单若暂无记录，标「等待生成」而不是漏发（记录由定时任务约每分钟生成）
  *
  * 运行：
- *   k6 run -e TENANT_ID=3004 megaJackpotVerify.js
+ *   k6p -e TENANT_ID=3004 megaJackpotVerify.js
  *   可选：-e GRACE_SEC=120
  */
 

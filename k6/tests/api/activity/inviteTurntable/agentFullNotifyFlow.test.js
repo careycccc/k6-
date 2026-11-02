@@ -19,9 +19,9 @@
  *   - 「提现到账」需要后台确认出款(真实操作),默认开启;只想测「申请提现」用 -e ENABLE_BACKEND_APPROVAL=0。
  *
  * 用法:
- *   k6 run -e TENANT_ID=3004 agentFullNotifyFlow.test.js
- *   k6 run -e TENANT_ID=3004 -e SUB_COUNT=3 -e SELF_RECHARGE=500 -e SUB_RECHARGE=1000 -e ENABLE_BACKEND_APPROVAL=1 agentFullNotifyFlow.test.js
- *   k6 run -e DRY=1 agentFullNotifyFlow.test.js   # 只做加载/编译预检,不执行真实流程
+ *   k6p -e TENANT_ID=3004 agentFullNotifyFlow.test.js
+ *   k6p -e TENANT_ID=3004 -e SUB_COUNT=3 -e SELF_RECHARGE=500 -e SUB_RECHARGE=1000 -e ENABLE_BACKEND_APPROVAL=1 agentFullNotifyFlow.test.js
+ *   k6p -e DRY=1 agentFullNotifyFlow.test.js   # 只做加载/编译预检,不执行真实流程
  *
  * 环境变量:
  *   TENANT_ID                 租户ID(默认 3004)

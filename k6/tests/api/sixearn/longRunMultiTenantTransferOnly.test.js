@@ -9,7 +9,7 @@
  *   5. 最终报表写入 k6/reports/ 目录
  *
  * 使用方法（每个总代单独指定人数和层级）：
- *   k6 run \
+ *   k6p \
  *     -e TENANT_IDS=3004,3006,3007 \
  *     -e AGENTS_PER_TENANT=3 \
  *     -e AGENT1_MEMBERS=1000 -e AGENT1_LEVELS=20 \
@@ -29,7 +29,7 @@
  *   -e ROOT_UIDS_3004=111,222,333 \
  *   longRunMultiTenantTransferOnly.test.js
  *
- * k6 run -e TENANT_IDS=3006 -e AGENTS_PER_TENANT=3 -e AGENT1_MEMBERS=10 -e AGENT1_LEVELS=2 -e AGENT2_MEMBERS=20 -e AGENT2_LEVELS=3 -e AGENT3_MEMBERS=11 -e AGENT3_LEVELS=3 -e TRANSFERS_PER_PAIR=3 longRunMultiTenantTransferOnly.test.js
+ * k6p -e TENANT_IDS=3006 -e AGENTS_PER_TENANT=3 -e AGENT1_MEMBERS=10 -e AGENT1_LEVELS=2 -e AGENT2_MEMBERS=20 -e AGENT2_LEVELS=3 -e AGENT3_MEMBERS=11 -e AGENT3_LEVELS=3 -e TRANSFERS_PER_PAIR=3 longRunMultiTenantTransferOnly.test.js
  */
 
 import { sleep } from 'k6';
@@ -49,13 +49,13 @@ import { buildTeamSync } from '../invite/inviteService.js';
 // ==================== 参数解析 ==============================
 // ============================================================
 
-const TENANT_IDS         = (__ENV.TENANT_IDS || '3004').split(',').map(s => s.trim()).filter(Boolean);
-const AGENTS_PER_TENANT  = parseInt(__ENV.AGENTS_PER_TENANT  || '3',   10);
+const TENANT_IDS = (__ENV.TENANT_IDS || '3004').split(',').map(s => s.trim()).filter(Boolean);
+const AGENTS_PER_TENANT = parseInt(__ENV.AGENTS_PER_TENANT || '3', 10);
 // 全局默认值（当某个总代没有单独配置时使用）
-const MEMBERS_PER_AGENT  = parseInt(__ENV.MEMBERS_PER_AGENT  || '100', 10);
-const LEVELS_PER_AGENT   = parseInt(__ENV.LEVELS_PER_AGENT   || '8',   10);
-const TRANSFERS_PER_PAIR = parseInt(__ENV.TRANSFERS_PER_PAIR || '3',   10);
-const REPORT_DIR         = __ENV.REPORT_DIR || 'k6/reports';
+const MEMBERS_PER_AGENT = parseInt(__ENV.MEMBERS_PER_AGENT || '100', 10);
+const LEVELS_PER_AGENT = parseInt(__ENV.LEVELS_PER_AGENT || '8', 10);
+const TRANSFERS_PER_PAIR = parseInt(__ENV.TRANSFERS_PER_PAIR || '3', 10);
+const REPORT_DIR = __ENV.REPORT_DIR || 'k6/reports';
 
 const TAG = 'LongRunTransferOnly';
 
@@ -89,9 +89,9 @@ export const options = {
     setupTimeout: '8h',
     scenarios: {
         long_run_transfer: {
-            executor:    'per-vu-iterations',
-            vus:         1,
-            iterations:  1,
+            executor: 'per-vu-iterations',
+            vus: 1,
+            iterations: 1,
             maxDuration: '36h'
         }
     },
@@ -107,7 +107,7 @@ export const options = {
 function formatTime(ts) {
     const d = new Date(ts);
     const pad = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 function formatDuration(ms) {
@@ -307,13 +307,13 @@ export function setup() {
             const agentIndex = ai + 1;
 
             const membersForAgent = getAgentMembers(agentIndex, tenantId);
-            const levelsForAgent  = getAgentLevels(agentIndex, tenantId);
-            const distribution    = distributePeople(membersForAgent, levelsForAgent);
+            const levelsForAgent = getAgentLevels(agentIndex, tenantId);
+            const distribution = distributePeople(membersForAgent, levelsForAgent);
 
             console.log(`\n[Setup] 租户${tenantId} 总代${agentIndex}(${agent.userId}) 配置: ${membersForAgent}人 ${levelsForAgent}层 → ${distribution.join('->')}`);
 
             agent.configMembers = membersForAgent;
-            agent.configLevels  = levelsForAgent;
+            agent.configLevels = levelsForAgent;
 
             const existingMembers = getAgentHierarchyList(adminToken, agent.userId, {
                 isAll: true, isIncludeSelfAndParent: true, pageSize: 2000

@@ -2,10 +2,10 @@
 # 用法: .\exportAccounts.ps1 -TenantId 3004 -PageSize 100
 
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$TenantId,
     
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [int]$PageSize = 100
 )
 
@@ -18,7 +18,7 @@ Write-Host "========================================"
 Write-Host ""
 
 # 运行k6并捕获输出
-$output = k6 run -e TENANT_ID=$TenantId -e PAGE_SIZE=$PageSize exportAccounts.test.js 2>&1 | Out-String
+$output = k6p -e TENANT_ID=$TenantId -e PAGE_SIZE=$PageSize exportAccounts.test.js 2>&1 | Out-String
 
 # 显示k6执行日志
 Write-Host $output
@@ -37,7 +37,8 @@ if ($output -match '(?s)(userName,loginType,remark.+?)(?=\n\n|\n=|$)') {
     Write-Host ""
     Write-Host "预览前3行:"
     Get-Content $OutputFile -First 3
-} else {
+}
+else {
     Write-Host ""
     Write-Host "========================================"
     Write-Host "❌ 未找到CSV内容，请检查k6输出"

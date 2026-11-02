@@ -6,7 +6,7 @@
  *       其出现的不同 rewardDate 天数，筛出「≥ MIN_DAYS 天都有记录」的会员。
  *
  * 运行：
- *   k6 run -e TENANT_ID=3004 -e START_DATE=2026-09-01 -e END_DATE=2026-09-03 cycleRewardMultiDay.js
+ *   k6p -e TENANT_ID=3004 -e START_DATE=2026-09-01 -e END_DATE=2026-09-03 cycleRewardMultiDay.js
  *
  * 参数（-e）：
  *   TENANT_ID   租户ID（默认 3004）

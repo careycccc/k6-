@@ -3,7 +3,7 @@
  * POST api/User/UserInviteBind
  *
  * 用法：
- *   k6 run -e TENANT_ID=3101 -e USERNAME=916042866035 -e INVITE_CODE=KSMGPHN userInviteBind.test.js
+ *   k6p -e TENANT_ID=3101 -e USERNAME=916042866035 -e INVITE_CODE=KSMGPHN userInviteBind.test.js
  *
  * 环境变量：
  *   TENANT_ID   租户ID（默认 3004）
@@ -21,9 +21,9 @@ import { getTimeRandom } from '../../../utils/utils.js';
 export const options = {
   scenarios: {
     invite_bind: {
-      executor:    'per-vu-iterations',
-      vus:         1,
-      iterations:  1,
+      executor: 'per-vu-iterations',
+      vus: 1,
+      iterations: 1,
       maxDuration: '5m',
     },
   },
@@ -45,11 +45,11 @@ function printResponse(label, response) {
 }
 
 export function setup() {
-  const tenantId  = __ENV.TENANT_ID   || '3004';
-  const userName  = __ENV.USERNAME    || '';
+  const tenantId = __ENV.TENANT_ID || '3004';
+  const userName = __ENV.USERNAME || '';
   const inviteCode = __ENV.INVITE_CODE || '';
 
-  if (!userName)   throw new Error('[Setup] 请通过 -e USERNAME=<账号> 指定前台账号');
+  if (!userName) throw new Error('[Setup] 请通过 -e USERNAME=<账号> 指定前台账号');
   if (!inviteCode) throw new Error('[Setup] 请通过 -e INVITE_CODE=<邀请码> 指定上级邀请码');
 
   console.log(`\n${'='.repeat(55)}`);
@@ -86,7 +86,7 @@ export default function (data) {
 
   const body = JSON.parse(res.body);
   check(body, {
-    'code=1':    (b) => b.code === 1,
+    'code=1': (b) => b.code === 1,
     'msgCode=0': (b) => b.msgCode === 0,
   });
 }

@@ -11,7 +11,7 @@
  *
  * 用法（在 workOrderSuite 目录运行）：
  *   node depositWorkOrderRepeatRunner.js --tenant 3004 --account 91xxxxxxxxxx
- *   k6 run -e TENANT_ID=3004 -e ACCOUNT=91xxxxxxxxxx depositWorkOrderRepeatVerify.js
+ *   k6p -e TENANT_ID=3004 -e ACCOUNT=91xxxxxxxxxx depositWorkOrderRepeatVerify.js
  *
  * 可选 -e：WAIT(两次提交间隔秒,默认180) TENANT_ID(默认3004)
  */

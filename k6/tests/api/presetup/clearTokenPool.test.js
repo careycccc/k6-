@@ -9,16 +9,16 @@
  * 使用方法：
  *
  *   # 清空单个租户
- *   k6 run -e TENANT_ID=3001 clearTokenPool.test.js
+ *   k6p -e TENANT_ID=3001 clearTokenPool.test.js
  *
  *   # 清空多个租户
- *   k6 run -e TENANTS=3001,3002,3003 clearTokenPool.test.js
+ *   k6p -e TENANTS=3001,3002,3003 clearTokenPool.test.js
  *
  *   # 清空所有已知租户（3001~3007）
- *   k6 run -e TENANTS=all clearTokenPool.test.js
+ *   k6p -e TENANTS=all clearTokenPool.test.js
  *
  *   # 指定 Redis 地址
- *   k6 run -e REDIS_URL=redis://192.168.1.100:6379 -e TENANTS=all clearTokenPool.test.js
+ *   k6p -e REDIS_URL=redis://192.168.1.100:6379 -e TENANTS=all clearTokenPool.test.js
  */
 
 import { clearPool, getPoolSize, closeRedis } from '../../../libs/redis/tokenPool.js';

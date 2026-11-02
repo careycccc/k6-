@@ -4,7 +4,7 @@
  * 用法（推荐 runner，会收集结果打印报表）：
  *   node auditRunner.js --case R3 --tenant 3004
  * 也可直跑：
- *   k6 run -e TENANT_ID=3004 -e CASE=R3 auditVerify.js
+ *   k6p -e TENANT_ID=3004 -e CASE=R3 auditVerify.js
  *
  * 流程：按 CASE 造总代(官网/tiktok/老号)→点礼物盒开轮→邀请下级(数量/设备/充值按 case)
  *   →本人充值→转盘提现(SumitInvitedWheelWithdraw)→sleep 60s→查 GetPageListWithdrawRecord

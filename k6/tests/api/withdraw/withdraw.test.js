@@ -2,10 +2,10 @@
  * 提现流程逻辑 - 多租户 + 多账号多线程版本
  *
  * 单账号（原有用法）:
- *   k6 run -e TENANT=3004 -e TARGET_USER=911727032892 withdraw.test.js
+ *   k6p -e TENANT=3004 -e TARGET_USER=911727032892 withdraw.test.js
  *
  * 多账号多线程（每个账号独立 VU 并发执行）:
- *   k6 run -e TENANT=3004 -e TARGET_USERS=918516050194,915246024319 withdraw.test.js
+ *   k6p -e TENANT=3004 -e TARGET_USERS=918516050194,915246024319 withdraw.test.js
  *
  * 其他可选参数:
  *   -e IS_REGISTER=true               是否注册新账号（默认 false）
@@ -419,13 +419,13 @@ export default function (data) {
 // ============================================================
 
 // # 单账号（原有用法，兼容）
-// k6 run -e TENANT=3004 -e TARGET_USER=918048050116 withdraw.test.js
+// k6p -e TENANT=3004 -e TARGET_USER=918048050116 withdraw.test.js
 
 // # 多账号多线程（每个账号独占一个 VU 并发执行）
-// k6 run -e TENANT=3004 -e TARGET_USERS=916250721844,916256164851 withdraw.test.js
+// k6p -e TENANT=3004 -e TARGET_USERS=916250721844,916256164851 withdraw.test.js
 
 // # 多账号 + 自动后台审核
-// k6 run -e TENANT=3004 -e TARGET_USERS=918048050116,918048050117 -e ENABLE_BACKEND_APPROVAL=true withdraw.test.js
+// k6p -e TENANT=3004 -e TARGET_USERS=918048050116,918048050117 -e ENABLE_BACKEND_APPROVAL=true withdraw.test.js
 
 // # 为 3003 租户执行多账号提现
-// k6 run -e TENANT=3003 -e TARGET_USERS=523021199746,523021199747 k6/tests/api/withdraw/withdraw.test.js
+// k6p -e TENANT=3003 -e TARGET_USERS=523021199746,523021199747 k6/tests/api/withdraw/withdraw.test.js

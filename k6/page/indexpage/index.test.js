@@ -11,11 +11,11 @@
 //   6. 依次切换租户配置的每种语言，截图对比
 //
 // 运行命令：
-//   k6 run -e TENANT_ID=3007 k6/page/indexpage/index.test.js
-//   k6 run -e TENANT_ID=3004 index.test.js
+//   k6p -e TENANT_ID=3007 k6/page/indexpage/index.test.js
+//   k6p -e TENANT_ID=3004 index.test.js
 //
 // 调试（显示浏览器窗口）：
-//   Windows: set K6_BROWSER_HEADLESS=false && k6 run -e TENANT_ID=3007 k6/page/indexpage/index.test.js
+//   Windows: set K6_BROWSER_HEADLESS=false && k6p -e TENANT_ID=3007 k6/page/indexpage/index.test.js
 // ============================================
 
 import { browser } from 'k6/browser';

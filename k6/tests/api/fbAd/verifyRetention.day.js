@@ -13,7 +13,7 @@
  * D3及以上必须等接口。
  *
  * 用法（在本目录内运行，推荐走 Runner 拿汇总报表）：
- *   k6 run -e TENANT_ID=3004 -e GROUP_BY=campaign verifyRetention.day.js
+ *   k6p -e TENANT_ID=3004 -e GROUP_BY=campaign verifyRetention.day.js
  *   node verifyRetentionRunner.js --tenant 3004 --group-by campaign
  */
 

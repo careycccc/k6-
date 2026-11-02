@@ -53,16 +53,16 @@
 
 ```bash
 # 模式1（默认，代理邀请码）
-k6 run -e TENANT_ID=3007 -e REBATE_MODE=mode1 multiLevelRebate.test.js
+k6p -e TENANT_ID=3007 -e REBATE_MODE=mode1 multiLevelRebate.test.js
 
 # 模式2（邀请转盘，尾字母换W）
-k6 run -e TENANT_ID=3007 -e REBATE_MODE=mode1 -e INVITE_CODE_MODE=2 multiLevelRebate.test.js
+k6p -e TENANT_ID=3007 -e REBATE_MODE=mode1 -e INVITE_CODE_MODE=2 multiLevelRebate.test.js
 
 # 模式3（userId 作为邀请标识）
-k6 run -e TENANT_ID=3007 -e REBATE_MODE=mode1 -e INVITE_CODE_MODE=3 multiLevelRebate.test.js
+k6p -e TENANT_ID=3007 -e REBATE_MODE=mode1 -e INVITE_CODE_MODE=3 multiLevelRebate.test.js
 
 # mix（三种模式随机混合）
-k6 run -e TENANT_ID=3007 -e REBATE_MODE=mode9 -e INVITE_CODE_MODE=mix multiLevelRebate.test.js
+k6p -e TENANT_ID=3007 -e REBATE_MODE=mode9 -e INVITE_CODE_MODE=mix multiLevelRebate.test.js
 ```
 
 > **注意**：模式3在找不到上级 `userId` 时（如总代是第一层，尚未在 `userDetails` 中记录）会自动降级到模式1。
@@ -89,7 +89,7 @@ k6 run -e TENANT_ID=3007 -e REBATE_MODE=mode9 -e INVITE_CODE_MODE=mix multiLevel
 验证：A的历史充投记录在成员换组后，B的新充投返佣归属是否正确。
 
 ```bash
-k6 run -e TENANT_ID=3006 -e TEAM1_TOTAL=5 -e TEAM1_LEVELS=1 -e TEAM2_TOTAL=0 -e TEAM2_LEVELS=0  multiLevelRebate.test.js
+k6p -e TENANT_ID=3006 -e TEAM1_TOTAL=5 -e TEAM1_LEVELS=1 -e TEAM2_TOTAL=0 -e TEAM2_LEVELS=0  multiLevelRebate.test.js
 
 ```
 
@@ -104,7 +104,7 @@ k6 run -e TENANT_ID=3006 -e TEAM1_TOTAL=5 -e TEAM1_LEVELS=1 -e TEAM2_TOTAL=0 -e 
 验证：已有充投记录的成员被换组后，历史返佣数据归属是否正确，不产生重复结算。
 
 ```bash
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
+k6p -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
   -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 \
   -e REBATE_MODE=mode2 multiLevelRebate.test.js
 ```
@@ -120,7 +120,7 @@ k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
 验证：充值但未投注的成员换组后，投注发生在新团队，返佣应归新团队。
 
 ```bash
-k6 run -e TENANT_ID=3007 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 -e REBATE_MODE=mode3 multiLevelRebate.test.js
+k6p -e TENANT_ID=3007 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 -e REBATE_MODE=mode3 multiLevelRebate.test.js
 ```
 
 ---
@@ -134,7 +134,7 @@ k6 run -e TENANT_ID=3007 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=10 -
 验证：完全空白成员换组后再充投，返佣完全归新团队，无历史数据干扰。
 
 ```bash
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
+k6p -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
   -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 \
   -e REBATE_MODE=mode4 multiLevelRebate.test.js
 ```
@@ -150,7 +150,7 @@ k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
 验证：A持续充投中途换入新成员，新成员的后续行为是否影响A的返佣连续性。
 
 ```bash
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
+k6p -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
   -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 \
   -e REBATE_MODE=mode5 multiLevelRebate.test.js
 ```
@@ -166,7 +166,7 @@ k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
 验证：充值和投注被解绑绑定动作分隔，投注返佣应归换人后的新团队。
 
 ```bash
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
+k6p -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
   -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 \
   -e REBATE_MODE=mode6 multiLevelRebate.test.js
 ```
@@ -182,7 +182,7 @@ k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
 验证：混合状态下换人，B补投注的返佣是否正确归属。
 
 ```bash
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
+k6p -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
   -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 \
   -e REBATE_MODE=mode7 multiLevelRebate.test.js
 ```
@@ -198,7 +198,7 @@ k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
 验证：顺序颠倒是否影响返佣结算结果，与 mode1 对比验证对称性。
 
 ```bash
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
+k6p -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
   -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 \
   -e REBATE_MODE=mode8 multiLevelRebate.test.js
 ```
@@ -214,7 +214,7 @@ k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
 验证：随机行为下换人，返佣结算是否稳定。
 
 ```bash
-k6 run -e TENANT_ID=3006 -e TEAM1_TOTAL=45 -e TEAM1_LEVELS=8 -e TEAM2_TOTAL=25 -e TEAM2_LEVELS=5 -e REBATE_MODE=mode9 -e INACTIVE_RATE=0.2 -e RECHARGE_ONLY_RATE=0.2 multiLevelRebate.test.js
+k6p -e TENANT_ID=3006 -e TEAM1_TOTAL=45 -e TEAM1_LEVELS=8 -e TEAM2_TOTAL=25 -e TEAM2_LEVELS=5 -e REBATE_MODE=mode9 -e INACTIVE_RATE=0.2 -e RECHARGE_ONLY_RATE=0.2 multiLevelRebate.test.js
 ```
 
 ---
@@ -228,7 +228,7 @@ k6 run -e TENANT_ID=3006 -e TEAM1_TOTAL=45 -e TEAM1_LEVELS=8 -e TEAM2_TOTAL=25 -
 验证：双方都有随机历史数据时，换人后返佣归属是否正确。
 
 ```bash
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
+k6p -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
   -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 \
   -e REBATE_MODE=mode10 -e INACTIVE_RATE=0.2 -e RECHARGE_ONLY_RATE=0.2 \
   multiLevelRebate.test.js
@@ -245,7 +245,7 @@ k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
 验证：确定行为换人后引入随机行为，返佣结算是否受影响。
 
 ```bash
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
+k6p -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
   -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 \
   -e REBATE_MODE=mode11 -e INACTIVE_RATE=0.2 -e RECHARGE_ONLY_RATE=0.2 \
   multiLevelRebate.test.js
@@ -262,7 +262,7 @@ k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
 验证：A随机行为与B半完整行为交叉，换人后B补投注的返佣归属。
 
 ```bash
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
+k6p -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
   -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 \
   -e REBATE_MODE=mode12 -e INACTIVE_RATE=0.2 -e RECHARGE_ONLY_RATE=0.2 \
   multiLevelRebate.test.js
@@ -279,7 +279,7 @@ k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
 验证：对称场景下返佣归属的一致性。
 
 ```bash
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
+k6p -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
   -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 \
   -e REBATE_MODE=mode13 -e INACTIVE_RATE=0.2 -e RECHARGE_ONLY_RATE=0.2 \
   multiLevelRebate.test.js
@@ -296,13 +296,13 @@ k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
 验证：系统在高度随机行为下的返佣结算稳定性和正确性。
 
 ```bash
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
+k6p -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
   -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 \
   -e REBATE_MODE=mode14 -e INACTIVE_RATE=0.2 -e RECHARGE_ONLY_RATE=0.2 \
   multiLevelRebate.test.js
 
 # 两个团队使用不同的V2比例
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=35 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=25 -e TEAM2_LEVELS=3 -e REBATE_MODE=mode14 -e TEAM1_INACTIVE_RATE=0.3 -e TEAM1_RECHARGE_ONLY_RATE=0.1 -e TEAM2_INACTIVE_RATE=0.1 -e TEAM2_RECHARGE_ONLY_RATE=0.3   multiLevelRebate.test.js
+k6p -e TENANT_ID=3004 -e TEAM1_TOTAL=35 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=25 -e TEAM2_LEVELS=3 -e REBATE_MODE=mode14 -e TEAM1_INACTIVE_RATE=0.3 -e TEAM1_RECHARGE_ONLY_RATE=0.1 -e TEAM2_INACTIVE_RATE=0.1 -e TEAM2_RECHARGE_ONLY_RATE=0.3   multiLevelRebate.test.js
 ```
 
 ---
@@ -316,7 +316,7 @@ k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=35 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=25 -
 验证：确定行为与随机行为交叉时，返佣结算是否受随机性影响。
 
 ```bash
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
+k6p -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
   -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 \
   -e REBATE_MODE=mode15 -e INACTIVE_RATE=0.2 -e RECHARGE_ONLY_RATE=0.2 \
   multiLevelRebate.test.js
@@ -333,7 +333,7 @@ k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
 验证：与 mode15 对比，确认对称场景下结算结果的一致性。
 
 ```bash
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
+k6p -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 \
   -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 \
   -e REBATE_MODE=mode16 -e INACTIVE_RATE=0.2 -e RECHARGE_ONLY_RATE=0.2 \
   multiLevelRebate.test.js
@@ -388,7 +388,7 @@ V2 模式将团队成员按概率随机分为三组：
 验证：A的历史充投记录在成员换组后，返佣归属是否正确，且换入B的成员不产生新的充投行为。
 
 ```bash
-k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 -e REBATE_MODE=mode17 multiLevelRebate.test.js
+k6p -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=10 -e TEAM2_LEVELS=3 -e REBATE_MODE=mode17 multiLevelRebate.test.js
 ```
 
 ---
@@ -407,10 +407,10 @@ k6 run -e TENANT_ID=3004 -e TEAM1_TOTAL=15 -e TEAM1_LEVELS=4 -e TEAM2_TOTAL=10 -
 **使用示例：**
 ```bash
 # 默认 3 个团队，随机分配 V2 行为
-k6 run multiTeamRandomRebate.test.js
+k6p multiTeamRandomRebate.test.js
 
 # 自定义团队数量和具体团队的规模，以及调整不活跃用户比例
-k6 run -e TEAM_COUNT=2 \
+k6p -e TEAM_COUNT=2 \
   -e TEAM1_TOTAL=10 -e TEAM1_LEVELS=3 \
   -e TEAM2_TOTAL=15 -e TEAM2_LEVELS=4 \
   -e INACTIVE_RATE=0.1 -e RECHARGE_ONLY_RATE=0.3 \

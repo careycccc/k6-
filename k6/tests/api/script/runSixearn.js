@@ -31,23 +31,23 @@ export function loginExec() {
 
 // 六级代理返佣验证脚本
 // 返佣金额查询逻辑
-//k6 run -e TENANT_ID=3007 -e TARGET_UID=112823 k6-/k6/tests/api/script/runSixearn.js
+//k6p -e TENANT_ID=3007 -e TARGET_UID=112823 k6-/k6/tests/api/script/runSixearn.js
 
 // 返佣金额的绑定和验证逻辑
-//k6 run -e TENANT_ID=3002 -e UNBIND_UID=5945184 -e BIND_INVITE_CODE=QSQKH5N k6-/k6/tests/api/script/runSixearn.js
+//k6p -e TENANT_ID=3002 -e UNBIND_UID=5945184 -e BIND_INVITE_CODE=QSQKH5N k6-/k6/tests/api/script/runSixearn.js
 
-// k6 run -e TENANT_ID=3002 -e UNBIND_UID=5945198 -e BIND_INVITE_CODE=NP672GN runSixearn.js
+// k6p -e TENANT_ID=3002 -e UNBIND_UID=5945198 -e BIND_INVITE_CODE=NP672GN runSixearn.js
 
 // 进行前后台一起的验证逻辑
-// k6 run -e TENANT_ID=3007 -e TARGET_UID=110610 -e ACTION=verifyPromotion runSixearn.js
+// k6p -e TENANT_ID=3007 -e TARGET_UID=110610 -e ACTION=verifyPromotion runSixearn.js
 
-// k6 run -e TENANT_ID=3007 -e TARGET_UID=112823  runSixearn.js
+// k6p -e TENANT_ID=3007 -e TARGET_UID=112823  runSixearn.js
 
 
 // ============================================================
 // 配置：要查询明日返佣的总代 UID 和 租户
 // 支持通过环境变量动态传入，例如：
-// k6 run -e TENANT_ID=3004 -e TARGET_UID=135833 runSixearn.js
+// k6p -e TENANT_ID=3004 -e TARGET_UID=135833 runSixearn.js
 // 如果不传环境变量，则使用下面的默认值
 // ============================================================
 const TARGET_UID = __ENV.TARGET_UID || 135833;
@@ -110,7 +110,7 @@ if (__ENV.ACTION === 'bundearn' || __ENV.UNBIND_UID || __ENV.BIND_INVITE_CODE) {
     };
 } else if (__ENV.ACTION === 'verifyPromotion') {
     // 场景5：前台接口对比验证（GetPromotionData）
-    // k6 run -e TENANT_ID=3004 -e TARGET_UID=135833 -e ACTION=verifyPromotion runSixearn.js
+    // k6p -e TENANT_ID=3004 -e TARGET_UID=135833 -e ACTION=verifyPromotion runSixearn.js
     options.scenarios.verifyPromotion = {
         executor: 'per-vu-iterations',
         vus: 1,

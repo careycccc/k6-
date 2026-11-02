@@ -4,14 +4,14 @@
  * 使用方法：
  *
  *   # 当日复充（查今天，今天执行）
- *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=same_day rechargeRetention.test.js
+ *   k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=same_day rechargeRetention.test.js
  *
  *   # 次日复充（查昨天+今天，今天执行）
- *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=next_day rechargeRetention.test.js
+ *   k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=next_day rechargeRetention.test.js
  *
  *   # 指定目标日期（当日复充：查指定日期；次日复充：查指定日期及其次日）
- *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=same_day -e TARGET_DATE=2026-04-16 rechargeRetention.test.js
- *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=next_day -e TARGET_DATE=2026-04-14 rechargeRetention.test.js
+ *   k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=same_day -e TARGET_DATE=2026-04-16 rechargeRetention.test.js
+ *   k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=next_day -e TARGET_DATE=2026-04-14 rechargeRetention.test.js
  *
  * 参数：
  *   TENANT_ID            租户ID（必需）
@@ -67,7 +67,7 @@ function parseDateRange(dateStr, tenantId) {
     const tzOffsetMs = getTzOffsetMs(tenantId);
     const parts = dateStr.split('-');
     const startTime = Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])) - tzOffsetMs;
-    const endTime   = startTime + 86400000 - 1;
+    const endTime = startTime + 86400000 - 1;
     return { startTime, endTime, dateStr };
 }
 
@@ -106,10 +106,10 @@ export function setup() {
 // ============================================================
 export default function (data) {
     const { adminToken, tenantId, channelPackageId } = data;
-    const mode       = (__ENV.MODE || 'same_day').toLowerCase();
+    const mode = (__ENV.MODE || 'same_day').toLowerCase();
     const targetDate = __ENV.TARGET_DATE || '';
 
-    _reportData.mode     = mode;
+    _reportData.mode = mode;
     _reportData.tenantId = tenantId;
 
     console.log(`\n${'='.repeat(60)}`);
@@ -128,9 +128,9 @@ export default function (data) {
         const orders = fetchAllRechargeOrders(adminToken, range.startTime, range.endTime, 'Payed', channelPackageId);
         const result = analyzeSameDayRetention(orders);
 
-        _reportData.sameDayDate        = range.dateStr;
+        _reportData.sameDayDate = range.dateStr;
         _reportData.sameDayTotalOrders = orders.length;
-        _reportData.sameDayResult      = result;
+        _reportData.sameDayResult = result;
 
         console.log(`[SameDay] ✅ 当日复充用户数: ${result.length}`);
 
@@ -150,10 +150,10 @@ export default function (data) {
 
         const day1Orders = fetchAllRechargeOrders(adminToken, day1Range.startTime, day1Range.endTime, 'Payed', channelPackageId);
         const day2Orders = fetchAllRechargeOrders(adminToken, day2Range.startTime, day2Range.endTime, 'Payed', channelPackageId);
-        const result     = analyzeNextDayRetention(day1Orders, day2Orders);
+        const result = analyzeNextDayRetention(day1Orders, day2Orders);
 
-        _reportData.nextDayDate1  = day1Range.dateStr;
-        _reportData.nextDayDate2  = day2Range.dateStr;
+        _reportData.nextDayDate1 = day1Range.dateStr;
+        _reportData.nextDayDate2 = day2Range.dateStr;
         _reportData.nextDayResult = result;
 
         console.log(`[NextDay] ✅ 次日复充用户数: ${result.length}`);

@@ -67,6 +67,10 @@ docker-compose.override.yml
 .cache/
 .eslintcache
 
+# Claude Code 插件(oh-my-claudecode)自己的本地运行状态——跟着当时cd到的目录走，
+# 不是项目代码，每个人电脑上的内容都不一样，不应该提交
+.omc/
+
 *.png
 *.jpg
 *.jpeg

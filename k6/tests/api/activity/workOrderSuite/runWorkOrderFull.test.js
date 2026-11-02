@@ -5,13 +5,13 @@
  *
  * 运行示例：
  *   # 单线程单轮（开发调试）
- *   k6 run -e TENANT_ID=3004 -e ACCOUNT_COUNT=1 -e VUS=1 -e ITERATIONS=1 -e TRIGGER_MODE=login runWorkOrderFull.test.js
+ *   k6p -e TENANT_ID=3004 -e ACCOUNT_COUNT=1 -e VUS=1 -e ITERATIONS=1 -e TRIGGER_MODE=login runWorkOrderFull.test.js
  *
  *   # 多线程多轮
- *   k6 run -e TENANT_ID=3004 -e ACCOUNT_COUNT=2 -e VUS=4 -e ITERATIONS=2 runWorkOrderFull.test.js
+ *   k6p -e TENANT_ID=3004 -e ACCOUNT_COUNT=2 -e VUS=4 -e ITERATIONS=2 runWorkOrderFull.test.js
  *
  *   # 只触发已登录工单（调试）
- *   k6 run -e TENANT_ID=3004 -e ACCOUNT_COUNT=1 -e VUS=1 -e ITERATIONS=1 -e TRIGGER_MODE=login runWorkOrderFull.test.js
+ *   k6p -e TENANT_ID=3004 -e ACCOUNT_COUNT=1 -e VUS=1 -e ITERATIONS=1 -e TRIGGER_MODE=login runWorkOrderFull.test.js
  *
  * 参数说明：
  *  注意后台的工单的总条数 = 总账号数 * 25 * ITERATIONS

@@ -11,7 +11,7 @@
  * 接口ready后只做数字并排展示、不判定一致性。
  *
  * 运行（在本目录内）：
- *   k6 run -e TENANT_ID=3004 -e GROUP_BY=campaign verifyRecharge.js
+ *   k6p -e TENANT_ID=3004 -e GROUP_BY=campaign verifyRecharge.js
  */
 
 /* global open */

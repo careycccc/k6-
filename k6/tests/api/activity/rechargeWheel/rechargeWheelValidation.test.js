@@ -4,10 +4,10 @@
  * 1. setup 阶段获取后台开关和充值条件(0-3)
  * 2. default 阶段分配 VU 并执行该条件下的完整流程
  * 
- * k6 run -e TENANT_ID=3004 -e VUS=1 -e ITER=1 rechargeWheelValidation.test.js
+ * k6p -e TENANT_ID=3004 -e VUS=1 -e ITER=1 rechargeWheelValidation.test.js
  * 
  * // 10个vu，每个vu迭代3次，总计15个用户
- * k6 run -e TENANT_ID=3101 -e VUS=2 -e ITER=5 rechargeWheelValidation.test.js    
+ * k6p -e TENANT_ID=3101 -e VUS=2 -e ITER=5 rechargeWheelValidation.test.js    
  * 
  * VUS 表示线程数
  * ITER 表示每个线程迭代次数

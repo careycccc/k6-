@@ -10,7 +10,7 @@
  * 5. 会员前台随机回复 1~3 次（50% 概率上传图片）
  *
  * 运行示例：
- *   k6 run -e TENANT_ID=3004 runCsReply.test.js
+ *   k6p -e TENANT_ID=3004 runCsReply.test.js
  */
 
 import { sleep } from 'k6';
@@ -241,7 +241,7 @@ function adminSubmitReply(adminToken, workOrderId, remark, env, attachmentName, 
             if (retryRes && retryRes.status === 200) {
                 result = JSON.parse(retryRes.body);
             }
-        } catch (e) {}
+        } catch (e) { }
     }
 
     return result;
@@ -303,7 +303,7 @@ function memberSubmitReply(orderId, longUserId, commentContent, env, attachmentN
             if (retryRes && retryRes.status === 200) {
                 result = JSON.parse(retryRes.body);
             }
-        } catch (e) {}
+        } catch (e) { }
     }
 
     return result;

@@ -4,20 +4,20 @@
  * 使用方法：
  *
  *   # 单租户，仅注册
- *   k6 run -e TENANT_ID=3004 -e USER_COUNT=10 -e REGISTER_ONLY=true batchFacebookRegister.test.js
+ *   k6p -e TENANT_ID=3004 -e USER_COUNT=10 -e REGISTER_ONLY=true batchFacebookRegister.test.js
  *
  *   # 注册 + 充值
- *   k6 run -e TENANT_ID=3004 -e USER_COUNT=10 batchFacebookRegister.test.js
+ *   k6p -e TENANT_ID=3004 -e USER_COUNT=10 batchFacebookRegister.test.js
  *
  *   # 注册 + 充值 + 投注（1~2次随机）
- *   k6 run -e TENANT_ID=3004 -e USER_COUNT=10 -e ENABLE_BET=true batchFacebookRegister.test.js
+ *   k6p -e TENANT_ID=3004 -e USER_COUNT=10 -e ENABLE_BET=true batchFacebookRegister.test.js
  *
  *   # 注册 + 充值 + 投注 + 提现（后台自动审核）
- *   k6 run -e TENANT_ID=3004 -e USER_COUNT=10 -e ENABLE_BET=true -e ENABLE_WITHDRAW=true \
+ *   k6p -e TENANT_ID=3004 -e USER_COUNT=10 -e ENABLE_BET=true -e ENABLE_WITHDRAW=true \
  *          -e ENABLE_BACKEND_APPROVAL=true batchFacebookRegister.test.js
  *
  *   # 多租户并行
- *   k6 run -e TENANTS=3004,3007 -e USER_COUNT=50 batchFacebookRegister.test.js
+ *   k6p -e TENANTS=3004,3007 -e USER_COUNT=50 batchFacebookRegister.test.js
  *
  * 参数说明：
  *   REGISTER_ONLY            仅注册，跳过充值/投注/提现（默认 false）
@@ -399,7 +399,7 @@ export function teardown() {
  * 团队模式主函数
  *
  * 运行命令：
- *   k6 run -e TENANT_ID=3004 -e TEAM_MODE=true \
+ *   k6p -e TENANT_ID=3004 -e TEAM_MODE=true \
  *          -e TEAM_TOTAL=50 -e TEAM_LEVELS=4 \
  *          -e EMBED_RATE=0.6 -e RECHARGE_RATE=0.9 \
  *          -e BET_RATE=0.8 -e WITHDRAW_RATE=0.6 \

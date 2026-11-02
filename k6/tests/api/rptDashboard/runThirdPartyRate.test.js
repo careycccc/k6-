@@ -5,7 +5,7 @@
  *       == 报表当前最新时间节点的 thirdPartySuccessRate（同单位直接比，容差 RATE_TOL）
  *
  * 用法：
- *   k6 run -e TENANT_ID=3004 -e DATE=2026-07-28 runThirdPartyRate.test.js
+ *   k6p -e TENANT_ID=3004 -e DATE=2026-07-28 runThirdPartyRate.test.js
  *   容差用 -e RATE_TOL=0.01 调整。
  */
 import { check } from 'k6';

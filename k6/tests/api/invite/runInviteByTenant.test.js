@@ -4,27 +4,27 @@
  * 
  * 使用方法：
  * 1. 通过环境变量指定租户：
- *    k6 run -e TENANT_ID=3003 -e ROOT_INVITE_CODE=TQNA5XN -e LEVELS=4,5,3,5,4 k6/tests/api/invite/runInviteByTenant.test.js
+ *    k6p -e TENANT_ID=3003 -e ROOT_INVITE_CODE=TQNA5XN -e LEVELS=4,5,3,5,4 k6/tests/api/invite/runInviteByTenant.test.js
  * 
  * 2. 或者在 tenantConfig.js 中配置租户信息后直接运行：
- *    k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=DJPGXTN -e LEVELS=6,5,3,2 runInviteByTenant.test.js
+ *    k6p -e TENANT_ID=3004 -e ROOT_INVITE_CODE=DJPGXTN -e LEVELS=6,5,3,2 runInviteByTenant.test.js
  * 
  * # 模式1（默认，inviteCode 原样）
-k6 run -e TENANT_ID=3005 -e ROOT_INVITE_CODE=LU9VJ9N -e LEVELS=3,4,2,3 runInviteByTenant.test.js
+k6p -e TENANT_ID=3005 -e ROOT_INVITE_CODE=LU9VJ9N -e LEVELS=3,4,2,3 runInviteByTenant.test.js
 
 # 模式2（转盘，尾字母换W）
-k6 run -e TENANT_ID=3004 -e ROOT_INVITE_CODE=45PEPNN -e LEVELS=3,2 -e INVITE_CODE_MODE=2 runInviteByTenant.test.js
+k6p -e TENANT_ID=3004 -e ROOT_INVITE_CODE=45PEPNN -e LEVELS=3,2 -e INVITE_CODE_MODE=2 runInviteByTenant.test.js
 
 # 模式3（userId）
-k6 run -e TENANT_ID=3101 -e ROOT_INVITE_CODE=UYRVANN -e LEVELS=8,5,7 -e INVITE_CODE_MODE=3 runInviteByTenant.test.js
+k6p -e TENANT_ID=3101 -e ROOT_INVITE_CODE=UYRVANN -e LEVELS=8,5,7 -e INVITE_CODE_MODE=3 runInviteByTenant.test.js
 
 # mix（50%模式1 / 30%模式2 / 20%模式3）
-k6 run -e TENANT_ID=3007 -e ROOT_INVITE_CODE=MPR9CKN -e LEVELS=2,3 -e INVITE_CODE_MODE=mix runInviteByTenant.test.js
+k6p -e TENANT_ID=3007 -e ROOT_INVITE_CODE=MPR9CKN -e LEVELS=2,3 -e INVITE_CODE_MODE=mix runInviteByTenant.test.js
 
  * 
  * 
  * 3. 不指定租户ID时使用默认租户3004：
- *    k6 run k6/tests/api/invite/runInviteByTenant.test.js
+ *    k6p k6/tests/api/invite/runInviteByTenant.test.js
  */
 
 import { runMultiLevelInvite, runMultiLevelInviteV2, clearInviteData } from './inviteService.js';

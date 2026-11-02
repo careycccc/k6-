@@ -3,7 +3,7 @@
  * libs/monitor/runWithPerf.js
  *
  * 一键跑k6测试 + 自动生成接口耗时排行榜——把
- *   k6 run --out json=xxx.json 你的脚本.js
+ *   k6p --out json=xxx.json 你的脚本.js
  *   node analyzeApiPerf.js xxx.json
  * 这两步合并成一条命令：实时看着k6照常输出日志，跑完紧接着在终端看到排行榜，
  * 不用自己记临时文件路径、手动敲第二条命令、再去删这个临时文件。
@@ -28,7 +28,7 @@ const keepJson = rawArgs.includes('--keep-json');
 const k6Args = rawArgs.filter(a => a !== '--keep-json');
 
 if (k6Args.length === 0) {
-    console.error('用法: node runWithPerf.js [k6 run 的参数...] 你的脚本.js');
+    console.error('用法: node runWithPerf.js [k6p 的参数...] 你的脚本.js');
     console.error('示例: node runWithPerf.js -e TENANT_ID=3004 verifyLocalTenant.day.js');
     console.error('可选: --keep-json  跑完保留原始性能数据文件，不自动删除');
     process.exit(1);

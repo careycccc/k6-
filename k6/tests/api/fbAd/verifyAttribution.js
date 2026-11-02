@@ -9,7 +9,7 @@
  * 填入 backendCombo 并和本地 adCombo 逐字段比对，输出判定（一致/不一致/后端查不到）。
  *
  * 运行（在本目录内）：
- *   k6 run -e TENANT_ID=3004 verifyAttribution.js
+ *   k6p -e TENANT_ID=3004 verifyAttribution.js
  */
 
 /* global open */

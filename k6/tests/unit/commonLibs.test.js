@@ -1,11 +1,13 @@
 /**
  * libs/common 公共工具自测（纯函数，不发请求）
- *   k6 run -e TENANT_ID=3004 k6/tests/unit/commonLibs.test.js
+ *   k6p -e TENANT_ID=3004 k6/tests/unit/commonLibs.test.js
  */
-import { randInt, randomPick, randomPickN, randomDigits, randomString, randomLetters,
+import {
+    randInt, randomPick, randomPickN, randomDigits, randomString, randomLetters,
     extractList, extractTotalPage, extractTotalCount, fetchAllPages,
     getTzOffset, getDayRange, dateStartTs, dateEndTs, formatTs, BEIJING_OFFSET_MS,
-    extractToken, toNum } from '../../libs/common/index.js';
+    extractToken, toNum
+} from '../../libs/common/index.js';
 
 export const options = { vus: 1, iterations: 1 };
 let fail = 0;

@@ -7,7 +7,7 @@
  * 每个总代都跑：Step1（直属人数/层级/全部下级数/总代 generalAgentId 一致）+ Step2（当天转入本团队的会员校验）。
  *
  * 运行：
- *   k6 run -e TENANT_ID=3004 -e ROOT_IDS=163573 verifyAllGeneralAgents.test.js
+ *   k6p -e TENANT_ID=3004 -e ROOT_IDS=163573 verifyAllGeneralAgents.test.js
  *   # 时间默认今天当天；可覆盖 -e TIME_FROM=..(ms) -e TIME_TO=..(ms)
  *
  * k6 check 绿 = 全部总代通过且无野生总代；红 = 有总代验证不过或存在野生总代。

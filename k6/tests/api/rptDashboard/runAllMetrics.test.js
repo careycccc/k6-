@@ -1,7 +1,7 @@
 /**
  * 全字段数据源认证 —— 入口（最新节点汇总 + 逐节点检查）
  *
- *   k6 run -e TENANT_ID=3004 -e DATE=2026-07-29 runAllMetrics.test.js
+ *   k6p -e TENANT_ID=3004 -e DATE=2026-07-29 runAllMetrics.test.js
  *
  * 输出两段：
  *   ① 最新节点汇总：源（累计到报表最新节点）vs 报表最新节点，逐字段 ✅/❌
@@ -22,7 +22,7 @@ export const options = { scenarios: { all_verify: { executor: 'per-vu-iterations
 const SHOW = parseInt(__ENV.SHOW || '8', 10);
 const RUN_NODES = (__ENV.NODES || '').toLowerCase() !== 'off';
 
-function todayStr() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function todayStr() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 
 export function setup() {
     const tenantId = __ENV.TENANT_ID || '3004';
@@ -67,7 +67,7 @@ export default function (data) {
 
     console.log(`共 ${n.nodeCount} 个时间节点（${n.firstNode} ~ ${n.lastNode}）：\n`);
     const checks = n.fields.filter(f => f.mode !== 'info');
-    const infos  = n.fields.filter(f => f.mode === 'info');
+    const infos = n.fields.filter(f => f.mode === 'info');
 
     let cleanFields = 0;
     checks.forEach(f => {

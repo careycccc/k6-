@@ -1,103 +1,158 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
-<meta charset="UTF-8">
-<style>
-  body {
-    margin: 0;
-    padding: 40px;
-    background: #1e1e1e;
-    display: flex;
-    justify-content: center;
-  }
-  .window {
-    width: 900px;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-    font-family: 'Cascadia Code', 'Consolas', 'SF Mono', Menlo, monospace;
-  }
-  .titlebar {
-    background: #3a3a3a;
-    padding: 10px 14px;
-    display: flex;
-    align-items: center;
-  }
-  .dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
-  .dot.red { background: #ff5f56; }
-  .dot.yellow { background: #ffbd2e; }
-  .dot.green { background: #27c93f; }
-  .title { color: #ccc; font-size: 12px; margin-left: 12px; font-family: -apple-system, sans-serif; }
-  .body {
-    background: #0c0c0c;
-    color: #d4d4d4;
-    padding: 18px 22px;
-    font-size: 13px;
-    line-height: 1.55;
-    white-space: pre;
-    overflow-x: auto;
-  }
-  .grafana { color: #f05a28; }
-  .dim { color: #7a7a7a; }
-  .info { color: #6cb6ff; }
-  .ok { color: #3fb950; }
-  .warn { color: #d29922; }
-  .label { color: #e8a6ff; }
-  .num { color: #79c0ff; }
-  .section { color: #ffffff; font-weight: bold; }
-</style>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      margin: 0;
+      padding: 40px;
+      background: #1e1e1e;
+      display: flex;
+      justify-content: center;
+    }
+
+    .window {
+      width: 900px;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      font-family: 'Cascadia Code', 'Consolas', 'SF Mono', Menlo, monospace;
+    }
+
+    .titlebar {
+      background: #3a3a3a;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    .dot.red {
+      background: #ff5f56;
+    }
+
+    .dot.yellow {
+      background: #ffbd2e;
+    }
+
+    .dot.green {
+      background: #27c93f;
+    }
+
+    .title {
+      color: #ccc;
+      font-size: 12px;
+      margin-left: 12px;
+      font-family: -apple-system, sans-serif;
+    }
+
+    .body {
+      background: #0c0c0c;
+      color: #d4d4d4;
+      padding: 18px 22px;
+      font-size: 13px;
+      line-height: 1.55;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    .grafana {
+      color: #f05a28;
+    }
+
+    .dim {
+      color: #7a7a7a;
+    }
+
+    .info {
+      color: #6cb6ff;
+    }
+
+    .ok {
+      color: #3fb950;
+    }
+
+    .warn {
+      color: #d29922;
+    }
+
+    .label {
+      color: #e8a6ff;
+    }
+
+    .num {
+      color: #79c0ff;
+    }
+
+    .section {
+      color: #ffffff;
+      font-weight: bold;
+    }
+  </style>
 </head>
+
 <body>
   <div class="window">
     <div class="titlebar">
-      <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
-      <div class="title">bash — k6 run queryRechargeOrder.test.js</div>
+      <div class="dot red"></div>
+      <div class="dot yellow"></div>
+      <div class="dot green"></div>
+      <div class="title">bash — k6p queryRechargeOrder.test.js</div>
     </div>
-    <div class="body">$ <span class="label">k6 run -e TENANT_ID=3004 -e USER_ID=110655 k6/tests/api/recharge/queryRechargeOrder.test.js</span>
+    <div class="body">$ <span class="label">k6p -e TENANT_ID=3004 -e USER_ID=110655
+        k6/tests/api/recharge/queryRechargeOrder.test.js</span>
 
-<span class="grafana">         /\      Grafana   /‾‾/
-    /\  /  \     |\  __   /  /
-   /  \/    \    | |/ /  /   ‾‾\
-  /          \   |   (  |  (‾)  |
- / __________ \  |_|\_\  \_____/</span>
+      <span class="grafana"> /\ Grafana /‾‾/
+        /\ / \ |\ __ / /
+        / \/ \ | |/ / / ‾‾\
+        / \ | ( | (‾) |
+        / __________ \ |_|\_\ \_____/</span>
 
-<span class="dim">     execution: local
+      <span class="dim"> execution: local
         script: k6/tests/api/recharge/queryRechargeOrder.test.js
         output: -
 
-     scenarios: (100.00%) 1 scenario, 1 max VUs, 5m30s max duration (incl. graceful stop):
-              * query_recharge_order: 1 iterations shared among 1 VUs (maxDuration: 5m0s, gracefulStop: 30s)</span>
+        scenarios: (100.00%) 1 scenario, 1 max VUs, 5m30s max duration (incl. graceful stop):
+        * query_recharge_order: 1 iterations shared among 1 VUs (maxDuration: 5m0s, gracefulStop: 30s)</span>
 
-<span class="info">INFO[0000]</span> [Setup] 开始准备测试环境...
-<span class="info">INFO[0000]</span> [Setup] 租户ID: <span class="num">3004</span>
-<span class="info">INFO[0000]</span> [Setup] 用户ID: <span class="num">110655</span>
-<span class="info">INFO[0000]</span> [Setup] 充值状态: Payed
-<span class="info">INFO[0001]</span> <span class="ok">[GroupRouting] ✅ 集团后台登录成功: carey_jt_admin (测试环境集团后台)</span>
-<span class="info">INFO[0001]</span> <span class="ok">[Setup] ✅ 管理员登录成功</span>
-<span class="section">[QueryRechargeOrder] 开始查询充值订单列表</span>
-<span class="info">INFO[0001]</span> [GetRechargeOrderPageList] 查询参数:
-<span class="info">INFO[0001]</span>   - 用户ID: <span class="num">110655</span>  - 充值状态: Payed
-<span class="info">INFO[0001]</span>   - 开始时间: 2026-10-31T20:00:00.000Z
-<span class="info">INFO[0001]</span>   - 结束时间: 2026-11-01T19:59:59.999Z
-<span class="info">INFO[0002]</span> <span class="ok">[GetRechargeOrderPageList] ✅ 查询成功，共找到 0 条订单记录</span>
-<span class="info">INFO[0002]</span> <span class="warn">[GetRechargeOrderPageList] ⚠️ 未找到符合条件的订单记录</span>
+      <span class="info">INFO[0000]</span> [Setup] 开始准备测试环境...
+      <span class="info">INFO[0000]</span> [Setup] 租户ID: <span class="num">3004</span>
+      <span class="info">INFO[0000]</span> [Setup] 用户ID: <span class="num">110655</span>
+      <span class="info">INFO[0000]</span> [Setup] 充值状态: Payed
+      <span class="info">INFO[0001]</span> <span class="ok">[GroupRouting] ✅ 集团后台登录成功: carey_jt_admin (测试环境集团后台)</span>
+      <span class="info">INFO[0001]</span> <span class="ok">[Setup] ✅ 管理员登录成功</span>
+      <span class="section">[QueryRechargeOrder] 开始查询充值订单列表</span>
+      <span class="info">INFO[0001]</span> [GetRechargeOrderPageList] 查询参数:
+      <span class="info">INFO[0001]</span> - 用户ID: <span class="num">110655</span> - 充值状态: Payed
+      <span class="info">INFO[0001]</span> - 开始时间: 2026-10-31T20:00:00.000Z
+      <span class="info">INFO[0001]</span> - 结束时间: 2026-11-01T19:59:59.999Z
+      <span class="info">INFO[0002]</span> <span class="ok">[GetRechargeOrderPageList] ✅ 查询成功，共找到 0 条订单记录</span>
+      <span class="info">INFO[0002]</span> <span class="warn">[GetRechargeOrderPageList] ⚠️ 未找到符合条件的订单记录</span>
 
-<span class="info">INFO[0002]</span> <span class="ok">[QueryRechargeOrder] ✅ 查询完成</span>
+      <span class="info">INFO[0002]</span> <span class="ok">[QueryRechargeOrder] ✅ 查询完成</span>
 
-<span class="section">  █ TOTAL RESULTS</span>
+      <span class="section"> █ TOTAL RESULTS</span>
 
-<span class="dim">    HTTP
-    http_req_duration..............: avg=612.1ms min=506.84ms med=609.06ms max=720.4ms p(90)=698.13ms p(95)=709.27ms
-    http_req_failed................: </span><span class="ok">0.00%</span><span class="dim">   0 out of 3
-    http_reqs......................: 3       0.848308/s
+      <span class="dim"> HTTP
+        http_req_duration..............: avg=612.1ms min=506.84ms med=609.06ms max=720.4ms p(90)=698.13ms p(95)=709.27ms
+        http_req_failed................: </span><span class="ok">0.00%</span><span class="dim"> 0 out of 3
+        http_reqs......................: 3 0.848308/s
 
-    EXECUTION
-    iterations.....................: 1       0.282769/s
-    vus_max.........................: 1       min=1      max=1</span>
+        EXECUTION
+        iterations.....................: 1 0.282769/s
+        vus_max.........................: 1 min=1 max=1</span>
 
-running (0m03.5s), 0/1 VUs, 1 complete and 0 interrupted iterations
-query_recharge_order <span class="ok">✓</span> [ 100% ] 1 VUs  0m02.4s/5m0s  1/1 shared iters
-</div>
+      running (0m03.5s), 0/1 VUs, 1 complete and 0 interrupted iterations
+      query_recharge_order <span class="ok">✓</span> [ 100% ] 1 VUs 0m02.4s/5m0s 1/1 shared iters
+    </div>
   </div>
 </body>
+
 </html>

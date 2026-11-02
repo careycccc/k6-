@@ -39,7 +39,7 @@
  * 排查的那笔充值/账变，不需要再翻回过程日志找。
  *
  * 用法：
- *   k6 run rechargeGoodsLimitVerify.js
+ *   k6p rechargeGoodsLimitVerify.js
  */
 import { sleep } from 'k6';
 import { sendRequest } from '../common/request.js';

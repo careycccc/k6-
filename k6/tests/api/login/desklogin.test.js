@@ -1,58 +1,40 @@
-// import papaparse from '../../../libs/vendor/papaparse.js';
-// import { SharedArray } from 'k6/data';
 import http from 'k6/http';
+import { SharedArray } from 'k6/data';
 import { testCommonRequest } from '../common/request.js';
 import { generateCryptoRandomString, getTimeRandom } from '../../utils/utils.js';
 import { hanlderThresholds } from '../../../config/thresholds.js';
+import { getScenario } from '../../../config/scenarios.js';
 
 http.setResponseCallback(http.expectedStatuses({ min: 200, max: 299 }));
 
-// ============ 高效加载 CSV 用户名（压测必备）============
+// ============ 账号池（压测必备：避免所有 VU 共用同一账号并发登录）============
+// 这个系统是单点登录——同一账号被第二个会话登录会把第一个踢下线。如果 100 个
+// VU 都用同一账号并发登录，会互相踢，压测数据完全失真。
+// 用 collect-users.js 采集一批账号写到 firebase/2.txt（密码统一是 qwer1234），
+// SharedArray 保证多 VU 间共享同一份数组、不重复占内存：
+//   cd k6/playwrith && TENANT=3004 TARGET=100 SETPWD=true node collect-users.js
+const userNames = new SharedArray('accounts', function () {
+  const txtPath = '../activity/firebase/2.txt'; // account 列表，每行一个手机号(含国家码)
+  const content = open(txtPath);
 
-// const userNames = new SharedArray('accounts', function () {
-//   const csvPath = './k6/data/csv/accounts.csv'; // 必要时改为绝对路径，如 'C:/full/path/accounts.csv'
+  if (!content) {
+    throw new Error(`无法加载账号池文件: ${txtPath}，请先运行 collect-users.js 采集账号`);
+  }
 
-//   const content = open(csvPath);
-
-//   if (!content) {
-//     throw new Error(`无法加载文件: ${csvPath}，请检查路径和文件是否存在`);
-//   }
-
-//   // 解析CSV，假设有header（username,password）
-//   const parsed = papaparse.parse(content, {
-//     header: false, // 返回对象数组 [{username: '...', password: '...'}]
-//     skipEmptyLines: true // 跳过空行
-//   });
-
-//   if (parsed.errors && parsed.errors.length > 0) {
-//     logger.error('CSV解析错误:', parsed.errors);
-//   }
-
-//   return parsed.data; // 返回数组，SharedArray会共享内存
-// });
-
-// if (userNames.length === 0) {
-//   throw new Error('accounts.csv 文件为空或加载失败！请检查路径和内容');
-// }
-
-// logger.info(`成功加载 ${userNames.length} 个用户名`);
+  const accounts = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (accounts.length === 0) {
+    throw new Error(`账号池文件 ${txtPath} 为空，请先运行 collect-users.js 采集账号`);
+  }
+  return accounts;
+});
 
 const tag = 'desklogin';
 
-// ============ 压测配置（可自由调整）============
+// ============ 压测配置（通过 -e SCENARIO= 切换 config/scenarios.js 的标准场景，默认 smoke）============
 export const options = {
-  // 示例：渐进加压
-  //   executor: 'ramping-vus',
-  //   stages: [
-  //     { duration: '2m', target: 50 }, // 2分钟升到50
-  //     { duration: '5m', target: 50 }, // 新增：稳定在50 VU 运行5分钟（可调整时长）
-  //     { duration: '5m', target: 200 }, // 再用10分钟升到200，并稳定
-  //     { duration: '2m', target: 0 } // 降到0
-  //   ],
-
-  // 或者简单固定并发
-  vus: 1,
-  duration: '1s',
+  scenarios: {
+    desklogin: getScenario(__ENV.SCENARIO || 'smoke')
+  },
 
   thresholds: hanlderThresholds(tag),
 
@@ -72,18 +54,17 @@ export const options = {
   summaryTimeUnit: 'ms'
 };
 
-// ============ 每个 VU 执行（均匀分配用户名）============
-export function RunDesklogin() {
+// ============ 每个 VU 执行（均匀分配账号，避免同账号并发互踢）============
+export default function () {
   const api = '/api/Home/Login';
-  // 均匀分配用户名（高并发下最公平）
-  //   const index = (__VU - 1 + __ITER) % userNames.length;
-  //   const userName = userNames[index];
-  //   //logger.info(`当前用户名：${userName[0]}`);
+  // 均匀分配账号（高并发下最公平），VU 和迭代次数共同决定取到哪个账号
+  const index = (__VU - 1 + __ITER) % userNames.length;
+  const userName = userNames[index];
   const timeData = getTimeRandom();
 
   const data = {
-    userName: '911229893359',
-    password: 'qwer1234', // 固定密码
+    userName: userName,
+    password: 'qwer1234', // collect-users.js 采集时统一重置的密码
     loginType: 'Mobile',
     deviceId: '',
     browserId: generateCryptoRandomString(32),

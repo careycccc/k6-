@@ -6,7 +6,7 @@ import { AdminLogin } from '../login/adminlogin.test.js';
 import { sleep } from 'k6';
 
 /***
- * k6 run -e TENANT_ID=3101 -e UID=112675 l6AgentReport.test.js
+ * k6p -e TENANT_ID=3101 -e UID=112675 l6AgentReport.test.js
  */
 
 // ============================================================
@@ -747,7 +747,7 @@ export function setup() {
 export default function (data) {
     const targetUid = __ENV.UID || __ENV.USER_ID || __ENV.USERID;
     if (!targetUid) {
-        console.error("❌ 缺少目标用户ID！请使用 -e UID=xxxx 指定，例如: k6 run -e UID=111922 l6AgentReport.test.js");
+        console.error("❌ 缺少目标用户ID！请使用 -e UID=xxxx 指定，例如: k6p -e UID=111922 l6AgentReport.test.js");
         return;
     }
     l6AgentReport(data, targetUid);

@@ -8,8 +8,8 @@
  *   不传时默认 "1:50,2:17,3:33"（沿用原脚本行为）。
  *
  * 运行方式：
- * k6 run -e TENANT_ID=3004 -e FETCH_COUNT=10 batchWithdraw.test.js
- * k6 run -e TENANT_ID=3101 -e FETCH_COUNT=15 -e WITHDRAW_COUNT_DIST="1:100,2:80,3:50,4:50" batchWithdraw.test.js
+ * k6p -e TENANT_ID=3004 -e FETCH_COUNT=10 batchWithdraw.test.js
+ * k6p -e TENANT_ID=3101 -e FETCH_COUNT=15 -e WITHDRAW_COUNT_DIST="1:100,2:80,3:50,4:50" batchWithdraw.test.js
  *
  * 参数说明：
  * FETCH_COUNT:          要凑够多少个余额达标的用户来提现，默认10（不够会分页继续找）

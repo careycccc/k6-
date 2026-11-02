@@ -49,10 +49,10 @@
 **K6命令示例：**
 ```bash
 # 随机模式（默认）
-k6 run -e TENANT_ID=3004 -e USER_COUNT=6 k6/tests/api/activity/signin/signinValidation.test.js
+k6p -e TENANT_ID=3004 -e USER_COUNT=6 k6/tests/api/activity/signin/signinValidation.test.js
 
 # 指定账号模式
-k6 run -e TENANT_ID=3002 \
+k6p -e TENANT_ID=3002 \
   -e MODE=specified \
   -e ACCOUNTS="913190610583,913191269257,913170156615" \
   k6/tests/api/activity/signin/signinValidation.test.js
@@ -78,7 +78,7 @@ k6 run -e TENANT_ID=3002 \
 
 **K6命令示例：**
 ```bash
-k6 run -e TENANT_ID=3004 -e TARGET_UID=136139 runAgentL3Validation.test.js
+k6p -e TENANT_ID=3004 -e TARGET_UID=136139 runAgentL3Validation.test.js
 ```
 
 **验证规则：**
@@ -107,7 +107,7 @@ k6 run -e TENANT_ID=3004 -e TARGET_UID=136139 runAgentL3Validation.test.js
 
 **K6命令示例：**
 ```bash
-k6 run -e TENANT_ID=3004 -e TARGET_UID=136139 runAgentL3Validation.test.js
+k6p -e TENANT_ID=3004 -e TARGET_UID=136139 runAgentL3Validation.test.js
 ```
 
 ---

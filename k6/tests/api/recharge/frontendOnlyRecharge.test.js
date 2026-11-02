@@ -13,22 +13,22 @@
  * 使用方法：
  *
  *   # 冒烟测试（验证脚本）
- *   k6 run -e TENANT_ID=3001 -e SCENARIO=smoke frontendOnlyRecharge.test.js
+ *   k6p -e TENANT_ID=3001 -e SCENARIO=smoke frontendOnlyRecharge.test.js
  *
  *   # 基准测试
- *   k6 run -e TENANT_ID=3001 -e SCENARIO=baseline frontendOnlyRecharge.test.js
+ *   k6p -e TENANT_ID=3001 -e SCENARIO=baseline frontendOnlyRecharge.test.js
  *
  *   # 负载测试（主力）
- *   k6 run -e TENANT_ID=3001 -e SCENARIO=load frontendOnlyRecharge.test.js
+ *   k6p -e TENANT_ID=3001 -e SCENARIO=load frontendOnlyRecharge.test.js
  *
  *   # 压力测试（找极限）
- *   k6 run -e TENANT_ID=3001 -e SCENARIO=stress frontendOnlyRecharge.test.js
+ *   k6p -e TENANT_ID=3001 -e SCENARIO=stress frontendOnlyRecharge.test.js
  *
  *   # 尖刺测试（模拟活动开始瞬间）
- *   k6 run -e TENANT_ID=3001 -e SCENARIO=spike frontendOnlyRecharge.test.js
+ *   k6p -e TENANT_ID=3001 -e SCENARIO=spike frontendOnlyRecharge.test.js
  *
  *   # 多租户并行
- *   k6 run -e TENANTS=3001,3002,3003 -e SCENARIO=load frontendOnlyRecharge.test.js
+ *   k6p -e TENANTS=3001,3002,3003 -e SCENARIO=load frontendOnlyRecharge.test.js
  */
 
 import { sleep, check } from 'k6';
@@ -36,83 +36,50 @@ import { Counter, Rate, Trend } from 'k6/metrics';
 import { randomIntBetween } from '../../../libs/vendor/k6-utils.js';
 import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
 import { getEnvByTenantId } from '../../../config/envconfig.js';
+import { getScenario } from '../../../config/scenarios.js';
 import { acquireToken, getPoolSize, closeRedis } from '../../../libs/redis/tokenPool.js';
 import { getRechargeCategoryList, depositRecharge } from './frontendRechargeApi.js';
 import { getConfigRechargeAmount } from './rechargeService.js';
-import { getRechargeOrderPageList, manualAuditRechargeOrder,
-         getLocalRechargeOrderPageList, manualAuditLocalRechargeOrder } from './backendRechargeApi.js';
+import {
+    getRechargeOrderPageList, manualAuditRechargeOrder,
+    getLocalRechargeOrderPageList, manualAuditLocalRechargeOrder
+} from './backendRechargeApi.js';
 import { submitCertificate } from './frontendRechargeApi.js';
 
 // ============================================================
 // 自定义业务指标
 // ============================================================
-const rechargeSuccessCount  = new Counter('recharge_success_total');   // 充值成功总次数
-const rechargeFailCount     = new Counter('recharge_fail_total');       // 充值失败总次数
-const rechargeSuccessRate   = new Rate('recharge_success_rate');        // 充值成功率
-const rechargeDuration      = new Trend('recharge_duration_ms', true);  // 充值耗时（ms）
-const tokenExpiredCount     = new Counter('token_expired_total');       // 过期token跳过次数
+const rechargeSuccessCount = new Counter('recharge_success_total');   // 充值成功总次数
+const rechargeFailCount = new Counter('recharge_fail_total');       // 充值失败总次数
+const rechargeSuccessRate = new Rate('recharge_success_rate');        // 充值成功率
+const rechargeDuration = new Trend('recharge_duration_ms', true);  // 充值耗时（ms）
+const tokenExpiredCount = new Counter('token_expired_total');       // 过期token跳过次数
 
 // ============================================================
 // 压测方案配置
 // ============================================================
-const SCENARIOS_CONFIG = {
-    // 方案1：冒烟测试 - 验证脚本本身无误
-    smoke: {
-        executor: 'per-vu-iterations',
-        vus: 1,
-        iterations: 1,
-        maxDuration: '2m'
-    },
-
-    // 方案2：基准测试 - 摸清正常负载下的性能基线
-    baseline: {
-        executor: 'constant-vus',
-        vus: 10,
-        duration: '5m'
-    },
-
-    // 方案3：负载测试 - 模拟真实业务高峰（阶梯爬坡）
-    // 0→50VU(2min) → 保持50VU(5min) → 50→100VU(2min) → 保持100VU(10min) → 归零
-    load: {
-        executor: 'ramping-vus',
-        startVUs: 0,
-        stages: [
-            { duration: '2m', target: 50  },
-            { duration: '5m', target: 50  },
-            { duration: '2m', target: 100 },
-            { duration: '10m', target: 100 },
-            { duration: '1m', target: 0   }
-        ],
-        gracefulRampDown: '30s'
-    },
-
-    // 方案4：压力测试 - 持续加压找系统极限
-    // 0→200VU(5min) → 保持200VU(10min) → 200→500VU(5min) → 保持500VU(10min) → 归零
-    stress: {
-        executor: 'ramping-vus',
-        startVUs: 0,
-        stages: [
-            { duration: '5m',  target: 200 },
-            { duration: '10m', target: 200 },
-            { duration: '5m',  target: 500 },
-            { duration: '10m', target: 500 },
-            { duration: '2m',  target: 0   }
-        ],
-        gracefulRampDown: '60s'
-    },
-
-    // 方案5：尖刺测试 - 模拟活动开始瞬间流量洪峰
-    // 0→500VU(30s) → 保持500VU(1min) → 归零(30s)
-    spike: {
+// smoke/baseline/load/stress 直接复用 config/scenarios.js 的标准场景，不再
+// 自己重复定义一份——之前这里是本地写死的 SCENARIOS_CONFIG，和全项目其他
+// 脚本各算各的场景强度，数值也对不上（比如这里的 load 峰值 100VU、stress
+// 峰值 500VU，和 scenarios.js 的 load.high(300VU)/stress.spike(500VU) 不一
+// 致）。现在统一从 scenarios.js 取，它是唯一的场景定义来源。
+// spike（30秒内直冲500VU、无中间台阶）是充值这条链路特有的"活动开场瞬间"
+// 语义，scenarios.js 里没有对应物，继续保留本地定义，不强行套标准场景。
+const SCENARIO_MAP = {
+    smoke: () => getScenario('smoke'),
+    baseline: () => getScenario('load.baseline'),
+    load: () => getScenario('load.high'),
+    stress: () => getScenario('stress.spike'),
+    spike: () => ({
         executor: 'ramping-vus',
         startVUs: 0,
         stages: [
             { duration: '30s', target: 500 },
-            { duration: '1m',  target: 500 },
-            { duration: '30s', target: 0   }
+            { duration: '1m', target: 500 },
+            { duration: '30s', target: 0 }
         ],
         gracefulRampDown: '10s'
-    }
+    })
 };
 
 // ============================================================
@@ -120,9 +87,9 @@ const SCENARIOS_CONFIG = {
 // ============================================================
 function buildOptions() {
     const scenarioName = __ENV.SCENARIO || 'load';
-    const scenarioCfg  = SCENARIOS_CONFIG[scenarioName] || SCENARIOS_CONFIG.load;
-    const tenantsStr   = __ENV.TENANTS || __ENV.TENANT_ID || '3004';
-    const tenants      = tenantsStr.split(',').map(t => t.trim());
+    const scenarioCfg = (SCENARIO_MAP[scenarioName] || SCENARIO_MAP.load)();
+    const tenantsStr = __ENV.TENANTS || __ENV.TENANT_ID || '3004';
+    const tenants = tenantsStr.split(',').map(t => t.trim());
 
     const scenarios = {};
 
@@ -131,7 +98,8 @@ function buildOptions() {
         scenarios['recharge'] = {
             ...scenarioCfg,
             env: { TENANT_ID: tenants[0] },
-            tags: { tenant: tenants[0], scenario: scenarioName }
+            // 合并而不是覆盖：保留 getScenario() 自带的 tags（如 test_type/load_level）
+            tags: { ...scenarioCfg.tags, tenant: tenants[0], scenario: scenarioName }
         };
     } else {
         // 多租户并行：每个租户独立 scenario
@@ -139,7 +107,7 @@ function buildOptions() {
             scenarios[`recharge_${tenantId}`] = {
                 ...scenarioCfg,
                 env: { TENANT_ID: tenantId },
-                tags: { tenant: tenantId, scenario: scenarioName }
+                tags: { ...scenarioCfg.tags, tenant: tenantId, scenario: scenarioName }
             };
         }
     }
@@ -168,7 +136,7 @@ export const options = buildOptions();
 // ============================================================
 export function setup() {
     const tenantsStr = __ENV.TENANTS || __ENV.TENANT_ID || '3004';
-    const tenants    = tenantsStr.split(',').map(t => t.trim());
+    const tenants = tenantsStr.split(',').map(t => t.trim());
 
     const adminTokens = {};
 
@@ -204,7 +172,7 @@ export function setup() {
  * @returns {{ success: boolean, amount: number, message: string }}
  */
 function frontendOnlyRecharge(userToken, adminToken, tenantId) {
-    const envConfig   = getEnvByTenantId(tenantId);
+    const envConfig = getEnvByTenantId(tenantId);
     const targetAmount = getConfigRechargeAmount();
 
     // 获取充值通道列表
@@ -222,11 +190,11 @@ function frontendOnlyRecharge(userToken, adminToken, tenantId) {
 
     // ⭐ 充值通道隔离：按 VU 编号取模，每个 VU 固定打一个通道
     // 避免高并发下多 VU 同时打同一通道触发频率限制
-    const vuIndex     = (__VU - 1) % categories.length;
-    const category    = categories[vuIndex];
-    const categoryId  = category.id;
+    const vuIndex = (__VU - 1) % categories.length;
+    const category = categories[vuIndex];
+    const categoryId = category.id;
     const rechargeType = category.rechargeType;
-    const name        = category.name;
+    const name = category.name;
 
     let minAmt = category.minAmount || 100;
     let maxAmt = category.maxAmount || 100000;
@@ -249,9 +217,9 @@ function frontendOnlyRecharge(userToken, adminToken, tenantId) {
         return { success: false, amount: 0, message: '充值请求无响应' };
     }
 
-    const code    = response.code;
+    const code = response.code;
     const msgCode = response.msgCode;
-    const msg     = response.msg || '';
+    const msg = response.msg || '';
     const isApiSuccess = (code === 0 || msg.includes('code: 10003'));
 
     if (!isApiSuccess) {
@@ -277,8 +245,8 @@ function frontendOnlyRecharge(userToken, adminToken, tenantId) {
 
         if (rechargeType === 'LocalEWallet') {
             const startTime = rechargeRequestTime - 60000;
-            const endTime   = Date.now() + 60000;
-            const orders    = getLocalRechargeOrderPageList(adminToken, null, startTime, endTime);
+            const endTime = Date.now() + 60000;
+            const orders = getLocalRechargeOrderPageList(adminToken, null, startTime, endTime);
 
             if (orders && orders.length > 0) {
                 orders.sort((a, b) => b.createTime - a.createTime);
@@ -316,7 +284,7 @@ function frontendOnlyRecharge(userToken, adminToken, tenantId) {
 // 主函数
 // ============================================================
 export default async function (data) {
-    const tenantId   = __ENV.TENANT_ID || '3004';
+    const tenantId = __ENV.TENANT_ID || '3004';
     const adminToken = data.adminTokens[tenantId];
 
     if (!adminToken) {
@@ -339,8 +307,8 @@ export default async function (data) {
 
     // 执行充值并计时
     const startTime = Date.now();
-    const result    = frontendOnlyRecharge(userToken, adminToken, tenantId);
-    const elapsed   = Date.now() - startTime;
+    const result = frontendOnlyRecharge(userToken, adminToken, tenantId);
+    const elapsed = Date.now() - startTime;
 
     // 记录业务指标
     rechargeDuration.add(elapsed);

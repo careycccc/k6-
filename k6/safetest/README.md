@@ -67,28 +67,28 @@ safetest/
 cd k6/safetest
 
 # 先看正向对照（确认能正常上传、存储域、返回头）
-k6 run 0_positive_control.js
+k6p 0_positive_control.js
 
 # 一键跑 RCE / XSS / 路径遍历 / 配置劫持 / PDF 并汇总
-k6 run run_all.test.js
+k6p run_all.test.js
 
 # DoS 单独跑（图片解压炸弹探针）
-k6 run 3_dos.test.js
+k6p 3_dos.test.js
 
 # PDF 专项单独跑（5 个子判定）
-k6 run 6_pdf_upload.test.js
+k6p 6_pdf_upload.test.js
 
 # PDF 文件名XSS 端到端确认：真正提交成一条工单（会创建工单！带 K6ST_PDF_XSS_POC 标记便于删除）
 # 提交后请到后台"一对一客服"工单列表点开该工单，看是否弹出 alert 以确认 XSS，确认后删除
-k6 run -e SUBMIT=1 6_pdf_upload.test.js
+k6p -e SUBMIT=1 6_pdf_upload.test.js
 # 若工单表单字段 ID 不同可覆盖：-e FORM_ID=200280 -e WO_TYPE_ID=2 -e TEXT_FIELD_ID=200426 -e FILE_FIELD_ID=200611
 
 # 单跑某一项
-k6 run 1_rce_webshell.test.js
+k6p 1_rce_webshell.test.js
 
 # 换环境 / 换游客包名
-k6 run -e TENANT_ID=3101 run_all.test.js
-k6 run -e PACKAGE_NAME=com.arXXXX.fb.app run_all.test.js
+k6p -e TENANT_ID=3101 run_all.test.js
+k6p -e PACKAGE_NAME=com.arXXXX.fb.app run_all.test.js
 ```
 
 > 若要重新生成 payload：`python payloads/generate_payloads.py`（图片炸弹）、`python payloads/generate_pdf_payloads.py`（PDF）

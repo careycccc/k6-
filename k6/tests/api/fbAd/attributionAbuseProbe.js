@@ -21,9 +21,9 @@
  *                    多次使用"是否会被识别/拒绝，而不是每次都当新转化放行
  *
  * 用法：
- *   k6 run -e TENANT_ID=3003 -e SCENARIO=rate_limit verifyAttributionAbuseProbe.js
- *   k6 run -e TENANT_ID=3003 -e SCENARIO=fbclid_reuse attributionAbuseProbe.js
- *   k6 run -e TENANT_ID=3003 -e SCENARIO=all attributionAbuseProbe.js
+ *   k6p -e TENANT_ID=3003 -e SCENARIO=rate_limit verifyAttributionAbuseProbe.js
+ *   k6p -e TENANT_ID=3003 -e SCENARIO=fbclid_reuse attributionAbuseProbe.js
+ *   k6p -e TENANT_ID=3003 -e SCENARIO=all attributionAbuseProbe.js
  *   可选: -e ATTEMPTS=10 -e INTERVAL_MS=300
  */
 import { sleep } from 'k6';

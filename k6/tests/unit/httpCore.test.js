@@ -1,7 +1,7 @@
 /**
  * libs/http/core.js 自测：租户解析优先级、域名、请求头、签名（不发请求，除了集团登录本身）
- *   商户模式（旧行为）: k6 run -e TENANT=3101 -e TENANT_ID=3004 -e USE_GROUP_ADMIN=false k6/tests/unit/httpCore.test.js
- *   集团模式（默认，2026-10-30新增）: k6 run -e TENANT_ID=3004 k6/tests/unit/httpCore.test.js
+ *   商户模式（旧行为）: k6p -e TENANT=3101 -e TENANT_ID=3004 -e USE_GROUP_ADMIN=false k6/tests/unit/httpCore.test.js
+ *   集团模式（默认，2026-10-30新增）: k6p -e TENANT_ID=3004 k6/tests/unit/httpCore.test.js
  */
 import { resolveTenant, getBaseUrl, buildBaseHeaders, signPayload } from '../../libs/http/core.js';
 import { getTenantBaseUrl } from '../../libs/http/primitives.js';

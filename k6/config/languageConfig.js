@@ -4,9 +4,9 @@
 //
 // 使用方法（通过环境变量指定语言）：
 //   不指定 LANGUAGES → 根据租户ID使用对应的默认语言
-//   k6 run -e LANGUAGES=pt              → 只用葡萄牙语
-//   k6 run -e LANGUAGES=en,vi,ms        → 英语 + 越南语 + 马来语
-//   k6 run -e LANGUAGES=zh,en,hi,es,pt  → 5种语言
+//   k6p -e LANGUAGES=pt              → 只用葡萄牙语
+//   k6p -e LANGUAGES=en,vi,ms        → 英语 + 越南语 + 马来语
+//   k6p -e LANGUAGES=zh,en,hi,es,pt  → 5种语言
 //
 // 租户默认语言配置在 tenantLanguageConfig.js 中定义
 // 新增语言只需在 SUPPORTED_LANGUAGES 中添加一条记录，

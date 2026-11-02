@@ -3,7 +3,7 @@
  * POST api/User/UpdateUserGender
  *
  * 用法：
- *   k6 run -e TENANT_ID=3101 -e USERNAME=916043957059 -e GENDER=0 updateUserGender.test.js
+ *   k6p -e TENANT_ID=3101 -e USERNAME=916043957059 -e GENDER=0 updateUserGender.test.js
  *
  * 环境变量：
  *   TENANT_ID  租户ID（默认 3004）
@@ -21,9 +21,9 @@ import { getTimeRandom } from '../../../utils/utils.js';
 export const options = {
   scenarios: {
     update_gender: {
-      executor:    'per-vu-iterations',
-      vus:         1,
-      iterations:  1,
+      executor: 'per-vu-iterations',
+      vus: 1,
+      iterations: 1,
       maxDuration: '5m',
     },
   },
@@ -46,8 +46,8 @@ function printResponse(label, response) {
 
 export function setup() {
   const tenantId = __ENV.TENANT_ID || '3004';
-  const userName = __ENV.USERNAME  || '';
-  const gender   = __ENV.GENDER    !== undefined ? parseInt(__ENV.GENDER, 10) : null;
+  const userName = __ENV.USERNAME || '';
+  const gender = __ENV.GENDER !== undefined ? parseInt(__ENV.GENDER, 10) : null;
 
   if (!userName) throw new Error('[Setup] 请通过 -e USERNAME=<账号> 指定前台账号');
   if (gender === null) throw new Error('[Setup] 请通过 -e GENDER=0 或 -e GENDER=1 指定性别');
@@ -86,7 +86,7 @@ export default function (data) {
 
   const body = JSON.parse(res.body);
   check(body, {
-    'code=1':    (b) => b.code === 1,
+    'code=1': (b) => b.code === 1,
     'msgCode=0': (b) => b.msgCode === 0,
   });
 }

@@ -20,16 +20,16 @@ k6/tests/api/retention/
 
 ```bash
 # 基本用法（注册10人，使用租户专属配置）
-k6 run -e TENANT_ID=3004 day1_seed.test.js
+k6p -e TENANT_ID=3004 day1_seed.test.js
 
 # 指定注册人数
-k6 run -e TENANT_ID=3004 -e USER_COUNT=100 day1_seed.test.js
+k6p -e TENANT_ID=3004 -e USER_COUNT=100 day1_seed.test.js
 
 # 指定包类型
-k6 run -e TENANT_ID=3101 -e USER_COUNT=50 -e PACKAGE_TYPE=3 day1_seed.test.js
+k6p -e TENANT_ID=3101 -e USER_COUNT=50 -e PACKAGE_TYPE=3 day1_seed.test.js
 
 # 指定邀请码
-k6 run -e TENANT_ID=3004 -e USER_COUNT=100 -e INVITE_CODE=ABCDEFG day1_seed.test.js
+k6p -e TENANT_ID=3004 -e USER_COUNT=100 -e INVITE_CODE=ABCDEFG day1_seed.test.js
 ```
 
 | 参数 | 说明 | 默认值 |
@@ -48,16 +48,16 @@ k6 run -e TENANT_ID=3004 -e USER_COUNT=100 -e INVITE_CODE=ABCDEFG day1_seed.test
 
 ```bash
 # 次日复充（查昨天的用户，今天让他们充值）
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 dayN_recharge.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 dayN_recharge.test.js
 
 # 3日复充场景的第3天（查前天的用户）
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=2 dayN_recharge.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=2 dayN_recharge.test.js
 
 # 调整参与率为90%
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 -e PARTICIPATION_RATE=0.9 dayN_recharge.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 -e PARTICIPATION_RATE=0.9 dayN_recharge.test.js
 
 # 固定充值2次
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 -e RECHARGE_STRATEGY=double dayN_recharge.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 -e RECHARGE_STRATEGY=double dayN_recharge.test.js
 ```
 
 | 参数 | 说明 | 默认值 |
@@ -76,16 +76,16 @@ k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 -e RECHARGE_
 
 ```bash
 # 当日复充验证（今天同一天内充值≥2次）
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=1 dayN_verify.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=1 dayN_verify.test.js
 
 # 次日复充验证（昨天+今天，连续2天）
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=2 dayN_verify.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=2 dayN_verify.test.js
 
 # 3日复充验证（连续3天）
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=3 dayN_verify.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=3 dayN_verify.test.js
 
 # 7日复充验证（连续7天）
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=7 dayN_verify.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=7 dayN_verify.test.js
 ```
 
 | 参数 | 说明 | 默认值 |
@@ -106,14 +106,14 @@ k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=7 dayN_v
 
 ```bash
 # 当日复充分析
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=same_day rechargeRetention.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=same_day rechargeRetention.test.js
 
 # 次日复充分析
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=next_day rechargeRetention.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=next_day rechargeRetention.test.js
 
 # 指定目标日期
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=same_day -e TARGET_DATE=2026-04-16 rechargeRetention.test.js
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=next_day -e TARGET_DATE=2026-04-14 rechargeRetention.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=same_day -e TARGET_DATE=2026-04-16 rechargeRetention.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=next_day -e TARGET_DATE=2026-04-14 rechargeRetention.test.js
 ```
 
 ---
@@ -124,45 +124,45 @@ k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e MODE=next_day -e TARGET
 
 ```bash
 # 第1天：播种
-k6 run -e TENANT_ID=3004 -e USER_COUNT=100 day1_seed.test.js
+k6p -e TENANT_ID=3004 -e USER_COUNT=100 day1_seed.test.js
 
 # 第2天：复充执行
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 dayN_recharge.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 dayN_recharge.test.js
 
 # 第2天：验证次日复充率
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=2 dayN_verify.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=2 dayN_verify.test.js
 ```
 
 ### 3日复充测试（3天）
 
 ```bash
 # 第1天：播种
-k6 run -e TENANT_ID=3004 -e USER_COUNT=100 day1_seed.test.js
+k6p -e TENANT_ID=3004 -e USER_COUNT=100 day1_seed.test.js
 
 # 第2天：复充执行
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 dayN_recharge.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 dayN_recharge.test.js
 
 # 第3天：复充执行
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 dayN_recharge.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 dayN_recharge.test.js
 
 # 第3天：验证次日复充率（Day2→Day3）
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=2 dayN_verify.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=2 dayN_verify.test.js
 
 # 第3天：验证3日复充率（Day1∩Day2∩Day3）
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=3 dayN_verify.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=3 dayN_verify.test.js
 ```
 
 ### 7日复充测试
 
 ```bash
 # 第1天：播种
-k6 run -e TENANT_ID=3004 -e USER_COUNT=100 day1_seed.test.js
+k6p -e TENANT_ID=3004 -e USER_COUNT=100 day1_seed.test.js
 
 # 第2~7天：每天执行复充
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 dayN_recharge.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 dayN_recharge.test.js
 
 # 第7天：验证7日复充率
-k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=7 dayN_verify.test.js
+k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=7 dayN_verify.test.js
 ```
 
 ---
@@ -176,9 +176,9 @@ k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=7 dayN_v
 
 ```bash
 # 3101 租户
-k6 run -e TENANT_ID=3101 -e USER_COUNT=50 -e PACKAGE_TYPE=3 day1_seed.test.js
-k6 run -e TENANT_ID=3101 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 dayN_recharge.test.js
-k6 run -e TENANT_ID=3101 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=2 dayN_verify.test.js
+k6p -e TENANT_ID=3101 -e USER_COUNT=50 -e PACKAGE_TYPE=3 day1_seed.test.js
+k6p -e TENANT_ID=3101 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=1 dayN_recharge.test.js
+k6p -e TENANT_ID=3101 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=2 dayN_verify.test.js
 ```
 
 ---

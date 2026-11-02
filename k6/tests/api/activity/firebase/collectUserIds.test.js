@@ -11,8 +11,8 @@
  *   分波次把所有页拉完。THREADS 就是同时翻页的线程数。
  *
  * 运行方式（在 k6/tests/api/activity/firebase/ 目录下执行）：
- *   k6 run -e TENANT=3004 collectUserIds.test.js
- *   k6 run -e TENANT=3005 -e TARGET=10 -e THREADS=2 collectUserIds.test.js
+ *   k6p -e TENANT=3004 collectUserIds.test.js
+ *   k6p -e TENANT=3005 -e TARGET=10 -e THREADS=2 collectUserIds.test.js
  *
  * 参数说明：
  *   TENANT      租户 ID（默认 3004）
@@ -32,9 +32,9 @@ import { getEnvByTenantId } from '../../../../config/envconfig.js';
 // ============================================================
 
 const TENANT_ID = __ENV.TENANT || __ENV.TENANT_ID || '3004';
-const TARGET    = parseInt(__ENV.TARGET    || '25000', 10);
-const PAGE_SIZE = parseInt(__ENV.PAGE_SIZE || '500',   10);
-const THREADS   = parseInt(__ENV.THREADS   || __ENV.VUS || '10', 10);
+const TARGET = parseInt(__ENV.TARGET || '25000', 10);
+const PAGE_SIZE = parseInt(__ENV.PAGE_SIZE || '500', 10);
+const THREADS = parseInt(__ENV.THREADS || __ENV.VUS || '10', 10);
 
 const TAG = 'CollectUserIds';
 
@@ -52,9 +52,9 @@ export const options = {
     setupTimeout: '2h',
     scenarios: {
         collect: {
-            executor:    'per-vu-iterations',
-            vus:         1,
-            iterations:  1,
+            executor: 'per-vu-iterations',
+            vus: 1,
+            iterations: 1,
             maxDuration: '2h'
         }
     }
@@ -67,17 +67,17 @@ export const options = {
 
 function buildPageRequest(pageNo, token) {
     const envConfig = getEnvByTenantId(TENANT_ID);
-    const baseUrl   = envConfig.BASE_ADMIN_URL;        // isDesk:false → 后台地址
-    const url       = baseUrl + '/api/Users/GetPageList';
+    const baseUrl = envConfig.BASE_ADMIN_URL;        // isDesk:false → 后台地址
+    const url = baseUrl + '/api/Users/GetPageList';
 
     const timeData = getTimeRandom();
     const requestData = {
         userType: 0,
-        pageNo:   pageNo,
+        pageNo: pageNo,
         pageSize: PAGE_SIZE,
-        orderBy:  'Desc',
-        random:    timeData.random,
-        language:  timeData.language,
+        orderBy: 'Desc',
+        random: timeData.random,
+        language: timeData.language,
         timestamp: timeData.timestamp
     };
 
@@ -85,13 +85,13 @@ function buildPageRequest(pageNo, token) {
 
     return {
         method: 'POST',
-        url:    url,
-        body:   JSON.stringify(signedData),
+        url: url,
+        body: JSON.stringify(signedData),
         params: {
             headers: {
                 'Content-Type': 'application/json',
-                'Domainurl':    baseUrl,
-                'Referrer':     baseUrl,
+                'Domainurl': baseUrl,
+                'Referrer': baseUrl,
                 'Authorization': `Bearer ${token}`
             }
         }
@@ -138,7 +138,7 @@ export function setup() {
     console.log(`[${TAG}] 总用户数: ${totalCount}`);
 
     // 实际目标：不超过总数
-    const needCount  = Math.min(TARGET, totalCount || TARGET);
+    const needCount = Math.min(TARGET, totalCount || TARGET);
     // 需要的总页数（向上取整）
     const pagesNeeded = Math.min(
         Math.ceil(needCount / PAGE_SIZE),
@@ -210,7 +210,7 @@ export function handleSummary(_data) {
         return { stdout: `[${TAG}] 未收集到用户数据\n` };
     }
 
-    const userIdContent  = allUsers.map(u => u.userId).join('\n');
+    const userIdContent = allUsers.map(u => u.userId).join('\n');
     const accountContent = allUsers.map(u => u.account).join('\n');
 
     console.log(`[${TAG}] 写入 1.txt 和 2.txt，共 ${allUsers.length} 条`);

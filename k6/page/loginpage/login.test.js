@@ -12,11 +12,11 @@
 // 注意：本测试仅测量页面加载性能，不执行实际登录操作
 //
 // 运行命令：
-//   k6 run -e TENANT_ID=3007 k6/page/loginpage/login.test.js
-//   k6 run -e TENANT_ID=3004 login.test.js
+//   k6p -e TENANT_ID=3007 k6/page/loginpage/login.test.js
+//   k6p -e TENANT_ID=3004 login.test.js
 //
 // 调试（显示浏览器窗口）：
-//   Windows: set K6_BROWSER_HEADLESS=false && k6 run -e TENANT_ID=3007 k6/page/loginpage/login.test.js
+//   Windows: set K6_BROWSER_HEADLESS=false && k6p -e TENANT_ID=3007 k6/page/loginpage/login.test.js
 // ============================================
 
 import { browser } from 'k6/browser';

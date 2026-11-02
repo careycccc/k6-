@@ -3,13 +3,13 @@
  *
  * 使用方法：
  *   # 当日复充验证（今天同一天内充值≥2次）
- *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100051 -e RETENTION_DAYS=1 dayN_verify.test.js
+ *   k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100051 -e RETENTION_DAYS=1 dayN_verify.test.js
  *
  *   # 次日复充验证（昨天+今天，连续2天）
- *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=2 dayN_verify.test.js
+ *   k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=2 dayN_verify.test.js
  *
  *   # 3日复充验证（连续3天）
- *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=3 dayN_verify.test.js
+ *   k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e RETENTION_DAYS=3 dayN_verify.test.js
  *
  * 参数：
  *   TENANT_ID            租户ID（必需）
@@ -103,15 +103,15 @@ function buildSameDayReport(adminToken) {
 
     const orders = fetchAllRechargeOrders(adminToken, range.startTime, range.endTime, 'Payed', channelPackageId);
     const result = analyzeSameDayRetention(orders);
-    
+
     // 获取当天的渠道总注册人数
     const totalRegisteredUsers = getNewUserCount(adminToken, range.startTime, range.endTime, channelPackageId);
-    
+
     // 聚合充值数据
     let totalRechargeAmount = 0;
     let firstRechargeUsers = new Set();
     let firstRechargeAmount = 0;
-    
+
     const rechargedUsers = new Set();
 
     for (const order of orders) {

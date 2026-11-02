@@ -11,7 +11,7 @@
  *   🟡 秒级接受、完全不校验尺寸（下游解码环节仍可能爆） → 潜在 DoS
  *   🟢 上传层拒绝该畸形超大图片                          → 通过（有解压炸弹防护）
  *
- * 运行：k6 run -e TENANT_ID=3004 3_dos.test.js
+ * 运行：k6p -e TENANT_ID=3004 3_dos.test.js
  */
 import { sleep } from 'k6';
 import { getSafeEnv, absoluteUrl, classifyOrigin, tenantId } from './lib/env.js';
@@ -31,7 +31,7 @@ export function runCase(env, token) {
     const run = `${Date.now().toString(36)}${__VU}`;
 
     const probes = [
-        { desc: '像素洪水 50000x50000 (~10GB解码)', content: BOMB,     fileName: `k6st_${run}_bomb.png` },
+        { desc: '像素洪水 50000x50000 (~10GB解码)', content: BOMB, fileName: `k6st_${run}_bomb.png` },
         { desc: '像素洪水 65500x65500 (~17GB解码)', content: BOMB_BIG, fileName: `k6st_${run}_bomb2.png` },
     ];
 

@@ -17,7 +17,7 @@
  *   teardown() → 还原配置
  *
  * 运行命令（示例）：
- *   k6 run rechargeLevelConfig.test.js -e TENANT_ID=3004 -e TEST_RECHARGE_LEVEL=2
+ *   k6p rechargeLevelConfig.test.js -e TENANT_ID=3004 -e TEST_RECHARGE_LEVEL=2
  */
 
 import { sleep, check } from 'k6';
@@ -376,7 +376,7 @@ export default function (data) {
 
         const isInVerifyRange = verifyLevels.includes(userLevelIn);
         const categoryVisibleIn = supportIdsIn.includes(testCategoryId);
-        
+
         const usernameIn = userInRange ? (userInRange.userName || userInRange.phone || userInRange.account) : '未知';
 
         if (!isInVerifyRange || !categoryVisibleIn) {
@@ -420,7 +420,7 @@ export default function (data) {
 
         const isOutVerifyRange = !verifyLevels.includes(userLevelOut);
         const categoryHiddenOut = !supportIdsOut.includes(testCategoryId);
-        
+
         const usernameOut = userOutRange ? (userOutRange.userName || userOutRange.phone || userOutRange.account) : '未知';
 
         if (!isOutVerifyRange || !categoryHiddenOut) {

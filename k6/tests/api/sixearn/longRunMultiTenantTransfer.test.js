@@ -10,7 +10,7 @@
  *   6. 最终报表写入 k6/reports/ 目录
  *
  * 使用方法（每个总代单独指定人数和层级）：
- *   k6 run \
+ *   k6p \
  *     -e TENANT_IDS=3004,3006,3007 \
  *     -e AGENTS_PER_TENANT=3 \
  *     -e AGENT1_MEMBERS=1000 -e AGENT1_LEVELS=20 \
@@ -34,7 +34,7 @@
  *   -e ROOT_UIDS_3004=111,222,333 \
  *   longRunMultiTenantTransfer.test.js
  * 
- * k6 run -e TENANT_IDS=3006 -e AGENTS_PER_TENANT=3 -e AGENT1_MEMBERS=10 -e AGENT1_LEVELS=2 -e AGENT2_MEMBERS=20 -e AGENT2_LEVELS=3 -e AGENT3_MEMBERS=11 -e AGENT3_LEVELS=3 -e TRANSFERS_PER_PAIR=3 longRunMultiTenantTransfer.test.js
+ * k6p -e TENANT_IDS=3006 -e AGENTS_PER_TENANT=3 -e AGENT1_MEMBERS=10 -e AGENT1_LEVELS=2 -e AGENT2_MEMBERS=20 -e AGENT2_LEVELS=3 -e AGENT3_MEMBERS=11 -e AGENT3_LEVELS=3 -e TRANSFERS_PER_PAIR=3 longRunMultiTenantTransfer.test.js
  */
 
 import { sleep } from 'k6';
@@ -60,24 +60,24 @@ import { runBackendWithdrawApproval } from '../withdraw/backendWithdrawApi.js';
 // ==================== 参数解析 ==============================
 // ============================================================
 
-const TENANT_IDS          = (__ENV.TENANT_IDS || '3004').split(',').map(s => s.trim()).filter(Boolean);
-const AGENTS_PER_TENANT   = parseInt(__ENV.AGENTS_PER_TENANT   || '3',   10);
+const TENANT_IDS = (__ENV.TENANT_IDS || '3004').split(',').map(s => s.trim()).filter(Boolean);
+const AGENTS_PER_TENANT = parseInt(__ENV.AGENTS_PER_TENANT || '3', 10);
 // 全局默认值（当某个总代没有单独配置时使用）
-const MEMBERS_PER_AGENT   = parseInt(__ENV.MEMBERS_PER_AGENT   || '100', 10);
-const LEVELS_PER_AGENT    = parseInt(__ENV.LEVELS_PER_AGENT    || '8',   10);
-const TRANSFERS_PER_PAIR  = parseInt(__ENV.TRANSFERS_PER_PAIR  || '3',   10);
-const INACTIVE_RATE       = parseFloat(__ENV.INACTIVE_RATE       || '0.2');
-const RECHARGE_ONLY_RATE  = parseFloat(__ENV.RECHARGE_ONLY_RATE  || '0.2');
+const MEMBERS_PER_AGENT = parseInt(__ENV.MEMBERS_PER_AGENT || '100', 10);
+const LEVELS_PER_AGENT = parseInt(__ENV.LEVELS_PER_AGENT || '8', 10);
+const TRANSFERS_PER_PAIR = parseInt(__ENV.TRANSFERS_PER_PAIR || '3', 10);
+const INACTIVE_RATE = parseFloat(__ENV.INACTIVE_RATE || '0.2');
+const RECHARGE_ONLY_RATE = parseFloat(__ENV.RECHARGE_ONLY_RATE || '0.2');
 const MAX_RECHARGE_BEFORE = parseInt(__ENV.MAX_RECHARGE_BEFORE || '3', 10);
-const MAX_RECHARGE_AFTER  = parseInt(__ENV.MAX_RECHARGE_AFTER  || '3', 10);
-const MAX_BET_BEFORE      = parseInt(__ENV.MAX_BET_BEFORE      || '3', 10);
-const MAX_BET_AFTER       = parseInt(__ENV.MAX_BET_AFTER       || '3', 10);
+const MAX_RECHARGE_AFTER = parseInt(__ENV.MAX_RECHARGE_AFTER || '3', 10);
+const MAX_BET_BEFORE = parseInt(__ENV.MAX_BET_BEFORE || '3', 10);
+const MAX_BET_AFTER = parseInt(__ENV.MAX_BET_AFTER || '3', 10);
 // 提现：默认关闭，-e ENABLE_WITHDRAW=true 开启；后台审核默认关闭（同 multiAgentTransfer）
-const ENABLE_WITHDRAW         = (__ENV.ENABLE_WITHDRAW || '').toLowerCase() === 'true';
+const ENABLE_WITHDRAW = (__ENV.ENABLE_WITHDRAW || '').toLowerCase() === 'true';
 const ENABLE_BACKEND_APPROVAL = (__ENV.ENABLE_BACKEND_APPROVAL || '').toLowerCase() === 'true';
 const MAX_WITHDRAW_BEFORE = parseInt(__ENV.MAX_WITHDRAW_BEFORE || '1', 10);
-const MAX_WITHDRAW_AFTER  = parseInt(__ENV.MAX_WITHDRAW_AFTER  || '1', 10);
-const REPORT_DIR          = __ENV.REPORT_DIR || 'k6/reports';
+const MAX_WITHDRAW_AFTER = parseInt(__ENV.MAX_WITHDRAW_AFTER || '1', 10);
+const REPORT_DIR = __ENV.REPORT_DIR || 'k6/reports';
 
 const TAG = 'LongRunTransfer';
 
@@ -113,9 +113,9 @@ export const options = {
     setupTimeout: '36h',
     scenarios: {
         long_run_transfer: {
-            executor:    'per-vu-iterations',
-            vus:         1,
-            iterations:  1,
+            executor: 'per-vu-iterations',
+            vus: 1,
+            iterations: 1,
             maxDuration: '36h'
         }
     },
@@ -144,7 +144,7 @@ export const options = {
 function formatTime(ts) {
     const d = new Date(ts);
     const pad = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 /**
@@ -276,8 +276,8 @@ function doBetN(userToken, account, n) {
  * 计算可提现金额
  */
 function calcWithdrawAmount(balance) {
-    if (balance <= 300)   return 0;
-    if (balance <= 1000)  return Math.floor(balance * 0.3);
+    if (balance <= 300) return 0;
+    if (balance <= 1000) return Math.floor(balance * 0.3);
     if (balance <= 10000) return Math.floor(balance * 0.1);
     return Math.floor(200 + Math.random() * 4800);
 }
@@ -494,14 +494,14 @@ export function setup() {
 
             // 读取该总代的人数和层级（支持单独配置）
             const membersForAgent = getAgentMembers(agentIndex, tenantId);
-            const levelsForAgent  = getAgentLevels(agentIndex, tenantId);
-            const distribution    = distributePeople(membersForAgent, levelsForAgent);
+            const levelsForAgent = getAgentLevels(agentIndex, tenantId);
+            const distribution = distributePeople(membersForAgent, levelsForAgent);
 
             console.log(`\n[Setup] 租户${tenantId} 总代${agentIndex}(${agent.userId}) 配置: ${membersForAgent}人 ${levelsForAgent}层 → ${distribution.join('->')}`);
 
             // 将配置保存到 agent 对象，供报表使用
             agent.configMembers = membersForAgent;
-            agent.configLevels  = levelsForAgent;
+            agent.configLevels = levelsForAgent;
 
             // 检查是否已有成员（断点续跑时跳过注册）
             const existingMembers = getAgentHierarchyList(adminToken, agent.userId, {
@@ -620,13 +620,13 @@ function generateTransferPlan() {
     const rechargeBeforeTotal = randInt(0, MAX_RECHARGE_BEFORE);
     // 如果有充值，随机在第几次充值后转线（1 ~ rechargeBeforeTotal）
     const transferAfterRecharge = rechargeBeforeTotal > 0 ? randInt(1, rechargeBeforeTotal) : 0;
-    const betBeforeTotal   = randInt(0, MAX_BET_BEFORE);
+    const betBeforeTotal = randInt(0, MAX_BET_BEFORE);
     const withdrawBeforeTotal = ENABLE_WITHDRAW ? randInt(0, MAX_WITHDRAW_BEFORE) : 0;
 
     // 转线后行为
-    const rechargeAfterTotal  = randInt(0, MAX_RECHARGE_AFTER);
-    const betAfterTotal       = randInt(0, MAX_BET_AFTER);
-    const withdrawAfterTotal  = ENABLE_WITHDRAW ? randInt(0, MAX_WITHDRAW_AFTER) : 0;
+    const rechargeAfterTotal = randInt(0, MAX_RECHARGE_AFTER);
+    const betAfterTotal = randInt(0, MAX_BET_AFTER);
+    const withdrawAfterTotal = ENABLE_WITHDRAW ? randInt(0, MAX_WITHDRAW_AFTER) : 0;
 
     return {
         rechargeBeforeTotal,
@@ -689,11 +689,11 @@ function executeTransferTask(params) {
         plan,
         // 实际执行结果
         rechargeBeforeAmt: 0, rechargeBeforeTimes: 0,
-        betBeforeAmt: 0,      betBeforeTimes: 0,
+        betBeforeAmt: 0, betBeforeTimes: 0,
         withdrawBeforeAmt: 0, withdrawBeforeTimes: 0,
-        rechargeAfterAmt: 0,  rechargeAfterTimes: 0,
-        betAfterAmt: 0,       betAfterTimes: 0,
-        withdrawAfterAmt: 0,  withdrawAfterTimes: 0,
+        rechargeAfterAmt: 0, rechargeAfterTimes: 0,
+        betAfterAmt: 0, betAfterTimes: 0,
+        withdrawAfterAmt: 0, withdrawAfterTimes: 0,
         transferSuccess: false,
         timestamp: Date.now()
     };
@@ -702,7 +702,7 @@ function executeTransferTask(params) {
     if (plan.rechargeBeforeTotal > 0 && plan.transferAfterRecharge > 0) {
         console.log(`[Transfer] 转线前充值 ${plan.transferAfterRecharge} 次...`);
         const r = doRechargeN(userToken, userId, adminToken, plan.transferAfterRecharge);
-        rec.rechargeBeforeAmt   += r.totalAmt;
+        rec.rechargeBeforeAmt += r.totalAmt;
         rec.rechargeBeforeTimes += r.times;
         sleep(1);
     }
@@ -711,7 +711,7 @@ function executeTransferTask(params) {
     if (plan.betBeforeTotal > 0 && rec.rechargeBeforeAmt > 0) {
         console.log(`[Transfer] 转线前投注 ${plan.betBeforeTotal} 次（充值成功 ${rec.rechargeBeforeAmt.toFixed(2)}）...`);
         const b = doBetN(userToken, account, plan.betBeforeTotal);
-        rec.betBeforeAmt   += b.totalAmt;
+        rec.betBeforeAmt += b.totalAmt;
         rec.betBeforeTimes += b.times;
         sleep(1);
     } else if (plan.betBeforeTotal > 0) {
@@ -722,7 +722,7 @@ function executeTransferTask(params) {
     if (plan.withdrawBeforeTotal > 0 && rec.betBeforeAmt > 0) {
         console.log(`[Transfer] 转线前提现 ${plan.withdrawBeforeTotal} 次...`);
         const w = doWithdrawN(userToken, userId, adminToken, plan.withdrawBeforeTotal);
-        rec.withdrawBeforeAmt   += w.totalAmt;
+        rec.withdrawBeforeAmt += w.totalAmt;
         rec.withdrawBeforeTimes += w.times;
         sleep(1);
     } else if (plan.withdrawBeforeTotal > 0) {
@@ -740,7 +740,7 @@ function executeTransferTask(params) {
     if (remainRecharge > 0) {
         console.log(`[Transfer] 补充转线前剩余充值 ${remainRecharge} 次...`);
         const r = doRechargeN(userToken, userId, adminToken, remainRecharge);
-        rec.rechargeBeforeAmt   += r.totalAmt;
+        rec.rechargeBeforeAmt += r.totalAmt;
         rec.rechargeBeforeTimes += r.times;
         sleep(1);
     }
@@ -749,7 +749,7 @@ function executeTransferTask(params) {
     if (plan.rechargeAfterTotal > 0) {
         console.log(`[Transfer] 转线后充值 ${plan.rechargeAfterTotal} 次...`);
         const r = doRechargeN(userToken, userId, adminToken, plan.rechargeAfterTotal);
-        rec.rechargeAfterAmt   += r.totalAmt;
+        rec.rechargeAfterAmt += r.totalAmt;
         rec.rechargeAfterTimes += r.times;
         sleep(1);
     }
@@ -758,7 +758,7 @@ function executeTransferTask(params) {
     if (plan.betAfterTotal > 0 && rec.rechargeAfterAmt > 0) {
         console.log(`[Transfer] 转线后投注 ${plan.betAfterTotal} 次（充值成功 ${rec.rechargeAfterAmt.toFixed(2)}）...`);
         const b = doBetN(userToken, account, plan.betAfterTotal);
-        rec.betAfterAmt   += b.totalAmt;
+        rec.betAfterAmt += b.totalAmt;
         rec.betAfterTimes += b.times;
         sleep(1);
     } else if (plan.betAfterTotal > 0) {
@@ -769,7 +769,7 @@ function executeTransferTask(params) {
     if (plan.withdrawAfterTotal > 0 && rec.betAfterAmt > 0) {
         console.log(`[Transfer] 转线后提现 ${plan.withdrawAfterTotal} 次...`);
         const w = doWithdrawN(userToken, userId, adminToken, plan.withdrawAfterTotal);
-        rec.withdrawAfterAmt   += w.totalAmt;
+        rec.withdrawAfterAmt += w.totalAmt;
         rec.withdrawAfterTimes += w.times;
     } else if (plan.withdrawAfterTotal > 0) {
         console.log(`[Transfer] 转线后提现跳过（转线后无投注成功）`);
@@ -795,7 +795,7 @@ function executeV2Member(memberInfo, adminToken, group) {
     const rec = {
         userId, account, group,
         rechargeAmt: 0, rechargeTimes: 0,
-        betAmt: 0,      betTimes: 0,
+        betAmt: 0, betTimes: 0,
         withdrawAmt: 0, withdrawTimes: 0
     };
 
@@ -812,7 +812,7 @@ function executeV2Member(memberInfo, adminToken, group) {
     // 充值（半活跃和活跃都充值）
     const rechargeCount = randInt(1, 3);
     const r = doRechargeN(userToken, userId, adminToken, rechargeCount);
-    rec.rechargeAmt   = r.totalAmt;
+    rec.rechargeAmt = r.totalAmt;
     rec.rechargeTimes = r.times;
 
     if (group === 'rechargeOnly') {
@@ -825,14 +825,14 @@ function executeV2Member(memberInfo, adminToken, group) {
         sleep(2);
         const betCount = randInt(1, 3);
         const b = doBetN(userToken, account, betCount);
-        rec.betAmt   = b.totalAmt;
+        rec.betAmt = b.totalAmt;
         rec.betTimes = b.times;
 
         // 随机提现（50% 概率）
         if (ENABLE_WITHDRAW && Math.random() < 0.5) {
             sleep(2);
             const w = doWithdrawN(userToken, userId, adminToken, 1);
-            rec.withdrawAmt   = w.totalAmt;
+            rec.withdrawAmt = w.totalAmt;
             rec.withdrawTimes = w.times;
         }
     }
@@ -883,14 +883,14 @@ function runV2ForRemainingMembers(memberTokenMap, transferredUserIds, tenantData
             group = 'active'; activeCount++;
         }
 
-        console.log(`[V2] [${i+1}/${remainingIds.length}] userId=${uid} 分组=${group}`);
+        console.log(`[V2] [${i + 1}/${remainingIds.length}] userId=${uid} 分组=${group}`);
 
         // 切换租户环境
         Object.assign(ENV_CONFIG, tenantData.envCfg);
 
         const rec = executeV2Member(memberInfo, adminToken, group);
-        rec.tenantId    = memberInfo.tenantId;
-        rec.rootUserId  = memberInfo.rootUserId;
+        rec.tenantId = memberInfo.tenantId;
+        rec.rootUserId = memberInfo.rootUserId;
         v2Records.push(rec);
 
         sleep(1);
@@ -944,8 +944,8 @@ export default function (data) {
     transferPlan.forEach((p, idx) => {
         const td = tenantDataMap[p.tenantId];
         const from = td.agents[p.fromAgentIdx];
-        const to   = td.agents[p.toAgentIdx];
-        console.log(`  ${idx+1}. 租户${p.tenantId} 总代${from.userId}→${to.userId} 第${p.round}次`);
+        const to = td.agents[p.toAgentIdx];
+        console.log(`  ${idx + 1}. 租户${p.tenantId} 总代${from.userId}→${to.userId} 第${p.round}次`);
     });
 
     // ── 执行转线任务 ──
@@ -959,8 +959,8 @@ export default function (data) {
         if (!tenantData) continue;
 
         const adminToken = tenantData.adminToken;
-        const fromAgent  = tenantData.agents[plan.fromAgentIdx];
-        const toAgent    = tenantData.agents[plan.toAgentIdx];
+        const fromAgent = tenantData.agents[plan.fromAgentIdx];
+        const toAgent = tenantData.agents[plan.toAgentIdx];
 
         // 切换租户环境
         Object.assign(ENV_CONFIG, tenantData.envCfg);
@@ -1047,10 +1047,10 @@ export default function (data) {
             fromMemberInfo: { ...fromMemberInfo, hierarchy: fromMember.hierarchy },
             targetInviteCode,
             fromRootUserId: fromAgent.userId,
-            toRootUserId:   toAgent.userId,
-            tenantId:       plan.tenantId,
-            taskIndex:      taskIdx + 1,
-            totalTasks:     transferPlan.length
+            toRootUserId: toAgent.userId,
+            tenantId: plan.tenantId,
+            taskIndex: taskIdx + 1,
+            totalTasks: transferPlan.length
         });
 
         if (rec) {
@@ -1083,7 +1083,7 @@ export default function (data) {
             agentConfigs: Array.from({ length: AGENTS_PER_TENANT }, (_, i) => ({
                 index: i + 1,
                 members: getAgentMembers(i + 1, TENANT_IDS[0]),
-                levels:  getAgentLevels(i + 1, TENANT_IDS[0])
+                levels: getAgentLevels(i + 1, TENANT_IDS[0])
             }))
         }
     };
@@ -1159,9 +1159,9 @@ function printConsoleSummary(reportData) {
     console.log(`    转线后 - 提现: ${tAfter.withdrawTimes}次 / ${tAfter.withdraw.toFixed(2)}`);
     console.log('');
     console.log(`  【V2阶段】共 ${v2Records.length} 个成员`);
-    const v2Inactive     = v2Records.filter(r => r.group === 'inactive').length;
+    const v2Inactive = v2Records.filter(r => r.group === 'inactive').length;
     const v2RechargeOnly = v2Records.filter(r => r.group === 'rechargeOnly').length;
-    const v2Active       = v2Records.filter(r => r.group === 'active').length;
+    const v2Active = v2Records.filter(r => r.group === 'active').length;
     console.log(`    不活跃: ${v2Inactive}  半活跃: ${v2RechargeOnly}  活跃: ${v2Active}`);
     console.log(`    充值: ${v2Sum.rechargeTimes}次 / ${v2Sum.recharge.toFixed(2)}`);
     console.log(`    投注: ${v2Sum.betTimes}次 / ${v2Sum.bet.toFixed(2)}`);
@@ -1196,13 +1196,13 @@ function buildTxtReport(reportData) {
     // 输出每个总代的实际配置
     if (config.agentConfigs && config.agentConfigs.length > 0) {
         config.agentConfigs.forEach((ac, idx) => {
-            lines.push(`  总代${idx+1}: ${ac.members}人 / ${ac.levels}层`);
+            lines.push(`  总代${idx + 1}: ${ac.members}人 / ${ac.levels}层`);
         });
     }
     lines.push(`  每对转线次数: ${config.TRANSFERS_PER_PAIR}`);
     lines.push(`  转线前最大充值: ${config.MAX_RECHARGE_BEFORE}次  投注: ${config.MAX_BET_BEFORE}次  提现: ${config.MAX_WITHDRAW_BEFORE}次`);
     lines.push(`  转线后最大充值: ${config.MAX_RECHARGE_AFTER}次  投注: ${config.MAX_BET_AFTER}次  提现: ${config.MAX_WITHDRAW_AFTER}次`);
-    lines.push(`  V2不活跃: ${(config.INACTIVE_RATE*100).toFixed(0)}%  只充值: ${(config.RECHARGE_ONLY_RATE*100).toFixed(0)}%  活跃: ${((1-config.INACTIVE_RATE-config.RECHARGE_ONLY_RATE)*100).toFixed(0)}%`);
+    lines.push(`  V2不活跃: ${(config.INACTIVE_RATE * 100).toFixed(0)}%  只充值: ${(config.RECHARGE_ONLY_RATE * 100).toFixed(0)}%  活跃: ${((1 - config.INACTIVE_RATE - config.RECHARGE_ONLY_RATE) * 100).toFixed(0)}%`);
     lines.push(`  提现功能: ${config.ENABLE_WITHDRAW ? '开启' : '关闭'}`);
     lines.push('');
 
@@ -1239,9 +1239,9 @@ function buildTxtReport(reportData) {
     lines.push(`  转线前 - 充值: ${tBefore.rechargeTimes}次 / ${tBefore.recharge.toFixed(2)}  投注: ${tBefore.betTimes}次 / ${tBefore.bet.toFixed(2)}  提现: ${tBefore.withdrawTimes}次 / ${tBefore.withdraw.toFixed(2)}`);
     lines.push(`  转线后 - 充值: ${tAfter.rechargeTimes}次 / ${tAfter.recharge.toFixed(2)}  投注: ${tAfter.betTimes}次 / ${tAfter.bet.toFixed(2)}  提现: ${tAfter.withdrawTimes}次 / ${tAfter.withdraw.toFixed(2)}`);
     lines.push('');
-    const v2Inactive     = v2Records.filter(r => r.group === 'inactive').length;
+    const v2Inactive = v2Records.filter(r => r.group === 'inactive').length;
     const v2RechargeOnly = v2Records.filter(r => r.group === 'rechargeOnly').length;
-    const v2Active       = v2Records.filter(r => r.group === 'active').length;
+    const v2Active = v2Records.filter(r => r.group === 'active').length;
     lines.push(`  V2剩余成员: ${v2Records.length}（不活跃${v2Inactive} / 半活跃${v2RechargeOnly} / 活跃${v2Active}）`);
     lines.push(`  V2 - 充值: ${v2Sum.rechargeTimes}次 / ${v2Sum.recharge.toFixed(2)}  投注: ${v2Sum.betTimes}次 / ${v2Sum.bet.toFixed(2)}  提现: ${v2Sum.withdrawTimes}次 / ${v2Sum.withdraw.toFixed(2)}`);
     lines.push('');
@@ -1357,7 +1357,7 @@ export function handleSummary(data) {
     // 生成文件名（含时间戳）
     const now = new Date(reportData.testEndTs || Date.now());
     const pad = n => String(n).padStart(2, '0');
-    const ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     const tenantStr = (reportData.tenantIds || ['unknown']).join('-');
     const fileName = `${REPORT_DIR}/longrun_transfer_${tenantStr}_${ts}.txt`;
 

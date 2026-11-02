@@ -10,8 +10,8 @@
  *   - 三日留存 = 基期号里 第二、三天都登录 的人数（连续）
  *
  * 用法（在本目录运行）：
- *   k6 run -e TENANT_ID=3004 retentionLoginVerify.js                       # 默认 day1 + 9.9/9.10/9.11
- *   k6 run -e TENANT_ID=3004 -e PART_FILE=./retention/participants_day02.txt -e DAYS=2026-09-10,2026-09-11,2026-09-12 retentionLoginVerify.js
+ *   k6p -e TENANT_ID=3004 retentionLoginVerify.js                       # 默认 day1 + 9.9/9.10/9.11
+ *   k6p -e TENANT_ID=3004 -e PART_FILE=./retention/participants_day02.txt -e DAYS=2026-09-10,2026-09-11,2026-09-12 retentionLoginVerify.js
  *   （或用 node retentionLoginRunner.js 拿干净报表 + 落档）
  */
 

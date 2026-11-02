@@ -5,10 +5,10 @@
  *
  * 使用方法：
  *   # 次日复充（查昨天的用户）
- *   k6 run -e TENANT_ID=3101 -e CHANNEL_PACKAGE_ID=100051 -e DAYS_AGO=1 dayN_recharge.test.js
+ *   k6p -e TENANT_ID=3101 -e CHANNEL_PACKAGE_ID=100051 -e DAYS_AGO=1 dayN_recharge.test.js
  *
  *   # 3日复充场景的第3天（查前天的用户）
- *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=2 dayN_recharge.test.js
+ *   k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 -e DAYS_AGO=2 dayN_recharge.test.js
  *
  * 参数：
  *   TENANT_ID            租户ID（必需）

@@ -21,11 +21,11 @@
  *   - teardown 阶段：通过 k6 metric 统计 nickName 出现次数（tag 方式）
  *   - 离线日志分析：grep 固定格式行做 sort + uniq 去重对比（最准确）
  *     命令示例：
- *       k6 run ... 2>&1 | grep "\[NICKNAME_CHECK\]" | awk '{print $3}' | sort | uniq -d
+ *       k6p ... 2>&1 | grep "\[NICKNAME_CHECK\]" | awk '{print $3}' | sort | uniq -d
  *
  * 运行示例：
- *   k6 run -e TENANT_ID=3007 -e VUS=2 -e TOTAL_USERS=5 nickNameDuplicateCheck.test.js
- *   k6 run -e TENANT_ID=3004 -e VUS=50  -e TOTAL_USERS=200  nickNameDuplicateCheck.test.js
+ *   k6p -e TENANT_ID=3007 -e VUS=2 -e TOTAL_USERS=5 nickNameDuplicateCheck.test.js
+ *   k6p -e TENANT_ID=3004 -e VUS=50  -e TOTAL_USERS=200  nickNameDuplicateCheck.test.js
  *
  * 环境变量：
  *   TENANT_ID    租户ID（默认 3004）
@@ -50,10 +50,10 @@ import { extractToken } from '../../../libs/common/index.js';
 // ============================================================
 // 自定义 k6 指标
 // ============================================================
-const regSuccessCounter   = new Counter('reg_success_total');
-const regFailCounter      = new Counter('reg_fail_total');
-const nicknameFetchFail   = new Counter('nickname_fetch_fail_total');
-const regDurationTrend    = new Trend('reg_duration_ms', true);
+const regSuccessCounter = new Counter('reg_success_total');
+const regFailCounter = new Counter('reg_fail_total');
+const nicknameFetchFail = new Counter('nickname_fetch_fail_total');
+const regDurationTrend = new Trend('reg_duration_ms', true);
 
 // ============================================================
 // K6 执行选项
@@ -199,7 +199,7 @@ export default function (data) {
         const userInfo = getFrontUserInfo(token);
         if (userInfo) {
             nickName = userInfo.nickName || null;
-            userId   = userInfo.userId   || null;
+            userId = userInfo.userId || null;
         }
     } catch (e) {
         console.error(`[${label}] GetUserInfo 异常: ${e.message}`);
@@ -211,7 +211,7 @@ export default function (data) {
         return;
     }
 
-        // ── 3. 打印固定格式日志，供 handleSummary 和离线脚本解析 ──
+    // ── 3. 打印固定格式日志，供 handleSummary 和离线脚本解析 ──
     // 格式固定，analyzeNicknames.js 会 parse 这一行做去重聚合
     // 字段之间用 \t 分隔，nickName 放最后防止含空格时截断
     console.log(`[NICKNAME_CHECK]\t${userId}\t${registeredAccount}\t${nickName}`);
@@ -230,7 +230,7 @@ export function teardown(data) {
     console.log('   node analyzeNicknames.js output.log');
     console.log('');
     console.log('   或先把日志输出到文件再分析：');
-    console.log('   k6 run ... 2>&1 | tee output.log && node analyzeNicknames.js output.log');
+    console.log('   k6p ... 2>&1 | tee output.log && node analyzeNicknames.js output.log');
     console.log('═'.repeat(65) + '\n');
 }
 
@@ -238,13 +238,13 @@ export function teardown(data) {
 // 汇总报告：输出压测统计 + nickname-results.json（供分析脚本用）
 // ============================================================
 export function handleSummary(data) {
-    const totalVUs      = parseInt(__ENV.VUS || '200', 10);
-    const totalTarget   = parseInt(__ENV.TOTAL_USERS || '1000', 10);
-    const regSuccess    = data.metrics.reg_success_total?.values?.count         || 0;
-    const regFail       = data.metrics.reg_fail_total?.values?.count            || 0;
+    const totalVUs = parseInt(__ENV.VUS || '200', 10);
+    const totalTarget = parseInt(__ENV.TOTAL_USERS || '1000', 10);
+    const regSuccess = data.metrics.reg_success_total?.values?.count || 0;
+    const regFail = data.metrics.reg_fail_total?.values?.count || 0;
     const nickFetchFail = data.metrics.nickname_fetch_fail_total?.values?.count || 0;
-    const p95Duration   = data.metrics.reg_duration_ms?.values?.['p(95)']       || 0;
-    const successRate   = regSuccess + regFail > 0
+    const p95Duration = data.metrics.reg_duration_ms?.values?.['p(95)'] || 0;
+    const successRate = regSuccess + regFail > 0
         ? ((regSuccess / (regSuccess + regFail)) * 100).toFixed(1)
         : '0.0';
 

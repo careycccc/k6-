@@ -26,7 +26,7 @@
  * 运行（推荐 runner）：
  *   node rechargeWheelVerifyRunner.js --start 2026-09-08 --end 2026-09-08 --tenant 3004
  * 直接跑：
- *   k6 run -e TENANT_ID=3004 -e START=2026-09-08 -e END=2026-09-08 rechargeWheelVerify.js
+ *   k6p -e TENANT_ID=3004 -e START=2026-09-08 -e END=2026-09-08 rechargeWheelVerify.js
  *
  * 参数：
  *   TENANT_ID  租户ID（默认 3004）

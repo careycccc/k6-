@@ -659,7 +659,7 @@ async function runTest(testId, scriptPath) {
     const testTags = `--tag testid=${testId} --tag testname="${test.name}" --tag script="${test.script}"`;
 
     // 脚本自己控制所有配置，只添加报告导出和 InfluxDB 输出
-    const cmd = `k6 run \\
+    const cmd = `k6p \\
       --quiet \\
       --summary-export=${reportFile} \\
       --summary-trend-stats="${summaryStats}" \\

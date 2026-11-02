@@ -16,7 +16,7 @@
  *   - 异常：D-1 无充值却生成了奖励记录 → 报出
  *
  * 运行：
- *   k6 run -e TENANT_ID=3004 -e REWARD_DATE=2026-09-02 cycleRewardVerify.js
+ *   k6p -e TENANT_ID=3004 -e REWARD_DATE=2026-09-02 cycleRewardVerify.js
  *
  * 参数：
  *   TENANT_ID    租户ID（默认 3004）

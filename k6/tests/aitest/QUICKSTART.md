@@ -75,13 +75,13 @@ const api = '/api/ai/chat';  // 改为你在步骤1中找到的实际接口地�
 
 ```bash
 # 运行所有测试
-k6 run k6/tests/aitest/run-all-tests.js
+k6p k6/tests/aitest/run-all-tests.js
 
 # 或单独运行某个测试类别
-k6 run k6/tests/aitest/1-api-security/api-security.test.js
-k6 run k6/tests/aitest/2-data-isolation/data-isolation.test.js
-k6 run k6/tests/aitest/3-server-probe/server-probe.test.js
-k6 run k6/tests/aitest/4-input-validation/input-validation.test.js
+k6p k6/tests/aitest/1-api-security/api-security.test.js
+k6p k6/tests/aitest/2-data-isolation/data-isolation.test.js
+k6p k6/tests/aitest/3-server-probe/server-probe.test.js
+k6p k6/tests/aitest/4-input-validation/input-validation.test.js
 ```
 
 ### 步骤4: 查看测试结果
@@ -165,7 +165,7 @@ chmod +x k6/tests/aitest/*.sh
 cat k6/config/envconfig.js
 
 # 手动测试登录
-k6 run k6/tests/api/login/adminlogin.test.js
+k6p k6/tests/api/login/adminlogin.test.js
 ```
 
 ### 问题3: AI接口404

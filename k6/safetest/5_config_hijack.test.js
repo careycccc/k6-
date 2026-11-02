@@ -13,7 +13,7 @@
  *   🟠 web.config(或其内容)被接受存储     → 危险文件未被拦截（疑落 OSS 非 IIS 目录）
  *   🟢 被拒 / 存储名由服务端生成非 web.config → 通过
  *
- * 运行：k6 run -e TENANT_ID=3004 5_config_hijack.test.js
+ * 运行：k6p -e TENANT_ID=3004 5_config_hijack.test.js
  */
 import { sleep } from 'k6';
 import { getSafeEnv, classifyOrigin, absoluteUrl, tenantId } from './lib/env.js';
@@ -55,8 +55,8 @@ export function runCase(env, token) {
     // 2) 各 web.config 变体
     const polyCfg = appendAscii(BASE_PNG, `\n<!--${cfg}-->`);
     const variants = [
-        { desc: '纯 web.config 文本（对照，应被拒）',    content: cfg,     fileName: 'web.config', contentType: 'text/xml' },
-        { desc: '合法PNG 命名 web.config',              content: BASE_PNG, fileName: 'web.config', contentType: 'image/png' },
+        { desc: '纯 web.config 文本（对照，应被拒）', content: cfg, fileName: 'web.config', contentType: 'text/xml' },
+        { desc: '合法PNG 命名 web.config', content: BASE_PNG, fileName: 'web.config', contentType: 'image/png' },
         { desc: 'PNG+web.config polyglot 命名 web.config', content: polyCfg, fileName: 'web.config', contentType: 'image/png' },
     ];
 

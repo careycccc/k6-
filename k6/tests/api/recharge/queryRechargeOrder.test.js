@@ -1,33 +1,42 @@
 /**
  * 查询充值订单列表测试
- * 
+ *
  * 功能：
  * 1. 查询指定用户的充值订单列表（默认查询昨天的数据）
  * 2. 支持按支付状态、金额范围、日期范围等条件筛选
- * 
+ *
  * 运行方式：
- * k6 run -e TENANT_ID=3004 -e USER_ID=110655 k6/tests/api/recharge/queryRechargeOrder.test.js
- * k6 run -e TENANT_ID=3004 -e USER_ID=110655 -e RECHARGE_STATE=Payed queryRechargeOrder.test.js
+ * k6p -e TENANT_ID=3004 -e USER_ID=110655 k6/tests/api/recharge/queryRechargeOrder.test.js
+ * k6p -e TENANT_ID=3004 -e USER_ID=110655 -e RECHARGE_STATE=Payed queryRechargeOrder.test.js
+ *
+ * 压测场景（通过 SCENARIO 切换 config/scenarios.js 的标准场景，默认 smoke，避免误跑大压测）：
+ * k6p -e TENANT_ID=3004 -e SCENARIO=smoke queryRechargeOrder.test.js
+ * k6p -e TENANT_ID=3004 -e SCENARIO=load.normal queryRechargeOrder.test.js
+ * k6p -e TENANT_ID=3004 -e SCENARIO=load.high queryRechargeOrder.test.js
  */
 
 import { sleep } from 'k6';
 import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
 import { sendRequest } from '../common/request.js';
+import { getScenario } from '../../../config/scenarios.js';
+import { hanlderThresholds } from '../../../config/thresholds.js';
 
 // 获取环境变量
 const tenantId = __ENV.TENANT_ID || '3004';
 const userId = __ENV.USER_ID ? parseInt(__ENV.USER_ID) : 110655;
 const rechargeState = __ENV.RECHARGE_STATE || 'Payed'; // Payed, Wait, Fail, Cancel, PendingReview
 
+const SCENARIO_KEY = 'query_recharge_order';
+const scenarioName = __ENV.SCENARIO || 'smoke';
+// 必须和 getRechargeOrderPageList() 里实际请求打的 tag（'GetRechargeOrderPageList'）一致，
+// 否则 hanlderThresholds 生成的 http_req_duration{type:...} 阈值匹配不到任何数据点，形同虚设
+const REQUEST_TAG = 'GetRechargeOrderPageList';
+
 export const options = {
     scenarios: {
-        query_recharge_order: {
-            executor: 'shared-iterations',
-            vus: 1,
-            iterations: 1,
-            maxDuration: '5m'
-        }
-    }
+        [SCENARIO_KEY]: getScenario(scenarioName)
+    },
+    thresholds: hanlderThresholds(REQUEST_TAG)
 };
 
 /**
@@ -36,19 +45,19 @@ export const options = {
  */
 function getYesterdayTimestamps() {
     const now = new Date();
-    
+
     // 获取昨天的日期
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
-    
+
     // 昨天的开始时间 00:00:00
     const startTime = new Date(yesterday);
     startTime.setHours(0, 0, 0, 0);
-    
+
     // 昨天的结束时间 23:59:59
     const endTime = new Date(yesterday);
     endTime.setHours(23, 59, 59, 999);
-    
+
     return {
         startTime: startTime.getTime(),
         endTime: endTime.getTime()
@@ -65,25 +74,25 @@ function getYesterdayTimestamps() {
  * @returns {object|null} 返回订单列表响应
  */
 export function getRechargeOrderPageList(
-    adminToken, 
-    userId, 
+    adminToken,
+    userId,
     rechargeState = 'Payed',
     startTime = null,
     endTime = null
 ) {
     const api = '/api/RechargeOrder/GetRechargeOrderPageList';
-    const tag = 'GetRechargeOrderPageList';
-    
+    const tag = REQUEST_TAG;
+
     // 如果没有提供时间范围，默认查询昨天的数据
     let queryStartTime = startTime;
     let queryEndTime = endTime;
-    
+
     if (!startTime || !endTime) {
         const timestamps = getYesterdayTimestamps();
         queryStartTime = timestamps.startTime;
         queryEndTime = timestamps.endTime;
     }
-    
+
     const payload = {
         userId: userId,
         rechargeState: rechargeState,
@@ -107,12 +116,12 @@ export function getRechargeOrderPageList(
 
     // 使用 sendRequest 发送后台请求，isDesk = false
     const response = sendRequest(payload, api, tag, false, adminToken);
-    
+
     if (!response) {
         console.error(`[${tag}] ❌ 查询订单列表失败: 响应为空`);
         return null;
     }
-    
+
     // 处理响应数据
     let orderList = [];
     if (response.data && response.data.list) {
@@ -120,9 +129,9 @@ export function getRechargeOrderPageList(
     } else if (response.list) {
         orderList = response.list;
     }
-    
+
     console.log(`\n[${tag}] ✅ 查询成功，共找到 ${orderList.length} 条订单记录`);
-    
+
     // 打印订单详情
     if (orderList.length > 0) {
         console.log(`\n[${tag}] 订单列表详情:`);
@@ -139,7 +148,7 @@ export function getRechargeOrderPageList(
     } else {
         console.log(`\n[${tag}] ⚠️ 未找到符合条件的订单记录`);
     }
-    
+
     return response;
 }
 

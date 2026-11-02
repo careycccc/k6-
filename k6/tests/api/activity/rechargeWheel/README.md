@@ -46,13 +46,13 @@
 进入 `k6/` 目录，通过环境变量 `TENANT_ID` 指定要验证的租户（如 `3004`）：
 
 ```bash
-k6 run -e TENANT_ID=3101 tests/api/activity/rechargeWheel/rechargeWheelValidation.test.js
-k6 run -e TENANT_ID=3101 rechargeWheelValidation.test.js
+k6p -e TENANT_ID=3101 tests/api/activity/rechargeWheel/rechargeWheelValidation.test.js
+k6p -e TENANT_ID=3101 rechargeWheelValidation.test.js
 ```
 
 如果不带参数，会默认使用 `3004` 租户：
 ```bash
-k6 run tests/api/activity/rechargeWheel/rechargeWheelValidation.test.js
+k6p tests/api/activity/rechargeWheel/rechargeWheelValidation.test.js
 ```
 
 ### 2. 验证单一租户的某个特定充值条件
@@ -61,10 +61,10 @@ k6 run tests/api/activity/rechargeWheel/rechargeWheelValidation.test.js
 
 ```bash
 # 只验证需首充 (CONDITION=1) 租户 3004
-k6 run -e TENANT_ID=3004 -e CONDITION=1 tests/api/activity/rechargeWheel/rechargeWheelValidation.test.js
+k6p -e TENANT_ID=3004 -e CONDITION=1 tests/api/activity/rechargeWheel/rechargeWheelValidation.test.js
 
 # 只验证二充 (CONDITION=2) 租户 3004
-k6 run -e TENANT_ID=3004 -e CONDITION=2 tests/api/activity/rechargeWheel/rechargeWheelValidation.test.js
+k6p -e TENANT_ID=3004 -e CONDITION=2 tests/api/activity/rechargeWheel/rechargeWheelValidation.test.js
 ```
 
 ## 验证流程
@@ -139,10 +139,10 @@ k6 run -e TENANT_ID=3004 -e CONDITION=2 tests/api/activity/rechargeWheel/recharg
 本模块深度集成了项目的多租户配置体系。通过传递不同 `TENANT_ID` 环境变量，脚本会动态从 `config/envconfig.js` 或者 `tests/api/invite/tenantConfig.js` 中拉取不同租户的前后缀域名、账号密码等资源：
 
 ```bash
-k6 run -e TENANT_ID=3001 tests/api/activity/rechargeWheel/rechargeWheelValidation.test.js
-k6 run -e TENANT_ID=3002 tests/api/activity/rechargeWheel/rechargeWheelValidation.test.js
+k6p -e TENANT_ID=3001 tests/api/activity/rechargeWheel/rechargeWheelValidation.test.js
+k6p -e TENANT_ID=3002 tests/api/activity/rechargeWheel/rechargeWheelValidation.test.js
 
-k6 run -e TENANT_ID=3004 rechargeWheelValidation.test.js
+k6p -e TENANT_ID=3004 rechargeWheelValidation.test.js
 ```
 
 ## 注意事项

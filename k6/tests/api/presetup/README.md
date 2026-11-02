@@ -22,18 +22,18 @@
 
 ### 场景A：普通注册（租户不需要邀请码）
 ```bash
-k6 run -e TENANT_ID=3001 -e COUNT=100 batchRegister.test.js
+k6p -e TENANT_ID=3001 -e COUNT=100 batchRegister.test.js
 ```
 
 ### 场景A：第一次报"邀请码不能为空"后，带邀请码重跑
 ```bash
-k6 run -e TENANT_ID=3001 -e COUNT=100 -e INVITE_CODE=L746TDN batchRegister.test.js
+k6p -e TENANT_ID=3001 -e COUNT=100 -e INVITE_CODE=L746TDN batchRegister.test.js
 ```
 > 幂等性保证：重跑时自动读取 Redis 已有数量，只补足差额，不重复注册
 
 ### 场景B：多层级邀请注册（100人，5层）
 ```bash
-k6 run -e TENANT_ID=3001 -e COUNT=100 -e INVITE_CODE=L746TDN -e LEVELS=5 batchRegister.test.js
+k6p -e TENANT_ID=3001 -e COUNT=100 -e INVITE_CODE=L746TDN -e LEVELS=5 batchRegister.test.js
 ```
 
 ---
@@ -52,10 +52,10 @@ k6 run -e TENANT_ID=3001 -e COUNT=100 -e INVITE_CODE=L746TDN -e LEVELS=5 batchRe
 
 ```bash
 # 示例：负载测试
-k6 run -e TENANT_ID=3001 -e SCENARIO=load frontendOnlyRecharge.test.js
+k6p -e TENANT_ID=3001 -e SCENARIO=load frontendOnlyRecharge.test.js
 
 # 多租户并行压测
-k6 run -e TENANTS=3001,3002,3003 -e SCENARIO=load frontendOnlyRecharge.test.js
+k6p -e TENANTS=3001,3002,3003 -e SCENARIO=load frontendOnlyRecharge.test.js
 ```
 
 ---
@@ -73,13 +73,13 @@ redis-cli LRANGE token_pool:3001 0 4
 **方式一：k6 脚本（推荐，无额外依赖）**
 ```bash
 # 清空单个租户
-k6 run -e TENANT_ID=3001 clearTokenPool.test.js
+k6p -e TENANT_ID=3001 clearTokenPool.test.js
 
 # 清空多个租户
-k6 run -e TENANTS=3001,3002,3003 clearTokenPool.test.js
+k6p -e TENANTS=3001,3002,3003 clearTokenPool.test.js
 
 # 清空所有已知租户（3001~3007）
-k6 run -e TENANTS=all clearTokenPool.test.js
+k6p -e TENANTS=all clearTokenPool.test.js
 ```
 
 **方式二：Node.js 脚本（适合 CI/CD 流水线）**

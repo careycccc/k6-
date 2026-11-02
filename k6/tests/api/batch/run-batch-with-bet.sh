@@ -156,7 +156,7 @@ fi
 echo -e "${GREEN}开始执行测试...${NC}"
 echo ""
 
-k6 run \
+k6p \
     -e TENANT_ID="$TENANT_ID" \
     -e ACCOUNT_COUNT="$ACCOUNT_COUNT" \
     -e MIN_RECHARGE="$MIN_RECHARGE" \

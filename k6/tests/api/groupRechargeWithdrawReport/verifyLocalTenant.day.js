@@ -52,7 +52,7 @@
  * 需要更多数据或者确认后端真实统计口径才能继续排查。
  *
  * 用法（在本目录内运行，推荐走 Runner）：
- *   k6 run -e TENANT_ID=3004 -e START=2026-10-01 -e END=2026-10-26 verifyLocalTenant.day.js
+ *   k6p -e TENANT_ID=3004 -e START=2026-10-01 -e END=2026-10-26 verifyLocalTenant.day.js
  */
 
 import { sendRequest } from '../common/request.js';

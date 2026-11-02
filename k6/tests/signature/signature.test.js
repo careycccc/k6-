@@ -3,7 +3,7 @@
  *
  * 用法：
  *   1. 把要签名的 JSON 填到下面的 testData 里
- *   2. 运行：k6 run k6/tests/signature/signature.test.js
+ *   2. 运行：k6p k6/tests/signature/signature.test.js
  *   3. 控制台会打印：刷新后的 timestamp、计算出的 signature、以及可直接复制的完整请求体
  *
  * 说明：

@@ -5,8 +5,8 @@
  * 查询指定用户的充值订单列表，默认查询昨天的数据
  * 
  * 运行方式：
- * k6 run -e TENANT_ID=3004 k6/tests/api/recharge/getRechargeOrderPageList.test.js
- * k6 run -e TENANT_ID=3004 -e USER_ID=110655 getRechargeOrderPageList.test.js
+ * k6p -e TENANT_ID=3004 k6/tests/api/recharge/getRechargeOrderPageList.test.js
+ * k6p -e TENANT_ID=3004 -e USER_ID=110655 getRechargeOrderPageList.test.js
  */
 
 import { sleep } from 'k6';
@@ -34,19 +34,19 @@ export const options = {
  */
 function getYesterdayTimestamps() {
     const now = new Date();
-    
+
     // 获取昨天的日期
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
-    
+
     // 昨天的开始时间 00:00:00
     const startTime = new Date(yesterday);
     startTime.setHours(0, 0, 0, 0);
-    
+
     // 昨天的结束时间 23:59:59
     const endTime = new Date(yesterday);
     endTime.setHours(23, 59, 59, 999);
-    
+
     return {
         startTime: startTime.getTime(),
         endTime: endTime.getTime()

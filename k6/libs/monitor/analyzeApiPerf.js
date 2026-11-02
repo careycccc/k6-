@@ -21,7 +21,7 @@
  *
  * ── 用法 ──────────────────────────────────────────────────────────────────
  *   1) 跑k6时加上 --out json=xxx.json：
- *        k6 run --out json=perf.json your_complex_flow.js
+ *        k6p --out json=perf.json your_complex_flow.js
  *   2) 跑完后分析这个文件：
  *        node libs/monitor/analyzeApiPerf.js perf.json
  *   也可以当模块用（比如包进某个Node编排器里自动化这两步）：
@@ -153,7 +153,9 @@ function formatReport(rows) {
     if (rows.length === 0) return '(没有采集到任何 http_req_duration 数据点——检查--out json参数是否写对了)';
 
     const fmt = (ms) => ms >= 1000 ? (ms / 1000).toFixed(2) + 's' : ms.toFixed(0) + 'ms';
-    const nameWidth = Math.min(42, Math.max(...rows.map(r => r.name.length), 10));
+    // +2 是留出的安全间距：不加的话，当某一行的接口名长度恰好等于 nameWidth
+    // （也就是最长的那一行）时，padEnd 不会补任何空格，会跟右边的"次数"列粘在一起
+    const nameWidth = Math.min(42, Math.max(...rows.map(r => r.name.length), 10)) + 2;
     const totalWidth = nameWidth + 56;
 
     const lines = [];

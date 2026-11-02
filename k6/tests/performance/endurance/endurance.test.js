@@ -14,13 +14,13 @@
  *
  * 运行命令（示例）：
  *   # 短程（30分钟）
- *   k6 run k6/tests/performance/endurance/endurance.test.js -e TENANT=3004 -e SOAK_MODE=short
+ *   k6p k6/tests/performance/endurance/endurance.test.js -e TENANT=3004 -e SOAK_MODE=short
  *
  *   # 长程（8小时，适合上线前验证）
- *   k6 run k6/tests/performance/endurance/endurance.test.js -e TENANT=3004 -e SOAK_MODE=long
+ *   k6p k6/tests/performance/endurance/endurance.test.js -e TENANT=3004 -e SOAK_MODE=long
  *
  *   # 指定自定义账号 CSV
- *   k6 run k6/tests/performance/endurance/endurance.test.js -e TENANT=3004 -e ACCOUNTS_CSV=./k6/data/csv/accounts.csv
+ *   k6p k6/tests/performance/endurance/endurance.test.js -e TENANT=3004 -e ACCOUNTS_CSV=./k6/data/csv/accounts.csv
  */
 
 import http from 'k6/http';
@@ -37,33 +37,33 @@ import { AdminLogin } from '../../api/login/adminlogin.test.js';
 import { phoneRegister } from '../../api/login/register.test.js';
 
 // ============ 自定义指标 ============
-const soakLoginSuccessRate    = new Rate('soak_login_success_rate');
+const soakLoginSuccessRate = new Rate('soak_login_success_rate');
 const soakRegisterSuccessRate = new Rate('soak_register_success_rate');
-const soakLoginDuration       = new Trend('soak_login_duration_ms', true);
-const soakRegisterDuration    = new Trend('soak_register_duration_ms', true);
-const soakTotalReqs           = new Counter('soak_total_requests');
-const soakErrorCount          = new Counter('soak_error_count');
+const soakLoginDuration = new Trend('soak_login_duration_ms', true);
+const soakRegisterDuration = new Trend('soak_register_duration_ms', true);
+const soakTotalReqs = new Counter('soak_total_requests');
+const soakErrorCount = new Counter('soak_error_count');
 // 用于追踪"时间窗口"内的趋势漂移（内存泄漏特征）
-const soakIterCount           = new Counter('soak_iteration_count');
+const soakIterCount = new Counter('soak_iteration_count');
 
 // ============ 环境 & 参数 ============
-const TENANT      = __ENV.TENANT || '3004';
+const TENANT = __ENV.TENANT || '3004';
 const ENVIRONMENT = __ENV.ENVIRONMENT || 'local';
-const SOAK_MODE   = __ENV.SOAK_MODE || 'short';  // 'short'(30min) 或 'long'(8h)
-const envConfig   = getEnvByTenantId(TENANT);
+const SOAK_MODE = __ENV.SOAK_MODE || 'short';  // 'short'(30min) 或 'long'(8h)
+const envConfig = getEnvByTenantId(TENANT);
 
 // 根据模式选择配置
 const SOAK_CONFIG = {
   short: {
-    loginVUs:    20,
+    loginVUs: 20,
     registerVUs: 3,
-    duration:    '30m',
+    duration: '30m',
     description: '短程浸泡测试（30分钟）'
   },
   long: {
-    loginVUs:    10,
+    loginVUs: 10,
     registerVUs: 2,
-    duration:    '8h',
+    duration: '8h',
     description: '长程浸泡测试（8小时，上线前验证）'
   }
 };
@@ -109,14 +109,14 @@ export const options = {
 
   thresholds: {
     // 耐久测试：严格要求响应时间不应随时间漂移
-    http_req_failed:                ['rate<0.02'],           // 长时间运行错误率 < 2%
-    http_req_duration:              ['p(95)<5000', 'p(99)<10000'],
+    http_req_failed: ['rate<0.02'],           // 长时间运行错误率 < 2%
+    http_req_duration: ['p(95)<5000', 'p(99)<10000'],
 
-    'soak_login_success_rate':      ['rate>0.98'],           // 长时间登录成功率 > 98%
-    'soak_login_duration_ms':       ['p(95)<3000', 'avg<1500'], // 平均登录延迟 < 1.5s
+    'soak_login_success_rate': ['rate>0.98'],           // 长时间登录成功率 > 98%
+    'soak_login_duration_ms': ['p(95)<3000', 'avg<1500'], // 平均登录延迟 < 1.5s
 
-    'soak_register_success_rate':   ['rate>0.95'],           // 注册成功率 > 95%
-    'soak_register_duration_ms':    ['p(95)<8000'],          // 注册 p95 < 8s
+    'soak_register_success_rate': ['rate>0.95'],           // 注册成功率 > 95%
+    'soak_register_duration_ms': ['p(95)<8000'],          // 注册 p95 < 8s
   },
 
   tags: {
@@ -199,15 +199,15 @@ export function soakLoginScenario(data) {
     soakLoginDuration.add(duration);
 
     const ok = check(resp, {
-      '耐久登录-状态码200':  (r) => r && r.status === 200,
-      '耐久登录-业务成功':   (r) => {
+      '耐久登录-状态码200': (r) => r && r.status === 200,
+      '耐久登录-业务成功': (r) => {
         if (!r || !r.body) return false;
         try {
           const body = JSON.parse(r.body);
           return body.msgCode === 0 || body.code === 0;
         } catch { return false; }
       },
-      '耐久登录-响应正常':   (r) => r && r.timings && r.timings.duration < 10000  // 单次请求不超过10s
+      '耐久登录-响应正常': (r) => r && r.timings && r.timings.duration < 10000  // 单次请求不超过10s
     });
 
     soakLoginSuccessRate.add(ok);
@@ -296,12 +296,12 @@ export function handleSummary(data) {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const reportName = `endurance-${SOAK_MODE}-${ENVIRONMENT}-${TENANT}-${timestamp}`;
 
-  const loginRate    = (data.metrics['soak_login_success_rate']?.values?.rate * 100 || 0).toFixed(2);
+  const loginRate = (data.metrics['soak_login_success_rate']?.values?.rate * 100 || 0).toFixed(2);
   const registerRate = (data.metrics['soak_register_success_rate']?.values?.rate * 100 || 0).toFixed(2);
-  const errors       = data.metrics['soak_error_count']?.values?.count || 0;
-  const totalReqs    = data.metrics['soak_total_requests']?.values?.count || 0;
-  const avgLogin     = (data.metrics['soak_login_duration_ms']?.values?.avg || 0).toFixed(0);
-  const p95Login     = (data.metrics['soak_login_duration_ms']?.values?.['p(95)'] || 0).toFixed(0);
+  const errors = data.metrics['soak_error_count']?.values?.count || 0;
+  const totalReqs = data.metrics['soak_total_requests']?.values?.count || 0;
+  const avgLogin = (data.metrics['soak_login_duration_ms']?.values?.avg || 0).toFixed(0);
+  const p95Login = (data.metrics['soak_login_duration_ms']?.values?.['p(95)'] || 0).toFixed(0);
 
   console.log(`\n[Endurance] ===== 耐久测试报告 =====`);
   console.log(`[Endurance] 模式: ${SOAK_MODE} - ${currentConfig.description}`);

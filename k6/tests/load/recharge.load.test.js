@@ -5,7 +5,7 @@
  * 前置条件
  * ════════════════════════════════════════════════════════════
  *   Redis 中必须已有该租户的 token 池，先运行注册脚本注入 token：
- *   k6 run -e TENANT_ID=3004 -e USER_COUNT=10 seed.tokenPool.js
+ *   k6p -e TENANT_ID=3004 -e USER_COUNT=10 seed.tokenPool.js
  *
  * ════════════════════════════════════════════════════════════
  * 公共参数（所有模板均支持）
@@ -27,10 +27,10 @@
  *
  *   示例：
  *     # 默认：3个VU跑10分钟
- *     k6 run -e TENANT_ID=3004 -e USER_COUNT=3 recharge.load.test.js
+ *     k6p -e TENANT_ID=3004 -e USER_COUNT=3 recharge.load.test.js
  *
  *     # 自定义时长：50个VU跑30分钟
- *     k6 run -e TENANT_ID=3004 -e USER_COUNT=50 -e LOAD_MODE=constant -e DURATION=30m recharge.load.test.js
+ *     k6p -e TENANT_ID=3004 -e USER_COUNT=50 -e LOAD_MODE=constant -e DURATION=30m recharge.load.test.js
  *
  * ════════════════════════════════════════════════════════════
  * 模板二：ramp_up（阶梯递增）
@@ -43,10 +43,10 @@
  *
  *   示例：
  *     # 5分钟爬升到100VU，再保持10分钟
- *     k6 run -e TENANT_ID=3004 -e USER_COUNT=100 -e LOAD_MODE=ramp_up recharge.load.test.js
+ *     k6p -e TENANT_ID=3004 -e USER_COUNT=100 -e LOAD_MODE=ramp_up recharge.load.test.js
  *
  *     # 自定义时长：3分钟爬升，20分钟保持
- *     k6 run -e TENANT_ID=3004 -e USER_COUNT=100 -e LOAD_MODE=ramp_up -e RAMP_DURATION=3m -e HOLD_DURATION=20m recharge.load.test.js
+ *     k6p -e TENANT_ID=3004 -e USER_COUNT=100 -e LOAD_MODE=ramp_up -e RAMP_DURATION=3m -e HOLD_DURATION=20m recharge.load.test.js
  *
  * ════════════════════════════════════════════════════════════
  * 模板三：spike（峰值冲击）
@@ -61,10 +61,10 @@
  *
  *   示例：
  *     # 基准10VU，冲到200VU
- *     k6 run -e TENANT_ID=3004 -e USER_COUNT=10 -e LOAD_MODE=spike -e SPIKE_VUS=200 recharge.load.test.js
+ *     k6p -e TENANT_ID=3004 -e USER_COUNT=10 -e LOAD_MODE=spike -e SPIKE_VUS=200 recharge.load.test.js
  *
  *     # 自定义各阶段时长
- *     k6 run -e TENANT_ID=3004 -e USER_COUNT=10 -e LOAD_MODE=spike -e SPIKE_VUS=200 -e WARM_DURATION=3m -e SPIKE_DURATION=2m -e COOL_DURATION=5m recharge.load.test.js
+ *     k6p -e TENANT_ID=3004 -e USER_COUNT=10 -e LOAD_MODE=spike -e SPIKE_VUS=200 -e WARM_DURATION=3m -e SPIKE_DURATION=2m -e COOL_DURATION=5m recharge.load.test.js
  *
  * ════════════════════════════════════════════════════════════
  * 模板四：ramp_down（阶梯递减）
@@ -77,10 +77,10 @@
  *
  *   示例：
  *     # 100VU保持10分钟，再5分钟降到0
- *     k6 run -e TENANT_ID=3004 -e USER_COUNT=100 -e LOAD_MODE=ramp_down recharge.load.test.js
+ *     k6p -e TENANT_ID=3004 -e USER_COUNT=100 -e LOAD_MODE=ramp_down recharge.load.test.js
  *
  *     # 自定义时长
- *     k6 run -e TENANT_ID=3004 -e USER_COUNT=100 -e LOAD_MODE=ramp_down -e HOLD_DURATION=20m -e RAMP_DURATION=10m recharge.load.test.js
+ *     k6p -e TENANT_ID=3004 -e USER_COUNT=100 -e LOAD_MODE=ramp_down -e HOLD_DURATION=20m -e RAMP_DURATION=10m recharge.load.test.js
  *
  * ════════════════════════════════════════════════════════════
  * 模板五：stages（完全自定义阶段）
@@ -92,7 +92,7 @@
  *                    默认: 5m爬升 → 10m保持 → 2m冷却
  *
  *   示例：
- *     k6 run -e TENANT_ID=3004 -e USER_COUNT=50 -e LOAD_MODE=stages \
+ *     k6p -e TENANT_ID=3004 -e USER_COUNT=50 -e LOAD_MODE=stages \
  *       -e STAGES_JSON='[{"duration":"2m","target":10},{"duration":"5m","target":50},{"duration":"10m","target":50},{"duration":"3m","target":0}]' \
  *       recharge.load.test.js
  */
@@ -115,16 +115,16 @@ import { getEnvByTenantId } from '../../config/envconfig.js';
 // ============================================================
 // 压测参数（通过环境变量传入）
 // ============================================================
-const TENANT_ID  = __ENV.TENANT_ID  || '3004';
-const VU_COUNT   = parseInt(__ENV.USER_COUNT || '10');
-const LOAD_MODE  = __ENV.LOAD_MODE  || 'constant';  // constant | ramp_up | spike | ramp_down | stages
-const TAG        = 'frontend_recharge_load';
+const TENANT_ID = __ENV.TENANT_ID || '3004';
+const VU_COUNT = parseInt(__ENV.USER_COUNT || '10');
+const LOAD_MODE = __ENV.LOAD_MODE || 'constant';  // constant | ramp_up | spike | ramp_down | stages
+const TAG = 'frontend_recharge_load';
 
 // ============================================================
 // 自定义指标
 // ============================================================
 const rechargeSuccessCounter = new Counter('load_recharge_success');
-const rechargeFailCounter    = new Counter('load_recharge_fail');
+const rechargeFailCounter = new Counter('load_recharge_fail');
 
 // ============================================================
 // k6 配置：根据 LOAD_MODE 选择压测模板
@@ -148,9 +148,9 @@ function buildOptions() {
                 ...base,
                 baseVus: VU_COUNT,
                 spikeVus: parseInt(__ENV.SPIKE_VUS || VU_COUNT * 5),
-                warmDuration:  __ENV.WARM_DURATION  || '2m',
+                warmDuration: __ENV.WARM_DURATION || '2m',
                 spikeDuration: __ENV.SPIKE_DURATION || '1m',
-                coolDuration:  __ENV.COOL_DURATION  || '3m'
+                coolDuration: __ENV.COOL_DURATION || '3m'
             });
         case 'ramp_down':
             // 从 VU_COUNT 降到 0
@@ -190,7 +190,7 @@ function getRechargeAmount(envConfig) {
     // 支持通过环境变量临时覆盖，否则使用租户配置
     const min = parseInt(__ENV.RECHARGE_MIN) || envConfig.RECHARGE_AMOUNT_MIN || 2000;
     const max = parseInt(__ENV.RECHARGE_MAX) || envConfig.RECHARGE_AMOUNT_MAX || 5000;
-    const minCeil  = Math.ceil(min);
+    const minCeil = Math.ceil(min);
     const maxFloor = Math.floor(max);
     return Math.floor(Math.random() * (maxFloor - minCeil + 1)) + minCeil;
 }
@@ -249,9 +249,9 @@ export const teardown = standardTeardown;
 // ============================================================
 export function handleSummary(data) {
     const success = data.metrics.load_recharge_success?.values?.count || 0;
-    const fail    = data.metrics.load_recharge_fail?.values?.count    || 0;
-    const total   = success + fail;
-    const rate    = total > 0 ? ((success / total) * 100).toFixed(2) : '0.00';
+    const fail = data.metrics.load_recharge_fail?.values?.count || 0;
+    const total = success + fail;
+    const rate = total > 0 ? ((success / total) * 100).toFixed(2) : '0.00';
 
     const p95 = data.metrics[`http_req_duration{type:${TAG}}`]?.values?.['p(95)']?.toFixed(0) || 'N/A';
     const p99 = data.metrics[`http_req_duration{type:${TAG}}`]?.values?.['p(99)']?.toFixed(0) || 'N/A';

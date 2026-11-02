@@ -10,7 +10,7 @@
  *   Step 5  生成详细报表
  *
  * 使用方法：
- *   k6 run -e TENANT_ID=3007 -e ROOT_UID=111364 -e VUS=5 runPartnerBonusVerify.test.js
+ *   k6p -e TENANT_ID=3007 -e ROOT_UID=111364 -e VUS=5 runPartnerBonusVerify.test.js
  *
  * 环境变量：
  *   TENANT_ID   租户ID（默认 3004）
@@ -269,19 +269,19 @@ function tsToDateStr(ts) {
  * @returns {Array} memberList
  */
 function fetchTeamMembers(adminToken, userId) {
-    const api      = '/api/Agent/GetPageListAgentList';
+    const api = '/api/Agent/GetPageListAgentList';
     const pageSize = 500;
-    let pageNo     = 1;
-    let totalPage  = 1;
-    const all      = [];
+    let pageNo = 1;
+    let totalPage = 1;
+    const all = [];
 
     while (pageNo <= totalPage && pageNo <= 50) { // 最多查50页（25000人）保险上限
         const payload = {
-            userId:                 userId,
-            isAll:                  true,
+            userId: userId,
+            isAll: true,
             isIncludeSelfAndParent: true,
-            pageNo:                 pageNo,
-            pageSize:               pageSize,
+            pageNo: pageNo,
+            pageSize: pageSize,
         };
 
         let result = sendRequest(payload, api, TAG, false, adminToken);
@@ -290,14 +290,14 @@ function fetchTeamMembers(adminToken, userId) {
         }
         if (!result) break;
 
-        let list     = null;
-        let tp       = 1;
+        let list = null;
+        let tp = 1;
         if (result.list && Array.isArray(result.list)) {
             list = result.list;
-            tp   = result.totalPage || result.totalPages || 1;
+            tp = result.totalPage || result.totalPages || 1;
         } else if (result.data && Array.isArray(result.data.list)) {
             list = result.data.list;
-            tp   = result.data.totalPage || result.data.totalPages || 1;
+            tp = result.data.totalPage || result.data.totalPages || 1;
         }
 
         if (!list || list.length === 0) break;
@@ -326,19 +326,19 @@ function fetchTeamMembers(adminToken, userId) {
  * @returns {number} 有效投注总额（validAmountSum）
  */
 function fetchTotalBetAmount(data, userId, startTs, endTs) {
-    const api       = '/api/ThirdGame/GetBetRecordPageList';
+    const api = '/api/ThirdGame/GetBetRecordPageList';
     // categoryType 0电子 1真人 2体育 3彩票 4棋牌
-    let totalValid  = 0;
+    let totalValid = 0;
 
     for (let j = 0; j < 5; j++) {
         const payload = {
-            categoryType:   j,
-            queryTimeType:  'BetTime',
-            userId:         userId,
-            beginTimeUnix:  startTs,
-            endTimeUnix:    endTs,
-            pageSize:       200,
-            sortField:      'BetTime',
+            categoryType: j,
+            queryTimeType: 'BetTime',
+            userId: userId,
+            beginTimeUnix: startTs,
+            endTimeUnix: endTs,
+            pageSize: 200,
+            sortField: 'BetTime',
         };
         let result = sendQueryRequest(payload, api, TAG, false, data.token);
         if (typeof result === 'string') {
@@ -371,7 +371,7 @@ function fetchTotalBetAmount(data, userId, startTs, endTs) {
  * @returns {boolean}
  */
 function fetchHasWithdrawInfo(data, userId) {
-    const api     = '/api/Users/GetWallet';
+    const api = '/api/Users/GetWallet';
     const payload = { userId: userId };
 
     let result = sendRequest(payload, api, TAG, false, data.token);
@@ -384,11 +384,11 @@ function fetchHasWithdrawInfo(data, userId) {
     const wallet = result.data || result;
     if (!wallet) return false;
 
-    const hasBank        = isNonEmptyArray(wallet.usersWalletbankList);
-    const hasEWallet     = isNonEmptyArray(wallet.usersWalletElectronicWalletList);
-    const hasPix         = isNonEmptyArray(wallet.userPixWalletList);
-    const hasCrypto      = isNonEmptyArray(wallet.usersWalletVirtualCurrencyList);
-    const hasUpi         = isNonEmptyArray(wallet.usersWalletUpiList);
+    const hasBank = isNonEmptyArray(wallet.usersWalletbankList);
+    const hasEWallet = isNonEmptyArray(wallet.usersWalletElectronicWalletList);
+    const hasPix = isNonEmptyArray(wallet.userPixWalletList);
+    const hasCrypto = isNonEmptyArray(wallet.usersWalletVirtualCurrencyList);
+    const hasUpi = isNonEmptyArray(wallet.usersWalletUpiList);
 
     return hasBank || hasEWallet || hasPix || hasCrypto || hasUpi;
 }
@@ -467,22 +467,22 @@ function calcSlotBonus(tierConfig, slotAmount, totalTurnover) {
         return { bonusAmount: 0, reachedLevel: 0, matchedRechargeLevel: 0 };
     }
 
-    const matchedTier     = sortedByRecharge[rechargeMatchedIdx];
+    const matchedTier = sortedByRecharge[rechargeMatchedIdx];
     const matchedLevelNum = rechargeMatchedIdx + 1; // 1-based
 
     // Step2：该层的流水门槛
     if (totalTurnover >= matchedTier.turnoverMin) {
         return {
-            bonusAmount:          matchedTier.bonusAmount,
-            reachedLevel:         matchedLevelNum,
+            bonusAmount: matchedTier.bonusAmount,
+            reachedLevel: matchedLevelNum,
             matchedRechargeLevel: matchedLevelNum,
         };
     }
 
     // 充值达标但流水不足
     return {
-        bonusAmount:          0,
-        reachedLevel:         0,
+        bonusAmount: 0,
+        reachedLevel: 0,
         matchedRechargeLevel: matchedLevelNum, // 充值到了哪层（用于报表展示）
     };
 }
@@ -680,7 +680,7 @@ export function setup() {
     }
 
     const masterRecord = allMembers.find(m => m.userId === rootUid);
-    const masterHier   = masterRecord ? (masterRecord.hierarchy || 0) : 0;
+    const masterHier = masterRecord ? (masterRecord.hierarchy || 0) : 0;
 
     // 全团队所有成员（含总代自身），每个人都可能是其下级的上级，都纳入验证
     const allSubs = allMembers;
@@ -704,10 +704,10 @@ export function setup() {
         if (t > maxRegisterTs) maxRegisterTs = t;
     }
     if (minRegisterTs === Infinity) minRegisterTs = nowTs;
-    if (maxRegisterTs === 0)        maxRegisterTs = nowTs;
+    if (maxRegisterTs === 0) maxRegisterTs = nowTs;
 
     const startDate = tsToDateStr(minRegisterTs);
-    const endDate   = tsToDateStr(maxRegisterTs);
+    const endDate = tsToDateStr(maxRegisterTs);
 
     console.log(`[${TAG}] 全团队注册时间范围: ${startDate} ~ ${endDate}（共 ${allSubs.length} 人）`);
 
@@ -715,12 +715,12 @@ export function setup() {
 
     return {
         adminToken,
-        envConfig:       ENV_CONFIG,
+        envConfig: ENV_CONFIG,
         tenantId,
         rootUid,
         masterHier,
         activityConfig,
-        directSubs:      allSubs,   // 变量名保持不变，内容扩展为全团队
+        directSubs: allSubs,   // 变量名保持不变，内容扩展为全团队
         systemReportMap: Array.from(systemReportMap.entries()),
     };
 }
@@ -947,16 +947,16 @@ function printVerifyReport(compareResults, rootUid, activityConfig, vuId) {
         const s2 = b.slotResults.find(s => s.slot === 2);
         const s3 = b.slotResults.find(s => s.slot === 3);
 
-        const localFirst  = (rechargeSlots[0] || {}).amount || 0;
+        const localFirst = (rechargeSlots[0] || {}).amount || 0;
         const localSecond = (rechargeSlots[1] || {}).amount || 0;
-        const localThird  = (rechargeSlots[2] || {}).amount || 0;
+        const localThird = (rechargeSlots[2] || {}).amount || 0;
 
         // 首充奖励列：已发放显示金额，未发放显示未达标原因（截短）
         const slotLabel = (slot) => {
             if (!slot) return '-';
             if (slot.bonusAmount > 0) return `+${slot.bonusAmount}`;
             if (slot.status === 'Unavailable') return '未开放';
-            if (slot.status === 'Expired')    return '已过期';
+            if (slot.status === 'Expired') return '已过期';
             // InProgress：尽量给出简短原因
             return slot.reason ? slot.reason.substring(0, 12) : '-';
         };

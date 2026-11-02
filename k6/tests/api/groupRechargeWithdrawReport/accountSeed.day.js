@@ -374,7 +374,7 @@ export function setup() {
     console.log('[AccountSeed] ✅ 管理员登录成功');
 
     if (!__ENV.VIA_RUNNER) {
-        console.warn(`[AccountSeed] ⚠️ 直接 k6 run 不会写状态文件(沙箱限制)，请用 node accountSeedRunner.js 或 node dailyRunner.js`);
+        console.warn(`[AccountSeed] ⚠️ 直接 k6p 不会写状态文件(沙箱限制)，请用 node accountSeedRunner.js 或 node dailyRunner.js`);
     }
 
     return { adminToken, envConfig, countryCode: envConfig.COUNTRY_CODE || '91' };

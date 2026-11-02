@@ -26,7 +26,7 @@ fi
 echo "=========================================="
 
 # 构建 K6 命令
-K6_CMD="k6 run -e TENANT=${TENANT_ID}"
+K6_CMD="k6p -e TENANT=${TENANT_ID}"
 
 if [ -n "$TARGET_USER" ]; then
     K6_CMD="${K6_CMD} -e TARGET_USER=${TARGET_USER}"

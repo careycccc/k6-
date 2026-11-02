@@ -7,7 +7,7 @@
  *   2) 揭示存储位置（独立OSS域 还是 同源）与返回的 Content-Type/Disposition/nosniff。
  *   3) 用几种组合探明前台按什么校验：真实图片内容 / 扩展名 / MIME。
  *
- * 运行：k6 run -e TENANT_ID=3004 0_positive_control.js
+ * 运行：k6p -e TENANT_ID=3004 0_positive_control.js
  */
 import { sleep } from 'k6';
 import { getSafeEnv, classifyOrigin, absoluteUrl, tenantId } from './lib/env.js';
@@ -28,10 +28,10 @@ export default function () {
     const run = `${Date.now().toString(36)}${__VU}`;
 
     const matrix = [
-        { desc: '① 真实PNG + .png + image/png（标准，应成功）', content: REAL_PNG,   fileName: `k6ok_${run}.png`,  contentType: 'image/png' },
-        { desc: '② 真实PNG字节 + .txt + text/plain',            content: REAL_PNG,   fileName: `k6ok_${run}.txt`,  contentType: 'text/plain' },
-        { desc: '③ 真实PNG字节 + .png + octet-stream',          content: REAL_PNG,   fileName: `k6ok_${run}b.png`, contentType: 'application/octet-stream' },
-        { desc: '④ 纯文本内容 + .png + image/png（假图片）',    content: PLAIN_TEXT, fileName: `k6ok_${run}c.png`, contentType: 'image/png' },
+        { desc: '① 真实PNG + .png + image/png（标准，应成功）', content: REAL_PNG, fileName: `k6ok_${run}.png`, contentType: 'image/png' },
+        { desc: '② 真实PNG字节 + .txt + text/plain', content: REAL_PNG, fileName: `k6ok_${run}.txt`, contentType: 'text/plain' },
+        { desc: '③ 真实PNG字节 + .png + octet-stream', content: REAL_PNG, fileName: `k6ok_${run}b.png`, contentType: 'application/octet-stream' },
+        { desc: '④ 纯文本内容 + .png + image/png（假图片）', content: PLAIN_TEXT, fileName: `k6ok_${run}c.png`, contentType: 'image/png' },
     ];
 
     for (const m of matrix) {

@@ -43,7 +43,7 @@ echo "✅ Redis 运行正常"
 
 # 运行 K6 seed 脚本
 echo "🚀 开始执行数据预热..."
-k6 run \
+k6p \
     -e TENANT_ID="${TENANT_ID:-3004}" \
     -e SEED_MODE="${SEED_MODE:-flat}" \
     -e USER_COUNT="${USER_COUNT:-10}" \

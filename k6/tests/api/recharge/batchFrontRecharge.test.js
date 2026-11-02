@@ -8,8 +8,8 @@
  * 4. 不进行后台审核，仅发起充值成功即结束。
  * 
  * 运行方式：
- * k6 run -e TENANT_ID=3004 -e FETCH_COUNT=10 k6/tests/api/recharge/batchFrontRecharge.test.js
- * k6 run -e TENANT_ID=3004 -e FETCH_COUNT=15 batchFrontRecharge.test.js
+ * k6p -e TENANT_ID=3004 -e FETCH_COUNT=10 k6/tests/api/recharge/batchFrontRecharge.test.js
+ * k6p -e TENANT_ID=3004 -e FETCH_COUNT=15 batchFrontRecharge.test.js
  */
 
 import { sleep } from 'k6';

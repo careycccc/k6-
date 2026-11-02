@@ -43,11 +43,11 @@ TikTok 相关文件暂保留在原位置，向后兼容：
 
 ```bash
 # 单租户
-k6 run -e TENANT_ID=3004 -e USER_COUNT=10 -e PACKAGE_TYPE=22 \
+k6p -e TENANT_ID=3004 -e USER_COUNT=10 -e PACKAGE_TYPE=22 \
   k6/tests/api/login/batchEventRegister.multi-tenant.test.js
 
 # 多租户并行
-k6 run -e TENANTS=3004,3007 -e USER_COUNT=50 -e PACKAGE_TYPE=22 \
+k6p -e TENANTS=3004,3007 -e USER_COUNT=50 -e PACKAGE_TYPE=22 \
   k6/tests/api/login/batchEventRegister.multi-tenant.test.js
 ```
 
@@ -91,41 +91,41 @@ k6 run -e TENANTS=3004,3007 -e USER_COUNT=50 -e PACKAGE_TYPE=22 \
 
 ```bash
 # 单租户，默认包
-k6 run -e TENANT_ID=3004 -e USER_COUNT=10 \
+k6p -e TENANT_ID=3004 -e USER_COUNT=10 \
   k6/tests/api/channel/batchAdjustRegister.test.js
 
 # 单租户，指定包类型
-k6 run -e TENANT_ID=3004 -e USER_COUNT=10 -e PACKAGE_TYPE=adjust_001 \
+k6p -e TENANT_ID=3004 -e USER_COUNT=10 -e PACKAGE_TYPE=adjust_001 \
   k6/tests/api/channel/batchAdjustRegister.test.js
 
 # 多租户并行
-k6 run -e TENANTS=3004,3007 -e USER_COUNT=50 \
+k6p -e TENANTS=3004,3007 -e USER_COUNT=50 \
   k6/tests/api/channel/batchAdjustRegister.test.js
 
 # 指定邀请码
-k6 run -e TENANT_ID=3004 -e USER_COUNT=10 -e INVITE_CODE=SPEX6LN \
+k6p -e TENANT_ID=3004 -e USER_COUNT=10 -e INVITE_CODE=SPEX6LN \
   k6/tests/api/channel/batchAdjustRegister.test.js
 
 # 覆盖注册域名
-k6 run -e TENANT_ID=3004 -e USER_COUNT=10 \
+k6p -e TENANT_ID=3004 -e USER_COUNT=10 \
   -e ADJUST_DOMAIN=https://custom.domain.com \
   k6/tests/api/channel/batchAdjustRegister.test.js
 
 # 仅注册，跳过充值（排查注册问题时使用）
-k6 run -e TENANT_ID=3004 -e USER_COUNT=10 -e REGISTER_ONLY=true \
+k6p -e TENANT_ID=3004 -e USER_COUNT=10 -e REGISTER_ONLY=true \
   k6/tests/api/channel/batchAdjustRegister.test.js
 
 
 # 团队的方式
 
 # Adjust 团队模式，50人4层
-k6 run -e TENANT_ID=3004 -e TEAM_MODE=true -e TEAM_TOTAL=55 -e TEAM_LEVELS=7 batchAdjustRegister.test.js
+k6p -e TENANT_ID=3004 -e TEAM_MODE=true -e TEAM_TOTAL=55 -e TEAM_LEVELS=7 batchAdjustRegister.test.js
 
 # Facebook 团队模式，30人3层
-k6 run -e TENANT_ID=3004 -e TEAM_MODE=true -e TEAM_TOTAL=55 -e TEAM_LEVELS=7 batchFacebookRegister.test.js
+k6p -e TENANT_ID=3004 -e TEAM_MODE=true -e TEAM_TOTAL=55 -e TEAM_LEVELS=7 batchFacebookRegister.test.js
 
 # tiktok 团队模式，30人3层
-k6 run -e TENANT_ID=3004 -e TEAM_MODE=true  -e TEAM_TOTAL=50 -e TEAM_LEVELS=4 -e EMBED_RATE=0.6 -e RECHARGE_RATE=0.9 -e BET_RATE=0.8 -e WITHDRAW_RATE=0.6 -e ENABLE_BACKEND_APPROVAL=true batchTiktokRegister.test.js
+k6p -e TENANT_ID=3004 -e TEAM_MODE=true  -e TEAM_TOTAL=50 -e TEAM_LEVELS=4 -e EMBED_RATE=0.6 -e RECHARGE_RATE=0.9 -e BET_RATE=0.8 -e WITHDRAW_RATE=0.6 -e ENABLE_BACKEND_APPROVAL=true batchTiktokRegister.test.js
 
 
 ```
@@ -154,17 +154,17 @@ k6 run -e TENANT_ID=3004 -e TEAM_MODE=true  -e TEAM_TOTAL=50 -e TEAM_LEVELS=4 -e
 
 ```bash
 # 单租户，默认包
-k6 run -e TENANT_ID=3004 -e USER_COUNT=1 batchFacebookRegister.test.js
+k6p -e TENANT_ID=3004 -e USER_COUNT=1 batchFacebookRegister.test.js
 
 # 注册 + 充值 + 投注 + 提现
-k6 run -e TENANT_ID=3004 -e USER_COUNT=1 -e ENABLE_BET=true -e ENABLE_WITHDRAW=true -e ENABLE_BACKEND_APPROVAL=true batchFacebookRegister.test.js
+k6p -e TENANT_ID=3004 -e USER_COUNT=1 -e ENABLE_BET=true -e ENABLE_WITHDRAW=true -e ENABLE_BACKEND_APPROVAL=true batchFacebookRegister.test.js
 
 # 多租户并行
-k6 run -e TENANTS=3004,3007 -e USER_COUNT=50 \
+k6p -e TENANTS=3004,3007 -e USER_COUNT=50 \
   k6/tests/api/channel/batchFacebookRegister.test.js
 
 # 覆盖注册域名
-k6 run -e TENANT_ID=3004 -e USER_COUNT=10 \
+k6p -e TENANT_ID=3004 -e USER_COUNT=10 \
   -e FB_DOMAIN=https://custom.domain.com \
   k6/tests/api/channel/batchFacebookRegister.test.js
 ```

@@ -23,7 +23,7 @@
  *
  * 只读防御性安全探测，在SIT测试环境进行。
  *
- * 用法：k6 run -e TENANT_ID=3003 attributionCstiProbe.js
+ * 用法：k6p -e TENANT_ID=3003 attributionCstiProbe.js
  */
 import { sleep } from 'k6';
 import { guestRegister, getLastRegisterError, TENANT_3003_FB_ATTRIBUTION } from '../login/register.test.js';

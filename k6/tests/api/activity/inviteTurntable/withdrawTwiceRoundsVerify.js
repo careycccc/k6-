@@ -10,7 +10,7 @@
  *
  * 用法（在本目录运行）：
  *   node withdrawTwiceRoundsRunner.js --tenant 3004 --rounds 2 --subs 3 --sub-recharge 1000 --gap 5
- *   k6 run -e TENANT_ID=3004 -e ROUNDS=2 -e GAP=5 withdrawTwiceRoundsVerify.js
+ *   k6p -e TENANT_ID=3004 -e ROUNDS=2 -e GAP=5 withdrawTwiceRoundsVerify.js
  *
  * 可选 -e：ROUNDS(轮数,默认2) SUBS(每轮下级数,默认3) SUB_RECHARGE(默认1000) GAP(每轮两次提现间隔秒,默认3)
  */

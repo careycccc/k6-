@@ -38,10 +38,10 @@ signature = MD5( JSON.stringify( 按key排序( 过滤后的payload ) ) + secret 
 ```bash
 cd k6/safetest
 
-k6 run sqli/login_sqli.test.js                     # 默认 3004 SIT，前台+后台
-k6 run -e TARGET=frontend sqli/login_sqli.test.js  # 只测前台
-k6 run -e TARGET=backend  sqli/login_sqli.test.js  # 只测后台
-k6 run -e TENANT_ID=3101  sqli/login_sqli.test.js  # 切到 3101 UAT
+k6p sqli/login_sqli.test.js                     # 默认 3004 SIT，前台+后台
+k6p -e TARGET=frontend sqli/login_sqli.test.js  # 只测前台
+k6p -e TARGET=backend  sqli/login_sqli.test.js  # 只测后台
+k6p -e TENANT_ID=3101  sqli/login_sqli.test.js  # 切到 3101 UAT
 ```
 
 **四类手法**（对每个入口先抓「格式正确但口令错误」的基线，再对比 msgCode/HTTP状态/响应长度/耗时）：

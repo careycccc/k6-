@@ -8,15 +8,15 @@
  *   4. 按三个维度分别统计，打印重复分组表格
  *
  * 运行方式：
- *   k6 run -e TENANT_ID=3004 k6/tests/api/user/duplicateUserDetect.test.js
- *   k6 run -e TENANT_ID=3004 -e PAGE_SIZE=200 duplicateUserDetect.test.js
+ *   k6p -e TENANT_ID=3004 k6/tests/api/user/duplicateUserDetect.test.js
+ *   k6p -e TENANT_ID=3004 -e PAGE_SIZE=200 duplicateUserDetect.test.js
  */
 
 import { sleep } from 'k6';
 import { sendRequest } from '../common/request.js';
 import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
 
-const tenantId  = __ENV.TENANT_ID  || '3004';
+const tenantId = __ENV.TENANT_ID || '3004';
 const PAGE_SIZE = parseInt(__ENV.PAGE_SIZE || '500', 10);
 
 const TAG = 'DuplicateUserDetect';
@@ -59,8 +59,8 @@ function fetchAllUserIds(adminToken, extraPayload = {}) {
         const result = sendRequest(payload, api, TAG, false, adminToken);
         if (!result) break;
 
-        const list      = result.list       || [];
-        const tp        = result.totalPage  || result.totalPages || 1;
+        const list = result.list || [];
+        const tp = result.totalPage || result.totalPages || 1;
         if (tp > totalPage) totalPage = tp;
 
         list.forEach(u => idSet.add(u.userId));
@@ -89,11 +89,11 @@ function fetchUserDetail(adminToken, userId) {
     if (!result) return null;
 
     // 优先从 registerSourceRsp 取，兜底从 riskControlRsp 取
-    const src  = result.registerSourceRsp  || {};
-    const risk = result.riskControlRsp     || {};
+    const src = result.registerSourceRsp || {};
+    const risk = result.riskControlRsp || {};
 
-    const registerIp          = src.registerIp          || (risk.registerIp          && risk.registerIp.account)          || '';
-    const registerDevice      = src.registerDevice      || (risk.registerDevice      && risk.registerDevice.account)      || '';
+    const registerIp = src.registerIp || (risk.registerIp && risk.registerIp.account) || '';
+    const registerDevice = src.registerDevice || (risk.registerDevice && risk.registerDevice.account) || '';
     const registerFingerprint = src.registerFingerprint || (risk.registerFingerprint && risk.registerFingerprint.account) || '';
 
     return { registerIp, registerDevice, registerFingerprint };
@@ -200,12 +200,12 @@ export default function (data) {
     console.log(`【Step 3】查询 ${realUserIds.length} 个用户详情...\n`);
 
     // key → [userId, ...]
-    const ipMap          = new Map();
-    const deviceMap      = new Map();
+    const ipMap = new Map();
+    const deviceMap = new Map();
     const fingerprintMap = new Map();
 
     let querySuccess = 0;
-    let queryFailed  = 0;
+    let queryFailed = 0;
 
     realUserIds.forEach((uid, idx) => {
         if (idx > 0 && idx % 50 === 0) {
@@ -245,9 +245,9 @@ export default function (data) {
     console.log(`\n[Step 3] ✅ 查询完毕: 成功=${querySuccess}, 失败=${queryFailed}\n`);
 
     // ── 输出三张表格 ──────────────────────────────────────────
-    printDuplicateTable('相同注册IP',       '注册IP',     ipMap);
-    printDuplicateTable('相同注册设备',     '注册设备',   deviceMap);
-    printDuplicateTable('相同浏览器指纹',   '浏览器指纹', fingerprintMap);
+    printDuplicateTable('相同注册IP', '注册IP', ipMap);
+    printDuplicateTable('相同注册设备', '注册设备', deviceMap);
+    printDuplicateTable('相同浏览器指纹', '浏览器指纹', fingerprintMap);
 
     console.log(`${'='.repeat(70)}`);
     console.log(`✅ 检测完成  租户=${tenantId}`);

@@ -15,7 +15,7 @@
  *
  * 只读防御性安全探测，在SIT测试环境进行。
  *
- * 用法：k6 run -e TENANT_ID=3003 -e VUS=20 attributionRaceProbe.js
+ * 用法：k6p -e TENANT_ID=3003 -e VUS=20 attributionRaceProbe.js
  */
 import { guestRegister, getLastRegisterError, TENANT_3003_FB_ATTRIBUTION } from '../login/register.test.js';
 import { generateFbc } from '../../utils/utils.js';

@@ -4,16 +4,16 @@
  * 使用方法：
  *
  *   场景A：普通注册100个（租户不需要邀请码）
- *     k6 run -e TENANT_ID=3001 -e COUNT=100 batchRegister.test.js
+ *     k6p -e TENANT_ID=3001 -e COUNT=100 batchRegister.test.js
  *
  *   场景A：带邀请码注册（第一次报"邀请码不能为空"后使用）
- *     k6 run -e TENANT_ID=3001 -e COUNT=100 -e INVITE_CODE=L746TDN batchRegister.test.js
+ *     k6p -e TENANT_ID=3001 -e COUNT=100 -e INVITE_CODE=L746TDN batchRegister.test.js
  *
  *   场景B：多层级邀请注册，100人，5层
- *     k6 run -e TENANT_ID=3001 -e COUNT=100 -e INVITE_CODE=L746TDN -e LEVELS=5 batchRegister.test.js
+ *     k6p -e TENANT_ID=3001 -e COUNT=100 -e INVITE_CODE=L746TDN -e LEVELS=5 batchRegister.test.js
  *
  *   指定 Redis 地址（默认 localhost:6379）：
- *     k6 run -e REDIS_URL=redis://192.168.1.100:6379 -e TENANT_ID=3001 -e COUNT=100 batchRegister.test.js
+ *     k6p -e REDIS_URL=redis://192.168.1.100:6379 -e TENANT_ID=3001 -e COUNT=100 batchRegister.test.js
  */
 
 import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
@@ -60,10 +60,10 @@ export function setup() {
 // 主函数
 // ============================================================
 export default async function (data) {
-    const tenantId   = __ENV.TENANT_ID   || '3004';
-    const count      = parseInt(__ENV.COUNT       || '100', 10);
-    const inviteCode = __ENV.INVITE_CODE  || '';
-    const levels     = parseInt(__ENV.LEVELS      || '0', 10);
+    const tenantId = __ENV.TENANT_ID || '3004';
+    const count = parseInt(__ENV.COUNT || '100', 10);
+    const inviteCode = __ENV.INVITE_CODE || '';
+    const levels = parseInt(__ENV.LEVELS || '0', 10);
 
     console.log(`\n${'='.repeat(60)}`);
     console.log(`🚀 批量注册前置脚本`);

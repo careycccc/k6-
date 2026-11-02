@@ -5,7 +5,7 @@
  * 前置：先运行 collectUserIds.test.js 生成 1.txt
  *
  * 运行方式（在 k6/tests/api/activity/firebase/ 目录下执行）：
- *   k6 run -e TENANT=3004 firebaseBatchImport.test.js
+ *   k6p -e TENANT=3004 firebaseBatchImport.test.js
  *
  * 参数说明：
  *   TENANT   租户 ID（默认 3004）
@@ -19,7 +19,7 @@ import { createImageUploader } from '../../uploadFile/uploadFactory.js';
 // 参数
 // ============================================================
 
-const TENANT_ID  = __ENV.TENANT || __ENV.TENANT_ID || '3004';
+const TENANT_ID = __ENV.TENANT || __ENV.TENANT_ID || '3004';
 const FIREBASE_ID = 300019; // 固定值
 const TAG = 'FirebaseBatchImport';
 
@@ -44,9 +44,9 @@ const userIdFileContent = open('./1.txt');
 export const options = {
     scenarios: {
         firebase_import: {
-            executor:    'per-vu-iterations',
-            vus:         1,
-            iterations:  1,
+            executor: 'per-vu-iterations',
+            vus: 1,
+            iterations: 1,
             maxDuration: '10m'
         }
     }
@@ -109,11 +109,11 @@ export default function (data) {
     const { adminToken, imageUrl, userIds } = data;
 
     // title / content = 批量导入 + 时间戳
-    const ts      = Date.now();
-    const title   = `批量导入${ts}`;
+    const ts = Date.now();
+    const title = `批量导入${ts}`;
     const content = `批量导入${ts}`;
     // 2026-10-30：接口新增 remark(后台备注)字段，可选，不传给默认值；-e REMARK=xxx 可覆盖
-    const remark  = __ENV.REMARK || `批量导入自动化测试备注${ts}`;
+    const remark = __ENV.REMARK || `批量导入自动化测试备注${ts}`;
 
     // targetDetail：每个 userId 以 \r\n 结尾，最后一个不加
     const targetDetail = userIds.join('\r\n');
@@ -126,18 +126,18 @@ export default function (data) {
     console.log(`[${TAG}] remark:        ${remark}`);
 
     const res = tenantRequest('/api/Firebase/AddUserMsg', {
-        firebaseId:    FIREBASE_ID,
-        targetType:    6,
-        title:         title,
-        content:       content,
-        imageUrl:      imageUrl,
-        clickType:     0,
-        sendTimeType:  1,
-        sendTime:      ts,
-        pushPriority:  1,
-        survivalTime:  3600,
-        targetDetail:  targetDetail,
-        remark:        remark
+        firebaseId: FIREBASE_ID,
+        targetType: 6,
+        title: title,
+        content: content,
+        imageUrl: imageUrl,
+        clickType: 0,
+        sendTimeType: 1,
+        sendTime: ts,
+        pushPriority: 1,
+        survivalTime: 3600,
+        targetDetail: targetDetail,
+        remark: remark
     }, { token: adminToken, isDesk: false, forceTenant: true });
 
     if (!res || res.msgCode !== 0) {

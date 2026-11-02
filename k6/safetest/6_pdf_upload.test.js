@@ -12,7 +12,7 @@
  *   4) PDF-SSRF/XXE       —— 打开即触发 URI 动作（客户端钓鱼/服务端SSRF探针）
  *   5) PDF-路径遍历       —— customPath/fileType/文件名注入
  *
- * 运行：k6 run -e TENANT_ID=3004 6_pdf_upload.test.js
+ * 运行：k6p -e TENANT_ID=3004 6_pdf_upload.test.js
  */
 import { sleep } from 'k6';
 import { getSafeEnv, classifyOrigin, absoluteUrl, tenantId } from './lib/env.js';
@@ -46,9 +46,9 @@ function caseValidation(env, token, run) {
     let dangerousExtKept = false, nonPdfAcceptedAsPdf = false, anyExecServed = false;
 
     const variants = [
-        { desc: '干净PDF .pdf（基线）',         content: CLEAN, fileName: `k6st_${run}.pdf`,       contentType: 'application/pdf', baseline: true },
-        { desc: 'PDF内容 命名.aspx',            content: CLEAN, fileName: `k6st_${run}.aspx`,      contentType: 'application/pdf' },
-        { desc: 'PDF内容 双扩展.pdf.aspx',      content: CLEAN, fileName: `k6st_${run}.pdf.aspx`,  contentType: 'application/pdf' },
+        { desc: '干净PDF .pdf（基线）', content: CLEAN, fileName: `k6st_${run}.pdf`, contentType: 'application/pdf', baseline: true },
+        { desc: 'PDF内容 命名.aspx', content: CLEAN, fileName: `k6st_${run}.aspx`, contentType: 'application/pdf' },
+        { desc: 'PDF内容 双扩展.pdf.aspx', content: CLEAN, fileName: `k6st_${run}.pdf.aspx`, contentType: 'application/pdf' },
         { desc: '非PDF文本 命名.pdf（试magic）', content: `<%@ Page Language="C#"%><% Response.Write(13337*13337); %>`, fileName: `k6st_${run}x.pdf`, contentType: 'application/pdf' },
     ];
 
@@ -85,20 +85,28 @@ function caseValidation(env, token, run) {
 
     let verdict;
     if (anyExecServed) {
-        verdict = { risk: RISK.CRITICAL, conclusion: 'PDF 路径可上传并执行 .NET 代码，RCE。', evidence,
-            recommendation: '扩展名与内容双白名单；存储名由服务端生成，禁止保留用户扩展名。' };
+        verdict = {
+            risk: RISK.CRITICAL, conclusion: 'PDF 路径可上传并执行 .NET 代码，RCE。', evidence,
+            recommendation: '扩展名与内容双白名单；存储名由服务端生成，禁止保留用户扩展名。'
+        };
     } else if (dangerousExtKept) {
         const k = baselineOrigin ? baselineOrigin.kind : '未知';
-        verdict = { risk: k === 'third-party' ? RISK.MEDIUM : RISK.HIGH,
+        verdict = {
+            risk: k === 'third-party' ? RISK.MEDIUM : RISK.HIGH,
             conclusion: `PDF 上传保留了用户文件名中的可执行扩展名（${k}）。当前经对象存储静态分发不执行，但落入可执行目录即 getshell。`, evidence,
-            recommendation: '存储扩展名由服务端按真实类型强制生成，拒绝 .aspx/.ashx/.config 等。' };
+            recommendation: '存储扩展名由服务端按真实类型强制生成，拒绝 .aspx/.ashx/.config 等。'
+        };
     } else if (nonPdfAcceptedAsPdf) {
-        verdict = { risk: RISK.LOW,
+        verdict = {
+            risk: RISK.LOW,
             conclusion: 'PDF 通道只校验 .pdf 扩展名、不校验文件内容真实性（任意字节可存为 .pdf）。.pdf 本身不可执行，直接 RCE 风险低，但削弱了纵深防御。', evidence,
-            recommendation: '对 .pdf 也校验文件头(%PDF)；与图片一致地做内容校验。' };
+            recommendation: '对 .pdf 也校验文件头(%PDF)；与图片一致地做内容校验。'
+        };
     } else {
-        verdict = { risk: RISK.PASS, conclusion: 'PDF 通道对危险扩展名/非PDF内容均拒绝或强制规范化，未见可执行文件落地。', evidence,
-            recommendation: '保持扩展名+内容双校验、服务端生成文件名。' };
+        verdict = {
+            risk: RISK.PASS, conclusion: 'PDF 通道对危险扩展名/非PDF内容均拒绝或强制规范化，未见可执行文件落地。', evidence,
+            recommendation: '保持扩展名+内容双校验、服务端生成文件名。'
+        };
     }
     return reportCase(NAME, { name: NAME, ...verdict, _baselineInline: baselineInline, _baselineCT: baselineCT });
 }
@@ -211,10 +219,10 @@ function caseXss(env, token, run) {
         risk: worst,
         conclusion:
             worst === RISK.CRITICAL ? 'PDF/HTML polyglot 与后台同源内联执行，严重存储型 XSS。'
-            : worst === RISK.HIGH ? '存储型 XSS 触发条件已具备：恶意文件名载荷已成功提交进真实工单(或 polyglot 内联执行)，客服在后台点开该工单即触发——请按证据里的标记定位工单人工确认并删除。'
-            : worst === RISK.MEDIUM ? '文件名型存储型 XSS 的必要条件成立：恶意文件名被原样回显并随工单展示给客服（后台若未转义即触发，建议加 -e SUBMIT=1 或人工提交工单复核一次）。'
-            : worst === RISK.LOW ? '存在内嵌 PDF-JS 内联加载（现代查看器沙箱，风险偏低）。'
-            : '未发现可被客服浏览器执行的 PDF 存储型 XSS。',
+                : worst === RISK.HIGH ? '存储型 XSS 触发条件已具备：恶意文件名载荷已成功提交进真实工单(或 polyglot 内联执行)，客服在后台点开该工单即触发——请按证据里的标记定位工单人工确认并删除。'
+                    : worst === RISK.MEDIUM ? '文件名型存储型 XSS 的必要条件成立：恶意文件名被原样回显并随工单展示给客服（后台若未转义即触发，建议加 -e SUBMIT=1 或人工提交工单复核一次）。'
+                        : worst === RISK.LOW ? '存在内嵌 PDF-JS 内联加载（现代查看器沙箱，风险偏低）。'
+                            : '未发现可被客服浏览器执行的 PDF 存储型 XSS。',
         evidence,
         recommendation: hitRec || '文件名展示做 HTML 转义 + 上传过滤；用户文件 attachment+nosniff 返回、独立沙箱域托管。',
     };
@@ -232,20 +240,28 @@ function caseDos(env, token, run) {
 
     let verdict;
     if (r.httpStatus >= 500 || r.httpStatus === 0 || r.error) {
-        verdict = { risk: RISK.HIGH, conclusion: '服务端处理 PDF 解压炸弹时崩溃/超时，构成放大型 DoS。', evidence: [`上传触发 http=${r.httpStatus} error=${r.error || '无'}`],
-            recommendation: '解析前限制流解压后大小/内存/超时；限制上传体积与频率。' };
+        verdict = {
+            risk: RISK.HIGH, conclusion: '服务端处理 PDF 解压炸弹时崩溃/超时，构成放大型 DoS。', evidence: [`上传触发 http=${r.httpStatus} error=${r.error || '无'}`],
+            recommendation: '解析前限制流解压后大小/内存/超时；限制上传体积与频率。'
+        };
     } else if (r.durationMs >= 8000) {
-        verdict = { risk: RISK.HIGH, conclusion: `服务端处理 PDF 炸弹耗时 ${r.durationMs}ms（疑似同步解压放大），放大型 DoS。`, evidence: [`上传耗时 ${r.durationMs}ms`],
-            recommendation: '解压加大小/内存/超时上限；异步化并隔离。' };
+        verdict = {
+            risk: RISK.HIGH, conclusion: `服务端处理 PDF 炸弹耗时 ${r.durationMs}ms（疑似同步解压放大），放大型 DoS。`, evidence: [`上传耗时 ${r.durationMs}ms`],
+            recommendation: '解压加大小/内存/超时上限；异步化并隔离。'
+        };
     } else if (r.accepted) {
         const origin = classifyOrigin(r.src, env);
         evidence.push(`炸弹被接受存储 (code=0, ${r.durationMs}ms, ${origin.kind})：上传端未解压。当客服点开或缩略图/预览环节解压该 PDF 时将膨胀至 ~80MB+ → 客户端卡顿/服务端 OOM 风险。`);
         console.log(`   🟡 被接受存储 [${origin.kind}] ${r.src}`);
-        verdict = { risk: RISK.MEDIUM, conclusion: 'PDF 解压炸弹被接受存储（上传端未解压）。客服端查看器/预览生成环节解压时会膨胀至 ~80MB+（本探针 80MB，可构造更大），造成客户端卡顿或服务端 OOM。', evidence,
-            recommendation: '对所有 PDF 解析/渲染/缩略图环节限制解压后大小、内存与超时；客服端用受限预览服务。' };
+        verdict = {
+            risk: RISK.MEDIUM, conclusion: 'PDF 解压炸弹被接受存储（上传端未解压）。客服端查看器/预览生成环节解压时会膨胀至 ~80MB+（本探针 80MB，可构造更大），造成客户端卡顿或服务端 OOM。', evidence,
+            recommendation: '对所有 PDF 解析/渲染/缩略图环节限制解压后大小、内存与超时；客服端用受限预览服务。'
+        };
     } else {
-        verdict = { risk: RISK.PASS, conclusion: 'PDF 解压炸弹在上传层被拒绝。', evidence: [`拒绝 (msgCode=${r.msgCode} ${r.msg})`],
-            recommendation: '保持校验；确认下游解析环节同样受限。' };
+        verdict = {
+            risk: RISK.PASS, conclusion: 'PDF 解压炸弹在上传层被拒绝。', evidence: [`拒绝 (msgCode=${r.msgCode} ${r.msg})`],
+            recommendation: '保持校验；确认下游解析环节同样受限。'
+        };
     }
     return reportCase(NAME, { name: NAME, ...verdict });
 }
@@ -283,9 +299,9 @@ function caseTraversal(env, token, run) {
     banner('PDF 子案 5 · 路径遍历');
     const evidence = [];
     const list = [
-        { desc: 'customPath=../../',     fileName: `k6st_${run}.pdf`,        fileType: 'other',      customPath: '../../' },
-        { desc: 'fileType=../../evil',   fileName: `k6st_${run}.pdf`,        fileType: '../../evil', customPath: '' },
-        { desc: '文件名../../x.pdf',      fileName: `../../k6st_${run}fn.pdf`, fileType: 'other',      customPath: '' },
+        { desc: 'customPath=../../', fileName: `k6st_${run}.pdf`, fileType: 'other', customPath: '../../' },
+        { desc: 'fileType=../../evil', fileName: `k6st_${run}.pdf`, fileType: '../../evil', customPath: '' },
+        { desc: '文件名../../x.pdf', fileName: `../../k6st_${run}fn.pdf`, fileType: 'other', customPath: '' },
     ];
     let traversed = false;
     for (const c of list) {

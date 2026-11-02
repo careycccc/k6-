@@ -17,13 +17,13 @@
  *
  * 使用方式：
  *   # 并发场景（同轮多人共享同一设备ID）
- *   k6 run verifySameDeviceInvite.test.js -e TENANT_ID=3101 -e TEST_MODE=concurrent
+ *   k6p verifySameDeviceInvite.test.js -e TENANT_ID=3101 -e TEST_MODE=concurrent
  *
  *   # 跨轮场景（第二轮复用第一轮的设备ID）
- *   k6 run verifySameDeviceInvite.test.js -e TENANT_ID=3101 -e TEST_MODE=cross_round -e WHEEL_NUMBER=3
+ *   k6p verifySameDeviceInvite.test.js -e TENANT_ID=3101 -e TEST_MODE=cross_round -e WHEEL_NUMBER=3
  * 
  *  # 总代设备作弊场景，使用总代的设备id注册下级，验证这种自刷行为不会触发邀请次数。
- *   k6 run verifySameDeviceInvite.test.js -e TENANT_ID=3101 -e TEST_MODE=agent_device
+ *   k6p verifySameDeviceInvite.test.js -e TENANT_ID=3101 -e TEST_MODE=agent_device
  *
  * 环境变量：
  *   TENANT_ID           租户ID（默认 3004）
@@ -190,7 +190,7 @@ function ensureWheelConfig(adminToken) {
 // ============================================================
 function checkAndWithdraw(agentToken, wheelInfo) {
     if (!wheelInfo || !wheelInfo.success) return;
-    
+
     if (wheelInfo.totalPrizeAmount > 0 && wheelInfo.totalPrizeAmount === wheelInfo.userWheelAmount) {
         console.log(`\n[${tag}] 满足提现条件 (${wheelInfo.totalPrizeAmount})，正在进行提现...`);
         const withdrawResult = clickWheelWithdraw(wheelInfo.totalPrizeAmount, agentToken);

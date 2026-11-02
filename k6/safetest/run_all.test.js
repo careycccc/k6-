@@ -5,8 +5,8 @@
  * 各案例均为"良性探针 + 上传后自动回取验证"，vus=1、单次、不打并发流量。
  *
  * 运行：
- *   k6 run -e TENANT_ID=3004 run_all.test.js
- *   k6 run -e TENANT_ID=3101 run_all.test.js     # 换 UAT
+ *   k6p -e TENANT_ID=3004 run_all.test.js
+ *   k6p -e TENANT_ID=3101 run_all.test.js     # 换 UAT
  */
 import { getSafeEnv, tenantId } from './lib/env.js';
 import { getGuestToken } from './lib/guest.js';
@@ -36,7 +36,7 @@ export default function () {
     // 每个 runCase 返回 {name, risk, conclusion, evidence, recommendation}
     results.push(runRce(env, token));
     results.push(runXss(env, token));
-    // DoS 单独运行（解压炸弹探针），不进汇总套件：k6 run 3_dos.test.js
+    // DoS 单独运行（解压炸弹探针），不进汇总套件：k6p 3_dos.test.js
     results.push(runDos(env, token));
     results.push(runTrav(env, token));
     results.push(runCfg(env, token));

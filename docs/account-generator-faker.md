@@ -46,7 +46,7 @@ xk6 build --with github.com/grafana/xk6-faker@latest
 k6 version    # 应显示 xk6 扩展信息
 
 # 5. 冒烟（邮箱应为真实感前缀 + 唯一后缀，注册 code=0）
-k6 run -e TENANT=3004 -e TYPE=email -e COUNT=3 scripts/register-account-k6.js
+k6p -e TENANT=3004 -e TYPE=email -e COUNT=3 scripts/register-account-k6.js
 ```
 
 - `runner.js` 调用写死 `k6` 命令 → 只要 PATH 指向新二进制即可，无需改。

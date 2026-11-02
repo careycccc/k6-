@@ -9,9 +9,9 @@
  * 账号 CSV 路径：k6/data/csv/accounts.csv（可通过 -e ACCOUNTS_CSV=./path 覆盖）
  *
  * 运行命令（示例）：
- *   k6 run k6/tests/performance/load/normal-load.test.js -e TENANT=3004
- *   k6 run k6/tests/performance/load/normal-load.test.js -e TENANT=3004 -e ENVIRONMENT=staging
- *   k6 run k6/tests/performance/load/normal-load.test.js -e TENANT=3004 -e ACCOUNTS_CSV=./k6/data/csv/accounts.csv
+ *   k6p k6/tests/performance/load/normal-load.test.js -e TENANT=3004
+ *   k6p k6/tests/performance/load/normal-load.test.js -e TENANT=3004 -e ENVIRONMENT=staging
+ *   k6p k6/tests/performance/load/normal-load.test.js -e TENANT=3004 -e ACCOUNTS_CSV=./k6/data/csv/accounts.csv
  */
 
 import http from 'k6/http';
@@ -31,16 +31,16 @@ import { mobileAutoLoginFlow } from '../../api/login/MobileAutoLogin.test.js';
 import { phoneRegister } from '../../api/login/register.test.js';
 
 // ============ 自定义指标 ============
-const loginSuccessRate   = new Rate('load_login_success_rate');
+const loginSuccessRate = new Rate('load_login_success_rate');
 const registerSuccessRate = new Rate('load_register_success_rate');
-const loginDuration      = new Trend('load_login_duration_ms', true);
-const registerDuration   = new Trend('load_register_duration_ms', true);
-const totalRequests      = new Counter('load_total_requests');
+const loginDuration = new Trend('load_login_duration_ms', true);
+const registerDuration = new Trend('load_register_duration_ms', true);
+const totalRequests = new Counter('load_total_requests');
 
 // ============ 环境 ============
-const TENANT      = __ENV.TENANT || '3004';
+const TENANT = __ENV.TENANT || '3004';
 const ENVIRONMENT = __ENV.ENVIRONMENT || 'local';
-const envConfig   = getEnvByTenantId(TENANT);
+const envConfig = getEnvByTenantId(TENANT);
 
 // ============ 从 CSV 加载账号池（SharedArray，跨 VU 共享内存）============
 // CSV 路径优先级：-e ACCOUNTS_CSV=xxx > 默认 ./k6/data/csv/accounts.csv
@@ -58,10 +58,10 @@ export const options = {
       startVUs: 1,
       stages: [
         { duration: '30s', target: 10 },  // 预热：30秒内爬升至10 VU
-        { duration: '2m',  target: 40 },  // 正常负载：保持40 VU运行2分钟
-        { duration: '1m',  target: 80 },  // 高峰时段：80 VU运行1分钟
+        { duration: '2m', target: 40 },  // 正常负载：保持40 VU运行2分钟
+        { duration: '1m', target: 80 },  // 高峰时段：80 VU运行1分钟
         { duration: '30s', target: 10 },  // 冷却：降回10 VU
-        { duration: '20s', target: 0  },  // 收尾
+        { duration: '20s', target: 0 },  // 收尾
       ],
       gracefulRampDown: '30s',
       exec: 'loginScenario',
@@ -73,10 +73,10 @@ export const options = {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '30s', target: 0  },  // 等待登录场景先预热
-        { duration: '1m',  target: 5  },  // 缓慢增加注册压力
-        { duration: '2m',  target: 10 },  // 稳定注册并发
-        { duration: '40s', target: 0  },  // 收尾
+        { duration: '30s', target: 0 },  // 等待登录场景先预热
+        { duration: '1m', target: 5 },  // 缓慢增加注册压力
+        { duration: '2m', target: 10 },  // 稳定注册并发
+        { duration: '40s', target: 0 },  // 收尾
       ],
       gracefulRampDown: '30s',
       exec: 'registerScenario',
@@ -90,12 +90,12 @@ export const options = {
     http_req_duration: ['p(95)<5000', 'p(99)<10000'],       // p95 < 5s，p99 < 10s
 
     // 登录专项
-    'load_login_success_rate':  ['rate>0.99'],               // 登录成功率 > 99%
-    'load_login_duration_ms':   ['p(95)<3000'],              // 登录 p95 < 3s
+    'load_login_success_rate': ['rate>0.99'],               // 登录成功率 > 99%
+    'load_login_duration_ms': ['p(95)<3000'],              // 登录 p95 < 3s
 
     // 注册专项（注册涉及验证码，允许稍慢）
     'load_register_success_rate': ['rate>0.95'],             // 注册成功率 > 95%
-    'load_register_duration_ms':  ['p(95)<8000'],            // 注册 p95 < 8s
+    'load_register_duration_ms': ['p(95)<8000'],            // 注册 p95 < 8s
   },
 
   tags: {
@@ -159,15 +159,15 @@ export function loginScenario(data) {
     loginDuration.add(duration);
 
     const ok = check(resp, {
-      '登录-状态码200':     (r) => r && r.status === 200,
-      '登录-业务码成功':    (r) => {
+      '登录-状态码200': (r) => r && r.status === 200,
+      '登录-业务码成功': (r) => {
         if (!r || !r.body) return false;
         try {
           const body = JSON.parse(r.body);
           return body.msgCode === 0 || body.code === 0;
         } catch { return false; }
       },
-      '登录-返回token':     (r) => {
+      '登录-返回token': (r) => {
         if (!r || !r.body) return false;
         try {
           const body = JSON.parse(r.body);

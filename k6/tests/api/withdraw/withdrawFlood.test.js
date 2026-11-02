@@ -27,7 +27,7 @@
  *    池子/额度不足时耗尽的 VU 会空转，实际发起数 < TOTAL —— summary 会如实报告。
  *
  * 直接运行（PowerShell）：
- *   k6 run -e TENANT=3004 -e VUS=20 -e TOTAL=6000 withdrawFlood.test.js
+ *   k6p -e TENANT=3004 -e VUS=20 -e TOTAL=6000 withdrawFlood.test.js
  *   自定义账号文件 / 金额区间：-e POOL_FILE=../activity/firebase/2.txt -e MIN_AMOUNT=100 -e MAX_AMOUNT=600
  *   也可用薄封装 node withdrawFloodRunner.js（友好参数 + 结果落档）。
  */
@@ -50,19 +50,19 @@ import { randInt as getRandomInt } from '../../../libs/common/index.js';
 // ============================================================
 // ==================== 参数 ==================================
 // ============================================================
-const TENANT       = __ENV.TENANT || __ENV.TENANT_ID || '3004';
-const TOTAL        = parseInt(__ENV.TOTAL || '6000', 10);        // 全局提现发起总数（封顶）
-const VUS          = parseInt(__ENV.VUS || __ENV.CONCURRENCY || '20', 10); // 并发线程数
-const MIN_AMOUNT   = parseInt(__ENV.MIN_AMOUNT || '100', 10);    // 单笔提现下限
-const MAX_AMOUNT   = parseInt(__ENV.MAX_AMOUNT || '600', 10);    // 单笔提现上限
+const TENANT = __ENV.TENANT || __ENV.TENANT_ID || '3004';
+const TOTAL = parseInt(__ENV.TOTAL || '6000', 10);        // 全局提现发起总数（封顶）
+const VUS = parseInt(__ENV.VUS || __ENV.CONCURRENCY || '20', 10); // 并发线程数
+const MIN_AMOUNT = parseInt(__ENV.MIN_AMOUNT || '100', 10);    // 单笔提现下限
+const MAX_AMOUNT = parseInt(__ENV.MAX_AMOUNT || '600', 10);    // 单笔提现上限
 const STOP_BALANCE = parseInt(__ENV.STOP_BALANCE || '500', 10);  // 余额 < 此值 → 换下一个账号
-const TOPUP_TO     = parseInt(__ENV.TOPUP_TO || '15000', 10);    // 余额 < 此值 → 上分补到此值（渠道账号少时充高些，让单账号多提几笔）
-const GAP          = parseFloat(__ENV.GAP || '4');               // 每笔提现间隔秒（同账号两笔之间）
-const JITTER       = parseFloat(__ENV.JITTER || '2');            // 每笔间隔随机抖动秒（多 VU 错峰，降后台限流）
-const RATE_RETRY       = parseInt(__ENV.RATE_RETRY || '6', 10);       // 遇「Too frequent」限流(msgCode=13) 的退避重试次数
+const TOPUP_TO = parseInt(__ENV.TOPUP_TO || '15000', 10);    // 余额 < 此值 → 上分补到此值（渠道账号少时充高些，让单账号多提几笔）
+const GAP = parseFloat(__ENV.GAP || '4');               // 每笔提现间隔秒（同账号两笔之间）
+const JITTER = parseFloat(__ENV.JITTER || '2');            // 每笔间隔随机抖动秒（多 VU 错峰，降后台限流）
+const RATE_RETRY = parseInt(__ENV.RATE_RETRY || '6', 10);       // 遇「Too frequent」限流(msgCode=13) 的退避重试次数
 const RATE_BACKOFF_MIN = parseInt(__ENV.RATE_BACKOFF_MIN || '4', 10); // 限流退避最小秒
 const RATE_BACKOFF_MAX = parseInt(__ENV.RATE_BACKOFF_MAX || '9', 10); // 限流退避最大秒
-const WD_PWD       = __ENV.WITHDRAW_PWD || '123456';             // 提现密码
+const WD_PWD = __ENV.WITHDRAW_PWD || '123456';             // 提现密码
 const MAX_DURATION = __ENV.MAX_DURATION || '3h';                 // 兜底总时长
 
 // 账号池：默认读 firebase/2.txt（collect-users.js 产出的 account 列表，与 1.txt 的 userId 行对齐）
@@ -80,13 +80,13 @@ try {
 // ============================================================
 // ==================== 指标 ==================================
 // ============================================================
-const cLaunch   = new Counter('withdraw_launch');   // 发起总数（不管后台成/败，都是给后台的压力）
-const cOK       = new Counter('withdraw_success');   // 后台受理成功
-const cFail     = new Counter('withdraw_fail');      // 后台拒绝（次数上限/打码/风控等）
+const cLaunch = new Counter('withdraw_launch');   // 发起总数（不管后台成/败，都是给后台的压力）
+const cOK = new Counter('withdraw_success');   // 后台受理成功
+const cFail = new Counter('withdraw_fail');      // 后台拒绝（次数上限/打码/风控等）
 const cRecharge = new Counter('recharge_topup');     // 触发上分次数
-const cLogin    = new Counter('account_login');      // 账号登录次数
-const cSwitch   = new Counter('account_switch');     // 换账号次数
-const cRate     = new Counter('withdraw_rate_limited'); // 退避重试后仍被限流(Too frequent)的笔数
+const cLogin = new Counter('account_login');      // 账号登录次数
+const cSwitch = new Counter('account_switch');     // 换账号次数
+const cRate = new Counter('withdraw_rate_limited'); // 退避重试后仍被限流(Too frequent)的笔数
 
 // ============================================================
 // ==================== VU 级状态（跨迭代保留）================

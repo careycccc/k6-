@@ -2,7 +2,7 @@
  * 实时数据统计报表 一致性校验 —— 入口
  *
  * 用法：
- *   k6 run -e TENANT_ID=3004 -e DATE=2026-07-28 runSnapshotCompare.test.js
+ *   k6p -e TENANT_ID=3004 -e DATE=2026-07-28 runSnapshotCompare.test.js
  *   不传 DATE 默认取今天；容差用 -e TOL=0.01 调整。
  */
 import { logger } from '../../../libs/utils/logger.js';

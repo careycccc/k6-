@@ -123,7 +123,7 @@ open reports/ai-security-test-*.html
 3. **如果测试失败**
 ```bash
 # 查看详细日志
-k6 run k6/tests/aitest/2-data-isolation/data-isolation.test.js --verbose
+k6p k6/tests/aitest/2-data-isolation/data-isolation.test.js --verbose
 
 # 或者修改测试文件，添加更多日志
 vim k6/tests/aitest/2-data-isolation/data-isolation.test.js
@@ -182,7 +182,7 @@ function testAPI006_SQLInjection(token) {
 
 4. **运行测试**
 ```bash
-k6 run k6/tests/aitest/1-api-security/api-security.test.js
+k6p k6/tests/aitest/1-api-security/api-security.test.js
 ```
 
 5. **分析输出**
@@ -388,7 +388,7 @@ crontab -e
 ### 问题1: 所有测试都失败
 ```bash
 # 检查登录是否成功
-k6 run k6/tests/api/login/adminlogin.test.js
+k6p k6/tests/api/login/adminlogin.test.js
 
 # 如果登录失败，检查账号配置
 vim k6/config/envconfig.js

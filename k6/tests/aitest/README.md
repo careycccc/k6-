@@ -82,29 +82,29 @@ const api = '/api/ai/chat';  // 改为实际的AI接口地址
 
 ### 运行所有测试
 ```bash
-k6 run k6/tests/aitest/run-all-tests.js
+k6p k6/tests/aitest/run-all-tests.js
 ```
 
 ### 单独运行某个测试类别
 
 #### 1. 接口安全测试
 ```bash
-k6 run k6/tests/aitest/1-api-security/api-security.test.js
+k6p k6/tests/aitest/1-api-security/api-security.test.js
 ```
 
 #### 2. 数据隔离测试
 ```bash
-k6 run k6/tests/aitest/2-data-isolation/data-isolation.test.js
+k6p k6/tests/aitest/2-data-isolation/data-isolation.test.js
 ```
 
 #### 3. 服务器探测测试
 ```bash
-k6 run k6/tests/aitest/3-server-probe/server-probe.test.js
+k6p k6/tests/aitest/3-server-probe/server-probe.test.js
 ```
 
 #### 4. 输入验证与边界安全测试
 ```bash
-k6 run k6/tests/aitest/4-input-validation/input-validation.test.js
+k6p k6/tests/aitest/4-input-validation/input-validation.test.js
 ```
 
 ## 配置说明

@@ -3,12 +3,12 @@
 // ============================================
 //
 // 运行命令示例：
-//   k6 run -e TENANT_ID=3007 k6/page/indexpage/index.test.js
-//   k6 run -e TENANT_ID=3001 -e LANGUAGES=hi,en k6/page/indexpage/index.test.js
-//   k6 run -e TENANT_ID=3004 K6_BROWSER_HEADLESS=false k6/page/indexpage/index.test.js
+//   k6p -e TENANT_ID=3007 k6/page/indexpage/index.test.js
+//   k6p -e TENANT_ID=3001 -e LANGUAGES=hi,en k6/page/indexpage/index.test.js
+//   k6p -e TENANT_ID=3004 K6_BROWSER_HEADLESS=false k6/page/indexpage/index.test.js
 //
 // 调试模式（看到真实浏览器）：
-//   Windows: set K6_BROWSER_HEADLESS=false && k6 run -e TENANT_ID=3007 ...
+//   Windows: set K6_BROWSER_HEADLESS=false && k6p -e TENANT_ID=3007 ...
 // ============================================
 
 import { getEnvByTenantId } from '../config/envconfig.js';
@@ -68,18 +68,18 @@ export function buildBrowserOptions(vus = 1, iterations = 1) {
     // ---- Web Vitals 阈值（Google 标准） ----
     thresholds: {
       // k6 内置 Web Vitals（运行 browser 测试时自动采集）
-      'browser_web_vital_lcp':  ['p(75) < 2500'],  // 最大内容绘制 < 2.5s
-      'browser_web_vital_fcp':  ['p(75) < 1800'],  // 首次内容绘制 < 1.8s
-      'browser_web_vital_cls':  ['p(75) < 0.1'],   // 累积布局偏移 < 0.1
+      'browser_web_vital_lcp': ['p(75) < 2500'],  // 最大内容绘制 < 2.5s
+      'browser_web_vital_fcp': ['p(75) < 1800'],  // 首次内容绘制 < 1.8s
+      'browser_web_vital_cls': ['p(75) < 0.1'],   // 累积布局偏移 < 0.1
       'browser_web_vital_ttfb': ['p(75) < 800'],   // 首字节时间 < 800ms
-      'browser_web_vital_inp':  ['p(75) < 200'],   // 交互响应 < 200ms
+      'browser_web_vital_inp': ['p(75) < 200'],   // 交互响应 < 200ms
 
       // 自定义 Trend 指标阈值
-      'page_load_duration':     ['p(95) < 5000'],  // 页面完整加载 < 5s
-      'dom_content_loaded':     ['p(95) < 3000'],  // DOM 加载完成 < 3s
+      'page_load_duration': ['p(95) < 5000'],  // 页面完整加载 < 5s
+      'dom_content_loaded': ['p(95) < 3000'],  // DOM 加载完成 < 3s
 
       // 业务断言通过率
-      'checks':                 ['rate > 0.95'],   // 断言通过率 > 95%
+      'checks': ['rate > 0.95'],   // 断言通过率 > 95%
     },
   };
 }

@@ -3,7 +3,7 @@
  * 一键执行多层级用户邀请、充值和投注
  * 
  * 使用方法：
- * k6 run -e TOTAL_USERS=5 -e LEVELS=2 k6/tests/api/invite/runInviteMultiThread.test.js
+ * k6p -e TOTAL_USERS=5 -e LEVELS=2 k6/tests/api/invite/runInviteMultiThread.test.js
  */
 
 import { sleep } from 'k6';
@@ -52,7 +52,7 @@ function distributePeople(totalPeople, levels) {
     weights.sort((a, b) => b - a);
     const totalWeight = weights.reduce((s, w) => s + w, 0);
     const result = weights.map(w => Math.max(1, Math.floor((w / totalWeight) * totalPeople)));
-    
+
     let diff = totalPeople - result.reduce((s, n) => s + n, 0);
     while (diff > 0) { for (let i = 0; i < levels && diff > 0; i++) { result[i]++; diff--; } }
     while (diff < 0) { for (let i = levels - 1; i >= 0 && diff < 0; i--) { if (result[i] > 1) { result[i]--; diff++; } } }
@@ -82,15 +82,15 @@ export function setup() {
 export default async function (data) {
     const { adminToken, envConfig, rootInviteCode } = data;
     const vuId = exec.vu.idInInstance;
-    
+
     const adminData = { token: adminToken, envConfig };
 
     let myTotalUsers = Math.floor(subUsers / computedVus);
     if (vuId === computedVus) myTotalUsers += (subUsers % computedVus);
-    
+
     const levelDistribution = distributePeople(myTotalUsers, levels);
     const inviteCodesByLevel = Array.from({ length: levels }, () => []);
-    
+
     console.log(`[VU ${vuId}] 负责生成 ${myTotalUsers} 人，分布: ${JSON.stringify(levelDistribution)}`);
 
     const customUrls = {
@@ -110,7 +110,7 @@ export default async function (data) {
             const phone = generateRandomPhone(envConfig.COUNTRY_CODE || '91');
             const res = phoneRegisterByInvite(phone, parentCode, adminData, 'qwer1234', '', customUrls);
             const token = extractToken(res);
-            
+
             const reportEntry = {
                 parentAccount: parentCode,
                 childAccount: phone,
@@ -128,7 +128,7 @@ export default async function (data) {
                 if (userInfo && userInfo.inviteCode) {
                     inviteCodesByLevel[currentLevel].push(userInfo.inviteCode);
                     reportEntry.inviteCode = userInfo.inviteCode;
-                    
+
                     sleep(1);
                     const rechargeAmount = getConfigRechargeAmount();
                     const rechargeResult = hybridRecharge({
@@ -169,7 +169,7 @@ export default async function (data) {
 
 function printInviteReport(reports, rootInviteCode, vuId) {
     console.log(`\n========== [VU ${vuId}] 线程分布式测试报表 ==========`);
-    
+
     const childrenCountMap = new Map();
     let totalRecharge = 0;
     let totalBet = 0;

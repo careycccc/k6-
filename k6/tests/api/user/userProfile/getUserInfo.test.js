@@ -7,7 +7,7 @@
  *   parentInviteCode - 上级邀请码；无上级时为空串 ""
  *
  * 用法：
- *   k6 run -e TENANT_ID=3004 -e USERNAME=916043957059 getUserInfo.test.js
+ *   k6p -e TENANT_ID=3004 -e USERNAME=916043957059 getUserInfo.test.js
  *
  * 环境变量：
  *   TENANT_ID  租户ID（默认 3004）
@@ -24,9 +24,9 @@ import { getTimeRandom } from '../../../utils/utils.js';
 export const options = {
   scenarios: {
     get_user_info: {
-      executor:    'per-vu-iterations',
-      vus:         1,
-      iterations:  1,
+      executor: 'per-vu-iterations',
+      vus: 1,
+      iterations: 1,
       maxDuration: '5m',
     },
   },
@@ -49,7 +49,7 @@ function printResponse(label, response) {
 
 export function setup() {
   const tenantId = __ENV.TENANT_ID || '3004';
-  const userName = __ENV.USERNAME  || '';
+  const userName = __ENV.USERNAME || '';
 
   if (!userName) throw new Error('[Setup] 请通过 -e USERNAME=<账号> 指定前台账号');
 
@@ -87,10 +87,10 @@ export default function (data) {
 
   const body = JSON.parse(res.body);
   check(body, {
-    'code=1':                          (b) => b.code === 1,
-    'data.gender 存在':                (b) => b.data && b.data.gender !== undefined,
-    'data.gender 合法 (0=男 / 1=女)':  (b) => b.data && (b.data.gender === 0 || b.data.gender === 1),
-    'data.parentInviteCode 存在':      (b) => b.data && b.data.parentInviteCode !== undefined,
-    'data.parentInviteCode 为字符串':  (b) => b.data && typeof b.data.parentInviteCode === 'string',
+    'code=1': (b) => b.code === 1,
+    'data.gender 存在': (b) => b.data && b.data.gender !== undefined,
+    'data.gender 合法 (0=男 / 1=女)': (b) => b.data && (b.data.gender === 0 || b.data.gender === 1),
+    'data.parentInviteCode 存在': (b) => b.data && b.data.parentInviteCode !== undefined,
+    'data.parentInviteCode 为字符串': (b) => b.data && typeof b.data.parentInviteCode === 'string',
   });
 }

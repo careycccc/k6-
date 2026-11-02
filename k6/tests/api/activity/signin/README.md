@@ -19,13 +19,13 @@
 
 ```bash
 # 基本用法：3个随机用户，80%手动领取
-k6 run -e TENANT_ID=3004 k6/tests/api/activity/signin/signinValidation.test.js
+k6p -e TENANT_ID=3004 k6/tests/api/activity/signin/signinValidation.test.js
 
 # 指定用户数量
-k6 run -e TENANT_ID=3004 -e USER_COUNT=2 k6/tests/api/activity/signin/signinValidation.test.js
+k6p -e TENANT_ID=3004 -e USER_COUNT=2 k6/tests/api/activity/signin/signinValidation.test.js
 
 # 指定手动领取比例（0-1之间）
-k6 run -e TENANT_ID=3004 -e USER_COUNT=10 -e MANUAL_RECEIVE_RATE=0.5 k6/tests/api/activity/signin/signinValidation.test.js
+k6p -e TENANT_ID=3004 -e USER_COUNT=10 -e MANUAL_RECEIVE_RATE=0.5 k6/tests/api/activity/signin/signinValidation.test.js
 ```
 
 ### 2. 指定账号模式
@@ -34,13 +34,13 @@ k6 run -e TENANT_ID=3004 -e USER_COUNT=10 -e MANUAL_RECEIVE_RATE=0.5 k6/tests/ap
 
 ```bash
 # 使用指定账号（自动识别手机号和邮箱，使用验证码登录）
-k6 run -e TENANT_ID=3004 \
+k6p -e TENANT_ID=3004 \
   -e MODE=specified \
   -e ACCOUNTS="13800138000,test@example.com" \
   k6/tests/api/activity/signin/signinValidation.test.js
 
 # 多个账号用逗号分隔
-k6 run -e TENANT_ID=3002 \
+k6p -e TENANT_ID=3002 \
   -e MODE=specified \
   -e ACCOUNTS="913190610583,913191269257,913170156615" \
   k6/tests/api/activity/signin/signinValidation.test.js

@@ -540,7 +540,7 @@ export default function (data) {
     emitReportData(stats);
 
     if (!__ENV.VIA_RUNNER) {
-        console.log(`\n⚠️  你是直接用 k6 run 运行的：账号不会写入 day${String(DAY).padStart(2, '0')}.txt，操作明细也不会存 JSON（k6 无法写本地文件）。`);
+        console.log(`\n⚠️  你是直接用 k6p 运行的：账号不会写入 day${String(DAY).padStart(2, '0')}.txt，操作明细也不会存 JSON（k6 无法写本地文件）。`);
         console.log(`   请改用 Node 包装器：node cycleRunner.js --day ${DAY}${DAY === 1 ? ` --count ${USER_COUNT} --levels ${LEVELS} --root ${ROOT_INVITE_CODE}` : ''} --tenant ${TENANT_ID}`);
     }
 }

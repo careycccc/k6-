@@ -11,7 +11,7 @@ echo "🎯 开始为租户 ${TENANT_ID} 创建活动"
 echo "=========================================="
 
 # 运行 K6 测试，传入租户ID
-k6 run \
+k6p \
   -e TENANT=${TENANT_ID} \
   k6/tests/api/script/testActive.js
 

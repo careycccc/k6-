@@ -26,7 +26,7 @@ echo ========================================
 echo.
 
 REM 运行k6并捕获输出
-k6 run -e TENANT_ID=%TENANT_ID% -e PAGE_SIZE=%PAGE_SIZE% exportAccounts.test.js > temp_output.txt 2>&1
+k6p -e TENANT_ID=%TENANT_ID% -e PAGE_SIZE=%PAGE_SIZE% exportAccounts.test.js > temp_output.txt 2>&1
 
 REM 提取CSV内容（从"userName,loginType,remark"开始到最后一个有效行）
 powershell -Command "$content = Get-Content temp_output.txt -Raw; if ($content -match '(?s)userName,loginType,remark.*?(?=\n\n|$)') { $matches[0] | Out-File -FilePath '%OUTPUT_FILE%' -Encoding utf8 -NoNewline; Write-Host '[成功] CSV已写入: %OUTPUT_FILE%' } else { Write-Host '[失败] 未找到CSV内容，请检查输出'; Get-Content temp_output.txt }"

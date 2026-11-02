@@ -8,7 +8,7 @@
  *   4. 输出统计报表
  *
  * 使用方法：
- *   k6 run -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 channelDailyReport.test.js
+ *   k6p -e TENANT_ID=3004 -e CHANNEL_PACKAGE_ID=100056 channelDailyReport.test.js
  *
  * 参数：
  *   TENANT_ID            租户ID（必需）
@@ -22,7 +22,7 @@ import { ENV_CONFIG } from '../../../config/envconfig.js';
 import { getDayRange, fetchAllRechargeOrders } from './rechargeRetentionApi.js';
 import { getTimeRandom } from '../../utils/utils.js';
 
-const tenantId         = __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID);
+const tenantId = __ENV.TENANT_ID || String(ENV_CONFIG.TENANTID);
 const channelPackageId = __ENV.CHANNEL_PACKAGE_ID ? parseInt(__ENV.CHANNEL_PACKAGE_ID) : null;
 
 export const options = {
