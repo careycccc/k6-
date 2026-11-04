@@ -11,8 +11,8 @@
  *   分波次把所有页拉完。THREADS 就是同时翻页的线程数。
  *
  * 运行方式（在 k6/tests/api/activity/firebase/ 目录下执行）：
- *   k6p -e TENANT=3004 collectUserIds.test.js
- *   k6p -e TENANT=3005 -e TARGET=10 -e THREADS=2 collectUserIds.test.js
+ *   k6p -e TENANT=3101 collectUserIds.test.js
+ *   k6p -e TENANT=3101 -e TARGET=10 -e THREADS=2 collectUserIds.test.js
  *
  * 参数说明：
  *   TENANT      租户 ID（默认 3004）

@@ -399,41 +399,73 @@ function addFrontWithdrawWallet(userToken, payload, tag) {
 }
 
 /** 会员已有真实姓名时 holderName 必须一致（否则 10035 Full name is not match） */
-function getFrontRealName(userToken) {
+export function getFrontRealName(userToken) {
     const response = tenantRequest('/api/Withdraw/GetWithdrawBasicInfo', {}, { token: userToken, isDesk: true });
     return (response && response.data && response.data.realName) || '';
 }
 
-/** 前台添加银行卡：accountNo 18位、mobileNo 10位 */
-export function addFrontBankCard(userToken, bankCode = 'INR10125', holderName = '') {
+/**
+ * 前台添加银行卡：accountNo 18位、mobileNo 10位
+ * @param {string} userToken
+ * @param {string} [bankCode]
+ * @param {string} [holderName]
+ * @param {string} [cardNo] - 指定卡号（不传则随机生成）。用于"多个用户绑定同一张卡"
+ *   这类唯一性验证场景——不指定就每次调用都会生成不同的卡号，没法测同卡冲突。
+ */
+export function addFrontBankCard(userToken, bankCode = 'INR10125', holderName = '', cardNo = '') {
     return addFrontWithdrawWallet(userToken, {
         bankCode: bankCode,
         holderName: holderName || getFrontRealName(userToken) || generateHolderName(),
-        accountNo: generateNumberString(18, true),
+        accountNo: cardNo || generateNumberString(18, true),
         mobileNo: generateNumberString(10, true),
         ifscCode: generateIFSC(),
         withdrawType: 'BankCard'
     }, 'AddFrontBankCard');
 }
 
-/** 前台添加电子钱包：accountNo 10位且不能0开头 */
-export function addFrontEWallet(userToken, bankCode = 'ceshiyong', holderName = '') {
+/**
+ * 前台添加电子钱包：accountNo 10位且不能0开头
+ * @param {string} userToken
+ * @param {string} [bankCode]
+ * @param {string} [holderName]
+ * @param {string} [accountNo] - 指定账号（不传则随机生成）。用于"多个用户绑定同一个账号"
+ *   这类唯一性验证场景——不指定每次调用都会生成不同账号，没法测同账号冲突。
+ */
+export function addFrontEWallet(userToken, bankCode = 'ceshiyong', holderName = '', accountNo = '') {
     return addFrontWithdrawWallet(userToken, {
         bankCode: bankCode,
         holderName: holderName || getFrontRealName(userToken) || generateHolderName(),
-        accountNo: generateNumberString(10, true),
+        accountNo: accountNo || generateNumberString(10, true),
         withdrawType: 'EWallet'
     }, 'AddFrontEWallet');
 }
 
-/** 前台添加 USDT：aliasAddress 为随机字母备注 */
-export function addFrontUsdt(userToken) {
+/**
+ * 前台添加 USDT：aliasAddress 为随机字母备注
+ * @param {string} userToken
+ * @param {string} [address] - 指定USDT地址（不传则随机生成）。用于"多个用户绑定同一个地址"
+ *   这类唯一性验证场景。
+ */
+export function addFrontUsdt(userToken, address = '') {
     return addFrontWithdrawWallet(userToken, {
         networkType: 'TRC20',
-        usdtAddress: generateTRONAddress(),
+        usdtAddress: address || generateTRONAddress(),
         aliasAddress: generateRandomString(6),
         withdrawType: 'USDT'
     }, 'AddFrontUsdt');
+}
+
+/**
+ * 前台添加 UPI（2026-11-03 实测确认：后台 /api/Users/AddUserWallet walletType=5
+ * 返回 msgCode=0 但不落库，和银行卡当初发现的"假成功"是同一个问题；UPI 要真正
+ * 生效必须走这个前台接口）。accountNo 格式固定是"手机号@银行名称"。
+ */
+export function addFrontUpi(userToken, holderName = '') {
+    return addFrontWithdrawWallet(userToken, {
+        holderName: holderName || getFrontRealName(userToken) || generateHolderName(),
+        accountNo: generateUPIFormat(),
+        withdrawType: 'UPI'
+    }, 'AddFrontUpi');
 }
 
 /**

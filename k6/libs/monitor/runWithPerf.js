@@ -17,6 +17,15 @@
  * 想保留原始的性能数据json(比如要跨多次运行自己再做别的分析)，加 --keep-json：
  *   node ../../../libs/monitor/runWithPerf.js --keep-json -e TENANT_ID=3004 verifyLocalTenant.day.js
  * (这个参数只给本脚本自己识别，会在转发给k6前被过滤掉，不会污染k6的参数列表)
+ *
+ * ── Windows PowerShell 下的重复/错乱输出 ────────────────────────────────────
+ * k6 默认会用 ANSI 控制序列动态刷新一个进度条，PowerShell（尤其是老版本 5.1，
+ * 不是 PowerShell 7/Windows Terminal）对这种"保存光标位置→被原生输出打断→
+ * 再把光标重置回旧位置重绘"的渲染方式支持有问题，会导致终端里同一段内容反复
+ * 出现。这不是 k6 或这个脚本的 bug，是终端渲染层面的已知限制(PowerShell/
+ * PowerShell#15047)。本脚本默认给 k6 加上官方的 -q/--quiet（只关进度条，
+ * summary 和 thresholds 照常输出），从根源上避免这个问题；如果你自己已经传
+ * 了 -q/--quiet，不会重复追加。
  */
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -34,9 +43,13 @@ if (k6Args.length === 0) {
     process.exit(1);
 }
 
+// 默认静默进度条（见上方说明），避免用户已自己传 -q/--quiet 时重复追加
+const hasQuietFlag = k6Args.some(a => a === '-q' || a === '--quiet');
+const quietArgs = hasQuietFlag ? [] : ['-q'];
+
 // 临时文件落在当前工作目录(调用方所在目录)，用时间戳命名避免并发跑多个测试时撞名
 const jsonPath = path.join(process.cwd(), `_perf_${Date.now()}.json`);
-const fullArgs = ['run', '--out', `json=${jsonPath}`, ...k6Args];
+const fullArgs = ['run', '--out', `json=${jsonPath}`, ...quietArgs, ...k6Args];
 
 console.log(`💻 k6 ${fullArgs.join(' ')}`);
 const child = spawn('k6', fullArgs, { stdio: 'inherit', windowsHide: true });

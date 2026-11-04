@@ -15,7 +15,7 @@
  * k6p -e TENANT_ID=3004 -e SCENARIO=load.high queryRechargeOrder.test.js
  */
 
-import { sleep } from 'k6';
+import { sleep, check } from 'k6';
 import { tenantAdminLogin } from '../../../libs/http/tenantRequest.js';
 import { sendRequest } from '../common/request.js';
 import { getScenario } from '../../../config/scenarios.js';
@@ -115,11 +115,25 @@ export function getRechargeOrderPageList(
     console.log(`  - 每页数量: ${payload.pageSize}`);
 
     // 使用 sendRequest 发送后台请求，isDesk = false
+    // 注意：sendRequest 内部（testCommonRequest）已经做了 HTTP 状态码 + msgCode 的业务成功
+    // 判定，并记录进 Response_success_rate 这个自定义指标——查到这里时 response 已经是
+    // 解包过的 data 本身（形如 {list, summary, pageNo, totalPage, totalCount}），不再含
+    // code/msgCode 这些顶层字段，所以不能也不需要在这里重复判断 response.code。这里的
+    // check() 验证的是 sendRequest 判断不到的那一层：返回的数据结构本身对不对。
     const response = sendRequest(payload, api, tag, false, adminToken);
 
     if (!response) {
         console.error(`[${tag}] ❌ 查询订单列表失败: 响应为空`);
         return null;
+    }
+
+    const structureOk = check(response, {
+        '响应包含 list 数组': (r) => Array.isArray(r.list),
+        'totalCount 是数字': (r) => typeof r.totalCount === 'number',
+        'totalPage 是数字': (r) => typeof r.totalPage === 'number'
+    });
+    if (!structureOk) {
+        console.error(`[${tag}] ⚠️ 响应结构校验未通过，原始响应: ${JSON.stringify(response)}`);
     }
 
     // 处理响应数据

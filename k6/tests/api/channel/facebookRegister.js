@@ -9,7 +9,6 @@
 
 import { httpClient } from '../../../libs/http/client.js';
 import { getTimeRandom, generateCryptoRandomString, generateFbp } from '../../utils/utils.js';
-import { sendToGetVerCode } from '../login/SendVerifiyCode.test.js';
 
 // generateFbp 已提取到 tests/utils/utils.js 共享（2026-10-27），guestRegister 等
 // 场景也要用同一份实现，不再在这里单独定义一份。
@@ -27,15 +26,24 @@ import { sendToGetVerCode } from '../login/SendVerifiyCode.test.js';
  *   - packageName:    包名（默认 com.ar3004.fb.app）
  *   - inviteCode:     邀请码（默认空）
  *   - registerUrl:    自定义注册域名（可选）
- *   - customFrontUrl: 自定义前台域名（可选，用于发送验证码）
- *   - campaignId:     FB广告系列ID（默认空，FB广告分析归因用）
- *   - adSetId:        FB广告组ID（默认空）
- *   - adId:           FB广告ID（默认空）
+ *   - campaignId / campaignName: FB广告系列ID/名称（默认空，FB广告分析归因用）
+ *   - adSetId / adSetName:       FB广告组ID/名称（默认空）
+ *   - adId / adName:             FB广告ID/名称（默认空）
  * @returns {object|null} 注册结果，含 { headers, data, code, msg, deviceId }
  *
- * ⚠️ campaignId/adSetId/adId 是假设字段名，需要和后端对齐：现在按最合理的猜测
- * 放在 payload 顶层(和 eventIdentity 平级)。等后端接口文档出来后，如果字段名
- * 或位置不同，改动范围只在这个函数的 payload/signPayload 构造处。
+ * 归因字段的真实契约(2026-11-03 对照 k6-go pkg/login/channelregister.go 的
+ * AdAttribution + register.test.js 的 guestRegister 抓包注释确认，不是猜测)：
+ *   - 后端 Register 接口认的是顶层 `adAttribution` 嵌套对象，6个字段(3个ID+
+ *     3个Name)全部传：campaignId/campaignName/adsetId/adsetName/adId/adName
+ *     ——注意是 adsetId/adsetName(小写s，adset是一个单词)，不是 adSetId/adSetName。
+ *   - 6个字段全空等同于不传，不是广告带来的用户不要带这个对象。
+ *   - adAttribution 必须参与签名(只有 eventIdentity 排除出签名)，且本项目
+ *     SignatureUtil.sortObject 不递归排序嵌套对象，必须手动把内部6个字段按字母
+ *     序摆好(adId/adName/adsetId/adsetName/campaignId/campaignName)。
+ * 之前把三个ID摊平放在 payload 顶层、字段名还用 adSetId，后端完全不认识——
+ * 注册能成功(顶层未知字段被忽略)，但归因记录一条都不会生成。
+ * 本函数的选项名仍沿用旧的 adSetId/adSetName(调用方不用改)，内部转换成后端的
+ * adsetId/adsetName。
  */
 export function facebookIdentityRegister(userName, data, options = {}) {
     const {
@@ -46,23 +54,23 @@ export function facebookIdentityRegister(userName, data, options = {}) {
         packageName = 'com.ar3004.fb.app',
         inviteCode = '',
         registerUrl = null,
-        customFrontUrl = null,
         campaignId = '',
+        campaignName = '',
         adSetId = '',
-        adId = ''
+        adSetName = '',
+        adId = '',
+        adName = ''
     } = options;
 
     console.log(`[FbRegister] ========== 开始 Facebook 埋点注册 (ID: ${eventConfigId}) ==========`);
     console.log(`[FbRegister] 账号: ${userName} | 包名: ${packageName} | pixelId: ${pixelId}`);
 
-    // 1. 获取验证码
-    const verifyCode = sendToGetVerCode(1, 1, userName, data.token, customFrontUrl);
-    if (!verifyCode) {
-        console.error('[FbRegister] ❌ 获取验证码失败');
-        return null;
-    }
-
-    const codeStr = String(verifyCode).trim();
+    // 2026-11-03：/api/Home/Register 本身支持埋点注册(带eventIdentity)+code传空字符串
+    // 直接跳过验证码——参照 register.test.js 的 eventIdentityRegister（同样走
+    // eventIdentity+code:""，注释明确写"无验证码"）和 k6-go 的
+    // ChannelIdentityRegisterNoCode，之前这里强制 sendToGetVerCode 在当前测试
+    // 环境里会因为 "this verification method is not enabled"(msgCode 13011)
+    // 直接注册失败。
     const timeData = getTimeRandom();
     const deviceId = generateCryptoRandomString(16);
     const browserId = generateCryptoRandomString(32);
@@ -83,20 +91,31 @@ export function facebookIdentityRegister(userName, data, options = {}) {
         AdjustDeviceId: ''
     });
 
+    // 3.5 广告归因：6个字段全空等同于不传(不要带空对象)，否则带 adAttribution 嵌套对象。
+    // 后端字段名是 adsetId/adsetName(小写s)，这里把选项名 adSetId/adSetName 转过去。
+    const hasAttribution = !!(campaignId || campaignName || adSetId || adSetName || adId || adName);
+    const adAttribution = hasAttribution
+        ? {
+            campaignName: campaignName,
+            campaignId: campaignId,
+            adsetName: adSetName,
+            adsetId: adSetId,
+            adName: adName,
+            adId: adId
+        }
+        : null;
+
     // 4. 组装完整 payload
     const payload = {
         loginType: 'Mobile',
         userName: userName,
         password: password,
         inviteCode: inviteCode,
-        code: codeStr,
+        code: '',
         captchaId: null,
         deviceId: deviceId,
         browserId: browserId,
         packageName: packageName,
-        campaignId: campaignId,
-        adSetId: adSetId,
-        adId: adId,
         eventIdentity: [
             {
                 eventConfigId: eventConfigId,
@@ -109,26 +128,37 @@ export function facebookIdentityRegister(userName, data, options = {}) {
         signature: '',
         timestamp: timeData.timestamp
     };
+    if (adAttribution) payload.adAttribution = adAttribution;
 
-    // 5. 签名（这里是手动列举字段的签名机制，不是自动过滤剩余字段——
-    // campaignId/adSetId/adId 必须也加进 signPayload，否则签名会和实际
-    // payload 不一致导致后端验签失败）
+    // 5. 签名：eventIdentity 不参与签名(沿用本项目其他含eventIdentity的注册接口
+    // 的既有规则)；adAttribution 必须参与签名(k6-go 实测第一版想当然排除它，报
+    // Wrong signature)。后端验签会递归排序嵌套对象，而本项目 SignatureUtil.sortObject
+    // 只对顶层键排序、不进嵌套对象内部排序，所以这里必须手动把 adAttribution 内部
+    // 6个字段按字母序摆好(adId/adName/adsetId/adsetName/campaignId/campaignName)，
+    // 做法和 register.test.js 的 guestRegister 完全一致(已用真实抓包签名值核对过)。
     const signPayload = {
         loginType: 'Mobile',
         userName: userName,
         password: password,
         inviteCode: inviteCode,
-        code: codeStr,
+        code: '',
         captchaId: null,
         deviceId: deviceId,
         browserId: browserId,
         packageName: packageName,
-        campaignId: campaignId,
-        adSetId: adSetId,
-        adId: adId,
         language: 'en',
         random: timeData.random
     };
+    if (adAttribution) {
+        signPayload.adAttribution = {
+            adId: adAttribution.adId,
+            adName: adAttribution.adName,
+            adsetId: adAttribution.adsetId,
+            adsetName: adAttribution.adsetName,
+            campaignId: adAttribution.campaignId,
+            campaignName: adAttribution.campaignName
+        };
+    }
 
     const signClient = new httpClient.constructor();
     const signedParams = signClient.signData(signPayload);
