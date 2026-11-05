@@ -17,10 +17,14 @@
  *   后端有、本地没有的账号(共用环境里别人造的)不判定，只统计数量。
  *
  * 数据起点：fbAdConfig.FBAD_DATA_START_DATE(2026-11-03)，可 -e START_DATE= 覆盖；更早的不管。
+ * 止点：默认到今天，可用 -e END_DATE= 收窄成和后台 UI「注册时间」筛选框一样的闭区间
+ * [START_DATE, END_DATE]——比如只想核对 11-03 这一天，传 START_DATE=END_DATE=2026-11-03。
  * 判定结果用 k6 check + threshold 表达：有任何不一致则 k6 退出码非 0。全程只读。
  *
  * 用法（在本目录内运行）：
  *   k6p -e TENANT_ID=3004 verifyAttribution.js
+ *   k6p -e TENANT_ID=3004 -e START_DATE=2026-11-03 verifyAttribution.js -q          # 11-03起到今天
+ *   k6p -e TENANT_ID=3004 -e START_DATE=2026-11-04 -e END_DATE=2026-11-04 verifyAttribution.js -q  # 只看11-03一天
  */
 
 /* global open */
@@ -75,20 +79,21 @@ function fetchAttribution(token, startTime, endTime) {
 
 export default function (data) {
     const { today, adminToken } = data;
+    const END_DATE = __ENV.END_DATE || today;
     const tzMs = getTzOffsetMs(TENANT_ID);
     const dayOf = ms => new Date(ms + tzMs).toISOString().slice(0, 10);
 
-    const local = ACCOUNTS.filter(a => a.registerDate >= START_DATE);
+    const local = ACCOUNTS.filter(a => a.registerDate >= START_DATE && a.registerDate <= END_DATE);
     console.log(`\n${'═'.repeat(88)}`);
-    console.log(`  📊 FB广告归因记录核对(Tab1) | 租户=${TENANT_ID} | 数据起点=${START_DATE} | 本地造数账号(起点后)=${local.length}个`);
+    console.log(`  📊 FB广告归因记录核对(Tab1) | 租户=${TENANT_ID} | 数据区间=${START_DATE}~${END_DATE} | 本地造数账号(区间内)=${local.length}个`);
     console.log(`${'═'.repeat(88)}`);
     if (local.length === 0) {
-        console.log('  (本地没有起点之后的造数记录，先跑 fbAdSeedRunner.js 造数据)');
+        console.log('  (本地没有这个区间内的造数记录，先跑 fbAdSeedRunner.js 造数据，或检查 START_DATE/END_DATE)');
         return;
     }
 
-    // 归因表按注册时间过滤：从起点查到今天即可覆盖所有"起点后注册"的本地账号
-    const backendRows = fetchAttribution(adminToken, START_DATE, today);
+    // 归因表按注册时间过滤：查 [START_DATE, END_DATE] 即可覆盖这个区间内注册的本地账号
+    const backendRows = fetchAttribution(adminToken, START_DATE, END_DATE);
     const byUser = new Map();
     for (const r of backendRows) byUser.set(Number(r.userId), r);
     const localIds = new Set(local.map(a => Number(a.userId)));

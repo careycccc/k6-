@@ -1,5 +1,6 @@
 /**
  * 「有效邀请达标条件 + 生效游戏」验证的 Node 包装器 —— 负责落报告
+ *   3/6级代理的改造（指定游戏和同时满足和任一满足）
  *
  * k6 沙箱不能写文件，所以由本脚本 spawn k6，实时透传输出，同时抓三类标记：
  *   ##CONFIG##  每次读到/改到的配置快照
@@ -12,6 +13,7 @@
  * 用法（在本目录内运行）：
  *   node runner.js --tenant 3004 --agents 169800
  *   node runner.js --tenant 3004 --agents 169800 --script baseline.js
+ *   node runner.js --tenant 3004 --script scenarios.js --cases 1,3,3b,3c,3d,4,5,6,7,8,9,10,11,12,12b,13,14,15,16,17,18 --tag full-run
  *
  * 参数：
  *   --tenant   租户ID（默认 3004）
@@ -113,6 +115,7 @@ const configs = [];
 const cases = [];
 const summaries = [];
 const drifts = [];
+const fatals = [];
 let buf = '';
 
 function handleLine(line) {
@@ -122,6 +125,8 @@ function handleLine(line) {
     if (r) { cases.push(r); return; }
     const dr = extractTaggedRecord(line, 'DRIFT');
     if (dr) { drifts.push(dr); return; }
+    const ft = extractTaggedRecord(line, 'FATAL');
+    if (ft) { fatals.push(ft); return; }
     const s = extractTaggedRecord(line, 'SUMMARY');
     if (s) { summaries.push(s); }
 }
@@ -221,7 +226,7 @@ child.on('close', code => {
 - 生成时间：${new Date().toISOString()}
 - k6 退出码：${code}
 - 结果：核对 **${total}** 人，一致 **${matched}**，不一致 **${mismatched}**
-${drifts.length ? `\n> ## ⚠️ 本轮结论不可信\n>\n> 检测到配置在运行期间被**外部改动** ${drifts.length} 次，脚本设定的配置和核对时读到的不一致。\n> 受影响阶段：${[...new Set(drifts.map(d => d.caseId))].join('、')}。\n> 这种情况下期望值是按"被改后的配置"算的，即使显示一致也没有验证到设计意图，**需要重跑**。\n>\n${drifts.map(d => `> - 阶段 ${d.caseId}（${d.at}）：${(d.diffs || []).join('；')}`).join('\n')}\n` : ''}
+${fatals.length || (mutating && total === 0) ? `\n> ## ❌ 本轮未完成\n>\n> ${fatals.length ? `有 ${fatals.length} 个场景中途异常中断，没有产出完整结论：` : '一个用例结果都没有产出（可能在核对前就中断了），请查看运行日志。'}\n${fatals.map(f => `> - 场景 ${f.scenario}（${f.at}）：${f.error}`).join('\n')}\n>\n> 中断的场景**需要重跑**；配置已在 finally 中还原（见配置快照最后一行）。\n` : ''}${drifts.length ? `\n> ## ⚠️ 本轮结论不可信\n>\n> 检测到配置在运行期间被**外部改动** ${drifts.length} 次，脚本设定的配置和核对时读到的不一致。\n> 受影响阶段：${[...new Set(drifts.map(d => d.caseId))].join('、')}。\n> 这种情况下期望值是按"被改后的配置"算的，即使显示一致也没有验证到设计意图，**需要重跑**。\n>\n${drifts.map(d => `> - 阶段 ${d.caseId}（${d.at}）：${(d.diffs || []).join('；')}`).join('\n')}\n` : ''}
 
 ## 一、配置快照
 
@@ -252,6 +257,7 @@ ${renderMismatchSection()}
         [...configs.map(c => JSON.stringify({ kind: 'config', ...c })),
         ...cases.map(c => JSON.stringify({ kind: 'case', ...c })),
         ...drifts.map(d => JSON.stringify({ kind: 'drift', ...d })),
+        ...fatals.map(f => JSON.stringify({ kind: 'fatal', ...f })),
         ...summaries.map(s => JSON.stringify({ kind: 'summary', ...s }))].join('\n') + '\n', 'utf-8');
 
     if (drifts.length) console.error(`\n⚠️  配置在运行期间被外部改动 ${drifts.length} 次，本轮结论不可信，需要重跑。`);
@@ -260,5 +266,7 @@ ${renderMismatchSection()}
     console.log(`   ${mdPath}`);
     console.log(`   ${ndPath}`);
     console.log(`   核对 ${total} 人，一致 ${matched}，不一致 ${mismatched}`);
-    process.exit(code === 0 && mismatched === 0 && drifts.length === 0 ? 0 : 1);
+    if (fatals.length || (mutating && total === 0)) console.error(`\n❌ 本轮未完成：${fatals.length ? fatals.map(f => `场景${f.scenario}中断(${f.error})`).join('；') : '没有产出任何用例结果'}，需要重跑。`);
+    const ok = code === 0 && mismatched === 0 && drifts.length === 0 && fatals.length === 0 && !(mutating && total === 0);
+    process.exit(ok ? 0 : 1);
 });

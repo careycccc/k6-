@@ -26,8 +26,24 @@ export const SETTING_KEYS = {
 export const MODE_BOTH = '1';   // 同时满足
 export const MODE_EITHER = '2'; // 满足任一
 
-function req(api, payload, token) {
-    return tenantRequest(api, payload, { token, isDesk: false });
+/**
+ * 带重试的后台请求。
+ * 只重试网络层失败（连接被重置/超时，此时 msgCode 为空）——这类是瞬时的；
+ * 业务错误（msgCode 非 0）是确定性的，重试没用，直接返回。
+ * 2026-11-04 场景9 就因为一次 "connection forcibly closed" 没重试，25 分钟白跑。
+ */
+export function req(api, payload, token, tries = 4) {
+    let r = null;
+    for (let i = 1; i <= tries; i++) {
+        r = tenantRequest(api, payload, { token, isDesk: false });
+        if (r && r.msgCode !== null && r.msgCode !== undefined) return r;
+        if (i < tries) {
+            console.warn(`[${TAG}] ${api} 网络层失败(第${i}/${tries}次，status=${r && r.status})，3s 后重试`);
+            sleep(3);
+        }
+    }
+    console.error(`[${TAG}] ${api} 重试 ${tries} 次仍失败`);
+    return r;
 }
 
 /**
@@ -231,6 +247,27 @@ export function expectOkInvite(config, totalRecharge, validBetInScope) {
             + ` ${config.mode === MODE_BOTH ? '且' : '或'} `
             + `范围内有效投注 ${validBetInScope.toFixed(2)}${betOk ? '≥' : '<'}${config.betThreshold}`
     };
+}
+
+// ---------------- 奖励流水（验证"同一下级只计一次、奖励不重复发放"）----------------
+
+/**
+ * 查某上级在时间窗口内累计收到的「邀请成功奖励(L3InviteOkReward)」笔数。
+ * payload 取自 agentL3Validation.js 里 getInviteOkRewardCount 已验证过的写法
+ * （searchUserIdType=1 按会员id查、financialTypeList 过滤类型），这里原样复用，
+ * 只是改走本文件的 req() 以获得同样的网络层重试。
+ * @returns {{count:number, list:Array}|null} 查询失败返回 null
+ */
+export function getInviteOkRewardCount(token, userId, sinceMs) {
+    const r = req('/api/Financial/GetPageList', {
+        searchUserIdType: 1, userId, financialTypeList: ['L3InviteOkReward'],
+        startTime: sinceMs, endTime: Date.now(), pageNo: 1, pageSize: 50, orderBy: 'Desc'
+    }, token);
+    if (!r || r.msgCode !== 0 || !r.data) {
+        console.error(`[${TAG}] 查邀请奖励记录失败 userId=${userId}: ${JSON.stringify(r)}`);
+        return null;
+    }
+    return { count: Number(r.data.totalCount) || 0, list: r.data.list || [] };
 }
 
 // ---------------- 结果上报（k6 沙箱不能写文件，打标记给 Node runner 收）----------------

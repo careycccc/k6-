@@ -24,8 +24,12 @@
  *   - reRechargeN(N>=2)：首充日+(N-1)当天有 Payed 订单的人，分母=firstRechargeCount。
  *   - registerCount=0 时登录留存为 null；firstRechargeCount=0 时复充留存为 null。
  *
- * 数据起点：只验证报表日期>=START_DATE(默认 fbAdConfig.FBAD_DATA_START_DATE=2026-11-03)的行，
- * 更早的数据不管；归因表仍回溯取全，因为起点前注册、起点后才首充的会员属于起点后的首充群体。
+ * 数据起点/止点：只验证基准日(注册日/首充日)落在 [START_DATE, END_DATE] 闭区间内的行——
+ * 默认 START_DATE=fbAdConfig.FBAD_DATA_START_DATE(2026-11-03)，END_DATE=今天；可用 -e 覆盖，
+ * 和后台 UI「注册时间」筛选框含义一致，想只核对某一天就传 START_DATE=END_DATE=那天。
+ * 注意"到期判断"(目标日<今天)永远用真实的今天，不受 END_DATE 影响——END_DATE 只收窄
+ * "基准群体落在哪天"，不改变"这个档位到没到期"。归因表仍回溯取全，因为区间前注册、
+ * 区间内才首充的会员属于区间内的首充群体。
  *
  * 取数失败直接抛错、不当成"数据为空"(验证脚本宁缺毋滥)；首充用户订单查回0条视为疑似
  * 软降级(后台查询接口偶发 200/msgCode0 但 data 空)，重试后仍0则记警告。全程单线程串行。
@@ -33,6 +37,8 @@
  * 用法（在本目录内运行，推荐走 Runner 拿汇总报表）：
  *   node verifyRetentionRunner.js --tenant 3004
  *   k6p -e TENANT_ID=3004 verifyRetention.day.js
+ *   k6p -e TENANT_ID=3004 -e START_DATE=2026-11-03 -e END_DATE=2026-11-03 verifyRetention.day.js  # 只看11-03一天
+ *   node verifyRetentionRunner.js --tenant 3004 --start-date 2026-11-03 --end-date 2026-11-03     #查看具体的那一天的留存数据+报表
  */
 
 import { sleep } from 'k6';
@@ -111,6 +117,7 @@ export function setup() {
 
 export default function (data) {
     const { today, adminToken } = data;
+    const END_DATE = __ENV.END_DATE || today;
     const tzMs = getTzOffsetMs(TENANT_ID);
     const dayOf = ms => new Date(ms + tzMs).toISOString().slice(0, 10);
     const dayStartMs = d => Date.parse(d + 'T00:00:00Z') - tzMs;
@@ -131,7 +138,7 @@ export default function (data) {
     const meta = new Map();        // key -> { date, campaignName, adsetName, adName, channels:{} }
     const firstDateOf = new Map(); // userId -> 首充日(仅起点及之后)
     const minDate = START_DATE;
-    let skippedBefore = 0;
+    let skippedOutOfRange = 0;
 
     function touchMeta(key, date, a) {
         if (!meta.has(key)) meta.set(key, { date, campaignName: a.campaignName, adsetName: a.adsetName, adName: a.adName, channels: {} });
@@ -139,8 +146,10 @@ export default function (data) {
     }
     for (const a of attrs) {
         const regDate = dayOf(a.registerTime);
-        // 注册日群体、首充日群体各自按"报表日期>=起点"独立过滤：同一个人可能注册在起点前、首充在起点后
-        if (regDate >= START_DATE) {
+        // 注册日群体、首充日群体各自按"报表日期落在[START_DATE,END_DATE]"独立过滤：
+        // 同一个人可能注册在区间前、首充在区间内（或反过来）
+        const regInRange = regDate >= START_DATE && regDate <= END_DATE;
+        if (regInRange) {
             const rk = groupKey(regDate, a.campaignId, a.adsetId, a.adId);
             if (!regGroups.has(rk)) regGroups.set(rk, []);
             regGroups.get(rk).push(a.userId);
@@ -148,10 +157,11 @@ export default function (data) {
             m.channels[a.packageName] = (m.channels[a.packageName] || 0) + 1;
         }
 
-        let fDate = null;
+        let fDate = null, fInRange = false;
         if (a.firstRechargeTime) {
             fDate = dayOf(a.firstRechargeTime);
-            if (fDate >= START_DATE) {
+            fInRange = fDate >= START_DATE && fDate <= END_DATE;
+            if (fInRange) {
                 const fk = groupKey(fDate, a.campaignId, a.adsetId, a.adId);
                 if (!firstGroups.has(fk)) firstGroups.set(fk, []);
                 firstGroups.get(fk).push(a.userId);
@@ -159,20 +169,20 @@ export default function (data) {
                 firstDateOf.set(a.userId, fDate);
             }
         }
-        if (regDate < START_DATE && !(fDate && fDate >= START_DATE)) skippedBefore++;
+        if (!regInRange && !fInRange) skippedOutOfRange++;
     }
-    console.log(`##R## 数据起点=${START_DATE}(更早的数据不参与验证)，归因表里起点前且与起点后无关的记录 ${skippedBefore} 条已忽略；起点后注册日群体=${regGroups.size}组 首充日群体=${firstGroups.size}组`);
+    console.log(`##R## 数据区间=${START_DATE}~${END_DATE}(区间外的数据不参与验证)，归因表里区间外且与区间内无关的记录 ${skippedOutOfRange} 条已忽略；区间内注册日群体=${regGroups.size}组 首充日群体=${firstGroups.size}组`);
     if (regGroups.size === 0 && firstGroups.size === 0) {
-        console.log(`##R## 起点 ${START_DATE} 之后没有任何归因记录，没有可验证的数据`);
+        console.log(`##R## 区间 ${START_DATE}~${END_DATE} 内没有任何归因记录，没有可验证的数据`);
         return;
     }
 
     // ---- 3) 被测报表 ----
-    const rep = fetchAllRows(adminToken, '/api/RptFbAd/GetRetentionPageList', { startTime: minDate, endTime: today }, 100, '留存分析报表');
+    const rep = fetchAllRows(adminToken, '/api/RptFbAd/GetRetentionPageList', { startTime: minDate, endTime: END_DATE }, 100, '留存分析报表');
     const backend = new Map();
     for (const r of rep.rows) backend.set(groupKey(r.reportDate, r.campaignId, r.adsetId, r.adId), r);
     const sumTotal = (rep.first && rep.first.sumTotal) || {};
-    console.log(`##R## 报表范围=${minDate}~${today} 报表行=${rep.rows.length} 注册日群体=${regGroups.size}组 首充日群体=${firstGroups.size}组`);
+    console.log(`##R## 报表范围=${minDate}~${END_DATE} 报表行=${rep.rows.length} 注册日群体=${regGroups.size}组 首充日群体=${firstGroups.size}组`);
     const repDates = rep.rows.map(r => r.reportDate).sort();
     console.log(`##R## 报表行日期范围=${repDates.length ? repDates[0] : '无'}~${repDates.length ? repDates[repDates.length - 1] : '无'}`);
 

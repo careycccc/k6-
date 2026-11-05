@@ -16,8 +16,7 @@ import { getAccountBalance } from '../../balance/balance.test.js';
 import { getBetToken } from '../../runbet/betToken.js';
 import { getNowBetNumber } from '../../runbet/issueNumber.js';
 import { betWingo } from '../../runbet/bet.js';
-import { tenantRequest } from '../../../../libs/http/tenantRequest.js';
-import { TAG } from './api.js';
+import { TAG, req } from './api.js';
 
 export const PASSWORD = 'qwer1234';
 
@@ -155,17 +154,24 @@ export function seedDownline(adminToken, parentInviteCode, spec, countryCode, te
 export function waitAllSettled(adminToken, userIds, sinceMs, maxWaitSec = 600, pollSec = 20) {
     const deadline = Date.now() + maxWaitSec * 1000;
     while (Date.now() < deadline) {
-        let unsettled = 0, total = 0;
+        let unsettled = 0, total = 0, queryFailed = false;
         for (const userId of userIds) {
-            const r = tenantRequest('/api/ThirdGame/GetBetRecordPageList', {
+            const r = req('/api/ThirdGame/GetBetRecordPageList', {
                 categoryType: 3, queryTimeType: 'BetTime', userId,
                 beginTimeUnix: sinceMs, endTimeUnix: Date.now(),
                 pageNo: 1, pageSize: 200, orderBy: 'Desc', sortField: 'BetTime'
-            }, { token: adminToken, isDesk: false });
-            const list = (r && r.data && r.data.list) || [];
+            }, adminToken);
+            // 查询失败时拿到的是空列表，不能当成"0 单未结算"——那会误判全部已结算，提前去查 isOkInvite
+            if (!r || r.msgCode !== 0) { queryFailed = true; break; }
+            const list = (r.data && r.data.list) || [];
             total += list.length;
             unsettled += list.filter(o => Number(o.orderState) !== 1).length;
             sleep(0.3);
+        }
+        if (queryFailed) {
+            console.warn(`[${TAG}] ⚠️ 查注单失败，状态未知，${pollSec}s 后重查`);
+            sleep(pollSec);
+            continue;
         }
         if (unsettled === 0) {
             console.log(`[${TAG}] ✅ 注单全部结算（共 ${total} 单）`);

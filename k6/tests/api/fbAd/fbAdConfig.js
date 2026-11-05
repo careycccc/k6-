@@ -36,6 +36,15 @@ export const LOGIN_RETENTION_DAY_MARKS = [2, 3, 5, 7, 15, 30, 60, 90];
  */
 export const RECHARGE_RETENTION_DAY_MARKS = [1, 2, 3, 4, 5, 6, 7, 10, 15, 20, 25, 30, 60, 90, 120, 180];
 
+/**
+ * 「充值分析」Tab 的复充档位阈值——2026-11-05 核对真实接口 /api/RptFbAd/GetRechargePageList
+ * 响应字段实锤确认：d0Recharge{2,3,4,5,10}Count/Rate/Text（首充当天复充档位）、
+ * cumRecharge1Count、cumRecharge{2,3,4,5,10}Count/Rate/Text（历史累计复充档位）。
+ * 和上面两套留存档位(从2起步、等差跳档)完全不同的清单，不能混用。只有 verifyRecharge.js/
+ * verifyRechargeRunner.js 用。
+ */
+export const RECHARGE_REPEAT_TIER_MARKS = [2, 3, 4, 5, 10];
+
 // ================= 数据起点（验证范围约定） =================
 
 /**
