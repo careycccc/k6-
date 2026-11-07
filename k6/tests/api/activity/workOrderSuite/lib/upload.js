@@ -2,25 +2,43 @@
  * workOrderSuite/lib/upload.js
  * 图片上传工具库
  *
- * - uploadAdmin()      后台上传 /api/UploadFile/UploadToOss
- * - uploadFrontend()   前台上传 /api/WorkOrder/UploadToOss
- * - maybeUpload()      30% 概率触发上传的包装器
+ * - uploadAdmin()            后台上传 /api/UploadFile/UploadToOss
+ * - uploadFrontend()         前台上传 /api/WorkOrder/UploadToOss
+ * - uploadWorkOrderFile()    前台按工单字段类型上传（ImageUpload/FileUpload/VideoUpload/PdfUpload）
+ * - maybeUpload()            30% 概率触发上传的包装器
  */
 
 import http from 'k6/http';
-import { check } from 'k6';
+import { check, sleep } from 'k6';
 import { logger } from '../../../../../libs/utils/logger.js';
+import { SignatureUtil } from '../../../../../libs/utils/signature.js';
+import { getTimeRandom } from '../../../../utils/utils.js';
 
 // ============================================================
-// 图片预加载（模块初始化阶段）
-// 4 张图片全部预加载，运行时随机选择
+// 文件预加载（模块初始化阶段）
+// 4 张图片全部预加载，运行时随机选择；PDF / 视频各一份，给对应字段类型用
 // ============================================================
 const IMAGES = [
-    { content: open('../../../uploadFile/img/oneToone/1.png', 'b'), name: '1.png' },
-    { content: open('../../../uploadFile/img/oneToone/2.png', 'b'), name: '2.png' },
-    { content: open('../../../uploadFile/img/oneToone/3.png', 'b'), name: '3.png' },
-    { content: open('../../../uploadFile/img/oneToone/4.png', 'b'), name: '4.png' },
+    { content: open('../../../uploadFile/img/oneToone/1.png', 'b'), name: '1.png', mime: 'image/png' },
+    { content: open('../../../uploadFile/img/oneToone/2.png', 'b'), name: '2.png', mime: 'image/png' },
+    { content: open('../../../uploadFile/img/oneToone/3.png', 'b'), name: '3.png', mime: 'image/png' },
+    { content: open('../../../uploadFile/img/oneToone/4.png', 'b'), name: '4.png', mime: 'image/png' },
 ];
+const PDF_FILE = { content: open('../../../uploadFile/pdf/99.pdf', 'b'), name: '99.pdf', mime: 'application/pdf' };
+// 约 9.5MB，每个 VU 各持有一份；前台视频上限 100MB
+const VIDEO_FILE = { content: open('../../../uploadFile/video/IMG_0619.MOV', 'b'), name: 'IMG_0619.MOV', mime: 'video/quicktime' };
+
+/**
+ * 工单字段类型 → 上传什么文件（与前台 accept 规则一致，2026-11-06 读 3004 前台包确认）：
+ *   ImageUpload 只收 jpg/jpeg/png；VideoUpload 只收视频；
+ *   FileUpload 收 .pdf + 视频（不收图片）；PdfUpload 只收 pdf
+ */
+const FILE_BY_FIELD_TYPE = {
+    ImageUpload: () => randomImage(),
+    VideoUpload: () => VIDEO_FILE,
+    FileUpload: () => PDF_FILE,
+    PdfUpload: () => PDF_FILE,
+};
 
 /** 30% 上传概率常量，统一在此调整 */
 export const UPLOAD_PROBABILITY = 0.3;
@@ -117,14 +135,30 @@ export function uploadFrontendWithToken(env, memberToken) {
     return _uploadFrontendWithToken(env, memberToken || '');
 }
 
-function _uploadFrontendWithToken(env, token) {
-    const img = randomImage();
+/**
+ * 前台按工单字段类型上传对应文件，返回值里直接带上提交用的 fieldValue
+ * （前台提交格式：`${imagePath}?${fileName}`）
+ * @param {object} env
+ * @param {string} memberToken
+ * @param {string} fieldTypeCode - ImageUpload / FileUpload / VideoUpload / PdfUpload
+ * @returns {{ success, attachmentName, attachmentPath, fieldValue } | { success: false, error }}
+ */
+export function uploadWorkOrderFile(env, memberToken, fieldTypeCode) {
+    const pick = FILE_BY_FIELD_TYPE[fieldTypeCode] || FILE_BY_FIELD_TYPE.ImageUpload;
+    const result = _uploadFrontendWithToken(env, memberToken || '', pick());
+    if (result.success) result.fieldValue = `${result.attachmentPath}?${result.attachmentName}`;
+    return result;
+}
+
+/**
+ * 前台上传：和前台 selfService 页一致（2026-11-06 读 3004 前台包确认）——
+ * multipart 字段名是 file（不是 files），并且像普通接口一样带 language/random/signature/timestamp
+ * 签名（File 对象不参与签名）。旧写法 files + fileType/customPath、不签名，后端一律回
+ * "Param is Invalid"(msgCode 6)。响应 data 是对象 { fileName, imagePath, imageDomain }。
+ */
+function _uploadFrontendWithToken(env, token, file) {
+    const img = file || randomImage();
     try {
-        const formData = {
-            files: http.file(img.content, img.name, 'image/png'),
-            fileType: 'other',
-            customPath: '',
-        };
         const baseUrl = env.BASE_DESK_URL;
         const host = baseUrl.replace(/^(https?:\/\/)?([^:/\s]+).*$/, '$2');
         const headers = {
@@ -140,20 +174,44 @@ function _uploadFrontendWithToken(env, token) {
         if (token) {
             headers['authorization'] = `Bearer ${token}`;
         }
-        const res = http.post(`${baseUrl}/api/WorkOrder/UploadToOss`, formData, { headers });
+        let res = null;
+        let body = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            // 每次重试都重新签名（timestamp/random 要新的）
+            const t = getTimeRandom();
+            const signed = SignatureUtil.signRequest({ language: t.language, random: t.random, signature: '' }, '');
+            const formData = {
+                file: http.file(img.content, img.name, img.mime || 'image/png'),
+                language: String(signed.language),
+                random: String(signed.random),
+                signature: String(signed.signature),
+                timestamp: String(signed.timestamp),
+            };
+            res = http.post(`${baseUrl}/api/WorkOrder/UploadToOss`, formData, { headers, timeout: '120s' });
+            body = JSON.parse(res.body);
+            if (!body || body.msgCode !== 13) break; // 13 = Too frequent access
+            logger.warn(`[${TAG}] 上传太频繁，${attempt * 3}s 后重试 (${attempt}/3)`);
+            sleep(attempt * 3);
+        }
         check(res, { '[uploadFrontend] status 200': (r) => r.status === 200 });
-        const body = JSON.parse(res.body);
-        const attachment = extractAttachment(body);
+        const attachment = extractFrontendAttachment(body);
         if (attachment) {
-            logger.info(`[${TAG}] 前台图片上传成功: ${attachment.attachmentName}`);
+            logger.info(`[${TAG}] 前台上传成功: ${attachment.attachmentName}`);
             return { success: true, ...attachment };
         }
-        logger.error(`[${TAG}] 前台图片上传失败: ${res.body}`);
-        return { success: false, error: body.msg || res.body };
+        logger.error(`[${TAG}] 前台上传失败(${img.name}): ${res.body}`);
+        return { success: false, error: (body && body.msg) || res.body };
     } catch (e) {
-        logger.error(`[${TAG}] 前台图片上传异常: ${e.message}`);
+        logger.error(`[${TAG}] 前台上传异常: ${e.message}`);
         return { success: false, error: e.message };
     }
+}
+
+function extractFrontendAttachment(responseBody) {
+    if (!responseBody || responseBody.code !== 0 || !responseBody.data) return null;
+    const item = Array.isArray(responseBody.data) ? responseBody.data[0] : responseBody.data;
+    if (!item || !item.imagePath) return null;
+    return { attachmentName: item.fileName, attachmentPath: item.imagePath };
 }
 
 // ============================================================

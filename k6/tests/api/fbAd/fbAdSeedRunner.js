@@ -8,7 +8,7 @@
  *     state/accounts_<tenantId>.ndjson（整表原子重写）。
  *
  * 用法（在本目录内运行）：
- *   node fbAdSeedRunner.js --tenant 3004 --user-count 10
+ *   node fbAdSeedRunner.js --tenant 3101 --user-count 5
  *   node fbAdSeedRunner.js --tenant 3004 --user-count 5 --country-code 1
  *   
  *

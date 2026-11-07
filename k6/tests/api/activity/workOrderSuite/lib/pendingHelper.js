@@ -12,7 +12,7 @@
 import { sleep } from 'k6';
 import { sendRequest, sendQueryRequest } from '../../../common/request.js';
 import { logger } from '../../../../../libs/utils/logger.js';
-import { monitoredQueryRequest, monitoredSendRequest } from '../../../../../libs/monitor/perfIntegration.js';
+import { monitoredQueryRequest, monitoredPost } from '../../../../../libs/monitor/perfIntegration.js';
 import { PERF_METRICS } from '../../../../../libs/monitor/perfMetrics.js';
 
 const TAG = 'PendingHelper';
@@ -212,18 +212,25 @@ export function resolveUserIds(accounts, adminToken) {
 // 锁定工单
 // ============================================================
 
-/**
- * 锁定指定工单（防止多客服并发抢单）
- */
-export function lockOrder(workOrderId, adminToken) {
-    const res = monitoredSendRequest(
-        { workOrderId, isLockWorkOrder: 1 },
+// 锁定成功时 data 是 {lockTime}，monitoredSendRequest 只返回 data 会把 msgCode 丢掉、
+// 成功也被判成失败，所以这里取完整 body
+function updateLockState(workOrderId, isLockWorkOrder, adminToken) {
+    const { body } = monitoredPost(
+        { workOrderId, isLockWorkOrder },
         '/api/WorkOrder/UpdateWordOrderState',
         TAG,
         false,
         adminToken,
         { trendObj: PERF_METRICS.WORK_ORDER_DISPATCH }
     );
+    return body;
+}
+
+/**
+ * 锁定指定工单（防止多客服并发抢单）
+ */
+export function lockOrder(workOrderId, adminToken) {
+    const res = updateLockState(workOrderId, 1, adminToken);
 
     if (res && res.msgCode === 0) {
         logger.info(`[${TAG}] ✅ 工单 ${workOrderId} 锁定成功`);
@@ -233,14 +240,7 @@ export function lockOrder(workOrderId, adminToken) {
     if (res && res.msgCode === 13) {
         logger.warn(`[${TAG}] 锁定过快，1s 后重试...`);
         sleep(1);
-        const retry = monitoredSendRequest(
-            { workOrderId, isLockWorkOrder: 1 },
-            '/api/WorkOrder/UpdateWordOrderState',
-            TAG,
-            false,
-            adminToken,
-            { trendObj: PERF_METRICS.WORK_ORDER_DISPATCH }
-        );
+        const retry = updateLockState(workOrderId, 1, adminToken);
         if (retry && retry.msgCode === 0) {
             logger.info(`[${TAG}] ✅ 工单 ${workOrderId} 重试锁定成功`);
             return true;
@@ -263,14 +263,7 @@ export function lockOrder(workOrderId, adminToken) {
  * @returns {boolean}
  */
 export function unlockOrder(workOrderId, adminToken) {
-    const res = monitoredSendRequest(
-        { workOrderId, isLockWorkOrder: 0 },
-        '/api/WorkOrder/UpdateWordOrderState',
-        TAG,
-        false,
-        adminToken,
-        { trendObj: PERF_METRICS.WORK_ORDER_DISPATCH }
-    );
+    const res = updateLockState(workOrderId, 0, adminToken);
 
     if (res && res.msgCode === 0) {
         logger.info(`[${TAG}] ✅ 工单 ${workOrderId} 解锁成功`);
@@ -280,14 +273,7 @@ export function unlockOrder(workOrderId, adminToken) {
     if (res && res.msgCode === 13) {
         logger.warn(`[${TAG}] 解锁过快，1s 后重试...`);
         sleep(1);
-        const retry = monitoredSendRequest(
-            { workOrderId, isLockWorkOrder: 0 },
-            '/api/WorkOrder/UpdateWordOrderState',
-            TAG,
-            false,
-            adminToken,
-            { trendObj: PERF_METRICS.WORK_ORDER_DISPATCH }
-        );
+        const retry = updateLockState(workOrderId, 0, adminToken);
         if (retry && retry.msgCode === 0) {
             logger.info(`[${TAG}] ✅ 工单 ${workOrderId} 重试解锁成功`);
             return true;

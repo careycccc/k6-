@@ -489,6 +489,46 @@ const SCENARIOS = {
                 action: { type: 'recharge', amount: 500, targets: ['H1'] }
             }
         ]
+    },
+
+    // 组 19（排查 2026-11-06 全量回归里 9-2/U3 的异常）：全程 mode=1(同时满足) 不做任何
+    // 切换，下级 V1 按这个 mode 的逻辑该恒为 false(充值不够、投注够，AND=false)。如果这个
+    // false 是最终正确答案，不管等多久都不该变；如果多等几分钟后自己变成 true，说明判定系统
+    // 本身会漂移，和"切配置触发重判"无关——用更长的 WAIT_CHECK(比如 -e WAIT_CHECK=300)跑。
+    '19': {
+        name: '验证判定是否会在配置不变的情况下自行漂移(排查9-2异常)',
+        base: { rechargeThreshold: 1000, betThreshold: 300, limitGames: ARL([WG30]), mode: MODE_BOTH },
+        downlines: [
+            { label: 'V1 同时满足下充值不够投注够(本该恒为false)', recharge: 500, bets: [{ game: WG30, amount: 460 }] }
+        ],
+        phases: [{ caseId: '19-1', name: '造数后不切配置，用更长WAIT_CHECK多等几分钟再查 → 期望仍是false', config: {} }]
+    },
+
+    // 组 20（排查 2026-11-06 全量回归里 11-3/K4 的异常）：复刻组11 K3/K4 的对称结构，换成
+    // 全新账号重跑，排查"K4(投注未满足补投注,不跨门槛)失败而K3(充值未满足补充值,不跨门槛)
+    // 成功"这个结果是稳定复现还是偶发——两者结构完全对称，唯一差别是补的是哪个字段。
+    // 必须是三阶段(mode=1造出false基线 → 切mode=2不触发 → 补单字段行为触发)，原始K3/K4就
+    // 是这个结构；如果直接用mode=2造数，OR逻辑在造数那一刻就已经满足，sticky后测不出后面
+    // 补行为到底有没有生效(20第一版就是踩了这个坑，20-1造数时就已经意外是true了，作废)。
+    '20': {
+        name: '复刻K3/K4对称结构(排查K4异常是否稳定复现，三阶段版)',
+        base: { rechargeThreshold: 1000, betThreshold: 300, limitGames: ARL([WG30]), mode: MODE_BOTH },
+        downlines: [
+            { label: 'V2 类K3充值未满足(投注已满足)', recharge: 500, bets: [{ game: WG30, amount: 460 }] },
+            { label: 'V3 类K4投注未满足(充值已满足)', recharge: 2000, bets: [] }
+        ],
+        phases: [
+            { caseId: '20-1', name: '同时满足造数：V2充值500<1000投注450.8≥300(AND=false)；V3充值2000≥1000不投注(AND=false)', config: { mode: MODE_BOTH } },
+            { caseId: '20-2', name: '切满足任一，不做行为 → 产品口径维持false(即使OR逻辑现算是true)', config: { mode: '2' } },
+            {
+                caseId: '20-3', name: 'V2补充值200(到700仍<1000不跨门槛)/V3补投注100(有效98仍<300不跨门槛) → 满足任一下两者都应转为达标',
+                config: {},
+                actions: [
+                    { type: 'recharge', amount: 200, targets: ['V2'] },
+                    { type: 'bet', game: WG30, amount: 100, targets: ['V3'] }
+                ]
+            }
+        ]
     }
 };
 

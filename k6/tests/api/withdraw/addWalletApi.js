@@ -13,7 +13,7 @@ import { randomString as generateRandomString, randomDigits as generateNumberStr
  * @param {string} type - 类型（1=银行卡，2=电子钱包等）
  * @returns {string|null} 返回随机选择的银行代码
  */
-function getBankCode(adminToken, type = '1') {
+export function getBankCode(adminToken, type = '1') {
     const api = '/api/Bankdictionary/GetBankDictionarySelect';
     const tag = 'GetBankCode';
 
@@ -375,8 +375,13 @@ function generateHolderName() {
     return name;
 }
 
-/** msgCode=13 Too frequent access 时退避重试 */
-function addFrontWithdrawWallet(userToken, payload, tag) {
+/**
+ * msgCode=13 Too frequent access 时退避重试，返回原始细节不简化成 boolean——
+ * 「已绑满」(10030银行卡/10031电子钱包/10032USDT/10039UPI) 和「真正绑定成功」
+ * 都是 ok=true，但 alreadyFull 区分开，验证"绑定数量上限"功能必须靠这个字段，
+ * 不能用下面包装出的 addFrontBankCard 等 boolean 版本（那层会把两者都当 true）。
+ */
+function addFrontWithdrawWalletRaw(userToken, payload, tag) {
     console.log(`[${tag}] 请求参数:`, JSON.stringify(payload));
     let response = null;
     for (let attempt = 1; attempt <= 4; attempt++) {
@@ -385,17 +390,27 @@ function addFrontWithdrawWallet(userToken, payload, tag) {
         console.warn(`[${tag}] 访问太频繁，${attempt * 3}s 后重试 (${attempt}/4)`);
         sleep(attempt * 3);
     }
-    // 已绑满（10030 银行卡 / 10031 电子钱包 / 10032 USDT），已有可用钱包，视为成功
-    if (response && [10030, 10031, 10032].includes(response.msgCode)) {
-        console.log(`[${tag}] ✅ 已绑定过，沿用现有钱包`);
-        return true;
+    const msgCode = response && response.msgCode;
+    const msg = response && response.msg;
+    // 已绑满（10030 银行卡 / 10031 电子钱包 / 10032 USDT），已有可用钱包；UPI 达到
+    // 数量上限走的是完全不同的错误码 10039"You have already bound the UPI,
+    // please contact customer service to modify"（2026-11-06 UAT 实测确认，不是
+    // 和前三者同模式的 10033——这里原先按命名规律瞎猜的 10033 在UAT上从未出现过）
+    if ([10030, 10031, 10032, 10039].includes(msgCode)) {
+        console.log(`[${tag}] ⚠️ 已绑满(msgCode=${msgCode} msg=${msg})，本次未新增`);
+        return { ok: true, alreadyFull: true, msgCode, msg };
     }
-    if (!response || response.msgCode !== 0) {
-        console.error(`[${tag}] ❌ 添加失败: msgCode=${response && response.msgCode} msg=${response && response.msg}`);
-        return false;
+    if (!response || msgCode !== 0) {
+        console.error(`[${tag}] ❌ 添加失败: msgCode=${msgCode} msg=${msg}`);
+        return { ok: false, alreadyFull: false, msgCode, msg };
     }
     console.log(`[${tag}] ✅ 添加成功`);
-    return true;
+    return { ok: true, alreadyFull: false, msgCode, msg };
+}
+
+/** 包装成 boolean（兼容原有调用方：唯一性验证等场景不关心"是否因为已绑满才成功"） */
+function addFrontWithdrawWallet(userToken, payload, tag) {
+    return addFrontWithdrawWalletRaw(userToken, payload, tag).ok;
 }
 
 /** 会员已有真实姓名时 holderName 必须一致（否则 10035 Full name is not match） */
@@ -423,6 +438,18 @@ export function addFrontBankCard(userToken, bankCode = 'INR10125', holderName = 
     }, 'AddFrontBankCard');
 }
 
+/** 同 addFrontBankCard，返回 {ok, alreadyFull, msgCode, msg} 而非简化的 boolean */
+export function addFrontBankCardRaw(userToken, bankCode = 'INR10125', holderName = '', cardNo = '') {
+    return addFrontWithdrawWalletRaw(userToken, {
+        bankCode: bankCode,
+        holderName: holderName || getFrontRealName(userToken) || generateHolderName(),
+        accountNo: cardNo || generateNumberString(18, true),
+        mobileNo: generateNumberString(10, true),
+        ifscCode: generateIFSC(),
+        withdrawType: 'BankCard'
+    }, 'AddFrontBankCard');
+}
+
 /**
  * 前台添加电子钱包：accountNo 10位且不能0开头
  * @param {string} userToken
@@ -433,6 +460,16 @@ export function addFrontBankCard(userToken, bankCode = 'INR10125', holderName = 
  */
 export function addFrontEWallet(userToken, bankCode = 'ceshiyong', holderName = '', accountNo = '') {
     return addFrontWithdrawWallet(userToken, {
+        bankCode: bankCode,
+        holderName: holderName || getFrontRealName(userToken) || generateHolderName(),
+        accountNo: accountNo || generateNumberString(10, true),
+        withdrawType: 'EWallet'
+    }, 'AddFrontEWallet');
+}
+
+/** 同 addFrontEWallet，返回 {ok, alreadyFull, msgCode, msg} 而非简化的 boolean */
+export function addFrontEWalletRaw(userToken, bankCode = 'ceshiyong', holderName = '', accountNo = '') {
+    return addFrontWithdrawWalletRaw(userToken, {
         bankCode: bankCode,
         holderName: holderName || getFrontRealName(userToken) || generateHolderName(),
         accountNo: accountNo || generateNumberString(10, true),
@@ -455,6 +492,16 @@ export function addFrontUsdt(userToken, address = '') {
     }, 'AddFrontUsdt');
 }
 
+/** 同 addFrontUsdt，返回 {ok, alreadyFull, msgCode, msg} 而非简化的 boolean */
+export function addFrontUsdtRaw(userToken, address = '') {
+    return addFrontWithdrawWalletRaw(userToken, {
+        networkType: 'TRC20',
+        usdtAddress: address || generateTRONAddress(),
+        aliasAddress: generateRandomString(6),
+        withdrawType: 'USDT'
+    }, 'AddFrontUsdt');
+}
+
 /**
  * 前台添加 UPI（2026-11-03 实测确认：后台 /api/Users/AddUserWallet walletType=5
  * 返回 msgCode=0 但不落库，和银行卡当初发现的"假成功"是同一个问题；UPI 要真正
@@ -462,6 +509,15 @@ export function addFrontUsdt(userToken, address = '') {
  */
 export function addFrontUpi(userToken, holderName = '') {
     return addFrontWithdrawWallet(userToken, {
+        holderName: holderName || getFrontRealName(userToken) || generateHolderName(),
+        accountNo: generateUPIFormat(),
+        withdrawType: 'UPI'
+    }, 'AddFrontUpi');
+}
+
+/** 同 addFrontUpi，返回 {ok, alreadyFull, msgCode, msg} 而非简化的 boolean */
+export function addFrontUpiRaw(userToken, holderName = '') {
+    return addFrontWithdrawWalletRaw(userToken, {
         holderName: holderName || getFrontRealName(userToken) || generateHolderName(),
         accountNo: generateUPIFormat(),
         withdrawType: 'UPI'
