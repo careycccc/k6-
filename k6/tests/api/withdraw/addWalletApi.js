@@ -11,9 +11,12 @@ import { randomString as generateRandomString, randomDigits as generateNumberStr
  * 获取银行字典列表
  * @param {string} adminToken - 后台管理员token
  * @param {string} type - 类型（1=银行卡，2=电子钱包等）
+ * @param {boolean} [forceTenant=false] - adminToken 是商户自己登录拿到的（非集团token）时传 true，
+ *   否则集团模式下会被自动路由去集团域名，token/域名错配报 "Account type does not match the
+ *   admin site"（2026-11-07 实测踩坑，见 libs/http/groupRouting.js 顶部注释）
  * @returns {string|null} 返回随机选择的银行代码
  */
-export function getBankCode(adminToken, type = '1') {
+export function getBankCode(adminToken, type = '1', forceTenant = false) {
     const api = '/api/Bankdictionary/GetBankDictionarySelect';
     const tag = 'GetBankCode';
 
@@ -21,7 +24,7 @@ export function getBankCode(adminToken, type = '1') {
         type: type
     };
 
-    const response = tenantRequest(api, payload, { token: adminToken, isDesk: false });
+    const response = tenantRequest(api, payload, { token: adminToken, isDesk: false, forceTenant });
 
     if (!response || response.msgCode !== 0 || !response.data) {
         console.error(`[${tag}] 获取银行字典失败:`, response);
@@ -179,14 +182,15 @@ function generateUPIFormat() {
  * 添加银行卡
  * @param {string} adminToken - 后台管理员token
  * @param {string} userId - 用户ID
+ * @param {boolean} [forceTenant=false] - 同 getBankCode
  * @returns {boolean}
  */
-export function addUserBank(adminToken, userId) {
+export function addUserBank(adminToken, userId, forceTenant = false) {
     const api = '/api/Users/AddUserWallet';
     const tag = 'AddUserBank';
 
     // 先获取银行代码
-    const bankCode = getBankCode(adminToken, '1');
+    const bankCode = getBankCode(adminToken, '1', forceTenant);
     if (!bankCode) {
         console.error(`[${tag}] ❌ 无法获取银行代码，跳过添加银行卡`);
         return false;
@@ -204,7 +208,7 @@ export function addUserBank(adminToken, userId) {
 
     console.log(`[${tag}] 请求参数:`, JSON.stringify(payload, null, 2));
 
-    const response = tenantRequest(api, payload, { token: adminToken, isDesk: false });
+    const response = tenantRequest(api, payload, { token: adminToken, isDesk: false, forceTenant });
 
     // console.log(`[${tag}] 响应状态码: ${response.status}`);
     // console.log(`[${tag}] 响应msgCode: ${response.msgCode}`);
@@ -224,14 +228,15 @@ export function addUserBank(adminToken, userId) {
  * 添加电子钱包
  * @param {string} adminToken - 后台管理员token
  * @param {string} userId - 用户ID
+ * @param {boolean} [forceTenant=false] - 同 getBankCode
  * @returns {boolean}
  */
-export function addUserWallet(adminToken, userId) {
+export function addUserWallet(adminToken, userId, forceTenant = false) {
     const api = '/api/Users/AddUserWallet';
     const tag = 'AddUserWallet';
 
     // 获取电子钱包代码（type=2）
-    const bankCode = getBankCode(adminToken, '2');
+    const bankCode = getBankCode(adminToken, '2', forceTenant);
     if (!bankCode) {
         console.error(`[${tag}] ❌ 无法获取电子钱包代码，跳过添加电子钱包`);
         return false;
@@ -246,7 +251,7 @@ export function addUserWallet(adminToken, userId) {
 
     console.log(`[${tag}] 请求参数:`, JSON.stringify(payload, null, 2));
 
-    const response = tenantRequest(api, payload, { token: adminToken, isDesk: false });
+    const response = tenantRequest(api, payload, { token: adminToken, isDesk: false, forceTenant });
 
     console.log(`[${tag}] 响应状态码: ${response.status}`);
     console.log(`[${tag}] 响应msgCode: ${response.msgCode}`);
@@ -266,9 +271,10 @@ export function addUserWallet(adminToken, userId) {
  * 添加PIX
  * @param {string} adminToken - 后台管理员token
  * @param {string} userId - 用户ID
+ * @param {boolean} [forceTenant=false] - 同 getBankCode
  * @returns {boolean}
  */
-export function addUserPix(adminToken, userId) {
+export function addUserPix(adminToken, userId, forceTenant = false) {
     const api = '/api/Users/AddUserWallet';
     const tag = 'AddUserPix';
 
@@ -281,7 +287,7 @@ export function addUserPix(adminToken, userId) {
 
     console.log(`[${tag}] 请求参数:`, JSON.stringify(payload, null, 2));
 
-    const response = tenantRequest(api, payload, { token: adminToken, isDesk: false });
+    const response = tenantRequest(api, payload, { token: adminToken, isDesk: false, forceTenant });
 
     console.log(`[${tag}] 响应状态码: ${response.status}`);
     console.log(`[${tag}] 响应msgCode: ${response.msgCode}`);
@@ -301,9 +307,10 @@ export function addUserPix(adminToken, userId) {
  * 添加USDT
  * @param {string} adminToken - 后台管理员token
  * @param {string} userId - 用户ID
+ * @param {boolean} [forceTenant=false] - 同 getBankCode
  * @returns {boolean}
  */
-export function addUserUsdt(adminToken, userId) {
+export function addUserUsdt(adminToken, userId, forceTenant = false) {
     const api = '/api/Users/AddUserWallet';
     const tag = 'AddUserUsdt';
 
@@ -319,7 +326,7 @@ export function addUserUsdt(adminToken, userId) {
 
     console.log(`[${tag}] 请求参数:`, JSON.stringify(payload, null, 2));
 
-    const response = tenantRequest(api, payload, { token: adminToken, isDesk: false });
+    const response = tenantRequest(api, payload, { token: adminToken, isDesk: false, forceTenant });
 
     console.log(`[${tag}] 响应状态码: ${response.status}`);
     console.log(`[${tag}] 响应msgCode: ${response.msgCode}`);
@@ -339,9 +346,10 @@ export function addUserUsdt(adminToken, userId) {
  * 添加UPI
  * @param {string} adminToken - 后台管理员token
  * @param {string} userId - 用户ID
+ * @param {boolean} [forceTenant=false] - 同 getBankCode
  * @returns {boolean}
  */
-export function addUserUpi(adminToken, userId) {
+export function addUserUpi(adminToken, userId, forceTenant = false) {
     const api = '/api/Users/AddUserWallet';
     const tag = 'AddUserUpi';
 
@@ -351,7 +359,7 @@ export function addUserUpi(adminToken, userId) {
         walletType: 5 // 5表示UPI
     };
 
-    const response = tenantRequest(api, payload, { token: adminToken, isDesk: false });
+    const response = tenantRequest(api, payload, { token: adminToken, isDesk: false, forceTenant });
 
     if (!response || response.msgCode !== 0) {
         console.error(`[${tag}] 添加UPI失败:`, response);
@@ -529,12 +537,14 @@ export function addFrontUpiRaw(userToken, holderName = '') {
  * @param {string} adminToken - 后台管理员token
  * @param {string} userId - 用户ID
  * @param {string} userToken - 会员token（传了就走前台接口添加银行卡/电子钱包/USDT，推荐）
+ * @param {boolean} [forceTenant=false] - adminToken 是商户自己登录拿到的（非集团token）时传 true，
+ *   同 getBankCode 的说明
  * @returns {boolean} 是否全部成功
  */
-export function addAllWallets(adminToken, userId, userToken = null) {
+export function addAllWallets(adminToken, userId, userToken = null, forceTenant = false) {
     const tag = 'AddAllWallets';
 
-    if (userToken) return addAllWalletsByFront(adminToken, userId, userToken);
+    if (userToken) return addAllWalletsByFront(adminToken, userId, userToken, forceTenant);
 
     console.log(`[${tag}] ========== 开始为用户 ${userId} 添加所有钱包类型 ==========`);
 
@@ -542,16 +552,16 @@ export function addAllWallets(adminToken, userId, userToken = null) {
     const results = {};
 
     console.log(`\n[${tag}] --- 1/4 添加银行卡 ---`);
-    results.bank = addUserBank(adminToken, userId);
+    results.bank = addUserBank(adminToken, userId, forceTenant);
 
     console.log(`\n[${tag}] --- 2/4 添加电子钱包 ---`);
-    results.wallet = addUserWallet(adminToken, userId);
+    results.wallet = addUserWallet(adminToken, userId, forceTenant);
 
     console.log(`\n[${tag}] --- 3/4 添加PIX ---`);
-    results.pix = addUserPix(adminToken, userId);
+    results.pix = addUserPix(adminToken, userId, forceTenant);
 
     console.log(`\n[${tag}] --- 4/4 添加USDT ---`);
-    results.usdt = addUserUsdt(adminToken, userId);
+    results.usdt = addUserUsdt(adminToken, userId, forceTenant);
 
     // 统计结果
     const successCount = Object.values(results).filter(r => r === true).length;
@@ -565,7 +575,7 @@ export function addAllWallets(adminToken, userId, userToken = null) {
     console.log(`[${tag}] 总计: ${successCount}/${totalCount} 接口返回成功`);
 
     // AddUserWallet 可能返回 msgCode=0 却没落库（如 data=13001），以后台 GetWallet 实查为准
-    const actual = getUserWalletCount(adminToken, userId);
+    const actual = getUserWalletCount(adminToken, userId, forceTenant);
     console.log(`[${tag}] 后台实查已绑钱包: ${JSON.stringify(actual)}`);
     if (actual && actual.total === 0) {
         console.error(`[${tag}] ❌ 接口返回成功但后台查不到任何钱包，添加实际未生效`);
@@ -576,12 +586,12 @@ export function addAllWallets(adminToken, userId, userToken = null) {
 }
 
 /** 前台接口添加 银行卡/电子钱包/USDT，bankCode 用后台字典随机取（取不到用默认值），最后后台实查确认 */
-function addAllWalletsByFront(adminToken, userId, userToken) {
+function addAllWalletsByFront(adminToken, userId, userToken, forceTenant = false) {
     const tag = 'AddAllWallets';
     console.log(`[${tag}] ========== 前台接口为用户 ${userId} 添加钱包 ==========`);
 
-    const bankCode = (adminToken && getBankCode(adminToken, '1')) || 'INR10125';
-    const ewalletCode = (adminToken && getBankCode(adminToken, '2')) || 'ceshiyong';
+    const bankCode = (adminToken && getBankCode(adminToken, '1', forceTenant)) || 'INR10125';
+    const ewalletCode = (adminToken && getBankCode(adminToken, '2', forceTenant)) || 'ceshiyong';
 
     // 已有真实姓名就沿用；没有则随机一个，银行卡和电子钱包用同一个名字
     const holderName = getFrontRealName(userToken) || generateHolderName();
@@ -596,7 +606,7 @@ function addAllWalletsByFront(adminToken, userId, userToken) {
 
     console.log(`[${tag}] 银行卡: ${results.bank ? '✅' : '❌'}  电子钱包: ${results.ewallet ? '✅' : '❌'}  USDT: ${results.usdt ? '✅' : '❌'}`);
     if (adminToken) {
-        const actual = getUserWalletCount(adminToken, userId);
+        const actual = getUserWalletCount(adminToken, userId, forceTenant);
         console.log(`[${tag}] 后台实查已绑钱包: ${JSON.stringify(actual)}`);
         if (actual && actual.total === 0) {
             console.error(`[${tag}] ❌ 接口返回成功但后台查不到任何钱包，添加实际未生效`);
@@ -608,10 +618,11 @@ function addAllWalletsByFront(adminToken, userId, userToken) {
 
 /**
  * 后台查询用户已绑定的钱包数量（/api/Users/GetWallet）
+ * @param {boolean} [forceTenant=false] - 同 getBankCode
  * @returns {{bank:number, ewallet:number, pix:number, usdt:number, upi:number, total:number}|null}
  */
-export function getUserWalletCount(adminToken, userId) {
-    const response = tenantRequest('/api/Users/GetWallet', { userId: userId }, { token: adminToken, isDesk: false });
+export function getUserWalletCount(adminToken, userId, forceTenant = false) {
+    const response = tenantRequest('/api/Users/GetWallet', { userId: userId }, { token: adminToken, isDesk: false, forceTenant });
     if (!response || response.msgCode !== 0 || !response.data) return null;
     const d = response.data;
     const len = a => (Array.isArray(a) ? a.length : 0);

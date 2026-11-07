@@ -243,6 +243,9 @@ function _logBreakdown(tag, t, silent) {
  * @param {object}  [monOpts.errorCounter]  业务级错误计数器
  * @param {function}[monOpts.successCheck]  (body) => bool
  * @param {boolean} [monOpts.silent]        是否静默
+ * @param {boolean} [monOpts.forceTenant]   token 是商户自己登录拿到的（非集团token）时传
+ *   true，否则集团模式下会被自动路由去集团域名，token/域名错配报 "Account type does not
+ *   match the admin site"（2026-11-07 实测踩坑，见 libs/http/groupRouting.js 顶部注释）
  * @returns {{ ok: boolean, timings: object, body: object|null, raw: object }}
  */
 export function monitoredPost(payload, api, tag, isDesk = true, token = '', monOpts = {}) {
@@ -264,7 +267,7 @@ export function monitoredPost(payload, api, tag, isDesk = true, token = '', monO
 
     let raw;
     try {
-        raw = httpClient.post(api, data, {}, isDesk);
+        raw = httpClient.post(api, data, { forceTenant: monOpts.forceTenant === true }, isDesk);
     } catch (err) {
         ERROR_COUNTERS.HTTP_ERROR.add(1);
         if (monOpts.errorCounter) monOpts.errorCounter.add(1);

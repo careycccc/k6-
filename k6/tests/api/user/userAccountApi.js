@@ -163,16 +163,19 @@ export function autoLoginByUserId(adminToken, userId) {
  *
  * @param {string} account    - 手机号或邮箱
  * @param {string} adminToken - 管理员 token（用于发验证码）
+ * @param {boolean} [forceTenant=false] - adminToken 是商户自己登录拿到的（非集团token）时传
+ *   true，否则集团模式下会被自动路由去集团域名，token/域名错配报 "Account type does not
+ *   match the admin site"（2026-11-07 实测踩坑，见 libs/http/groupRouting.js 顶部注释）
  * @returns {string|null}     - 前台用户 token
  *
  * @example
  * const userToken = autoLoginByAccount('marian0424@pp.com', adminToken);
  */
-export function autoLoginByAccount(account, adminToken) {
+export function autoLoginByAccount(account, adminToken, forceTenant = false) {
     const accountType = detectAccountType(account);
     console.log(`[AutoLogin] 账号: ${account} (类型: ${accountType})`);
 
-    const adminData = { token: adminToken };
+    const adminData = { token: adminToken, forceTenant };
 
     if (accountType === 'phone') {
         return mobileAutoLoginFlow(account, adminData);

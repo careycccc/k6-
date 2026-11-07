@@ -38,6 +38,8 @@ import { ENV_CONFIG, getEnvByTenantId } from '../../../../config/envconfig.js';
 import { getActiveLangs } from '../../../../config/languageConfig.js';
 import { getUserAccount, autoLoginByAccount } from '../../user/userAccountApi.js';
 import { tenantRequest, backendLogin } from '../../../../libs/http/tenantRequest.js';
+import { groupAdminLogin, isGroupModeEnabled } from '../../../../libs/http/groupRouting.js';
+import { getGroupAdminByTenantId, GROUP_ADMIN_TEST_KEFU_B } from '../../../../config/groupAdminConfig.js';
 
 import { orderSystemConfig } from '../orderSystem/oderyconfig.js';
 import { TRANSLATIONS } from '../orderSystem/createOrdersystem.js';
@@ -124,6 +126,24 @@ function getTenantId() {
 export function setup() {
     logger.info(`[${TAG}] ========== Setup：环境巡检 + 账号预分配 ==========`);
 
+    const accountCount = parseInt(__ENV.ACCOUNT_COUNT || '1', 10);
+    const tenantId = getTenantId();
+
+    // forceTenant 决定本文件后面所有后台接口调用走商户域名还是集团域名：
+    // 2026-11-07 起操作主要在集团商户进行，这个租户如果归属某个已配置的集团后台
+    // (见 config/groupAdminConfig.js)，就用集团账号 + 集团路由；否则(比如这个
+    // 租户不属于任何集团、或 -e USE_GROUP_ADMIN=false 整体关掉集团模式)回退到老的
+    // "商户自己登录"模式——这两种模式下 token 和路由必须严格匹配，否则报 "Account
+    // type does not match the admin site"（2026-11-07 实测踩坑，见
+    // libs/http/groupRouting.js 顶部注释）。
+    // 已知限制：商户域名模式下，图片预加载走的是硬编码商户域名(uploadFactory.js)，
+    // 不经过这里的路由判断——集团模式下如果巡检发现某个工单类型在本商户完全不存在、
+    // 需要自动新建(_createWorkOrderType)，这一步的图片上传仍会用集团 token 打商户
+    // 域名而失败。当前几个商户的工单类型都已存在，不会触发这条路径。
+    const groupCovered = isGroupModeEnabled() && !!getGroupAdminByTenantId(tenantId);
+    const forceTenant = !groupCovered;
+    const envConfig = getCurrentEnv();
+
     // ── 监控：管理员登录耗时 ──────────────────────────────────────────────────
     const { ok: loginOk, body: loginBody, raw: loginRaw } = measure(
         PERF_METRICS.ADMIN_LOGIN,
@@ -131,25 +151,29 @@ export function setup() {
         { label: `${TAG}:AdminLogin`, errorCounter: ERROR_COUNTERS.BUSINESS_ERROR, silent: true }
     );
     // AdminLogin() 返回的是 token 字符串（非 k6 response），用普通调用即可
-    // forceTenant=true：本文件后续图片上传(uploadFactory.js)硬编码走商户域名，必须
-    // 保持登录和请求同步商户模式，见 tests/api/login/adminlogin.test.js 的注释
-    const adminToken = AdminLogin(true);
+    const adminToken = AdminLogin(forceTenant);
     if (!adminToken) throw new Error(`[${TAG}] 管理员登录失败，终止测试`);
-
-    const accountCount = parseInt(__ENV.ACCOUNT_COUNT || '1', 10);
-    const tenantId = getTenantId();
 
     // ---- 1. 后台查询账号并解析 userId ----
     // 查询 accountCount * 5 个候选账号，过滤邮箱后随机选 accountCount 个
     const candidateSize = Math.min(accountCount * 5, 200);
     logger.info(`[${TAG}] 查询 ${candidateSize} 个候选账号（目标 ${accountCount} 个手机号账号）...`);
 
+    // 2026-11-07 实测踩坑：这个接口查会员账号(account 字段)时，走集团路由会把手机号
+    // 脱敏成 "912****601"，没法用来发验证码自动登录——必须走商户自己的域名 + 商户自己
+    // 的 token 才能拿到明文手机号，哪怕整体流程在用集团账号处理工单。集团模式下单独
+    // 登一次商户管理员，只为这一步查询用，不影响后面统一用集团 token。
+    const accountQueryToken = groupCovered
+        ? backendLogin(envConfig.ADMIN_USERNAME, envConfig.ADMIN_PASSWORD, envConfig.GOOGLE_SECRET, tenantId)
+        : adminToken;
+    if (!accountQueryToken) throw new Error(`[${TAG}] 商户级管理员登录失败（查会员账号明文手机号用），终止测试`);
+
     const userListRes = sendQueryRequest(
         { pageNo: 1, pageSize: candidateSize },
         '/api/Users/GetPageList',
         TAG,
         false,
-        adminToken,
+        accountQueryToken,
         true
     );
 
@@ -208,20 +232,33 @@ export function setup() {
 
     logger.info(`[${TAG}] 账号分配: ${accountsByVu.map((a, i) => `VU${i + 1}:${a.length}个`).join(', ')}`);
 
-    // ---- 3. 登录第二客服（WorkOrderRole）----
-    const envConfig = getCurrentEnv();
+    // ---- 3. 登录第二客服 ----
+    // 集团商户(groupCovered)用集团后台的第二个账号 carey_jt_000(见 groupAdminConfig.js
+    // 的 GROUP_ADMIN_TEST_KEFU_B)；否则回退到老的租户级 WorkOrderRole 账号(如
+    // carey3004_001，不一定存在于所有租户)。envConfig 已经在前面查会员账号那步取过了。
     let workOrderRoleToken = null;
-    if (envConfig.WorkOrderRole && envConfig.WorkOrderRolePasswrod) {
+    let workOrderRoleName = null;
+    if (groupCovered) {
+        logger.info(`[${TAG}] 登录第二客服（集团）: ${GROUP_ADMIN_TEST_KEFU_B.ADMIN_USERNAME}`);
+        workOrderRoleToken = groupAdminLogin(GROUP_ADMIN_TEST_KEFU_B);
+        if (workOrderRoleToken) {
+            workOrderRoleName = GROUP_ADMIN_TEST_KEFU_B.ADMIN_USERNAME;
+            logger.info(`[${TAG}] ✅ 第二客服（集团）登录成功: ${workOrderRoleName}`);
+        } else {
+            logger.warn(`[${TAG}] ⚠️ 第二客服（集团）登录失败，将使用单客服模式`);
+        }
+    } else if (envConfig.WorkOrderRole && envConfig.WorkOrderRolePasswrod) {
         logger.info(`[${TAG}] 登录第二客服: ${envConfig.WorkOrderRole}`);
         // 客服角色也是后台登录，走统一 backendLogin（带 vCode，共用租户 GOOGLE_SECRET）
         workOrderRoleToken = backendLogin(envConfig.WorkOrderRole, envConfig.WorkOrderRolePasswrod, envConfig.GOOGLE_SECRET, envConfig.TENANTID);
         if (workOrderRoleToken) {
+            workOrderRoleName = envConfig.WorkOrderRole;
             logger.info(`[${TAG}] ✅ 第二客服登录成功: ${envConfig.WorkOrderRole}`);
         } else {
             logger.warn(`[${TAG}] ⚠️ 第二客服登录失败，将使用单客服模式`);
         }
     } else {
-        logger.warn(`[${TAG}] 未配置 WorkOrderRole，将使用单客服模式`);
+        logger.warn(`[${TAG}] 未配置第二客服，将使用单客服模式`);
     }
 
     // ---- 4. 预登录所有会员账号，建立 userId → memberToken 映射表 ----
@@ -230,7 +267,7 @@ export function setup() {
     const memberTokenMap = {}; // { userId: memberToken }
     for (const info of accountInfoList) {
         logger.info(`[${TAG}] 预登录: ${info.account} (userId=${info.userId})`);
-        const memberToken = autoLoginByAccount(info.account, adminToken);
+        const memberToken = autoLoginByAccount(info.account, adminToken, forceTenant);
         if (memberToken) {
             memberTokenMap[info.userId] = memberToken;
             logger.info(`[${TAG}] ✅ 预登录成功: ${info.account}`);
@@ -242,16 +279,16 @@ export function setup() {
     logger.info(`[${TAG}] token 映射表建立完成，成功 ${Object.keys(memberTokenMap).length}/${accountInfoList.length} 个`);
 
     // ---- 5. 环境巡检 ----
-    _runInspection(adminToken);
+    _runInspection(adminToken, forceTenant);
 
-    return { adminToken, accountsByVu, tenantId, workOrderRoleToken, workOrderRoleName: envConfig.WorkOrderRole || null, memberTokenMap };
+    return { adminToken, accountsByVu, tenantId, workOrderRoleToken, workOrderRoleName, memberTokenMap, forceTenant };
 }
 
 // ============================================================
 // default：多轮触发 + 处理
 // ============================================================
 export default function (data) {
-    const { adminToken, accountsByVu, tenantId, workOrderRoleToken, workOrderRoleName, memberTokenMap } = data;
+    const { adminToken, accountsByVu, tenantId, workOrderRoleToken, workOrderRoleName, memberTokenMap, forceTenant } = data;
     const env = getCurrentEnv();
     const isMainAdmin = (__ENV.IS_MAIN_ADMIN || 'true') !== 'false';
     const triggerMode = (__ENV.TRIGGER_MODE || 'all').toLowerCase();
@@ -283,20 +320,20 @@ export default function (data) {
         // 确保后续删除/修改类工单有数据可操作
         logger.info(`[${TAG}] [绑卡] 为 userId=${accountInfo.userId} 绑定所有钱包...`);
         // 绑卡走前台接口需会员 token；setup 里的 token 约 55s 就失效，这里现登一次
-        const bindToken = autoLoginByAccount(accountInfo.account, adminToken) || memberTokenMap[accountInfo.userId];
-        addAllWallets(adminToken, accountInfo.userId, bindToken);
+        const bindToken = autoLoginByAccount(accountInfo.account, adminToken, forceTenant) || memberTokenMap[accountInfo.userId];
+        addAllWallets(adminToken, accountInfo.userId, bindToken, forceTenant);
         sleep(1);
 
         if (runNoLogin) {
             logger.info(`[${TAG}] [未登录] 触发...`);
             // 直接用 accountInfo.userId 对应的 index
-            triggerAllForAccount(adminToken, tenantId, accountInfo.account, accountInfo.userId);
+            triggerAllForAccount(adminToken, tenantId, accountInfo.account, accountInfo.userId, forceTenant);
             sleep(1);
         }
 
         if (runLogin) {
             logger.info(`[${TAG}] [已登录] 触发...`);
-            triggerLoginForAccount(adminToken, tenantId, accountInfo.account, accountInfo.userId, env, memberTokenMap);
+            triggerLoginForAccount(adminToken, tenantId, accountInfo.account, accountInfo.userId, env, memberTokenMap, { forceTenant });
         }
 
         sleep(1);
@@ -306,7 +343,7 @@ export default function (data) {
     logger.info(`\n[${TAG}] ---- 阶段 B：客服处理工单 ----`);
     sleep(2); // 等待工单落库
 
-    _processOrders(adminToken, tenantId, env, isMainAdmin, myUserIds, workOrderRoleToken, workOrderRoleName);
+    _processOrders(adminToken, tenantId, env, isMainAdmin, myUserIds, workOrderRoleToken, workOrderRoleName, forceTenant);
 
     // ---- 阶段 C：等待所有工单清空（多轮时才需要等）----
     if (ITERATIONS > 1) {
@@ -314,16 +351,16 @@ export default function (data) {
         // 等待 30s 后如果还有工单，主动再处理一次卡住的工单，再继续等
         sleep(30);
         const stillPending = myUserIds.some((uid) => {
-            const p = getPendingOrders(adminToken, uid);
-            const q = getProcessingOrders(adminToken, uid);
+            const p = getPendingOrders(adminToken, uid, forceTenant);
+            const q = getProcessingOrders(adminToken, uid, forceTenant);
             return p.length > 0 || q.length > 0;
         });
         if (stillPending) {
             logger.info(`[${TAG}] 仍有未完成工单，再处理一次...`);
-            _processOrders(adminToken, tenantId, env, isMainAdmin, myUserIds, workOrderRoleToken, workOrderRoleName);
+            _processOrders(adminToken, tenantId, env, isMainAdmin, myUserIds, workOrderRoleToken, workOrderRoleName, forceTenant);
         }
         // 最多再等 2 分钟
-        waitUntilAllClear(adminToken, myUserIds, 10, 120);
+        waitUntilAllClear(adminToken, myUserIds, 10, 120, forceTenant);
     }
 
     logger.info(`\n[${TAG}] ===== VU${vuId} 第 ${iter + 1} 轮完成 =====`);
@@ -332,13 +369,13 @@ export default function (data) {
 // ============================================================
 // 内部：处理待处理（state=1）和处理中（state=2）工单
 // ============================================================
-function _processOrders(adminToken, tenantId, env, isMainAdmin, userIds, workOrderRoleToken = null, workOrderRoleName = null) {
+function _processOrders(adminToken, tenantId, env, isMainAdmin, userIds, workOrderRoleToken = null, workOrderRoleName = null, forceTenant = false) {
     // 合并 state=1 和 state=2 的工单
     const allOrders = [];
 
     for (const uid of userIds) {
-        const pending = getPendingOrders(adminToken, uid);
-        const processing = getProcessingOrders(adminToken, uid);
+        const pending = getPendingOrders(adminToken, uid, forceTenant);
+        const processing = getProcessingOrders(adminToken, uid, forceTenant);
         allOrders.push(...pending, ...processing);
     }
 
@@ -367,7 +404,8 @@ function _processOrders(adminToken, tenantId, env, isMainAdmin, userIds, workOrd
         dispatchHandler(order, adminToken, tenantId, env, isMainAdmin,
             isProcessing ? null : workOrderRoleToken,  // 处理中工单不用第二客服
             i,
-            workOrderRoleName
+            workOrderRoleName,
+            forceTenant
         );
     }
 }
@@ -375,7 +413,7 @@ function _processOrders(adminToken, tenantId, env, isMainAdmin, userIds, workOrd
 // ============================================================
 // 内部：环境巡检（只在第一轮执行）
 // ============================================================
-function _runInspection(adminToken) {
+function _runInspection(adminToken, forceTenant = false) {
     logger.info(`[${TAG}] ========== 环境巡检与自动修复 ==========`);
 
     for (let i = 0; i < orderSystemConfig.length; i++) {
@@ -387,7 +425,7 @@ function _runInspection(adminToken) {
             TAG,
             false,
             adminToken,
-            true
+            forceTenant
         );
 
         if (res && res.msgCode === 13) {
@@ -399,22 +437,22 @@ function _runInspection(adminToken) {
                 TAG,
                 false,
                 adminToken,
-                true
+                forceTenant
             );
         }
 
         if (!res || !res.list || res.list.length === 0) {
             logger.warn(`[${TAG}] [未创建] "${config.name}"，正在自动新建...`);
-            _createWorkOrderType(config, adminToken);
+            _createWorkOrderType(config, adminToken, forceTenant);
         } else {
             const allDisabled = res.list.every((item) => item.state === 0);
             if (allDisabled) {
                 const firstId = res.list[0].id;
                 logger.info(`[${TAG}] [全关闭] "${config.name}"，正在开启 ID: ${firstId}...`);
-                let switchRes = sendRequest({ id: firstId, state: 1 }, '/api/TenantForm/SwitchState', TAG, false, adminToken, true);
+                let switchRes = sendRequest({ id: firstId, state: 1 }, '/api/TenantForm/SwitchState', TAG, false, adminToken, forceTenant);
                 if (switchRes && switchRes.msgCode === 13) {
                     sleep(1);
-                    switchRes = sendRequest({ id: firstId, state: 1 }, '/api/TenantForm/SwitchState', TAG, false, adminToken, true);
+                    switchRes = sendRequest({ id: firstId, state: 1 }, '/api/TenantForm/SwitchState', TAG, false, adminToken, forceTenant);
                 }
                 if (switchRes && switchRes.code === 0) {
                     logger.info(`[${TAG}] ✅ "${config.name}" 开启成功`);
@@ -435,11 +473,18 @@ function _runInspection(adminToken) {
 // ============================================================
 // 内部：创建工单类型
 // ============================================================
-function _createWorkOrderType(config, adminToken) {
+function _createWorkOrderType(config, adminToken, forceTenant = false) {
     const uploader = orderImageUploaders[config.img];
     if (!uploader) {
         logger.error(`[${TAG}] 找不到图片上传器 ${config.img}，跳过`);
         return;
+    }
+    // 已知限制：uploadFactory.js 的上传函数硬编码走商户自己的域名，不认集团路由，
+    // 集团模式(forceTenant=false)下这里会用集团 token 打商户域名，必报 "Account type
+    // does not match the admin site"。当前各商户的工单类型都已存在，正常不会走到这
+    // 一步；真走到了就是在提醒：这个工单类型在本商户还没建过，需要人工处理。
+    if (!forceTenant) {
+        logger.warn(`[${TAG}] ⚠️ 集团模式下图片上传硬编码走商户域名，可能会失败（已知限制，见代码注释）`);
     }
     const uploadResult = uploader(adminToken);
     if (!uploadResult.success) {
@@ -492,13 +537,13 @@ function _createWorkOrderType(config, adminToken) {
     // ── 监控：工单类型创建耗时（归入 FILE_UPLOAD 类型，属于 setup 操作） ────
     let createRes = measure(
         PERF_METRICS.FILE_UPLOAD,
-        () => sendRequest(createPayload, '/api/TenantForm/Create', TAG, false, adminToken, true),
+        () => sendRequest(createPayload, '/api/TenantForm/Create', TAG, false, adminToken, forceTenant),
         { label: `${TAG}:CreateOrderType`, successCheck: (b) => b && (b.code === 0 || b.msgCode === 0) }
     ).body;
 
     if (createRes && createRes.msgCode === 13) {
         sleep(1);
-        createRes = sendRequest(createPayload, '/api/TenantForm/Create', TAG, false, adminToken, true);
+        createRes = sendRequest(createPayload, '/api/TenantForm/Create', TAG, false, adminToken, forceTenant);
     }
 
     if (createRes && createRes.code === 0) {

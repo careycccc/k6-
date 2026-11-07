@@ -13,6 +13,7 @@ import { check, sleep } from 'k6';
 import { logger } from '../../../../../libs/utils/logger.js';
 import { SignatureUtil } from '../../../../../libs/utils/signature.js';
 import { getTimeRandom } from '../../../../utils/utils.js';
+import { resolveQueryRoute } from '../../../../../libs/http/groupRouting.js';
 
 // ============================================================
 // 文件预加载（模块初始化阶段）
@@ -70,10 +71,14 @@ function extractAttachment(responseBody) {
 /**
  * 后台上传图片到 /api/UploadFile/UploadToOss
  * @param {string} adminToken
- * @param {object} env  - 当前环境配置（含 BASE_ADMIN_URL）
+ * @param {object} env  - 当前环境配置（含 BASE_ADMIN_URL、TENANTID）
+ * @param {boolean} [forceTenant=false] - adminToken 是商户自己登录拿到的（非集团token）时传
+ *   true，否则集团模式下这里原来硬编码走商户域名，会和集团 token 错配报 "Account type
+ *   does not match the admin site"（2026-11-07 实测踩坑，见 libs/http/groupRouting.js
+ *   顶部注释）。现在改成和其它后台接口一样走 resolveQueryRoute 判断域名。
  * @returns {{ success, attachmentName, attachmentPath } | { success: false, error }}
  */
-export function uploadAdmin(adminToken, env) {
+export function uploadAdmin(adminToken, env, forceTenant = false) {
     const img = randomImage();
     try {
         const formData = {
@@ -81,7 +86,7 @@ export function uploadAdmin(adminToken, env) {
             fileType: 'other',
             customPath: '',
         };
-        const baseUrl = env.BASE_ADMIN_URL;
+        const { baseUrl, extraHeaders } = resolveQueryRoute(false, env.TENANTID, forceTenant);
         const host = baseUrl.replace(/^(https?:\/\/)?([^:/\s]+).*$/, '$2');
         const params = {
             headers: {
@@ -94,6 +99,7 @@ export function uploadAdmin(adminToken, env) {
                 'accept-language': 'zh-CN,zh;q=0.9',
                 'authorization': `Bearer ${adminToken}`,
                 'domainurl': `${baseUrl}/`,
+                ...extraHeaders,
             },
         };
         const res = http.post(`${baseUrl}/api/UploadFile/UploadToOss`, formData, params);
@@ -223,15 +229,16 @@ function extractFrontendAttachment(responseBody) {
  * @param {'admin'|'frontend'} side - 上传方向
  * @param {string|null} adminToken  - 后台 token（side=admin 时必填）
  * @param {object} env              - 环境配置
+ * @param {boolean} [forceTenant=false] - 同 uploadAdmin，仅 side='admin' 时生效
  * @returns {{ attachmentName: string, attachmentPath: string }}
  *   命中但失败时返回空字符串，未命中返回空字符串
  */
-export function maybeUpload(side, adminToken, env) {
+export function maybeUpload(side, adminToken, env, forceTenant = false) {
     const empty = { attachmentName: '', attachmentPath: '' };
     if (Math.random() >= UPLOAD_PROBABILITY) return empty;
 
     logger.info(`[${TAG}] 触发 ${side} 图片上传（概率 ${UPLOAD_PROBABILITY * 100}%）`);
-    const result = side === 'admin' ? uploadAdmin(adminToken, env) : uploadFrontend(env);
+    const result = side === 'admin' ? uploadAdmin(adminToken, env, forceTenant) : uploadFrontend(env);
     if (result.success) {
         return { attachmentName: result.attachmentName, attachmentPath: result.attachmentPath };
     }

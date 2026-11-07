@@ -37,9 +37,12 @@ function todayRange() {
  *
  * @param {string} adminToken
  * @param {number} [userId]   - 按 userId 过滤（可选）
+ * @param {boolean} [forceTenant=false] - adminToken 是商户自己登录拿到的（非集团token）时传
+ *   true，否则集团模式下会被自动路由去集团域名，token/域名错配报 "Account type does not
+ *   match the admin site"（2026-11-07 实测踩坑，见 libs/http/groupRouting.js 顶部注释）
  * @returns {Array}
  */
-export function getPendingOrders(adminToken, userId) {
+export function getPendingOrders(adminToken, userId, forceTenant = false) {
     const { begin, end } = todayRange();
 
     const payload = {
@@ -54,7 +57,8 @@ export function getPendingOrders(adminToken, userId) {
     if (userId) payload.account = String(userId);
 
     const res = monitoredQueryRequest(payload, '/api/WorkOrder/GetPageListByPending', TAG, false, adminToken, {
-        trendObj: PERF_METRICS.WORK_ORDER_QUERY
+        trendObj: PERF_METRICS.WORK_ORDER_QUERY,
+        forceTenant
     });
 
     if (!res || !res.list) {
@@ -75,9 +79,10 @@ export function getPendingOrders(adminToken, userId) {
  *
  * @param {string} adminToken
  * @param {number} [userId]   - 按 userId 过滤（可选）
+ * @param {boolean} [forceTenant=false] - 同 getPendingOrders
  * @returns {Array}
  */
-export function getProcessingOrders(adminToken, userId) {
+export function getProcessingOrders(adminToken, userId, forceTenant = false) {
     const { begin, end } = todayRange();
 
     const payload = {
@@ -99,7 +104,8 @@ export function getProcessingOrders(adminToken, userId) {
     };
 
     const res = monitoredQueryRequest(payload, '/api/WorkOrder/GetPageList', TAG, false, adminToken, {
-        trendObj: PERF_METRICS.WORK_ORDER_QUERY
+        trendObj: PERF_METRICS.WORK_ORDER_QUERY,
+        forceTenant
     });
 
     if (!res || !res.list) {
@@ -122,9 +128,10 @@ export function getProcessingOrders(adminToken, userId) {
  * @param {number[]} userIds        - 要等待的 userId 列表
  * @param {number}   [intervalSec]  - 轮询间隔秒数（默认 10s）
  * @param {number}   [maxWaitSec]   - 最长等待秒数（默认 600s = 10min）
+ * @param {boolean}  [forceTenant=false] - 同 getPendingOrders
  * @returns {boolean} 是否在超时前清空
  */
-export function waitUntilAllClear(adminToken, userIds, intervalSec = 10, maxWaitSec = 600) {
+export function waitUntilAllClear(adminToken, userIds, intervalSec = 10, maxWaitSec = 600, forceTenant = false) {
     const deadline = Date.now() + maxWaitSec * 1000;
     const userIdSet = userIds.filter(Boolean);
 
@@ -134,8 +141,8 @@ export function waitUntilAllClear(adminToken, userIds, intervalSec = 10, maxWait
         let totalActive = 0;
 
         for (const uid of userIdSet) {
-            const pending    = getPendingOrders(adminToken, uid);
-            const processing = getProcessingOrders(adminToken, uid);
+            const pending    = getPendingOrders(adminToken, uid, forceTenant);
+            const processing = getProcessingOrders(adminToken, uid, forceTenant);
             const active     = pending.length + processing.length;
             totalActive     += active;
 
@@ -214,23 +221,24 @@ export function resolveUserIds(accounts, adminToken) {
 
 // 锁定成功时 data 是 {lockTime}，monitoredSendRequest 只返回 data 会把 msgCode 丢掉、
 // 成功也被判成失败，所以这里取完整 body
-function updateLockState(workOrderId, isLockWorkOrder, adminToken) {
+function updateLockState(workOrderId, isLockWorkOrder, adminToken, forceTenant = false) {
     const { body } = monitoredPost(
         { workOrderId, isLockWorkOrder },
         '/api/WorkOrder/UpdateWordOrderState',
         TAG,
         false,
         adminToken,
-        { trendObj: PERF_METRICS.WORK_ORDER_DISPATCH }
+        { trendObj: PERF_METRICS.WORK_ORDER_DISPATCH, forceTenant }
     );
     return body;
 }
 
 /**
  * 锁定指定工单（防止多客服并发抢单）
+ * @param {boolean} [forceTenant=false] - 同 getPendingOrders
  */
-export function lockOrder(workOrderId, adminToken) {
-    const res = updateLockState(workOrderId, 1, adminToken);
+export function lockOrder(workOrderId, adminToken, forceTenant = false) {
+    const res = updateLockState(workOrderId, 1, adminToken, forceTenant);
 
     if (res && res.msgCode === 0) {
         logger.info(`[${TAG}] ✅ 工单 ${workOrderId} 锁定成功`);
@@ -240,7 +248,7 @@ export function lockOrder(workOrderId, adminToken) {
     if (res && res.msgCode === 13) {
         logger.warn(`[${TAG}] 锁定过快，1s 后重试...`);
         sleep(1);
-        const retry = updateLockState(workOrderId, 1, adminToken);
+        const retry = updateLockState(workOrderId, 1, adminToken, forceTenant);
         if (retry && retry.msgCode === 0) {
             logger.info(`[${TAG}] ✅ 工单 ${workOrderId} 重试锁定成功`);
             return true;
@@ -260,10 +268,11 @@ export function lockOrder(workOrderId, adminToken) {
  *
  * @param {string} workOrderId
  * @param {string} adminToken
+ * @param {boolean} [forceTenant=false] - 同 getPendingOrders
  * @returns {boolean}
  */
-export function unlockOrder(workOrderId, adminToken) {
-    const res = updateLockState(workOrderId, 0, adminToken);
+export function unlockOrder(workOrderId, adminToken, forceTenant = false) {
+    const res = updateLockState(workOrderId, 0, adminToken, forceTenant);
 
     if (res && res.msgCode === 0) {
         logger.info(`[${TAG}] ✅ 工单 ${workOrderId} 解锁成功`);
@@ -273,7 +282,7 @@ export function unlockOrder(workOrderId, adminToken) {
     if (res && res.msgCode === 13) {
         logger.warn(`[${TAG}] 解锁过快，1s 后重试...`);
         sleep(1);
-        const retry = updateLockState(workOrderId, 0, adminToken);
+        const retry = updateLockState(workOrderId, 0, adminToken, forceTenant);
         if (retry && retry.msgCode === 0) {
             logger.info(`[${TAG}] ✅ 工单 ${workOrderId} 重试解锁成功`);
             return true;

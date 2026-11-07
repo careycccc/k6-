@@ -7,14 +7,15 @@ const tag = 'EmailAutoLogin';
 /**
  * 邮箱自动登录 - 发送验证码
  * @param {string} email - 邮箱地址
- * @param {object} data - 包含 adminToken 的数据对象
+ * @param {object} data - 包含 adminToken 的数据对象；data.forceTenant=true 时表示 data.token
+ *   是商户自己登录拿到的（非集团token），见 MobileAutoLogin.test.js 同名参数说明
  * @returns {string} 验证码
  */
 export function sendEmailAutoLoginVerifyCode(email, data) {
     console.log('[EmailAutoLogin] 发送自动登录验证码，邮箱:', email);
 
     // verifyCodeType=2 表示邮箱，codeType=18 表示登录验证码
-    const verifyCode = sendToGetVerCode(2, 18, email, data.token);
+    const verifyCode = sendToGetVerCode(2, 18, email, data.token, null, null, !!data.forceTenant);
 
     if (!verifyCode) {
         console.error('[EmailAutoLogin] 获取自动登录验证码失败');

@@ -107,20 +107,24 @@ export function sendVerificationCode(verifyCodeType, userName, codeType, customF
 
 /**
  * 获取验证码 (后台查询)
- * @param {string} userName 手机号码或邮箱 
+ * @param {string} userName 手机号码或邮箱
  * @param {string} adminToken 后台登录 token
  * @param {number} expectedCodeType - 期望的验证码类型
  * @param {string} customAdminUrl - 自定义后台域名（可选，用于多租户）
+ * @param {boolean} [forceTenant=false] - adminToken 是商户自己登录拿到的（非集团token）时传 true，
+ *   否则集团模式下会被自动路由去集团域名，token/域名错配报 "Account type does not match the
+ *   admin site"（2026-11-07 实测踩坑，见 libs/http/groupRouting.js 顶部注释）
  * @returns {string|null} 验证码，如果未找到则返回 null
  */
-export function getVerificationCode(userName, adminToken, expectedCodeType = null, customAdminUrl = null) {
+export function getVerificationCode(userName, adminToken, expectedCodeType = null, customAdminUrl = null, forceTenant = false) {
   console.log(`[GetVerifyCode] 查询验证码: ${userName}, 期望codeType: ${expectedCodeType}`);
 
   const response = tenantQueryRequest('/api/Users/GetVerifyCodePageList', {
     mobileOrEmail: userName
   }, {
     isDesk: false,
-    token: adminToken
+    token: adminToken,
+    forceTenant
   });
 
   if (response.msgCode !== 0) {
@@ -187,9 +191,11 @@ export function getVerificationCode(userName, adminToken, expectedCodeType = nul
  * @param {string} adminToken 后台登录 token
  * @param {string} customFrontUrl - 自定义前台域名（可选）
  * @param {string} customAdminUrl - 自定义后台域名（可选）
+ * @param {boolean} [forceTenant=false] - adminToken 是商户自己登录拿到的（非集团token）时传 true，
+ *   同 getVerificationCode 的说明
  * @returns {string|null} 验证码
  */
-export function sendToGetVerCode(verifyCodeType, codeType, userName, adminToken, customFrontUrl = null, customAdminUrl = null) {
+export function sendToGetVerCode(verifyCodeType, codeType, userName, adminToken, customFrontUrl = null, customAdminUrl = null, forceTenant = false) {
   console.log(`[SendVerifyCode] 发送验证码: ${userName}, codeType: ${codeType}`);
 
   if (!adminToken) {
@@ -234,12 +240,12 @@ export function sendToGetVerCode(verifyCodeType, codeType, userName, adminToken,
     console.log(`[SendVerifyCode] language=${lang} 发送成功，等待验证码生成（2秒）...`);
     sleep(2);
 
-    let verificationCode = getVerificationCode(userName, adminToken, codeType, customAdminUrl);
+    let verificationCode = getVerificationCode(userName, adminToken, codeType, customAdminUrl, forceTenant);
 
     if (!verificationCode) {
       console.log('[SendVerifyCode] 第一次未获取到验证码，等待2秒后重试...');
       sleep(2);
-      verificationCode = getVerificationCode(userName, adminToken, codeType, customAdminUrl);
+      verificationCode = getVerificationCode(userName, adminToken, codeType, customAdminUrl, forceTenant);
     }
 
     if (!verificationCode) {

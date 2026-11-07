@@ -61,6 +61,20 @@ export const GROUP_ADMIN_UAT = buildGroupAdmin(
     [3101]
 );
 
+// 测试环境集团后台的"第二客服"账号(carey_jt_000)，2026-11-07 新增：工单套件原来
+// 用租户自己的 WorkOrderRole(如 carey3004_001)模拟双客服，但该账号在后台不存在；
+// 现在操作主要在集团商户进行，改用集团后台的第二个账号。这组凭据原本是给"提现自动
+// 审核"功能的 WITHDRAW_SUPERVISOR 角色用的，复用它的用户名/密码/谷歌密钥，BASE_URL
+// 和覆盖的租户范围与 GROUP_ADMIN_TEST 共用（同一个集团后台，只是换个账号登录）。
+export const GROUP_ADMIN_TEST_KEFU_B = {
+    NAME: "测试环境集团后台-第二客服(carey_jt_000)",
+    BASE_URL: GROUP_ADMIN_TEST.BASE_URL,
+    ADMIN_USERNAME: getEnvValue('GROUP_ADMIN_TEST_WITHDRAW_SUPERVISOR_USERNAME'),
+    ADMIN_PASSWORD: getEnvValue('GROUP_ADMIN_TEST_WITHDRAW_SUPERVISOR_PASSWORD'),
+    GOOGLE_SECRET: getEnvValue('GROUP_ADMIN_TEST_WITHDRAW_SUPERVISOR_GOOGLE_SECRET'),
+    COVERS_TENANT_IDS: GROUP_ADMIN_TEST.COVERS_TENANT_IDS
+};
+
 // 全部集团后台列表，供需要遍历"所有集团后台"的场景使用
 export const GROUP_ADMIN_LIST = [GROUP_ADMIN_TEST, GROUP_ADMIN_UAT];
 

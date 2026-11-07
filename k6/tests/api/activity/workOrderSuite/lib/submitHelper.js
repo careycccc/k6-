@@ -32,9 +32,12 @@ const ARRAY_FIELDS = ['formFields'];
  * @param {string} adminToken - 如果是后台请求，传入 adminToken；前台传 ''
  * @param {string} tag        - 日志标签
  * @param {object} [monOpts]  - 监控选项（如 trendObj, errorCounter）
+ * @param {boolean} [forceTenant=false] - adminToken 是商户自己登录拿到的（非集团token）时传
+ *   true，否则集团模式下会被自动路由去集团域名，token/域名错配报 "Account type does not
+ *   match the admin site"（2026-11-07 实测踩坑，见 libs/http/groupRouting.js 顶部注释）
  * @returns {object|null}     - 解析后的响应体，失败返回 null
  */
-export function signAndPost(payload, endpoint, isDesk, adminToken, tag, monOpts = {}) {
+export function signAndPost(payload, endpoint, isDesk, adminToken, tag, monOpts = {}, forceTenant = false) {
     // 1. 分离数组字段
     const arrayParts = {};
     const simplePayload = {};
@@ -68,19 +71,19 @@ export function signAndPost(payload, endpoint, isDesk, adminToken, tag, monOpts 
     }
 
     // 5. 发送请求（禁用 httpClient 的再次自动签名）
-    let result = _post(signedData, endpoint, isDesk, tag, monOpts);
+    let result = _post(signedData, endpoint, isDesk, tag, monOpts, forceTenant);
 
     // 6. 限流重试（msgCode: 13）
     if (result && result.msgCode === 13) {
         logger.warn(`[${tag}] 请求过快 (msgCode 13)，1s 后重试: ${endpoint}`);
         sleep(1);
-        result = _post(signedData, endpoint, isDesk, tag, monOpts);
+        result = _post(signedData, endpoint, isDesk, tag, monOpts, forceTenant);
     }
 
     return result;
 }
 
-function _post(signedData, endpoint, isDesk, tag, monOpts) {
+function _post(signedData, endpoint, isDesk, tag, monOpts, forceTenant = false) {
     let response;
     try {
         response = httpClient.post(
@@ -88,6 +91,7 @@ function _post(signedData, endpoint, isDesk, tag, monOpts) {
             signedData,
             {
                 sign: false,
+                forceTenant,
                 params: { tags: { type: tag, name: `${tag}_post` } },
             },
             isDesk

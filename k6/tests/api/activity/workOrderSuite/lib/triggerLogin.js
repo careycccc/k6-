@@ -191,7 +191,7 @@ function randomLower(n) {
 // 生成不了值时返回 { unsupported }（脚本按设计不支持，记"跳过"）或 { failed }（运行时出错，记"失败"）
 function fetchWorkOrderSmsCode(ctx) {
     if (detectAccountType(ctx.account) !== 'phone') return { unsupported: '邮箱账号收不到短信验证码（前台只往手机发）' };
-    const code = sendToGetVerCode(1, 15, ctx.account, ctx.adminToken);
+    const code = sendToGetVerCode(1, 15, ctx.account, ctx.adminToken, null, null, ctx.forceTenant);
     return code || { failed: '发送/查询短信验证码失败' };
 }
 
@@ -358,11 +358,11 @@ function triggerChangeBankInfoOrder(formId, workOrderTypeId, fields, ctx) {
 }
 
 // typeId=18：删除银行卡自动化（仅手机号）
-function triggerDeleteBankAutoOrder(formId, workOrderTypeId, fields, memberToken, adminToken, userId, account) {
+function triggerDeleteBankAutoOrder(formId, workOrderTypeId, fields, memberToken, adminToken, userId, account, forceTenant = false) {
     if (detectAccountType(account) !== 'phone') { logger.warn(`[${TAG}] 邮箱账号跳过删除银行卡自动化`); return false; }
     const walletItem = fetchRandomUserWallet(memberToken, adminToken, userId);
     if (!walletItem) { logger.error(`[${TAG}] 无银行卡数据，跳过`); return false; }
-    const verifyCode = sendToGetVerCode(1, 15, account, adminToken);
+    const verifyCode = sendToGetVerCode(1, 15, account, adminToken, null, null, forceTenant);
     if (!verifyCode) { logger.error(`[${TAG}] 获取验证码失败，跳过`); return false; }
     const formFields = fields.map((field) => {
         if (field.typeCode === 'BankAccountNumber') return { typeCode: 'BankAccountNumber', fieldId: field.id, fieldValue: `${walletItem.walletId}|${walletItem.accountNo}` };
@@ -399,11 +399,11 @@ function triggerAddUsdtOrder(formId, workOrderTypeId, fields, ctx) {
 }
 
 // typeId=19：删除USDT自动化（仅手机号）
-function triggerDeleteUsdtAutoOrder(formId, workOrderTypeId, fields, memberToken, adminToken, userId, account) {
+function triggerDeleteUsdtAutoOrder(formId, workOrderTypeId, fields, memberToken, adminToken, userId, account, forceTenant = false) {
     if (detectAccountType(account) !== 'phone') { logger.warn(`[${TAG}] 邮箱账号跳过删除USDT自动化`); return false; }
     const walletItem = fetchRandomWallet(memberToken, adminToken, userId, 'USDT');
     if (!walletItem) { logger.error(`[${TAG}] 无USDT钱包数据，跳过`); return false; }
-    const verifyCode = sendToGetVerCode(1, 15, account, adminToken);
+    const verifyCode = sendToGetVerCode(1, 15, account, adminToken, null, null, forceTenant);
     if (!verifyCode) { logger.error(`[${TAG}] 获取验证码失败，跳过`); return false; }
     const formFields = fields.map((field) => {
         if (field.typeCode === 'UsdtAddress') return { typeCode: 'UsdtAddress', fieldId: field.id, fieldValue: `${walletItem.walletId}|${walletItem.accountNo}` };
@@ -437,11 +437,11 @@ function triggerChangeRealNameOrder(formId, workOrderTypeId, fields, memberToken
 }
 
 // typeId=15：删除PIX自动化（仅手机号）
-function triggerDeletePixAutoOrder(formId, workOrderTypeId, fields, memberToken, adminToken, userId, account) {
+function triggerDeletePixAutoOrder(formId, workOrderTypeId, fields, memberToken, adminToken, userId, account, forceTenant = false) {
     if (detectAccountType(account) !== 'phone') { logger.warn(`[${TAG}] 邮箱账号跳过删除PIX自动化`); return false; }
     const walletItem = fetchRandomWallet(memberToken, adminToken, userId, 'PIX');
     if (!walletItem) { logger.error(`[${TAG}] 无PIX钱包数据，跳过`); return false; }
-    const verifyCode = sendToGetVerCode(1, 15, account, adminToken);
+    const verifyCode = sendToGetVerCode(1, 15, account, adminToken, null, null, forceTenant);
     if (!verifyCode) { logger.error(`[${TAG}] 获取验证码失败，跳过`); return false; }
     const formFields = fields.map((field) => {
         if (field.typeCode === 'PixAccount') return { typeCode: 'PixAccount', fieldId: field.id, fieldValue: `${walletItem.walletId}|${walletItem.accountNo}` };
@@ -453,9 +453,9 @@ function triggerDeletePixAutoOrder(formId, workOrderTypeId, fields, memberToken,
 }
 
 // typeId=21：修改提现密码自动化（仅手机号）
-function triggerChangeWithdrawPwdAutoOrder(formId, workOrderTypeId, fields, memberToken, adminToken, account) {
+function triggerChangeWithdrawPwdAutoOrder(formId, workOrderTypeId, fields, memberToken, adminToken, account, forceTenant = false) {
     if (detectAccountType(account) !== 'phone') { logger.warn(`[${TAG}] 邮箱账号跳过修改提现密码自动化`); return false; }
-    const verifyCode = sendToGetVerCode(1, 15, account, adminToken);
+    const verifyCode = sendToGetVerCode(1, 15, account, adminToken, null, null, forceTenant);
     if (!verifyCode) { logger.error(`[${TAG}] 获取验证码失败，跳过`); return false; }
     let newPwd = '';
     for (let i = 0; i < 6; i++) newPwd += Math.floor(Math.random() * 10);
@@ -544,16 +544,14 @@ export function triggerLoginForAccount(adminToken, tenantId, account, userId, en
         || (__ENV.WO_FORM_IDS ? __ENV.WO_FORM_IDS.split(',').map((s) => Number(s.trim())).filter(Boolean) : null);
     if (onlyFormIds) logger.info(`[${TAG}] 只触发 formId: [${onlyFormIds.join(', ')}]`);
 
-    // Step 1: 获取前台 token（优先从 token 映射表取，没有才重新登录）
-    let memberToken = null;
-    if (memberTokenMap && memberTokenMap[userId]) {
-        memberToken = memberTokenMap[userId];
-        logger.info(`[${TAG}] ✅ 复用预登录 token (userId=${userId})`);
-    } else {
-        logger.info(`[${TAG}] 映射表无 token，重新登录: ${account}`);
-        memberToken = autoLoginByAccount(account, adminToken);
-        // 注意：不写回 memberTokenMap，VU 间数据互相独立
-    }
+    // Step 1: 获取前台 token —— 必须现登，不能复用映射表里 setup 阶段登录的旧 token。
+    // 会员前台 token 约 55s 失效（已知限制，见 libs/http/groupRouting.js 外的项目记忆），
+    // 而 setup 阶段的环境巡检 + 账号查询本身就常常超过 55s，等轮到这里 memberTokenMap
+    // 里的 token 基本已经过期；2026-11-07 实测这里不改的话，下一步 getFrontUserInfo
+    // 会 100% 拿到 401/空响应，整个已登录触发直接跳过。memberTokenMap 参数保留但不再
+    // 在这用，是给调用方传历史兼容参数用的。
+    logger.info(`[${TAG}] 现登: ${account}`);
+    const memberToken = autoLoginByAccount(account, adminToken, opts.forceTenant);
     if (!memberToken) { logger.error(`[${TAG}] 登录失败，跳过`); return; }
     logger.info(`[${TAG}] ✅ token 就绪`);
 
@@ -578,8 +576,13 @@ export function triggerLoginForAccount(adminToken, tenantId, account, userId, en
     const waitDeposits  = () => pendingCache.deposits  || (pendingCache.deposits  = fetchWaitDeposits(memberToken));
     const waitWithdraws = () => pendingCache.withdraws || (pendingCache.withdraws = fetchWaitWithdraws(memberToken));
 
+    // forceTenant：adminToken 是商户自己登录拿到的（非集团token）时传 true（opts.forceTenant），
+    // 否则集团模式下查短信验证码等后台接口会被自动路由去集团域名，token/域名错配报 "Account
+    // type does not match the admin site"（2026-11-07 实测踩坑，见 libs/http/groupRouting.js）
+    const forceTenant = !!opts.forceTenant;
+
     // 通用字段构造器的上下文（text 是 LongText/TextContent 的默认内容，各触发函数可覆盖）
-    const ctx = { memberToken, adminToken, account, userId: frontUserId, env, text: `autotest${frontUserId}` };
+    const ctx = { memberToken, adminToken, account, userId: frontUserId, env, text: `autotest${frontUserId}`, forceTenant };
 
     for (const form of formList) {
         const { id: formId, workOrderTypeId } = form;
@@ -613,7 +616,7 @@ export function triggerLoginForAccount(adminToken, tenantId, account, userId, en
         } else if (workOrderTypeId === 6) {
             ok = triggerChangeBankInfoOrder(formId, workOrderTypeId, fields, ctx);
         } else if (workOrderTypeId === 18) {
-            ok = triggerDeleteBankAutoOrder(formId, workOrderTypeId, fields, memberToken, adminToken, frontUserId, account);
+            ok = triggerDeleteBankAutoOrder(formId, workOrderTypeId, fields, memberToken, adminToken, frontUserId, account, forceTenant);
         } else if (workOrderTypeId === 14) {
             ok = triggerDeleteBankSemiOrder(formId, workOrderTypeId, fields, memberToken, adminToken, frontUserId);
         } else if (workOrderTypeId === 8) {
@@ -621,15 +624,15 @@ export function triggerLoginForAccount(adminToken, tenantId, account, userId, en
         } else if (workOrderTypeId === 17) {
             ok = triggerAddUsdtOrder(formId, workOrderTypeId, fields, ctx);
         } else if (workOrderTypeId === 19) {
-            ok = triggerDeleteUsdtAutoOrder(formId, workOrderTypeId, fields, memberToken, adminToken, frontUserId, account);
+            ok = triggerDeleteUsdtAutoOrder(formId, workOrderTypeId, fields, memberToken, adminToken, frontUserId, account, forceTenant);
         } else if (workOrderTypeId === 13) {
             ok = triggerDeleteUsdtSemiOrder(formId, workOrderTypeId, fields, memberToken, adminToken, frontUserId);
         } else if (workOrderTypeId === 7) {
             ok = triggerChangeRealNameOrder(formId, workOrderTypeId, fields, memberToken);
         } else if (workOrderTypeId === 15) {
-            ok = triggerDeletePixAutoOrder(formId, workOrderTypeId, fields, memberToken, adminToken, frontUserId, account);
+            ok = triggerDeletePixAutoOrder(formId, workOrderTypeId, fields, memberToken, adminToken, frontUserId, account, forceTenant);
         } else if (workOrderTypeId === 21) {
-            ok = triggerChangeWithdrawPwdAutoOrder(formId, workOrderTypeId, fields, memberToken, adminToken, account);
+            ok = triggerChangeWithdrawPwdAutoOrder(formId, workOrderTypeId, fields, memberToken, adminToken, account, forceTenant);
         } else if (workOrderTypeId === 22) {
             ok = triggerChangeWithdrawPwdSemiOrder(formId, workOrderTypeId, fields, memberToken);
         } else if (workOrderTypeId === 3) {

@@ -55,13 +55,17 @@ function buildFieldValue(type, account, formId) {
 // ============================================================
 // 内部：查询某工单类型下所有已开启的表单
 // ============================================================
-function fetchFirstActiveForm(config, adminToken) {
+// forceTenant: adminToken 是商户自己登录拿到的（非集团token）时传 true，否则集团模式下
+// 会被自动路由去集团域名，token/域名错配报 "Account type does not match the admin
+// site"（2026-11-07 实测踩坑，见 libs/http/groupRouting.js 顶部注释）
+function fetchFirstActiveForm(config, adminToken, forceTenant = false) {
     const res = sendQueryRequest(
         { workOrderTypeId: config.queryId, isLoginForm: config.isLoginForm, pageNo: 1, pageSize: 20 },
         '/api/TenantForm/GetPageList',
         TAG,
         false,
-        adminToken
+        adminToken,
+        forceTenant
     );
 
     if (!res || !res.list || res.list.length === 0) {
@@ -135,8 +139,9 @@ function submitWorkOrder(formId, workOrderTypeId, fields, account, memberToken, 
  * @param {string} tenantId     - 租户 ID（日志用）
  * @param {string} account      - 会员账号（手机号/邮箱，用于填 UserName 字段）
  * @param {number} userId       - 会员 userId（日志用）
+ * @param {boolean} [forceTenant=false] - 同 fetchFirstActiveForm 的说明
  */
-export function triggerAllForAccount(adminToken, tenantId, account, userId) {
+export function triggerAllForAccount(adminToken, tenantId, account, userId, forceTenant = false) {
     const memberAccount = account;
 
     logger.info(`[${TAG}] 账号 ${memberAccount} (userId=${userId}) 开始触发未登录工单`);
@@ -174,7 +179,7 @@ export function triggerAllForAccount(adminToken, tenantId, account, userId) {
         }
 
         // 查询该类型下已开启的 formId
-        const form = fetchFirstActiveForm(config, adminToken);
+        const form = fetchFirstActiveForm(config, adminToken, forceTenant);
         if (!form) {
             skipCount++;
             sleep(0.5);
@@ -189,7 +194,8 @@ export function triggerAllForAccount(adminToken, tenantId, account, userId) {
                 '/api/TenantForm/Get',
                 TAG,
                 false,
-                adminToken
+                adminToken,
+                forceTenant
             );
             if (detail && detail.translationData && detail.translationData.length > 0) {
                 const trans = detail.translationData.find((t) => t.language === 'en') || detail.translationData[0];

@@ -5,8 +5,9 @@
  * 用 workOrderTypeId 路由，避免依赖 workOrderTypeName 字符串的不确定性。
  *
  * - workOrderTypeId 2  → csDialogHandler（一对一客服，多轮交叉对话）
- * - 半自动类 typeId    → simpleHandler（70%通过 / 30%拒绝）
- * - 其他               → 跳过
+ * - 其余全部 typeId    → simpleHandler（锁定后 20%只锁不处理，其余 60%通过/40%拒绝，
+ *                        2026-11-07 起含原本"系统自动处理"的 11/12/15/18/19/21）
+ * - 查不到 workOrderTypeId → 跳过
  */
 
 import { csDialogHandler } from './csDialogHandler.js';
@@ -45,8 +46,14 @@ const SIMPLE_TYPE_IDS = [
     // 列表里，所以一并路由，没关掉的由客服处理，避免阶段C 等待超时。
     4,   // 存款未到账自动化
     23,  // USDT存款未到账自动化
-    // 自动化工单（提交后系统自动执行，不需要后台客服处理）：
-    // 11=修改IFSC、12=修改银行名称、15=删除PIX、18=删除银行卡、19=删除USDT、21=修改提现密码
+    // 2026-11-07：以下几个本来标"自动化工单"，系统提交后会自动执行、不需要客服介入，
+    // 但现在要求所有工单都过一遍客服处理，所以也一并路由进来
+    11,  // 修改IFSC自动化
+    12,  // 修改银行名称自动化
+    15,  // 删除PIX自动化
+    18,  // 删除银行卡自动化
+    19,  // 删除USDT自动化
+    21,  // 修改提现密码自动化
 ];
 
 /**
@@ -59,8 +66,13 @@ const SIMPLE_TYPE_IDS = [
  * @param {boolean} isMainAdmin
  * @param {string}  [workOrderRoleToken] - 客服B token（可选）
  * @param {number}  [orderIndex]         - 工单序号（0-based），用于奇偶交替
+ * @param {string}  [workOrderRoleName]
+ * @param {boolean} [forceTenant=false]  - adminToken（及 workOrderRoleToken）是商户自己登录
+ *   拿到的（非集团token）时传 true，否则集团模式下会被自动路由去集团域名，token/域名错配报
+ *   "Account type does not match the admin site"（2026-11-07 实测踩坑，见
+ *   libs/http/groupRouting.js 顶部注释）
  */
-export function dispatchHandler(order, adminToken, tenantId, env, isMainAdmin = true, workOrderRoleToken = null, orderIndex = 0, workOrderRoleName = null) {
+export function dispatchHandler(order, adminToken, tenantId, env, isMainAdmin = true, workOrderRoleToken = null, orderIndex = 0, workOrderRoleName = null, forceTenant = false) {
     let typeId   = order.workOrderTypeId;
     const typeName = order.workOrderTypeName || order.displayName || '';
 
@@ -71,7 +83,8 @@ export function dispatchHandler(order, adminToken, tenantId, env, isMainAdmin = 
             '/api/WorkOrder/Get',
             TAG,
             false,
-            adminToken
+            adminToken,
+            forceTenant
         );
         if (detail && detail.workOrderTypeId) {
             typeId = detail.workOrderTypeId;
@@ -86,7 +99,7 @@ export function dispatchHandler(order, adminToken, tenantId, env, isMainAdmin = 
 
     if (DIALOG_TYPE_IDS.includes(typeId)) {
         logger.info(`[${TAG}] 路由 → csDialogHandler (${typeName}, typeId=${typeId})`);
-        csDialogHandler(order, adminToken, tenantId, env, isMainAdmin, workOrderRoleToken, workOrderRoleName);
+        csDialogHandler(order, adminToken, tenantId, env, isMainAdmin, workOrderRoleToken, workOrderRoleName, forceTenant);
         return;
     }
 
@@ -96,7 +109,7 @@ export function dispatchHandler(order, adminToken, tenantId, env, isMainAdmin = 
         const activeToken  = useRoleToken ? workOrderRoleToken : adminToken;
         const activeName   = useRoleToken ? 'carey' : 'systemkefu';
         logger.info(`[${TAG}] 路由 → simpleHandler (${typeName}, typeId=${typeId}, 客服=${activeName})`);
-        simpleHandler(order, activeToken, tenantId, env, isMainAdmin);
+        simpleHandler(order, activeToken, tenantId, env, isMainAdmin, forceTenant);
         return;
     }
 

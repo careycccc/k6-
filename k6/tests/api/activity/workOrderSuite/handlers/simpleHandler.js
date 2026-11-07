@@ -12,10 +12,11 @@
  *   - 修改提现密码半自动化
  *   （后续有新的半自动类型，在 index.js 路由里加上即可）
  *
- * 流程：
+ * 流程（2026-11-07 改）：
  *   1. 锁定工单
- *   2. 70% 概率通过（state:4, remark: systemkefu{tenantId}:over）
- *      30% 概率拒绝（state:3, remark: systemkefu{tenantId}:Refuse）
+ *   2. 20% 概率只锁定、不做后续处理（模拟客服接单后没处理完，工单留在锁定状态）
+ *   3. 其余 80%（真正处理的工单）：60% 概率通过（state:4, remark: systemkefu{tenantId}:over）
+ *      40% 概率拒绝（state:3, remark: systemkefu{tenantId}:Refuse）
  */
 
 import { sleep } from 'k6';
@@ -28,8 +29,10 @@ import { PERF_METRICS, ERROR_COUNTERS } from '../../../../../libs/monitor/perfMe
 
 const TAG = 'SimpleHandler';
 
-/** 通过概率 70% */
-const APPROVE_RATE = 0.7;
+/** 锁定后只锁不处理的概率 20%（2026-11-07 新增） */
+const LOCK_ONLY_RATE = 0.2;
+/** 真正处理的工单里，通过概率 60%（2026-11-07 从 70% 调整） */
+const APPROVE_RATE = 0.6;
 
 // ============================================================
 // workOrderTypeId → 前置接口映射
@@ -37,14 +40,15 @@ const APPROVE_RATE = 0.7;
 // ============================================================
 const PRE_SUBMIT_ACTIONS = {
     // 修改登录密码半自动：先调 UpdateLoginPassword
-    8: (workOrderId, adminToken) => {
+    8: (workOrderId, adminToken, forceTenant = false) => {
         logger.info(`[${TAG}] 调用 UpdateLoginPassword workOrderId=${workOrderId}`);
         const res = sendRequest(
             { workOrderId },
             '/api/WorkOrder/UpdateLoginPassword',
             TAG,
             false,
-            adminToken
+            adminToken,
+            forceTenant
         );
         if (res && (res.code === 0 || res.msgCode === 0)) {
             logger.info(`[${TAG}] ✅ UpdateLoginPassword 成功`);
@@ -66,8 +70,11 @@ const PRE_SUBMIT_ACTIONS = {
  * @param {string}  tenantId
  * @param {object}  env
  * @param {boolean} isMainAdmin
+ * @param {boolean} [forceTenant=false] - adminToken 是商户自己登录拿到的（非集团token）时传
+ *   true，否则集团模式下会被自动路由去集团域名，token/域名错配报 "Account type does not
+ *   match the admin site"（2026-11-07 实测踩坑，见 libs/http/groupRouting.js 顶部注释）
  */
-export function simpleHandler(order, adminToken, tenantId, env, isMainAdmin = true) {
+export function simpleHandler(order, adminToken, tenantId, env, isMainAdmin = true, forceTenant = false) {
     const workOrderId     = order.id;
     const typeName        = order.workOrderTypeName || '';
     const kefuPrefix      = buildKefuPrefix(tenantId, isMainAdmin);
@@ -82,7 +89,8 @@ export function simpleHandler(order, adminToken, tenantId, env, isMainAdmin = tr
             '/api/WorkOrder/Get',
             TAG,
             false,
-            adminToken
+            adminToken,
+            forceTenant
         );
         if (!detail || !detail.workOrderTypeId) {
             logger.error(`[${TAG}] 获取工单详情失败，跳过 workOrderId=${workOrderId}`);
@@ -97,24 +105,30 @@ export function simpleHandler(order, adminToken, tenantId, env, isMainAdmin = tr
     // state=2 处理中的工单需要重新锁定（先解锁再锁定，确保当前客服持有锁）
     if (order.state === 2) {
         // 先解锁（清除旧锁），再重新锁定
-        unlockOrder(workOrderId, adminToken);
+        unlockOrder(workOrderId, adminToken, forceTenant);
         sleep(1);
     }
-    if (!lockOrder(workOrderId, adminToken)) {
+    if (!lockOrder(workOrderId, adminToken, forceTenant)) {
         // 限流重试
         logger.warn(`[${TAG}] 锁定失败，2s 后重试...`);
         sleep(2);
-        if (!lockOrder(workOrderId, adminToken)) {
+        if (!lockOrder(workOrderId, adminToken, forceTenant)) {
             logger.error(`[${TAG}] 工单锁定失败，跳过`);
             return;
         }
     }
     sleep(1.5);
 
+    // 20% 概率只锁定不处理：工单留在锁定状态，不解锁、不通过/拒绝
+    if (Math.random() < LOCK_ONLY_RATE) {
+        logger.info(`[${TAG}] 🔒 本次只锁定不处理: ${workOrderId}`);
+        return;
+    }
+
     // Step 2: 执行前置接口（如有）
     const preAction = PRE_SUBMIT_ACTIONS[workOrderTypeId];
     if (preAction) {
-        const preOk = preAction(workOrderId, adminToken);
+        const preOk = preAction(workOrderId, adminToken, forceTenant);
         if (!preOk) {
             logger.error(`[${TAG}] 前置接口失败，跳过 workOrderId=${workOrderId}`);
             return;
@@ -134,7 +148,7 @@ export function simpleHandler(order, adminToken, tenantId, env, isMainAdmin = tr
     let res = signAndPost(submitPayload, '/api/WorkOrder/Submit', false, adminToken, TAG, {
         trendObj: PERF_METRICS.WORK_ORDER_APPROVE,
         errorCounter: ERROR_COUNTERS.WORK_ORDER_APPROVE_FAIL,
-    });
+    }, forceTenant);
 
     // 限流重试：最多重试 3 次，每次等待递增
     let retries = 0;
@@ -146,7 +160,7 @@ export function simpleHandler(order, adminToken, tenantId, env, isMainAdmin = tr
         res = signAndPost(submitPayload, '/api/WorkOrder/Submit', false, adminToken, TAG, {
             trendObj: PERF_METRICS.WORK_ORDER_APPROVE,
             errorCounter: ERROR_COUNTERS.WORK_ORDER_APPROVE_FAIL,
-        });
+        }, forceTenant);
     }
 
     if (res && (res.code === 0 || res.msgCode === 0)) {

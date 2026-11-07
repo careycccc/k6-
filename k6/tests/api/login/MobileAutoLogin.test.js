@@ -7,7 +7,9 @@ const tag = 'MobileAutoLogin';
 /**
  * 手机号自动登录 - 发送验证码
  * @param {string} phoneNumber - 手机号
- * @param {object} data - setup 返回的数据对象，包含 adminToken
+ * @param {object} data - setup 返回的数据对象，包含 adminToken；data.forceTenant=true 时
+ *   表示 data.token 是商户自己登录拿到的（非集团token），避免被自动路由去集团域名报
+ *   "Account type does not match the admin site"（2026-11-07 实测踩坑）
  * @returns {string} 验证码
  */
 export function sendMobileAutoLoginVerifyCode(phoneNumber, data) {
@@ -15,7 +17,7 @@ export function sendMobileAutoLoginVerifyCode(phoneNumber, data) {
 
     // 使用 codeType=18 发送自动登录验证码
     // verifyCodeType=1 表示手机号，codeType=18 表示自动登录验证码
-    const verifyCode = sendToGetVerCode(1, 18, phoneNumber, data.token);
+    const verifyCode = sendToGetVerCode(1, 18, phoneNumber, data.token, null, null, !!data.forceTenant);
 
     if (!verifyCode) {
         console.error('[MobileAutoLogin] 获取自动登录验证码失败');
