@@ -21,9 +21,14 @@ export const RechargeType = {
  * @param {number} amountOfCode - 打码量倍数（null表示默认，数字表示倍数）
  * @param {string} remark - 备注，默认为 'Manual recharge'
  * @param {number} maxRetries - 最大重试次数，默认3次（遇到"Too frequent access"时重试）
+ * @param {boolean} forceTenant - 强制走商户自己的域名，不套集团路由（2026-11-11
+ *   新增，默认false不影响现有调用方）。用 tenantAdminLogin(tenantId, true) 拿到
+ *   商户token的调用方必须传true，否则会报"Account type does not match the
+ *   admin site"——之前这里漏传给sendRequest，导致下载奖励等新场景直接调用这个
+ *   共享函数会失败，只能本地抄一份绕过去；现在直接修好这个缺口。
  * @returns {object|null} 充值结果
  */
-export function manualRecharge(adminToken, userId, rechargeAmount, amountOfCode = 1, remark = 'Manual recharge', maxRetries = 3) {
+export function manualRecharge(adminToken, userId, rechargeAmount, amountOfCode = 1, remark = 'Manual recharge', maxRetries = 3, forceTenant = false) {
     console.log(`[ManualRecharge] 开始人工充值: userId=${userId}, amount=${rechargeAmount}, code=${amountOfCode}`);
 
     const api = '/api/ArtificialRechargeRecord/ArtificialRecharge';
@@ -46,7 +51,7 @@ export function manualRecharge(adminToken, userId, rechargeAmount, amountOfCode 
 
         try {
             // 发送请求（isDesk=false 表示后台管理员接口）
-            const response = sendRequest(payload, api, 'ManualRecharge', false, adminToken);
+            const response = sendRequest(payload, api, 'ManualRecharge', false, adminToken, forceTenant);
 
             // 检查响应
             if (!response) {

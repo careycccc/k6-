@@ -16,7 +16,7 @@
  *   k6p -e TENANT_ID=3004 -e ACCOUNT_COUNT=5 -e VUS=2 -e ITERATIONS=2 runWorkOrderSubmitOnly.test.js
  *
  *   # 只触发已登录工单
- *   k6p -e TENANT_ID=3004 -e ACCOUNT_COUNT=2 -e VUS=2 -e TRIGGER_MODE=login runWorkOrderSubmitOnly.test.js
+ *   k6p -e TENANT_ID=3101 -e ACCOUNT_COUNT=2 -e VUS=2 -e TRIGGER_MODE=login runWorkOrderSubmitOnly.test.js
  *
  *   # 只触发未登录工单
  *   k6p -e TENANT_ID=3004 -e ACCOUNT_COUNT=2 -e VUS=2 -e TRIGGER_MODE=nologin runWorkOrderSubmitOnly.test.js

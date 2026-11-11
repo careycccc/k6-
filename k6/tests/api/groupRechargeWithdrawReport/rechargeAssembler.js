@@ -105,7 +105,11 @@ function rechargeClassicOnce(userToken, adminToken, userId, category, amount, op
 /**
  * 轮询查订单+后台审核，Local三类(含USDT)走本地订单接口，其余走三方订单接口。
  *
- * @param {{audit?:boolean}} [opts] - audit默认true(原有行为：找到订单就审核通过)。
+ * @param {{audit?:boolean, forceTenant?:boolean}} [opts] - audit默认true(原有行为：找到订单就审核通过)。
+ *   forceTenant(2026-11-11新增，默认false不影响现有调用方)：adminToken是用
+ *   tenantAdminLogin(tenantId, true)拿到的商户token时必须传true，否则内部查询/
+ *   审核订单会默认走集团路由，报"Account type does not match"或者换集团token后又
+ *   卡在集团账号权限不足——这是下载奖励C4场景(发起充值不审核)实测踩过的坑。
  *   传 audit:false 时，只要查到订单(不管Wait/PendingReview什么中间状态)就立刻
  *   返回 {success:true, pending:true, ...}，不调用审核接口、不等待状态变化——
  *   这是"多天衰减系列"故意构造"创建时间和成功时间跨天"订单的核心机制：订单发起后
@@ -114,13 +118,14 @@ function rechargeClassicOnce(userToken, adminToken, userId, category, amount, op
  */
 function pollAndAudit(adminToken, userId, rechargeType, amount, rechargeRequestTime, expectOrderNo, opts) {
     const audit = !opts || opts.audit !== false;
+    const forceTenant = !!(opts && opts.forceTenant);
     const isLocal = isLocalRechargeType(rechargeType);
     for (let retry = 0; retry < 5; retry++) {
         if (retry > 0) console.log(`[RechargeAssembler] 第${retry}次重试后台审核...`);
         sleep(3);
         const orders = isLocal
-            ? (getLocalRechargeOrderPageList(adminToken, userId, rechargeRequestTime - 60000, Date.now() + 60000) || [])
-            : (getRechargeOrderPageList(adminToken, userId, 'ThirdRecharge') || []);
+            ? (getLocalRechargeOrderPageList(adminToken, userId, rechargeRequestTime - 60000, Date.now() + 60000, forceTenant) || [])
+            : (getRechargeOrderPageList(adminToken, userId, 'ThirdRecharge', forceTenant) || []);
         orders.sort((a, b) => b.createTime - a.createTime);
         const target = orders.find(o => (expectOrderNo ? o.orderNo === expectOrderNo : o.amount === amount) && o.createTime >= (rechargeRequestTime - 120000));
         if (target) {
@@ -130,8 +135,8 @@ function pollAndAudit(adminToken, userId, rechargeType, amount, rechargeRequestT
                 return { success: true, pending: true, orderNo: target.orderNo, rechargeType, amount, createTime: target.createTime };
             }
             const ok = isLocal
-                ? manualAuditLocalRechargeOrder(adminToken, target.orderNo, userId, target.createTime, amount)
-                : manualAuditRechargeOrder(adminToken, target.orderNo, userId, target.createTime, amount);
+                ? manualAuditLocalRechargeOrder(adminToken, target.orderNo, userId, target.createTime, amount, 'auto-audit', forceTenant)
+                : manualAuditRechargeOrder(adminToken, target.orderNo, userId, target.createTime, amount, 'auto-audit', forceTenant);
             if (ok) return { success: true, orderNo: target.orderNo, rechargeType, amount, createTime: target.createTime };
         }
     }
@@ -245,7 +250,9 @@ function rechargeWithTypeFilter(userToken, adminToken, userId, targetAmount, typ
 
 /**
  * 强制走USDT充值，自己控制金额(不像 hybridRecharge 那样被内部覆盖成50-300随机)
- * @param {{audit?:boolean}} [opts] - 传 {audit:false} 故意不审核，留给明天补单(多天衰减系列用)
+ * @param {{audit?:boolean, forceTenant?:boolean}} [opts] - 传 {audit:false} 故意不审核，
+ *   留给明天补单(多天衰减系列用)；adminToken是forceTenant商户token时传{forceTenant:true}
+ *   (2026-11-11新增，见pollAndAudit注释)
  */
 export function assembleUsdtRecharge(userToken, adminToken, userId, targetAmount, opts) {
     return rechargeWithTypeFilter(userToken, adminToken, userId, targetAmount, t => t === 'LocalUSDT' || t === 'USDT', opts);
@@ -253,7 +260,9 @@ export function assembleUsdtRecharge(userToken, adminToken, userId, targetAmount
 
 /**
  * 强制不走USDT充值(排除LocalUSDT/USDT)，供"非USDT账号"使用，避免被意外污染破坏30/70比例
- * @param {{audit?:boolean}} [opts] - 传 {audit:false} 故意不审核，留给明天补单(多天衰减系列用)
+ * @param {{audit?:boolean, forceTenant?:boolean}} [opts] - 传 {audit:false} 故意不审核，
+ *   留给明天补单(多天衰减系列用)；adminToken是forceTenant商户token时传{forceTenant:true}
+ *   (2026-11-11新增，见pollAndAudit注释)
  */
 export function assembleFiatRechargeNoUsdt(userToken, adminToken, userId, targetAmount, opts) {
     return rechargeWithTypeFilter(userToken, adminToken, userId, targetAmount, t => t !== 'LocalUSDT' && t !== 'USDT', opts);
@@ -296,14 +305,15 @@ export function detectUsdtRechargeSupport(userToken) {
  * @param {string} orderNo
  * @param {string} rechargeType - 用来判断走Local订单接口还是三方订单接口
  * @param {number} [hintCreateTime] - 订单创建时间的提示值(来自之前记录)，用于收窄Local查询窗口
+ * @param {boolean} [forceTenant=false] - 同 pollAndAudit 的 forceTenant(2026-11-11新增)
  * @returns {object|null} 订单对象，查不到返回null
  */
-export function findOrderByOrderNo(adminToken, userId, orderNo, rechargeType, hintCreateTime) {
+export function findOrderByOrderNo(adminToken, userId, orderNo, rechargeType, hintCreateTime, forceTenant = false) {
     const isLocal = isLocalRechargeType(rechargeType);
     const base = hintCreateTime || Date.now();
     const orders = isLocal
-        ? (getLocalRechargeOrderPageList(adminToken, userId, base - 3600000, Date.now() + 3600000) || [])
-        : (getRechargeOrderPageList(adminToken, userId, 'ThirdRecharge') || []);
+        ? (getLocalRechargeOrderPageList(adminToken, userId, base - 3600000, Date.now() + 3600000, forceTenant) || [])
+        : (getRechargeOrderPageList(adminToken, userId, 'ThirdRecharge', forceTenant) || []);
     return orders.find(o => o.orderNo === orderNo) || null;
 }
 
@@ -314,11 +324,12 @@ export function findOrderByOrderNo(adminToken, userId, orderNo, rechargeType, hi
  * @param {string} adminToken
  * @param {object} order - findOrderByOrderNo 返回的订单对象
  * @param {number} amount - 审核时要传的金额，一般用 order.amount
+ * @param {boolean} [forceTenant=false] - 同 pollAndAudit 的 forceTenant(2026-11-11新增)
  * @returns {boolean} 审核是否成功
  */
-export function auditOrderNow(adminToken, order, amount) {
+export function auditOrderNow(adminToken, order, amount, forceTenant = false) {
     const isLocal = isLocalRechargeType(order.rechargeType);
     return isLocal
-        ? manualAuditLocalRechargeOrder(adminToken, order.orderNo, order.userId, order.createTime, amount)
-        : manualAuditRechargeOrder(adminToken, order.orderNo, order.userId, order.createTime, amount);
+        ? manualAuditLocalRechargeOrder(adminToken, order.orderNo, order.userId, order.createTime, amount, 'auto-audit', forceTenant)
+        : manualAuditRechargeOrder(adminToken, order.orderNo, order.userId, order.createTime, amount, 'auto-audit', forceTenant);
 }

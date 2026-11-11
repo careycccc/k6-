@@ -75,6 +75,38 @@ export const GROUP_ADMIN_TEST_KEFU_B = {
     COVERS_TENANT_IDS: GROUP_ADMIN_TEST.COVERS_TENANT_IDS
 };
 
+/**
+ * 2026-11-11 新增：提现自动审核的"主管→组长→组员"三级角色，统一构造方式。
+ * 组长固定复用所属 GROUP_ADMIN_* 本身的 ADMIN_*（.env.example 注释里写明的约定，
+ * 不单独定义字段）；主管/组员1/组员2 各自有独立的 .env 字段。
+ * BASE_URL、COVERS_TENANT_IDS 跟所属集团后台一致（同一个集团后台，换账号登录）。
+ * @param {object} group - 所属的 GROUP_ADMIN_TEST 或 GROUP_ADMIN_UAT
+ * @param {string} prefix - 如 'GROUP_ADMIN_TEST_WITHDRAW_SUPERVISOR'
+ * @param {string} roleLabel - 角色说明，用于 NAME 展示
+ */
+function buildWithdrawRole(group, prefix, roleLabel) {
+    return {
+        NAME: `${group.NAME}-${roleLabel}`,
+        BASE_URL: group.BASE_URL,
+        ADMIN_USERNAME: getEnvValue(`${prefix}_USERNAME`),
+        ADMIN_PASSWORD: getEnvValue(`${prefix}_PASSWORD`),
+        GOOGLE_SECRET: getEnvValue(`${prefix}_GOOGLE_SECRET`),
+        COVERS_TENANT_IDS: group.COVERS_TENANT_IDS
+    };
+}
+
+// 测试环境：主管(carey_jt_000，同 GROUP_ADMIN_TEST_KEFU_B，这里换个规范命名重新导出同一组凭据)
+export const GROUP_ADMIN_TEST_WITHDRAW_SUPERVISOR = GROUP_ADMIN_TEST_KEFU_B;
+// 测试环境：组员1(carey_jt_002)、组员2(carey_jt_001)
+export const GROUP_ADMIN_TEST_WITHDRAW_MEMBER1 = buildWithdrawRole(GROUP_ADMIN_TEST, 'GROUP_ADMIN_TEST_WITHDRAW_MEMBER1', '组员1(carey_jt_002)');
+export const GROUP_ADMIN_TEST_WITHDRAW_MEMBER2 = buildWithdrawRole(GROUP_ADMIN_TEST, 'GROUP_ADMIN_TEST_WITHDRAW_MEMBER2', '组员2(carey_jt_001)');
+
+// 预发布(UAT)环境：主管(carey)、组员1(carey_uat_admin_004)、组员2(carey_uat_jt_admin)
+// （组长是 GROUP_ADMIN_UAT.ADMIN_USERNAME = carey_uat_admin_001，不单独定义）
+export const GROUP_ADMIN_UAT_WITHDRAW_SUPERVISOR = buildWithdrawRole(GROUP_ADMIN_UAT, 'GROUP_ADMIN_UAT_WITHDRAW_SUPERVISOR', '主管');
+export const GROUP_ADMIN_UAT_WITHDRAW_MEMBER1 = buildWithdrawRole(GROUP_ADMIN_UAT, 'GROUP_ADMIN_UAT_WITHDRAW_MEMBER1', '组员1(carey_uat_admin_004)');
+export const GROUP_ADMIN_UAT_WITHDRAW_MEMBER2 = buildWithdrawRole(GROUP_ADMIN_UAT, 'GROUP_ADMIN_UAT_WITHDRAW_MEMBER2', '组员2(carey_uat_jt_admin)');
+
 // 全部集团后台列表，供需要遍历"所有集团后台"的场景使用
 export const GROUP_ADMIN_LIST = [GROUP_ADMIN_TEST, GROUP_ADMIN_UAT];
 

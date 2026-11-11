@@ -9,14 +9,18 @@ import { getTimeRandom } from '../../utils/utils.js';
  * 查询本地充值订单列表 (后台)
  * @param {string} adminToken 
  * @param {number} userId 
- * @param {number} startTime 
- * @param {number} endTime 
+ * @param {number} startTime
+ * @param {number} endTime
+ * @param {boolean} [forceTenant=false] - 强制走商户自己的域名，不套集团路由（2026-11-11
+ *   新增，默认false不影响现有调用方）。用 tenantAdminLogin(tenantId, true) 拿到商户token
+ *   的调用方必须传true，否则默认走集团路由会报"Account type does not match the admin
+ *   site"；用集团token的调用方要么不传、要么传false，保持原有行为。
  * @returns {Array|null} 返回订单列表数组，如果失败或为空则返回null或空数组
  */
-export function getLocalRechargeOrderPageList(adminToken, userId, startTime, endTime) {
+export function getLocalRechargeOrderPageList(adminToken, userId, startTime, endTime, forceTenant = false) {
     const api = '/api/RechargeOrder/GetLocalRechargeOrderPageList';
     const tag = 'GetLocalRechargeOrderList';
-    
+
     const payload = {
         userId: userId,
         startTime: startTime,
@@ -28,7 +32,7 @@ export function getLocalRechargeOrderPageList(adminToken, userId, startTime, end
     };
 
     // 使用 sendRequest 发送后台请求，isDesk = false
-    const response = sendRequest(payload, api, tag, false, adminToken);
+    const response = sendRequest(payload, api, tag, false, adminToken, forceTenant);
     
     // testCommonRequest 成功时会直接返回 parsedBody.data，此时没有 msgCode
     if (!response) {
@@ -49,13 +53,14 @@ export function getLocalRechargeOrderPageList(adminToken, userId, startTime, end
  * @param {number} userId 
  * @param {number} createTime 
  * @param {number} actualAmount 等于第一步的 amount
- * @param {string} remark 
+ * @param {string} remark
+ * @param {boolean} [forceTenant=false] - 同 getLocalRechargeOrderPageList 的 forceTenant
  * @returns {boolean} 是否审核成功
  */
-export function manualAuditLocalRechargeOrder(adminToken, orderNo, userId, createTime, actualAmount, remark = "auto-audit") {
+export function manualAuditLocalRechargeOrder(adminToken, orderNo, userId, createTime, actualAmount, remark = "auto-audit", forceTenant = false) {
     const api = '/api/RechargeOrder/ManualAuditLocalRechargeOrder';
     const tag = 'ManualAuditLocalRecharge';
-    
+
     const payload = {
         orderNo: orderNo,
         userId: userId,
@@ -65,7 +70,7 @@ export function manualAuditLocalRechargeOrder(adminToken, orderNo, userId, creat
     };
 
     // 使用 sendRequest 发送后台请求，isDesk = false
-    const response = sendRequest(payload, api, tag, false, adminToken);
+    const response = sendRequest(payload, api, tag, false, adminToken, forceTenant);
     
     // 如果没有返回或者包含业务错误
     if (!response || response.msgCode !== 0) {
@@ -81,13 +86,14 @@ export function manualAuditLocalRechargeOrder(adminToken, orderNo, userId, creat
  * 查询三方充值订单列表 (后台) - 简化版本
  * @param {string} adminToken 
  * @param {number} userId 
- * @param {string} rechargeChannelType 
+ * @param {string} rechargeChannelType
+ * @param {boolean} [forceTenant=false] - 同 getLocalRechargeOrderPageList 的 forceTenant
  * @returns {Array|null} 返回订单列表数组
  */
-export function getRechargeOrderPageList(adminToken, userId, rechargeChannelType = 'ThirdRecharge') {
+export function getRechargeOrderPageList(adminToken, userId, rechargeChannelType = 'ThirdRecharge', forceTenant = false) {
     const api = '/api/RechargeOrder/GetRechargeOrderPageList';
     const tag = 'GetRechargeOrderList';
-    
+
     const payload = {
         userId: userId,
         rechargeChannelType: rechargeChannelType,
@@ -100,7 +106,7 @@ export function getRechargeOrderPageList(adminToken, userId, rechargeChannelType
     };
 
     // 使用 sendRequest 发送后台请求，isDesk = false
-    const response = sendRequest(payload, api, tag, false, adminToken);
+    const response = sendRequest(payload, api, tag, false, adminToken, forceTenant);
     
     // testCommonRequest 成功时会直接返回 parsedBody.data，此时没有 msgCode
     if (!response) {
@@ -190,13 +196,14 @@ export function getRechargeOrderPageListFull(adminToken, options) {
  * @param {number} userId 
  * @param {number} createTime 
  * @param {number} actualAmount 
- * @param {string} remark 
+ * @param {string} remark
+ * @param {boolean} [forceTenant=false] - 同 getLocalRechargeOrderPageList 的 forceTenant
  * @returns {boolean} 是否审核成功
  */
-export function manualAuditRechargeOrder(adminToken, orderNo, userId, createTime, actualAmount, remark = "auto-audit") {
+export function manualAuditRechargeOrder(adminToken, orderNo, userId, createTime, actualAmount, remark = "auto-audit", forceTenant = false) {
     const api = '/api/RechargeOrder/ManualAuditRechargeOrder';
     const tag = 'ManualAuditRecharge';
-    
+
     const payload = {
         orderNo: orderNo,
         userId: userId,
@@ -206,7 +213,7 @@ export function manualAuditRechargeOrder(adminToken, orderNo, userId, createTime
     };
 
     // 使用 sendRequest 发送后台请求，isDesk = false
-    const response = sendRequest(payload, api, tag, false, adminToken);
+    const response = sendRequest(payload, api, tag, false, adminToken, forceTenant);
     
     // 如果没有返回或者包含业务错误
     if (!response || response.msgCode !== 0) {
