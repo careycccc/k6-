@@ -38,6 +38,17 @@
  * 批量无头运行：$env:TENANT="3101"; $env:COUNT="30"; $env:CLICK="true"; $env:CLICK_RATE="80"; node delivery-verify.js
  * COUNT=50 表示最多尝试 50 个账号（2.txt 里按行列出，去掉区号，最多 500 个）。
  * CLICK=true 表示收到送达后自动模拟点击（接口级上报），CLICK_RATE=50 表示约一半点击。
+ *
+ * 2026-11-12 新增：组合标签定向验证（正向应收到 / 反向不应收到）
+ *   配合 ../playwrith/collect-tagged-users.js 的产物使用：该脚本会在 2.txt 的
+ *   同目录生成 negative-accounts.txt（不命中组合标签、理论上不该收到推送的
+ *   账号）。本脚本启动时会自动探测这个文件是否存在：
+ *     - 不存在 → 完全是原来的行为（全员都该收到的报表），向后兼容。
+ *     - 存在   → 把反向账号也并入登录列表（反向账号也必须真实登录建立FCM
+ *       就绪设备，否则"没收到"分不清是"没设备"还是"标签没命中"），退出报表里
+ *       额外打印一段"组合标签定向验证"：正向是否全部收到、反向是否零误收，
+ *       给出 PASS/FAIL 结论。可用 NEGATIVE_ACCOUNTS_FILE 环境变量显式指定
+ *       反向账号文件路径（覆盖自动探测）。
  */
 
 const { chromium } = require('playwright');
@@ -99,6 +110,14 @@ const ACCOUNTS_FILE = process.env.ACCOUNTS_FILE
   ? path.resolve(process.env.ACCOUNTS_FILE)
   : path.join(__dirname, '..', 'tests', 'api', 'activity', 'firebase', '2.txt');
 
+// ───── 2026-11-12 新增：组合标签定向验证用的"反向(不应收到)账号"文件 ─────
+// 显式指定优先；没指定就探测 ACCOUNTS_FILE 同目录下有没有 negative-accounts.txt
+// (collect-tagged-users.js 的产物)。两者都没有 → 完全不触发这段逻辑，脚本行为
+// 跟改造前一模一样(向后兼容)。
+const NEGATIVE_ACCOUNTS_FILE = process.env.NEGATIVE_ACCOUNTS_FILE
+  ? path.resolve(process.env.NEGATIVE_ACCOUNTS_FILE)
+  : path.join(path.dirname(ACCOUNTS_FILE), 'negative-accounts.txt');
+
 // 最多读取/尝试的账号数（测试用 5，正式可改大，上限 500）
 const MAX_ACCOUNTS  = Math.min(parseInt(process.env.COUNT || '5', 10), 500);
 
@@ -156,6 +175,9 @@ let   chromeAvailable = null;
 // account -> 定时器句柄；account -> 已关闭标记(防重复关闭/避免 gracefulShutdown 再关一次)。
 const closeTimers    = new Map();
 const closedAccounts = new Set();
+// 2026-11-12 新增：组合标签定向验证——"不应收到推送"的账号集合(去区号后的账号)。
+// 为空=没有反向文件，走原有"全员都该收到"报表；非空=额外打印"组合标签定向验证"分组报表。
+const negativeSet    = new Set();
 
 // ============================================================
 // 读取账号：去掉区号、去重、截断
@@ -169,13 +191,25 @@ function loadAccounts() {
   if (!fs.existsSync(ACCOUNTS_FILE)) {
     throw new Error(`账号文件不存在: ${ACCOUNTS_FILE}`);
   }
-  const raw = fs.readFileSync(ACCOUNTS_FILE, 'utf-8');
-  const list = raw
+  const normalize = (raw) => raw
     .split(/\r?\n/)
     .map(s => s.trim())
     .filter(Boolean)
     .filter(s => !s.includes('@'))                                // 跳过邮箱账号
     .map(s => (s.startsWith(COUNTRY_CODE) ? s.slice(COUNTRY_CODE.length) : s));
+
+  const list = normalize(fs.readFileSync(ACCOUNTS_FILE, 'utf-8'));
+
+  // 2026-11-12 新增：如果存在反向(不应收到)账号文件，读进来标记到 negativeSet。
+  // 反向账号本身也要走真实Chrome登录(建立FCM就绪设备)，所以必须合并进最终要登录
+  // 的账号列表，不是只记个名单不登录——否则"没收到"分不清是"没设备"还是"标签没命中"。
+  if (fs.existsSync(NEGATIVE_ACCOUNTS_FILE)) {
+    const negList = normalize(fs.readFileSync(NEGATIVE_ACCOUNTS_FILE, 'utf-8'));
+    negList.forEach(a => negativeSet.add(a));
+    for (const a of negList) if (!list.includes(a)) list.push(a);
+    console.log(`[组合标签] 检测到反向账号文件 ${NEGATIVE_ACCOUNTS_FILE}，读到 ${negList.length} 个`
+      + `不应收到推送的账号，已合并进登录列表`);
+  }
 
   const seen = new Set();
   const unique = [];
@@ -712,6 +746,36 @@ function printExitReport() {
     console.log(`  与后台核对：点击数量 应 ≈ ${C}；点击率按其口径 ≈ ${ctrD}%(点击/送达) 或 ${ctrR}%(点击/发送)`);
   }
   console.log('='.repeat(60) + '\n');
+
+  // ── 2026-11-12 新增：组合标签定向验证(正向应收到/反向不应收到) ──
+  // 只在存在反向账号文件时触发，不影响脚本原有"全员都该收到"场景的报表输出。
+  if (negativeSet.size > 0) {
+    const deliveredSet = new Set(netAccounts); // 以网络拦截(后台报表口径)为准，跟上面D的取值一致
+    const positiveAccounts = readyArr.filter(a => !negativeSet.has(a));
+    const negativeAccounts = readyArr.filter(a => negativeSet.has(a));
+
+    const positiveDelivered = positiveAccounts.filter(a => deliveredSet.has(a));
+    const positiveMissed    = positiveAccounts.filter(a => !deliveredSet.has(a));
+    const negativeLeaked    = negativeAccounts.filter(a => deliveredSet.has(a));   // 不该收到却收到了=bug
+    const negativeClean     = negativeAccounts.filter(a => !deliveredSet.has(a));
+
+    const allPass = positiveMissed.length === 0 && negativeLeaked.length === 0 && positiveAccounts.length > 0;
+
+    console.log('='.repeat(60));
+    console.log('              组合标签定向验证（正向应收到 / 反向不应收到）');
+    console.log('='.repeat(60));
+    console.log(`  正向(应收到)就绪设备数: ${positiveAccounts.length}   实际收到: ${positiveDelivered.length}   漏发: ${positiveMissed.length}`);
+    if (positiveMissed.length) console.log(`    ❌ 漏发账号(${positiveMissed.length}): ${positiveMissed.slice(0, 30).join(', ')}`);
+    console.log(`  反向(不应收到)就绪设备数: ${negativeAccounts.length}   误收到: ${negativeLeaked.length}   正确未收到: ${negativeClean.length}`);
+    if (negativeLeaked.length) console.log(`    ❌ 误收到账号(${negativeLeaked.length})【组合标签定向判定可能有bug】: ${negativeLeaked.slice(0, 30).join(', ')}`);
+    console.log('-'.repeat(60));
+    console.log(`  ${allPass ? '✅ PASS' : '❌ FAIL'}：${allPass
+      ? '正向全部收到，反向零误收，组合标签定向符合预期'
+      : (positiveAccounts.length === 0
+        ? '正向账号就绪设备数为0——可能登录全部失败或还没等到就绪，无法判定'
+        : '存在漏发或误收到，见上面明细')}`);
+    console.log('='.repeat(60) + '\n');
+  }
 
   if (DISCOVER) {
     console.log('='.repeat(60));

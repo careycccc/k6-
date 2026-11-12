@@ -226,21 +226,23 @@ export function supplyForExclude(adminToken, options = {}) {
         const detailRes = api.getUserDetail(adminToken, u.id || u.userId);
         const detail = detailRes?.data || detailRes;
         
-        // 假设组合标签字段是 tagCompositeList
-        const tList = detail?.tagCompositeList || detail?.compositeTagList || []; 
-        
+        // 2026-11-12实测确认：组合标签字段确实是 tagCompositeList，但每项的ID字段
+        // 叫 tagId，不是 id——原来 t.id||t 永远匹配不上(t是对象，恒真走到t.id=undefined
+        // 这个分支，String(undefined)!==String(excludeTagId))，这两个函数一直是死代码。
+        const tList = detail?.tagCompositeList || [];
+
         let hasTag = false;
         let foundTagId = null;
-        
+
         if (excludeTagId) {
-            const matchTag = tList.find(t => String(t.id || t) === String(excludeTagId));
+            const matchTag = tList.find(t => String(t.tagId) === String(excludeTagId));
             if (matchTag) {
                 hasTag = true;
                 foundTagId = excludeTagId;
             }
         } else if (tList.length > 0) {
             hasTag = true;
-            foundTagId = tList[0].id || tList[0];
+            foundTagId = tList[0].tagId;
         }
 
         if (hasTag) {
@@ -316,14 +318,14 @@ export function supplyForTag(adminToken, options = {}) {
     }
     const tagId = targetTag.id;
 
-    // 找拥有该标签的用户
+    // 找拥有该标签的用户(字段名tagId，2026-11-12实测确认，见supplyForExclude同款注释)
     const recentUsers = extractList(api.searchUsers(adminToken, { pageSize: 50 }));
     let posUser = null;
     for (const u of recentUsers) {
         const detailRes = api.getUserDetail(adminToken, u.id || u.userId);
         const detail = detailRes?.data || detailRes;
-        const tList = detail?.tagCompositeList || detail?.compositeTagList || [];
-        if (tList.some(t => String(t.id || t) === String(tagId))) {
+        const tList = detail?.tagCompositeList || [];
+        if (tList.some(t => String(t.tagId) === String(tagId))) {
             posUser = u;
             break;
         }

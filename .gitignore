@@ -67,6 +67,10 @@ docker-compose.override.yml
 .cache/
 .eslintcache
 
+# Playwright 真实Chrome持久化登录缓存(firebase推送送达验证用)——纯本地运行
+# 时产生的浏览器状态，每人每次跑的内容都不同，不应该提交
+k6/playwrith/.browser_profiles/
+
 # Claude Code 插件(oh-my-claudecode)自己的本地运行状态——跟着当时cd到的目录走，
 # 不是项目代码，每个人电脑上的内容都不一样，不应该提交
 .omc/

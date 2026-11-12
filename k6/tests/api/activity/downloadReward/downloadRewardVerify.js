@@ -98,7 +98,7 @@ import { getTimeRandom, generateCryptoRandomString } from '../../../utils/utils.
 import { phoneRegister } from '../../login/register.test.js';
 import { getFrontUserInfo } from '../../user/userManagement.js';
 import { manualRecharge } from '../../recharge/manualRecharge.js';
-import { assembleFiatRechargeNoUsdt } from '../../groupRechargeWithdrawReport/rechargeAssembler.js';
+import { assembleFiatRechargeNoUsdt, findOrderByOrderNo, auditOrderNow } from '../../groupRechargeWithdrawReport/rechargeAssembler.js';
 import {
     getDownloadRewardSetting,
     ensureDownloadRewardConfig,
@@ -361,6 +361,135 @@ function runGroupC_RechargeRules(adminToken) {
         manualRecharge(adminToken, u.userId, 1300, 1, 'C5-第2笔1300(大于阈值)', 3, true);
         sleep(3);
         reportCase('C5-反例3-先小后大(500→1300)', u.userId, u.phone, '首笔(500)未达标，资格已失效，第2笔再怎么充都不应被追认发放', getDownloadRewardRecordByUserId(adminToken, u.userId));
+    }
+}
+
+// ============================================================
+// K组：充值发起时间 vs 资格获得时间点(2026-11-12用户反馈的时序bug修复验证)
+// 用户描述的bug场景：账号先在H5端注册(还不具备PWA/APP资格)并立即发起一笔
+// 充值订单，之后才去PWA/APP端登录(这时才获得资格)，后台才给那笔"发起时间
+// 早于资格获得"的订单补单(审核通过)——这笔订单之前被错误地当成"资格获得
+// 后的首笔充值"从而触发了发放，开发说已经修复，这里验证修复是否生效。
+//
+// 关键诊断设计：订单金额必须≥阈值(本组固定2000，阈值1200)，否则即使bug
+// 没修复也会因为"金额本身不达标"而不发放，无法判断到底是时序问题还是金额
+// 问题导致没发放，测试就失去诊断力。
+// (2026-11-12实测发现：该商户当前走"商品模式"充值，assembleFiatRechargeNoUsdt
+// 不能自由指定任意金额，只会从商户商品盘面的固定档位(200/300/500/1000/2000/
+// 3000/5000/10000/20000)里选"离传入目标值最接近的那档"去实际充值——最初传
+// 1500/800时都被就近匹配到了1000(低于阈值1200)，导致K0/K1/L1三组全部因为
+// "金额凑巧没达标"而失去诊断力，无法判断到底是时序问题还是金额问题导致没
+// 发放。现在统一改用明确落在档位上的2000(≥阈值)/500(<阈值)，避免这个坑。)
+// ============================================================
+function runGroupK_RechargeOrderingVsEligibility(adminToken) {
+    console.log('========== K组：充值发起时间 vs 资格获得时间点(时序bug修复验证) ==========');
+    updateDownloadRewardSetting(adminToken, 'DownloadRewardRechargeType', '1', '1200');
+    ensureDownloadRewardConfig(adminToken, {
+        DownloadRewardRechargeType: '1',
+        DownloadRewardDeviceLimit: '9', DownloadRewardIpLimit: '0', DownloadRewardFingerprintLimit: '9'
+    }, 'K组准备');
+    sleep(2);
+
+    // K0 对照组：正常顺序——先获得资格，之后才用真实订单流程发起充值并补单
+    // (一次性audit:true)。同时覆盖用户说的"情况1"(订单金额≥阈值+后台补单→
+    // 应发放)，作为K1的时序对照基准。
+    sleep(2);
+    let u = newAccount('K0-对照组正常顺序', 2);
+    if (u && u.token) {
+        const result = assembleFiatRechargeNoUsdt(u.token, adminToken, u.userId, 2000, { audit: true, forceTenant: true });
+        console.log(`[K0] 真实订单+补单结果: ${JSON.stringify(result)}`);
+        sleep(3);
+        reportCase('K0-对照组-正常顺序(先资格后充值补单)', u.userId, u.phone,
+            '先获得资格(clientType=2登录)，之后才用真实订单流程发起充值2000(≥阈值1200)并补单完成，应正常发放——'
+            + '验证真实订单+补单流程本身没问题，作为K1的时序对照基准',
+            getDownloadRewardRecordByUserId(adminToken, u.userId));
+    } else if (u) {
+        console.error('[K0] 没拿到userToken，跳过');
+    }
+
+    // K1 核心bug验证：标准H5注册(不带clientType，真实的、还不具备任何资格的
+    // H5用户) → 立即发起充值订单但不审核(T1，金额1500≥阈值) → 之后才PWA/APP
+    // 登录获得资格(T2>T1) → 用T1阶段拿到的订单信息，直接补单完成(T3>T2，这
+    // 一刻才是后台实际批准订单的时间)。
+    sleep(2);
+    const phoneK1 = generateRandomPhone('91');
+    const regK1 = phoneRegister(phoneK1, {}); // 标准H5注册，不传clientType，此时不具备任何资格
+    if (!regK1) {
+        console.error('[K1] 注册失败，跳过');
+    } else {
+        sleep(2);
+        const tokenK1 = regK1.data ? regK1.data.token : null;
+        const infoK1 = tokenK1 ? getFrontUserInfo(tokenK1) : null;
+        const userIdK1 = infoK1 ? infoK1.userId : null;
+        if (!userIdK1 || !tokenK1) {
+            console.error('[K1] 没拿到userId/token，跳过');
+        } else {
+            // T1：此时账号还不具备PWA/APP资格，立即发起充值订单但不审核
+            const pendingK1 = assembleFiatRechargeNoUsdt(tokenK1, adminToken, userIdK1, 2000, { audit: false, forceTenant: true });
+            console.log(`[K1] T1-充值发起(资格获得前)结果: ${JSON.stringify(pendingK1)}`);
+            sleep(3);
+
+            // T2：之后才用clientType=2登录，这才是真正获得资格的时刻
+            loginAsDownloadRewardClient(phoneK1, 2);
+            sleep(3);
+            const recordAfterLogin = getDownloadRewardRecordByUserId(adminToken, userIdK1);
+            console.log(`[K1] T2-获得资格后、补单前的记录快照: ${recordAfterLogin ? JSON.stringify(recordAfterLogin) : '无记录'}`);
+
+            // T3：后台才给T1那笔订单补单——这是实际批准订单的时间，晚于T2
+            let auditOkK1 = false;
+            let orderAfterK1 = null;
+            if (pendingK1 && pendingK1.success && pendingK1.orderNo) {
+                const orderBefore = findOrderByOrderNo(adminToken, userIdK1, pendingK1.orderNo, pendingK1.rechargeType, pendingK1.createTime, true);
+                console.log(`[K1] 补单前查到的订单状态: ${orderBefore ? orderBefore.rechargeState : '查不到'}`);
+                const orderForAudit = orderBefore || { orderNo: pendingK1.orderNo, userId: userIdK1, createTime: pendingK1.createTime, rechargeType: pendingK1.rechargeType };
+                auditOkK1 = auditOrderNow(adminToken, orderForAudit, pendingK1.amount, true);
+                sleep(2);
+                orderAfterK1 = findOrderByOrderNo(adminToken, userIdK1, pendingK1.orderNo, pendingK1.rechargeType, pendingK1.createTime, true);
+                console.log(`[K1] T3-补单结果=${auditOkK1}，补单后订单状态=${orderAfterK1 ? orderAfterK1.rechargeState : '查不到'}`
+                    + '(排除"补单本身失败导致没发放"的假阴性，需确认这里是Payed)');
+            } else {
+                console.error('[K1] T1阶段没拿到有效的pending订单信息，无法进行T3补单，跳过');
+            }
+
+            sleep(3);
+            reportCase('K1-核心bug验证-充值发起早于资格获得', userIdK1, phoneK1,
+                '标准H5注册后立即发起充值2000(≥阈值1200,T1,此时不具备资格)，之后才clientType=2登录获得资格'
+                + '(T2>T1)，后台才给T1那笔订单补单完成(T3>T2)——订单发起时间早于资格获得时间，修复后不应该'
+                + '被算作"资格获得后的首笔充值"，预期state≠1(应为2已拒绝或停留0待完成)；补单本身确认成功='
+                + auditOkK1 + '，补单后订单状态=' + (orderAfterK1 ? orderAfterK1.rechargeState : '查不到'),
+                getDownloadRewardRecordByUserId(adminToken, userIdK1));
+        }
+    }
+}
+
+// ============================================================
+// L组：真实订单补单流程下的首充阈值判定(用户补充的"情况3"，用真实充值
+// 流程重做一次C5，排除"人工充值(manualRecharge)"和"真实订单补单
+// (DepositRecharge+ManualAuditXXX)"这两条独立充值路径判定逻辑不一致的疑虑)
+// ============================================================
+function runGroupL_RealOrderFirstRechargeThreshold(adminToken) {
+    console.log('========== L组：真实订单补单流程下的首充阈值判定(先小后大) ==========');
+    updateDownloadRewardSetting(adminToken, 'DownloadRewardRechargeType', '1', '1200');
+    ensureDownloadRewardConfig(adminToken, {
+        DownloadRewardRechargeType: '1',
+        DownloadRewardDeviceLimit: '9', DownloadRewardIpLimit: '0', DownloadRewardFingerprintLimit: '9'
+    }, 'L组准备');
+    sleep(2);
+
+    const u = newAccount('L1-真实流程先小后大', 2);
+    if (u && u.token) {
+        const first = assembleFiatRechargeNoUsdt(u.token, adminToken, u.userId, 500, { audit: true, forceTenant: true });
+        console.log(`[L1] 第1笔(500,<阈值1200)真实订单+补单结果: ${JSON.stringify(first)}`);
+        sleep(3);
+        const second = assembleFiatRechargeNoUsdt(u.token, adminToken, u.userId, 2000, { audit: true, forceTenant: true });
+        console.log(`[L1] 第2笔(2000,≥阈值1200)真实订单+补单结果: ${JSON.stringify(second)}`);
+        sleep(3);
+        reportCase('L1-真实流程先小后大(500→2000)', u.userId, u.phone,
+            '首笔(500)未达标，资格已失效，第2笔(2000)再怎么充都不应被追认发放——用真实订单+补单流程重做'
+            + 'C5同款场景，应跟C5(人工充值捷径)保持一致的"不发放"结论；如果这里不一致要如实报告为新发现',
+            getDownloadRewardRecordByUserId(adminToken, u.userId));
+    } else if (u) {
+        console.error('[L1] 没拿到userToken，跳过');
     }
 }
 
@@ -694,6 +823,8 @@ export default function () {
     runGroupA_ClientTypeDetection(adminToken);
     runGroupB_CombinedClaimLimit(adminToken);
     runGroupC_RechargeRules(adminToken);
+    runGroupK_RechargeOrderingVsEligibility(adminToken); // 充值发起时间 vs 资格获得时间点(时序bug验证)
+    runGroupL_RealOrderFirstRechargeThreshold(adminToken); // 真实订单补单流程下的首充阈值判定
     runGroupD_DeviceIdLimit(adminToken);
     runGroupE_IpLimit(adminToken);
     runGroupF_FingerprintLimit(adminToken);
