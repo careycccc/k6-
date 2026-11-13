@@ -381,10 +381,10 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
  * @param {string} remark - 备注
  * @returns {object} { success: boolean, amount: number, method: string, message: string }
  */
-export function backendRecharge(adminToken, userId, amount, remark = 'Auto Backend Recharge') {
+export function backendRecharge(adminToken, userId, amount, remark = 'Auto Backend Recharge', forceTenant = false) {
     console.log(`[BackendRecharge] 开始后台充值，用户ID: ${userId}, 金额: ${amount}`);
 
-    const result = manualRecharge(adminToken, userId, amount, 1, remark);
+    const result = manualRecharge(adminToken, userId, amount, 1, remark, 3, forceTenant);
 
     if (result && result.success) {
         console.log(`[BackendRecharge] ✅ 后台充值成功，金额: ${amount}`);
@@ -413,7 +413,8 @@ export function hybridRecharge(options) {
         userId,
         amount,
         frontendFirst = true,
-        remark = 'Hybrid Recharge'
+        remark = 'Hybrid Recharge',
+        forceTenant = false
     } = options;
 
     if (!adminToken || !userId || !amount) {
@@ -438,7 +439,7 @@ export function hybridRecharge(options) {
 
     // 策略2: 后台充值兜底
     console.log(`[HybridRecharge] 使用后台充值...`);
-    const backResult = backendRecharge(adminToken, userId, amount, remark);
+    const backResult = backendRecharge(adminToken, userId, amount, remark, forceTenant);
 
     if (backResult.success) {
         console.log(`[HybridRecharge] ✅ 后台充值成功`);

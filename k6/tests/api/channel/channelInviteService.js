@@ -72,9 +72,14 @@ export function distributePeople(totalPeople, levels) {
 
 /**
  * 根据 INVITE_CODE_MODE 计算实际使用的邀请标识
+ * @param {string} parentInviteCode
+ * @param {number} parentUserId
+ * @param {string} [modeOverride] - 显式指定模式('1'/'2'/'3'/'mix')，优先于 __ENV.INVITE_CODE_MODE；
+ *   多渠道场景(如需要在同一次运行里让wheel渠道走模式2、其它渠道走模式1)必须用这个参数，
+ *   不能只依赖全局环境变量(整个运行过程只有一个值，没法按渠道区分)。
  */
-function resolveInviteIdentifier(parentInviteCode, parentUserId) {
-    const mode = (__ENV.INVITE_CODE_MODE || '1');
+export function resolveInviteIdentifier(parentInviteCode, parentUserId, modeOverride) {
+    const mode = modeOverride || (__ENV.INVITE_CODE_MODE || '1');
     let effectiveMode;
 
     if (mode === 'mix') {
@@ -121,7 +126,7 @@ function calcWithdrawAmount(balance) {
  * @param {string} countryCode    - 区号
  * @returns {object|null} { token, userId, account, isEmbed }
  */
-function registerSubUser(userName, inviteIdentifier, adminToken, embedOptions, countryCode) {
+export function registerSubUser(userName, inviteIdentifier, adminToken, embedOptions, countryCode) {
     const isEmbed = embedOptions !== null;
 
     // 1. 发送验证码（走 ar-cfdeploy.club）
@@ -242,7 +247,7 @@ function registerSubUser(userName, inviteIdentifier, adminToken, embedOptions, c
 /**
  * 执行充值（随机 1~3 次）
  */
-function doRecharge(userToken, userId, adminToken) {
+export function doRecharge(userToken, userId, adminToken) {
     const rand  = Math.random();
     const count = rand < 0.6 ? 1 : rand < 0.9 ? 2 : 3;
     let totalAmount = 0;
@@ -252,7 +257,7 @@ function doRecharge(userToken, userId, adminToken) {
         if (i > 0) sleep(2);
         const label  = ['首充', '二充', '三充'][i];
         const amount = getConfigRechargeAmount();
-        const result = hybridRecharge({ userToken, adminToken, userId, amount, frontendFirst: true, remark: `Channel-${label}` });
+        const result = hybridRecharge({ userToken, adminToken, userId, amount, frontendFirst: true, remark: `Channel-${label}`, forceTenant: true });
         if (result.success) {
             success = true;
             totalAmount += result.amount;
@@ -268,7 +273,7 @@ function doRecharge(userToken, userId, adminToken) {
 /**
  * 执行投注（随机 1~2 次）
  */
-function doBet(userToken, account) {
+export function doBet(userToken, account) {
     const count = Math.random() < 0.5 ? 1 : 2;
     let totalAmount = 0;
     let successCount = 0;
@@ -287,7 +292,7 @@ function doBet(userToken, account) {
 /**
  * 执行提现
  */
-function doWithdraw(userToken, userId, adminToken, enableBackendApproval) {
+export function doWithdraw(userToken, userId, adminToken, enableBackendApproval) {
     const balanceInfo = getAccountBalance(userToken);
     if (!balanceInfo) return { success: false, amount: 0, reason: '获取余额失败' };
 
@@ -295,7 +300,7 @@ function doWithdraw(userToken, userId, adminToken, enableBackendApproval) {
     const withdrawAmount = calcWithdrawAmount(balance);
     if (withdrawAmount <= 0) return { success: false, amount: 0, reason: `余额${balance}不足` };
 
-    addAllWallets(adminToken, userId, userToken);
+    addAllWallets(adminToken, userId, userToken, true);
     sleep(1);
 
     const pwdRes = setWithdrawPassword(userToken, '123456');

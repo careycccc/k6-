@@ -32,21 +32,28 @@ function listOf(res) {
  * @param {string} adminToken
  * @param {Set<string>|string[]} excludeAccounts
  * @param {number} count
- * @returns {Array<{userId:number, account:string}>} 实际抽到的数量可能小于count(会员总数不够时)
+ * @param {{packageId?: number[]}} [extraFilter] - 额外的GetPageList过滤条件，合并进
+ *   payload(目前只支持packageId渠道过滤)——多渠道造数场景要按渠道去查老账号，不能像
+ *   之前那样不分渠道随机抽。传了之后必须用forceTenant=true(第6参数)调sendRequest，
+ *   否则默认走集团路由，拿不到明文手机号。
+ * @returns {Array<{userId:number, account:string, packageId:number, packageName:string}>} 实际抽到的
+ *   数量可能小于count(会员总数不够时)；packageId/packageName直接取自GetPageList原始记录，供调用方
+ *   确认"抽到的老账号真的属于目标渠道"，不需要再额外查一次。
  */
-export function fishOldMembers(adminToken, excludeAccounts, count) {
+export function fishOldMembers(adminToken, excludeAccounts, count, extraFilter = {}) {
     const excludeSet = excludeAccounts instanceof Set ? excludeAccounts : new Set(excludeAccounts);
     const candidates = [];
     const maxPages = 15;
     for (let page = 1; page <= maxPages && candidates.length < count * 3; page++) {
-        const res = sendRequest({ userType: [0], pageNo: page, pageSize: 100, orderBy: 'Desc' }, '/api/Users/GetPageList', TAG, false, adminToken);
+        const payload = { userType: [0], pageNo: page, pageSize: 100, orderBy: 'Desc', ...extraFilter };
+        const res = sendRequest(payload, '/api/Users/GetPageList', TAG, false, adminToken, true);
         const list = listOf(res);
         if (!list.length) break;
         for (const u of list) {
             if (!u.account || String(u.account).includes('*')) continue;
             const account = String(u.account);
             if (excludeSet.has(account)) continue;
-            candidates.push({ userId: u.userId, account });
+            candidates.push({ userId: u.userId, account, packageId: u.packageId, packageName: u.packageName });
         }
         sleep(0.5);
     }
@@ -73,7 +80,7 @@ export function loginOrResetFished(adminToken, account, userId) {
     let token = loginByPasswordRetry(account, STANDARD_PASSWORD, 2);
     if (token) return { token, passwordWasReset: false };
 
-    const resetResp = sendRequest({ userId, password: STANDARD_PASSWORD }, '/api/Users/UpdatePassword', TAG, false, adminToken);
+    const resetResp = sendRequest({ userId, password: STANDARD_PASSWORD }, '/api/Users/UpdatePassword', TAG, false, adminToken, true);
     console.log(`[${TAG}] userId=${userId}(${account}) 标准密码登录失败，后台重置密码: ${JSON.stringify(resetResp)}`);
     sleep(3);
     token = loginByPasswordRetry(account, STANDARD_PASSWORD, 2);
