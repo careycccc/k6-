@@ -38,15 +38,25 @@ export function getConfigRechargeAmount() {
  * @param {string} adminToken - 管理员token
  * @param {number} userId - 用户ID
  * @param {number} targetAmount - 目标充值金额
+ * @param {boolean} [forceTenant=false] - 2026-11-14新增：adminToken是
+ *   tenantAdminLogin(tenantId, true)拿到的"商户自己的token"时必须传true，否则这里
+ *   面查订单/后台审核/商品模式兜底充值的所有接口都会被默认路由打到集团域名，报
+ *   "Account type does not match the admin site"。此前这整条"前台充值优先"路径
+ *   一直没拿到forceTenant(只有hybridRecharge的"后台兜底"那条路径传对了)，所以每次
+ *   在商户token场景下前台这条路径必然全部失败，靠第二次后台兜底掩盖，表现为一堆
+ *   "Account type does not match"噪音后紧跟着充值成功——不是新问题，是本次顺手修的
+ *   历史遗留。
  * @returns {object} { success: boolean, amount: number, method: string, message: string }
  */
-export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
+export function frontendRecharge(userToken, adminToken, userId, targetAmount, forceTenant = false) {
     console.log(`[FrontRecharge] 开始前台充值流程，用户ID: ${userId}, 目标金额: ${targetAmount}`);
+    const backendRechargeWithTenant = (fnAdminToken, fnUserId, fnAmount, fnRemark) =>
+        backendRecharge(fnAdminToken, fnUserId, fnAmount, fnRemark, forceTenant);
 
     // 商品模式已启用（此前有用户遇到 10049）→ 直接走商品模式，不再试经典
     if (useGoodsMode) {
         console.log(`[FrontRecharge] 商品模式已启用，直接走商品充值`);
-        return goodsFrontendRecharge(userToken, adminToken, userId, targetAmount, backendRecharge);
+        return goodsFrontendRecharge(userToken, adminToken, userId, targetAmount, backendRechargeWithTenant, { forceTenant });
     }
 
     // 1. 获取充值通道列表
@@ -131,12 +141,12 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
                 sleep(3);
                 const startTime = rechargeRequestTime - 60000;
                 const endTime = Date.now() + 60000;
-                const orders = getLocalRechargeOrderPageList(adminToken, userId, startTime, endTime);
+                const orders = getLocalRechargeOrderPageList(adminToken, userId, startTime, endTime, forceTenant);
                 if (orders && orders.length > 0) {
                     orders.sort((a, b) => b.createTime - a.createTime);
                     for (let order of orders) {
                         if (order.orderNo === orderNo && (order.rechargeState === 'Wait' || order.rechargeState === 'PendingReview')) {
-                            const auditRes = manualAuditLocalRechargeOrder(adminToken, order.orderNo, userId, order.createTime, order.amount);
+                            const auditRes = manualAuditLocalRechargeOrder(adminToken, order.orderNo, userId, order.createTime, order.amount, 'auto-audit', forceTenant);
                             if (auditRes) { auditSuccess = true; break; }
                         }
                     }
@@ -201,7 +211,7 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
         if (msgCode === 10049) {
             console.warn(`[FrontRecharge] 检测到商品模式(msgCode 10049 Unsupport recharge mode)，切换到商品模式`);
             useGoodsMode = true;
-            return goodsFrontendRecharge(userToken, adminToken, userId, targetAmount, backendRecharge);
+            return goodsFrontendRecharge(userToken, adminToken, userId, targetAmount, backendRechargeWithTenant, { forceTenant });
         }
 
         console.log(`[FrontRecharge] 充值响应详情:`);
@@ -277,7 +287,7 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
 
                     console.log(`[FrontRecharge] 查询订单时间范围: ${new Date(startTime).toISOString()} ~ ${new Date(endTime).toISOString()}`);
 
-                    const orders = getLocalRechargeOrderPageList(adminToken, userId, startTime, endTime);
+                    const orders = getLocalRechargeOrderPageList(adminToken, userId, startTime, endTime, forceTenant);
                     let targetOrder = null;
 
                     if (orders && orders.length > 0) {
@@ -305,7 +315,7 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
 
                     if (targetOrder) {
                         console.log(`[FrontRecharge] 匹配到本地订单 ${targetOrder.orderNo}，开始审核`);
-                        const auditRes = manualAuditLocalRechargeOrder(adminToken, targetOrder.orderNo, userId, targetOrder.createTime, amount);
+                        const auditRes = manualAuditLocalRechargeOrder(adminToken, targetOrder.orderNo, userId, targetOrder.createTime, amount, 'auto-audit', forceTenant);
                         if (auditRes) {
                             auditSuccess = true;
                             console.log(`[FrontRecharge] ✅ 本地订单审核成功`);
@@ -317,7 +327,7 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
 
                 } else {
                     // 查询三方订单（使用固定的时间基准）
-                    const orders = getRechargeOrderPageList(adminToken, userId, "ThirdRecharge");
+                    const orders = getRechargeOrderPageList(adminToken, userId, "ThirdRecharge", forceTenant);
                     let targetOrder = null;
 
                     if (orders && orders.length > 0) {
@@ -343,7 +353,7 @@ export function frontendRecharge(userToken, adminToken, userId, targetAmount) {
 
                     if (targetOrder) {
                         console.log(`[FrontRecharge] 匹配到三方订单 ${targetOrder.orderNo}，开始审核`);
-                        const auditRes = manualAuditRechargeOrder(adminToken, targetOrder.orderNo, userId, targetOrder.createTime, amount);
+                        const auditRes = manualAuditRechargeOrder(adminToken, targetOrder.orderNo, userId, targetOrder.createTime, amount, 'auto-audit', forceTenant);
                         if (auditRes) {
                             auditSuccess = true;
                             break;
@@ -427,7 +437,7 @@ export function hybridRecharge(options) {
     // 策略1: 优先前台充值（如果有userToken且frontendFirst为true）
     if (frontendFirst && userToken) {
         console.log(`[HybridRecharge] 尝试前台充值...`);
-        const frontResult = frontendRecharge(userToken, adminToken, userId, amount);
+        const frontResult = frontendRecharge(userToken, adminToken, userId, amount, forceTenant);
 
         if (frontResult.success) {
             console.log(`[HybridRecharge] ✅ 前台充值成功`);

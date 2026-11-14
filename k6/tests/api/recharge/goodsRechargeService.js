@@ -97,31 +97,36 @@ function pickCategory(goods) {
 /**
  * 查该用户今天的三方 + 本地订单，对未到账订单逐笔补单。
  * 已到账(Payed)视为已成功、补单成功也计入。
+ * @param {boolean} [forceTenant=false] - 2026-11-14新增：adminToken是
+ *   tenantAdminLogin(tenantId, true)拿到的"商户自己的token"时必须传true，否则
+ *   这4个查询/审核接口会被默认路由打到集团域名，报"Account type does not match
+ *   the admin site"——这是之前"前台充值失败→切后台兜底"流程里一直存在、被
+ *   第二次重试掩盖的噪音根源，不是本次新引入的问题。
  * @returns {{count:number, amount:number}} 成功(到账或补单成功)的订单数与金额合计
  */
-export function auditTodayOrders(adminToken, userId) {
+export function auditTodayOrders(adminToken, userId, forceTenant = false) {
     const tag = 'GoodsAudit';
     const { startTime, endTime } = todayRange();
     let count = 0;
     let amount = 0;
 
     // ---- 三方订单 ----
-    const thirdResp = getRechargeOrderPageListFull(adminToken, { userId, startTime, endTime, pageSize: 100, dateType: 0 });
+    const thirdResp = getRechargeOrderPageListFull(adminToken, { userId, startTime, endTime, pageSize: 100, dateType: 0 }, forceTenant);
     const thirdList = extractList(thirdResp);
     console.log(`[${tag}] 今日三方订单 ${thirdList.length} 笔`);
     for (const o of thirdList) {
         if (o.rechargeState === 'Payed') { count++; amount += Number(o.amount) || 0; continue; }
-        const ok = manualAuditRechargeOrder(adminToken, o.orderNo, userId, o.createTime, o.amount);
+        const ok = manualAuditRechargeOrder(adminToken, o.orderNo, userId, o.createTime, o.amount, 'auto-audit', forceTenant);
         if (ok) { count++; amount += Number(o.amount) || 0; }
         sleep(0.5);
     }
 
     // ---- 本地订单 ----
-    const localList = getLocalRechargeOrderPageList(adminToken, userId, startTime, endTime) || [];
+    const localList = getLocalRechargeOrderPageList(adminToken, userId, startTime, endTime, forceTenant) || [];
     console.log(`[${tag}] 今日本地订单 ${localList.length} 笔`);
     for (const o of localList) {
         if (o.rechargeState === 'Payed') { count++; amount += Number(o.amount) || 0; continue; }
-        const ok = manualAuditLocalRechargeOrder(adminToken, o.orderNo, userId, o.createTime, o.amount);
+        const ok = manualAuditLocalRechargeOrder(adminToken, o.orderNo, userId, o.createTime, o.amount, 'auto-audit', forceTenant);
         if (ok) { count++; amount += Number(o.amount) || 0; }
         sleep(0.5);
     }
@@ -138,13 +143,16 @@ export function auditTodayOrders(adminToken, userId) {
  * @param {number}   userId
  * @param {number}   targetAmount
  * @param {Function} backendRechargeFn - 后台兜底函数(adminToken,userId,amount,remark)=>{success,amount,...}
- *                                       由 rechargeService 注入，避免循环依赖
- * @param {object}   [options] - { gapSec }
+ *                                       由 rechargeService 注入，避免循环依赖。调用方若需要
+ *                                       forceTenant=true，请在注入时自己用闭包绑定好(本函数
+ *                                       只负责调用，不改backendRechargeFn的参数个数)。
+ * @param {object}   [options] - { gapSec, forceTenant }
  * @returns {{success:boolean, amount:number, method:string, message:string}}
  */
 export function goodsFrontendRecharge(userToken, adminToken, userId, targetAmount, backendRechargeFn, options = {}) {
     const tag = 'GoodsRecharge';
     const gapSec = options.gapSec != null ? options.gapSec : 1.5;
+    const forceTenant = options.forceTenant || false;
 
     // 1. 盘面
     const basic = getRechargeBasicInfo(userToken);
@@ -186,7 +194,7 @@ export function goodsFrontendRecharge(userToken, adminToken, userId, targetAmoun
 
     // 4. 查今天订单 + 补单
     sleep(2);
-    const audited = auditTodayOrders(adminToken, userId);
+    const audited = auditTodayOrders(adminToken, userId, forceTenant);
 
     if (audited.count > 0) {
         console.log(`[${tag}] ✅ userId=${userId} 商品充值成功：到账/补单 ${audited.count} 笔，合计 ${audited.amount}`);

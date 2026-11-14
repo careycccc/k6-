@@ -135,9 +135,12 @@ export function getRechargeOrderPageList(adminToken, userId, rechargeChannelType
  * @param {string} options.maxActualAmount - 最大金额（可选）
  * @param {number} options.dateType - 日期类型（默认0）
  * @param {string} options.orderBy - 排序方式（默认Desc）
+ * @param {boolean} [forceTenant=false] - 同 getLocalRechargeOrderPageList 的 forceTenant
+ *   (2026-11-14新增：这个函数之前漏了，是goodsRechargeService.js::auditTodayOrders里
+ *   "Account type does not match the admin site"噪音的根源之一)
  * @returns {object|null} 返回完整响应对象，包含订单列表和分页信息
  */
-export function getRechargeOrderPageListFull(adminToken, options) {
+export function getRechargeOrderPageListFull(adminToken, options, forceTenant = false) {
     const api = '/api/RechargeOrder/GetRechargeOrderPageList';
     const tag = 'GetRechargeOrderPageList';
     
@@ -179,13 +182,13 @@ export function getRechargeOrderPageListFull(adminToken, options) {
     }
 
     // 使用 sendRequest 发送后台请求，isDesk = false
-    const response = sendRequest(payload, api, tag, false, adminToken);
-    
+    const response = sendRequest(payload, api, tag, false, adminToken, forceTenant);
+
     if (!response) {
         console.error(`[${tag}] 查询订单列表失败, 响应内容: ${JSON.stringify(response)}`);
         return null;
     }
-    
+
     return response;
 }
 
