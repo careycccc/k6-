@@ -23,6 +23,14 @@
  *      vendorCode等筛选字段，只传beginTimeUnix/endTimeUnix就能拿到全站范围的汇总，
  *      返回的betAmount/winAmount/winLoseAmount正好对应这次新增的投注金额/派奖金额/
  *      会员盈亏——不需要像查注单明细那样逐用户/逐游戏类型查了再手动累加。
+ *      【2026-11-14修正】queryTimeType必须传'SettleTime'(按结算时间)，不能传
+ *      'BetTime'(按投注时间)——按投注时间查会把"投注时间落在范围内、但还没结算"
+ *      的注单也计入betAmount，而报表(GetDataAnalysis/GetPackageAnalysis)的投注
+ *      类字段只统计已结算的注单，导致本地统计虚高(实测某天差了8.5万+，派奖/盈亏
+ *      差距很小，因为那两个字段本身就只在结算后才有值，受影响不大，唯独betAmount
+ *      两种口径天然不同)。改用SettleTime后未结算的注单没有落在结算时间窗口内，
+ *      自然被排除，不需要再额外传orderState=1过滤(orderState=1代表已结算，见
+ *      agentL3/inviteCondition/api.js等多处脚本的验证)。
  *   4) 【2026-11-13重要修正】渠道来源分析(GetPackageAnalysis)不传任何过滤条件时，
  *      返回的那一行并不是"自动列出的某个渠道"，而是全站合计(packageName固定显示
  *      为"合计"，覆盖了真实包名)——这一点之前理解错了，一度以为"后台没配置渠道包
@@ -43,14 +51,15 @@
  *      /api/Users/GetPageList 直接看某个会员身上的packageId/packageName字段。
  *   5) 这是共享测试环境，查询有先后时间差，其它人/进程可能同时在产生新数据——
  *      比对时允许小的绝对误差，不强求逐分毫完全相等。
- *   6) 【重要】用"今天"(实时变动中的自然日)验证投注类3个字段(betAmount/payoutAmount/
- *      memberWinLoseAmount)时，实测发现报表返回的是非零值(如25.2/30.8/5.6)，但
- *      GetBetRecordGameSummary查"今天"范围、甚至扩大到"过去5天"范围，都找不到任何
- *      一笔精确对得上这几个数字的真实投注记录——用DATE参数指定"昨天"等已完整结束
- *      的历史日期重跑，15项检查全部PASS，口径完全正确。这说明问题不在统计公式本身，
- *      而是"今天"这个实时字段可能存在定时任务未及时刷新/缓存过期/测试阶段遗留默认值
- *      等数据新鲜度问题——验证这6个新字段时优先用已完整结束的历史日期，"今天"的结果
- *      仅供参考，不能直接当作判定依据。
+ *   6) 【2026-11-14更正】之前(2026-11-13)这里写过"用'今天'验证投注类3个字段对不上，
+ *      怀疑是报表定时任务未及时刷新的数据新鲜度问题，建议只用已结束的历史日期"——
+ *      这个归因是错的，已验证并更正：真正原因是第3条里说的queryTimeType用错了
+ *      ('BetTime'而非'SettleTime')，跟日期是"今天"还是"历史"无关(用2026-11-13这个
+ *      当时判定为"不稳定"的历史日期重新验证，改用SettleTime后15项检查全部PASS，
+ *      包括之前差了8.5万+的投注金额，分毫不差)。不过验证投注类字段时仍建议避开
+ *      "当前还没过完的今天"——不是因为报表不准，是因为当天投注还在持续产生，两次
+ *      查询之间(本地统计 vs 报表接口)难免有几秒时间差导致的小幅波动(本节第5条提过
+ *      的共享环境查询时间差，跟这里是两回事)，已结束的历史日期没有这个变量。
  *   7) 全部用 sendRequest 调后台查询接口都必须显式传 forceTenant=true（第6个参数），
  *      否则默认走集团路由，拿单租户token去访问会报"Account type does not match
  *      the admin site"(msgCode=13208)。
@@ -130,10 +139,18 @@ function calcRechargeStats(adminToken, startTs, endTs) {
 
 // ============================================================
 // 真值 2：游戏投注汇总（全站，不筛用户/渠道/游戏类型）
+//
+// 2026-11-14修正：之前用 queryTimeType:'BetTime' 按投注时间查，会把"投注时间落在
+// 当天、但还没结算"的注单也计入 betAmount，而报表(GetDataAnalysis)的投注类字段
+// 只统计已结算的——导致本地统计虚高(实测某天差了8万+)，派奖/盈亏差距很小(因为那
+// 两个字段本身就只在结算后才有值)。改成 queryTimeType:'SettleTime' 按结算时间查，
+// 未结算的注单没有结算时间、自然不会落在这个时间窗口里，不需要再额外传
+// orderState=1 过滤(用户2026-11-14用后台抓包确认，这套接口参数已经被
+// inviteCondition/api.js 等多处脚本验证过 orderState=1 代表已结算)。
 // ============================================================
 function getBetSummary(adminToken, startTs, endTs) {
     const res = sendRequest(
-        { queryTimeType: 'BetTime', beginTimeUnix: startTs, endTimeUnix: endTs },
+        { queryTimeType: 'SettleTime', beginTimeUnix: startTs, endTimeUnix: endTs },
         '/api/ThirdGame/GetBetRecordGameSummary', TAG, false, adminToken, true
     );
     // sendRequest 返回的就是响应体的 data 字段本身(已被 testCommonRequest 解包一层)，不是 {data:{...}}
