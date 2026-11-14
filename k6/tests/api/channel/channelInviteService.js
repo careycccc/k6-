@@ -290,16 +290,20 @@ export function doBet(userToken, account) {
 }
 
 /**
- * 执行提现
+ * 执行提现（随机1~3次，跟doRecharge/doBet的多次模式保持一致——2026-11-15改造，
+ * 之前这里只提现一次；绑钱包+设提现密码是一次性准备，不需要每次循环都重做，循环
+ * 里每次都重新查最新余额+当日剩余提现次数，碰到"次数用完/余额不足/打码未完成"
+ * 这类业务边界就停止，不是失败重试，是正常收尾）
+ *
+ * @param {boolean} [forceTenantForApproval=false] - 2026-11-13新增：传给
+ *   runBackendWithdrawApproval的forceTenant(见backendWithdrawApi.js文件头)。
+ *   如果adminToken是tenantAdminLogin(tenantId, true)拿到的"商户自己的token"
+ *   (如multiChannelAudienceBuilder.js)，必须传true，否则后台审核的5个接口会被
+ *   默认路由打到集团域名，报"Account type does not match the admin site"，
+ *   查询"成功"但订单列表恒为空，容易误判成"没有待审核订单"(2026-11-13实测踩坑)。
+ *   buildChannelTeam等走集团token的现有调用方不传此参数，保持默认false不受影响。
  */
-export function doWithdraw(userToken, userId, adminToken, enableBackendApproval) {
-    const balanceInfo = getAccountBalance(userToken);
-    if (!balanceInfo) return { success: false, amount: 0, reason: '获取余额失败' };
-
-    const balance        = balanceInfo.balance || 0;
-    const withdrawAmount = calcWithdrawAmount(balance);
-    if (withdrawAmount <= 0) return { success: false, amount: 0, reason: `余额${balance}不足` };
-
+export function doWithdraw(userToken, userId, adminToken, enableBackendApproval, forceTenantForApproval = false) {
     addAllWallets(adminToken, userId, userToken, true);
     sleep(1);
 
@@ -308,30 +312,53 @@ export function doWithdraw(userToken, userId, adminToken, enableBackendApproval)
         console.warn('[ChannelInvite] 设置提现密码可能失败，继续尝试');
     }
 
-    const withdrawInfo = getWithdrawBasicInfo(userToken);
-    if (!withdrawInfo) return { success: false, amount: 0, reason: '获取提现信息失败' };
-    if (withdrawInfo.userTodayWithdrawCount === 0) return { success: false, amount: 0, reason: '今日提现次数为0' };
-    if (withdrawInfo.amountCoding !== 0) return { success: false, amount: 0, reason: `打码量未完成(${withdrawInfo.amountCoding})` };
+    const rand = Math.random();
+    const maxAttempts = rand < 0.5 ? 1 : rand < 0.85 ? 2 : 3;
 
-    const categoryList = (withdrawInfo.withdrawCategoryList || []).filter(c => c.withdrawType !== 'UPI');
-    if (categoryList.length === 0) return { success: false, amount: 0, reason: '无可用通道' };
+    let successCount = 0, totalAmount = 0, lastReason = '未执行';
 
-    const category     = categoryList[Math.floor(Math.random() * categoryList.length)];
-    const withdrawType = category.withdrawType;
-    const withdrawId   = category.id;
+    for (let i = 0; i < maxAttempts; i++) {
+        // 连续提现容易撞到后台"Too frequent access"限流(跟充值的Too frequent同款限流，
+        // 2026-11-13实测3秒间隔偶尔不够，提到6秒)。
+        if (i > 0) sleep(6);
 
-    const walletId = getUserWithdrawWallet(userToken, withdrawType);
-    if (!walletId) return { success: false, amount: 0, reason: '获取钱包ID失败' };
+        const balanceInfo = getAccountBalance(userToken);
+        if (!balanceInfo) { lastReason = '获取余额失败'; break; }
+        const balance = balanceInfo.balance || 0;
+        const withdrawAmount = calcWithdrawAmount(balance);
+        if (withdrawAmount <= 0) { lastReason = `余额${balance}不足`; break; }
 
-    const applyResult = withdrawApply(userToken, withdrawAmount, walletId, withdrawId, withdrawType, '123456');
-    if (!applyResult) return { success: false, amount: 0, reason: '提现申请失败' };
+        const withdrawInfo = getWithdrawBasicInfo(userToken);
+        if (!withdrawInfo) { lastReason = '获取提现信息失败'; break; }
+        if (withdrawInfo.userTodayWithdrawCount === 0) { lastReason = '今日提现次数已用完'; break; }
+        if (withdrawInfo.amountCoding !== 0) { lastReason = `打码量未完成(${withdrawInfo.amountCoding})`; break; }
 
-    if (enableBackendApproval) {
-        sleep(2);
-        runBackendWithdrawApproval(adminToken, userId, withdrawType, withdrawAmount);
+        const categoryList = (withdrawInfo.withdrawCategoryList || []).filter(c => c.withdrawType !== 'UPI');
+        if (categoryList.length === 0) { lastReason = '无可用通道'; break; }
+
+        const category     = categoryList[Math.floor(Math.random() * categoryList.length)];
+        const withdrawType = category.withdrawType;
+        const withdrawId   = category.id;
+
+        const walletId = getUserWithdrawWallet(userToken, withdrawType);
+        if (!walletId) { lastReason = '获取钱包ID失败'; break; }
+
+        const applyResult = withdrawApply(userToken, withdrawAmount, walletId, withdrawId, withdrawType, '123456');
+        if (!applyResult) { lastReason = '提现申请失败'; break; }
+
+        const label = ['首次', '二次', '三次'][i];
+        console.log(`[ChannelInvite] ✅ ${label}提现成功: ${withdrawAmount}`);
+        successCount++;
+        totalAmount += withdrawAmount;
+        lastReason = '成功';
+
+        if (enableBackendApproval) {
+            sleep(2);
+            runBackendWithdrawApproval(adminToken, userId, withdrawType, withdrawAmount, forceTenantForApproval);
+        }
     }
 
-    return { success: true, amount: withdrawAmount, reason: '成功' };
+    return { success: successCount > 0, amount: totalAmount, count: successCount, reason: lastReason };
 }
 
 // ============================================================

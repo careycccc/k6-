@@ -183,7 +183,7 @@ function runBehaviorBatch(accounts, adminToken, { enableWithdraw, enableBackendA
         const record = {
             channel: acc.channel, source: acc.source, account: acc.account, userId: acc.userId,
             packageId: acc.packageId, packageName: acc.packageName,
-            rechargeAmt: 0, rechargeTimes: 0, betAmt: 0, betTimes: 0, withdrawAmt: 0, withdrawStatus: '未执行'
+            rechargeAmt: 0, rechargeTimes: 0, betAmt: 0, betTimes: 0, withdrawAmt: 0, withdrawTimes: 0, withdrawStatus: '未执行'
         };
 
         const rechargeResult = doRecharge(acc.token, acc.userId, adminToken);
@@ -202,9 +202,13 @@ function runBehaviorBatch(accounts, adminToken, { enableWithdraw, enableBackendA
 
         if (enableWithdraw) {
             sleep(2);
-            const wResult = doWithdraw(acc.token, acc.userId, adminToken, enableBackendApproval);
+            // adminToken来自tenantAdminLogin(tenantId, true)——商户自己的token，
+            // 后台审核的5个接口必须显式forceTenant=true，否则会被默认路由打到集团
+            // 域名(见channelInviteService.js::doWithdraw/backendWithdrawApi.js文件头)
+            const wResult = doWithdraw(acc.token, acc.userId, adminToken, enableBackendApproval, true);
             record.withdrawAmt = wResult.amount;
-            record.withdrawStatus = wResult.success ? '✅成功' : `❌${wResult.reason}`;
+            record.withdrawTimes = wResult.count || 0;
+            record.withdrawStatus = wResult.success ? `✅成功(${wResult.count}次)` : `❌${wResult.reason}`;
         } else {
             record.withdrawStatus = '跳过(未开启)';
         }
@@ -328,13 +332,15 @@ export function buildMultiChannelAudience(params) {
             rechargeAmount: rows.reduce((s, r) => s + r.rechargeAmt, 0),
             rechargeTimes: rows.reduce((s, r) => s + r.rechargeTimes, 0),
             betAmount: rows.reduce((s, r) => s + r.betAmt, 0),
-            withdrawAmount: rows.reduce((s, r) => s + r.withdrawAmt, 0)
+            betTimes: rows.reduce((s, r) => s + r.betTimes, 0),
+            withdrawAmount: rows.reduce((s, r) => s + r.withdrawAmt, 0),
+            withdrawTimes: rows.reduce((s, r) => s + (r.withdrawTimes || 0), 0)
         };
     }
 
     console.log(`\n[${TAG}] ========== 多渠道账号池构建完成 ==========`);
     for (const [ch, s] of Object.entries(summaryByChannel)) {
-        console.log(`[${TAG}] ${ch}: packageId=${JSON.stringify(s.packageIds)} 共${s.total}人(老${s.oldCount}/新${s.newCount}) 充值${s.rechargeAmount.toFixed(2)}(${s.rechargeTimes}次) 投注${s.betAmount.toFixed(2)} 提现${s.withdrawAmount.toFixed(2)}`);
+        console.log(`[${TAG}] ${ch}: packageId=${JSON.stringify(s.packageIds)} 共${s.total}人(老${s.oldCount}/新${s.newCount}) 充值${s.rechargeAmount.toFixed(2)}(${s.rechargeTimes}次) 投注${s.betAmount.toFixed(2)}(${s.betTimes}次) 提现${s.withdrawAmount.toFixed(2)}(${s.withdrawTimes}次)`);
     }
     console.log(`[${TAG}] 渠道→packageId映射(供事后单独验证时直接传给验证脚本): ${JSON.stringify(channelPackageIds)}`);
     console.log(`[${TAG}] 本次涉及的全部userId: ${JSON.stringify(allRecords.map(r => r.userId))}`);
