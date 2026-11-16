@@ -22,13 +22,18 @@
 
 import { tenantAdminLogin, tenantRequest } from '../../../../libs/http/tenantRequest.js';
 import { createImageUploader } from '../../uploadFile/uploadFactory.js';
+import { ENV_CONFIG, getEnvByTenantId } from '../../../../config/envconfig.js';
 
 // ============================================================
 // 参数
 // ============================================================
 
 const TENANT_ID = __ENV.TENANT || __ENV.TENANT_ID || '3004';
-const FIREBASE_ID = 300023; // 固定值(跟用户提供的手动验证案例一致)
+// firebaseId 是"Firebase推送配置"的后台数字主键(消息管理→Firebase消息→Firebase推送配置列表)，
+// 按租户各自独立、不能跨租户复用——300023 是 TEST(3004) 环境手动验证案例里确认过的值；
+// 2026-11-13 实测确认 UAT(3101) 的值是 100017(项目名 ccc_test，当前唯一启用状态的配置)。
+// 默认值保留 300023 兼容原 TEST(3004) 用法，其它租户运行时用 FIREBASE_ID 环境变量显式指定。
+const FIREBASE_ID = __ENV.FIREBASE_ID ? parseInt(__ENV.FIREBASE_ID, 10) : 300023;
 const TAG = 'FirebaseCompositeTagPush';
 
 // ============================================================
@@ -75,6 +80,17 @@ export function setup() {
         throw new Error(`[${TAG}] 后台登录失败，终止测试`);
     }
     console.log(`[${TAG}] ✅ 后台登录成功`);
+
+    // 2026-11-13实测发现：uploadFactory.js的createImageUploader内部硬编码用全局单例
+    // ENV_CONFIG.BASE_ADMIN_URL作为上传接口的目标域名(没有按TENANT_ID动态取)——ENV_CONFIG
+    // 默认值就是ENV_3004，跑TEST(3004)租户时"歪打正着"能用，但跑其它租户(这次是UAT 3101)
+    // 时，请求会被发到3004的域名却带着3101的token，后端报"Tenant id not match with domain
+    // url"。复用项目里"100+处代码靠Object.assign(ENV_CONFIG,...)做运行时切租户"的既定模式，
+    // 在上传前先把全局单例切到当前TENANT_ID对应的配置。
+    if (String(TENANT_ID) !== '3004') {
+        Object.assign(ENV_CONFIG, getEnvByTenantId(TENANT_ID));
+        console.log(`[${TAG}] 已把全局ENV_CONFIG切到租户${TENANT_ID}（修复图片上传域名错配问题）`);
+    }
 
     // 2. 上传图片，获取 imageUrl（相对路径）
     console.log(`[${TAG}] 上传 firebase 图片...`);

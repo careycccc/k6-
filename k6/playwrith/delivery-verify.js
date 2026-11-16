@@ -118,6 +118,14 @@ const NEGATIVE_ACCOUNTS_FILE = process.env.NEGATIVE_ACCOUNTS_FILE
   ? path.resolve(process.env.NEGATIVE_ACCOUNTS_FILE)
   : path.join(path.dirname(ACCOUNTS_FILE), 'negative-accounts.txt');
 
+// ───── 2026-11-12 新增：多标签命中去重验证用的"同时命中>=2个标签"账号文件 ─────
+// (collect-tagged-users.js 的产物)。显式指定优先；没指定就探测同目录下的
+// dup-check-accounts.txt。文件不存在 → 完全不触发这段逻辑，向后兼容。这批账号本身
+// 已经包含在 positive-accounts.txt/2.txt 里了，这里只是额外标记、不需要再合并登录。
+const DUP_CHECK_FILE = process.env.DUP_CHECK_FILE
+  ? path.resolve(process.env.DUP_CHECK_FILE)
+  : path.join(path.dirname(ACCOUNTS_FILE), 'dup-check-accounts.txt');
+
 // 最多读取/尝试的账号数（测试用 5，正式可改大，上限 500）
 const MAX_ACCOUNTS  = Math.min(parseInt(process.env.COUNT || '5', 10), 500);
 
@@ -178,6 +186,9 @@ const closedAccounts = new Set();
 // 2026-11-12 新增：组合标签定向验证——"不应收到推送"的账号集合(去区号后的账号)。
 // 为空=没有反向文件，走原有"全员都该收到"报表；非空=额外打印"组合标签定向验证"分组报表。
 const negativeSet    = new Set();
+// 2026-11-12 新增：多标签命中去重验证——"同时命中>=2个指定标签"的账号集合(去区号后)。
+// 为空=没有该文件，不触发这段报表；非空=额外打印"多标签命中去重验证"分组报表。
+const dupCheckSet    = new Set();
 
 // ============================================================
 // 读取账号：去掉区号、去重、截断
@@ -209,6 +220,18 @@ function loadAccounts() {
     for (const a of negList) if (!list.includes(a)) list.push(a);
     console.log(`[组合标签] 检测到反向账号文件 ${NEGATIVE_ACCOUNTS_FILE}，读到 ${negList.length} 个`
       + `不应收到推送的账号，已合并进登录列表`);
+  }
+
+  // 2026-11-12 新增：如果存在"多标签命中去重"检查文件，读进来标记到 dupCheckSet。
+  // 这批账号本身已经在 positive-accounts.txt(=ACCOUNTS_FILE的一部分)里了，不需要
+  // 再合并进登录列表，只是额外打标记供报表阶段分组统计用。
+  if (fs.existsSync(DUP_CHECK_FILE)) {
+    const dupList = normalize(fs.readFileSync(DUP_CHECK_FILE, 'utf-8'));
+    dupList.forEach(a => dupCheckSet.add(a));
+    if (dupList.length) {
+      console.log(`[多标签去重] 检测到去重检查文件 ${DUP_CHECK_FILE}，读到 ${dupList.length} 个`
+        + `同时命中多个标签的账号，将重点核对它们最终只收到1次推送`);
+    }
   }
 
   const seen = new Set();
@@ -774,6 +797,43 @@ function printExitReport() {
       : (positiveAccounts.length === 0
         ? '正向账号就绪设备数为0——可能登录全部失败或还没等到就绪，无法判定'
         : '存在漏发或误收到，见上面明细')}`);
+    console.log('='.repeat(60) + '\n');
+  }
+
+  // ── 2026-11-12 新增：多标签命中去重验证 ──
+  // 场景：一次推送用多个组合标签一起定向(targetDetail里多个标签ID)，一个会员
+  // 可能同时命中其中>=2个标签——按开发说的"一个会员id只会收到一次推送"，这批账号
+  // 最终应该只收到1条消息(msgIds去重集合大小=1)，不应该因为同时命中多个标签就被
+  // 发了2条或更多。复用 netRecv 里已经按账号记录的 msgIds 去重集合，不需要新增
+  // 数据结构，只在 dupCheckSet 非空时触发，不影响其它场景的报表输出。
+  if (dupCheckSet.size > 0) {
+    const dupAccounts = readyArr.filter(a => dupCheckSet.has(a));
+    const dupDetail = dupAccounts.map(a => {
+      const rec = netRecv.get(a);
+      const n = rec ? rec.msgIds.size : 0;
+      return { account: a, msgCount: n, msgIds: rec ? [...rec.msgIds] : [] };
+    });
+    const dupExactlyOne = dupDetail.filter(d => d.msgCount === 1);
+    const dupZero       = dupDetail.filter(d => d.msgCount === 0);
+    const dupMoreThanOne = dupDetail.filter(d => d.msgCount > 1);
+    const dupAllPass = dupMoreThanOne.length === 0 && dupAccounts.length > 0;
+
+    console.log('='.repeat(60));
+    console.log('              多标签命中去重验证（同时命中多个标签应只收到1次）');
+    console.log('='.repeat(60));
+    console.log(`  同时命中多个标签的就绪账号数: ${dupAccounts.length}`);
+    console.log(`  ✅ 收到恰好1条消息(符合去重预期): ${dupExactlyOne.length}`);
+    if (dupZero.length) console.log(`  ⚠️ 未收到任何消息(可能漏发，不是去重问题): ${dupZero.length}: ${dupZero.map(d => d.account).slice(0, 30).join(', ')}`);
+    if (dupMoreThanOne.length) {
+      console.log(`  ❌ 收到>1条不同消息(去重可能失败，同一会员被重复推送): ${dupMoreThanOne.length}`);
+      dupMoreThanOne.forEach(d => console.log(`     ${d.account} 收到msgId=[${d.msgIds.join(',')}]`));
+    }
+    console.log('-'.repeat(60));
+    console.log(`  ${dupAllPass ? '✅ PASS' : (dupAccounts.length === 0 ? '⚠️ 无可判定账号' : '❌ FAIL')}：${dupAllPass
+      ? '同时命中多个标签的账号没有一个收到重复消息，去重逻辑符合预期'
+      : (dupAccounts.length === 0
+        ? '多标签命中去重检查文件里的账号都没有就绪设备数据，无法判定'
+        : '存在账号收到了多于1条不同消息，见上面明细，去重逻辑可能有问题')}`);
     console.log('='.repeat(60) + '\n');
   }
 

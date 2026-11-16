@@ -253,7 +253,7 @@ export default function () {
     // 3) 数据分析总览
     const overview = getDataAnalysisReport(adminToken, dateStr);
     if (!overview) { console.error(`[${TAG}] GetDataAnalysis 没有返回当日数据，终止`); return; }
-    console.log(`[${TAG}] 数据分析总览原始返回: ${JSON.stringify(overview)}`);
+    //console.log(`[${TAG}] 数据分析总览原始返回: ${JSON.stringify(overview)}`);
 
     console.log(`\n${'='.repeat(70)}\n  数据分析总览 —— 新增字段验证（需求#2240）\n${'='.repeat(70)}`);
     console.log(`[${TAG}] 旧字段交叉核对(增强可信度，非本次新增)：`);
@@ -276,7 +276,7 @@ export default function () {
     if (!pkgTotal) {
         console.warn(`[${TAG}] ⚠️ GetPackageAnalysis 没有返回合计行，跳过这部分交叉验证`);
     } else {
-        console.log(`[${TAG}] 渠道来源分析合计行原始返回: ${JSON.stringify(pkgTotal)}`);
+        //console.log(`[${TAG}] 渠道来源分析合计行原始返回: ${JSON.stringify(pkgTotal)}`);
         check('[渠道合计] 多次充值人数', overview.multiRechargeMemberCount, pkgTotal.multiRechargeMemberCount, 0);
         check('[渠道合计] 多充会员充值总额', overview.multiRechargeAmount, pkgTotal.multiRechargeAmount, 0.01);
         check('[渠道合计] 多充会员充值金额占比(%)', overview.multiRechargeAmountRate, pkgTotal.multiRechargeAmountRate, 0.5);

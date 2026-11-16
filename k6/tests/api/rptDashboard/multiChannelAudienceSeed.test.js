@@ -15,31 +15,13 @@
  *   k6p -e TENANT_ID=3004 -e TOTAL_PEOPLE=10 multiChannelAudienceSeed.test.js
  *     首次运行：不传CHANNEL_PACKAGE_ID_MAP，所有渠道的"老用户"步骤都会被跳过，
  *     全部走新增注册(见multiChannelAudienceBuilder.js文件头说明)。
- *  TOTAL_PEOPLE表示总共的人数
- *   k6p -e TENANT_ID=3004 -e TOTAL_PEOPLE=100 -e CHANNEL_PACKAGE_ID_MAP='{"wheel":[2],"adjust":[100058],"facebook":[100055],"tiktok":[100054]}' multiChannelAudienceSeed.test.js
- *     确认packageId映射后(本租户下实测的真实值，见multiChannelAudienceBuilder.js
- *     文件头)，传入映射表即可启用按渠道查老账号。
- *     ⚠️ 2026-11-14：这条写法(双引号JSON套在单引号里)在Git Bash下没问题，但在
- *     Windows PowerShell里会炸——k6p.ps1内部用$args把参数转发给node.exe这个原生
- *     可执行文件时，字符串内部的双引号会被吃掉(PowerShell转发参数给native exe的
- *     已知限制，不是本脚本的bug)，到脚本里拿到的就是`{wheel:[2],...}`这种没有
- *     引号的非法JSON，JSON.parse直接报"invalid character 'w' looking for
- *     beginning of value"。PowerShell下请改成下面这种写法(外层整体用双引号包裹
- *     `-e KEY=VALUE`，JSON内部改用单引号，整个参数不出现嵌套双引号，PowerShell
- *     转发时就不会丢字符；下面的解析逻辑会自动把单引号换成双引号再parse)：
- *   k6p -e TENANT_ID=3004 -e TOTAL_PEOPLE=100 -e "CHANNEL_PACKAGE_ID_MAP={'wheel':[2],'adjust':[100058],'facebook':[100055],'tiktok':[100054]}" multiChannelAudienceSeed.test.js
- *   CHANNELS 环境变量可覆盖默认的5渠道，逗号分隔，如 CHANNELS=official,wheel
- *   ENABLE_WITHDRAW=false 可关闭提现步骤（默认开启）
- *   ENABLE_BACKEND_APPROVAL=false 可关闭提现后的后台审核步骤（默认开启：提现成功后
- *     自动走后台"查询待审核订单→锁定订单→获取三方通道→三方提现→确认出款"完整链路，
- *     三方提现失败时自动降级到人工确认出款兜底，实现在
- *     withdraw/backendWithdrawApi.js::runBackendWithdrawApproval，这套接口链路已在
- *     withdraw.test.js/concurrentLockWithdraw.test.js等多处验证过，不是本次新写的）
  */
 
 /**
  * 宽松JSON解析：标准JSON.parse失败时，把单引号当双引号再试一次(见上方PowerShell
  * 转义踩坑说明)。两次都失败才真正报错，不会掩盖"确实传了非法内容"这种情况。
+ * 
+ * k6p -e TENANT_ID=3004 -e TOTAL_PEOPLE=50 -e "CHANNEL_PACKAGE_ID_MAP={'wheel':[2],'adjust':[100058],'facebook':[100055],'tiktok':[100054]}" multiChannelAudienceSeed.test.js
  */
 function parseLooseJson(raw, envName) {
     try {
