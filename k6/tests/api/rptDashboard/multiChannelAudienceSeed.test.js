@@ -15,13 +15,39 @@
  *   k6p -e TENANT_ID=3004 -e TOTAL_PEOPLE=10 multiChannelAudienceSeed.test.js
  *     首次运行：不传CHANNEL_PACKAGE_ID_MAP，所有渠道的"老用户"步骤都会被跳过，
  *     全部走新增注册(见multiChannelAudienceBuilder.js文件头说明)。
+ *  TOTAL_PEOPLE表示总共的人数
+ *   k6p -e TENANT_ID=3004 -e TOTAL_PEOPLE=100 -e CHANNEL_PACKAGE_ID_MAP='{"wheel":[2],"adjust":[100058],"facebook":[100055],"tiktok":[100054]}' multiChannelAudienceSeed.test.js
+ *     确认packageId映射后(本租户下实测的真实值，见multiChannelAudienceBuilder.js
+ *     文件头)，传入映射表即可启用按渠道查老账号。
+ *     ⚠️ 2026-11-14：这条写法(双引号JSON套在单引号里)在Git Bash下没问题，但在
+ *     Windows PowerShell里会炸——k6p.ps1内部用$args把参数转发给node.exe这个原生
+ *     可执行文件时，字符串内部的双引号会被吃掉(PowerShell转发参数给native exe的
+ *     已知限制，不是本脚本的bug)，到脚本里拿到的就是`{wheel:[2],...}`这种没有
+ *     引号的非法JSON，JSON.parse直接报"invalid character 'w' looking for
+ *     beginning of value"。PowerShell下请改成下面这种写法(外层整体用双引号包裹
+ *     `-e KEY=VALUE`，JSON内部改用单引号，整个参数不出现嵌套双引号，PowerShell
+ *     转发时就不会丢字符；下面的解析逻辑会自动把单引号换成双引号再parse)：
+ *   k6p -e TENANT_ID=3004 -e TOTAL_PEOPLE=100 -e "CHANNEL_PACKAGE_ID_MAP={'wheel':[2],'adjust':[100058],'facebook':[100055],'tiktok':[100054]}" multiChannelAudienceSeed.test.js
+ *   CHANNELS 环境变量可覆盖默认的5渠道，逗号分隔，如 CHANNELS=official,wheel
+ *     （代码里同时兼容空格分隔——2026-11-17实测确认PowerShell转发-e参数给k6.exe
+ *     这个原生可执行文件时会把逗号吃掉变成空格，不需要用户记住额外转义写法，
+ *     Bash/PowerShell下都可以直接用逗号写）
+ *   ⚠️ UAT(租户3101)后台目前只配置了official/wheel两个渠道包，adjust/facebook/
+ *     tiktok在UAT下会100%注册失败(不会报错崩溃，但会把总人数配额白白稀释到
+ *     注定失败的渠道上，还会刷一堆"注册失败，跳过"的warning)，UAT环境务必显式
+ *     传 CHANNELS=official,wheel，例如：
+ *   k6p -e TENANT_ID=3101 -e TOTAL_PEOPLE=10 -e CHANNELS=official,wheel multiChannelAudienceSeed.test.js
+ *   ENABLE_WITHDRAW=false 可关闭提现步骤（默认开启）
+ *   ENABLE_BACKEND_APPROVAL=false 可关闭提现后的后台审核步骤（默认开启：提现成功后
+ *     自动走后台"查询待审核订单→锁定订单→获取三方通道→三方提现→确认出款"完整链路，
+ *     三方提现失败时自动降级到人工确认出款兜底，实现在
+ *     withdraw/backendWithdrawApi.js::runBackendWithdrawApproval，这套接口链路已在
+ *     withdraw.test.js/concurrentLockWithdraw.test.js等多处验证过，不是本次新写的）
  */
 
 /**
  * 宽松JSON解析：标准JSON.parse失败时，把单引号当双引号再试一次(见上方PowerShell
  * 转义踩坑说明)。两次都失败才真正报错，不会掩盖"确实传了非法内容"这种情况。
- * 
- * k6p -e TENANT_ID=3004 -e TOTAL_PEOPLE=50 -e "CHANNEL_PACKAGE_ID_MAP={'wheel':[2],'adjust':[100058],'facebook':[100055],'tiktok':[100054]}" multiChannelAudienceSeed.test.js
  */
 function parseLooseJson(raw, envName) {
     try {
@@ -42,7 +68,14 @@ import { buildMultiChannelAudience } from '../../../libs/channel/multiChannelAud
 
 const TENANT_ID = __ENV.TENANT_ID || '3004';
 const TOTAL_PEOPLE = __ENV.TOTAL_PEOPLE ? parseInt(__ENV.TOTAL_PEOPLE, 10) : 10;
-const CHANNELS = __ENV.CHANNELS ? __ENV.CHANNELS.split(',').map(s => s.trim()) : ['official', 'wheel', 'adjust', 'facebook', 'tiktok'];
+// 2026-11-17实测确认：PowerShell把 -e CHANNELS=official,wheel 转发给k6.exe(原生
+// 可执行文件)时会把逗号吃掉变成空格("official wheel")——跟文件头22-30行记录的
+// 双引号JSON被吃掉是同一类"PowerShell转发参数给native exe"的已知限制，只是这次
+// 踩在逗号上。如果只按','分割，吃掉逗号后的字符串会被当成唯一一个渠道名，
+// 匹配不上switch-case里任何已知渠道，报"未知渠道"异常。这里同时按逗号和空白
+// 分割(兼容Bash下的"official,wheel"和PowerShell转发后变成的"official wheel")，
+// 不需要用户记住额外的转义写法。
+const CHANNELS = __ENV.CHANNELS ? __ENV.CHANNELS.split(/[,\s]+/).map(s => s.trim()).filter(Boolean) : ['official', 'wheel', 'adjust', 'facebook', 'tiktok'];
 const ENABLE_WITHDRAW = __ENV.ENABLE_WITHDRAW !== 'false';
 const ENABLE_BACKEND_APPROVAL = __ENV.ENABLE_BACKEND_APPROVAL !== 'false';
 const CHANNEL_PACKAGE_ID_MAP = __ENV.CHANNEL_PACKAGE_ID_MAP ? parseLooseJson(__ENV.CHANNEL_PACKAGE_ID_MAP, 'CHANNEL_PACKAGE_ID_MAP') : {};

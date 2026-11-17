@@ -75,6 +75,8 @@
  *   k6p -e TENANT_ID=3004 -e DATE=2026-11-12 dataAnalysisNewFieldsVerify.js
  *     指定日期（默认今天，按租户时区；建议用已结束的历史日期，见上面第6条）
  *   k6p -e TENANT_ID=3004 -e DATE=2026-11-13 -e PACKAGE_IDS=0,2,100054,100055,100058 dataAnalysisNewFieldsVerify.js
+ *   uat(3101)验证
+ *  k6p -e TENANT_ID=3004 -e DATE=2026-11-13 -e PACKAGE_IDS=0,2 dataAnalysisNewFieldsVerify.js
  *     手动指定只验证这几个渠道(数字从造数脚本跑完打印的"渠道→packageId映射"那行
  *     抄过来即可)——更快、更精确，适合"我只想单独核对上次那批测试账号对不对"的场景。
  */

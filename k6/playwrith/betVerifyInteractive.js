@@ -633,6 +633,64 @@ async function fetchFrontendFinancial(feTokenState, maxPages = 20) {
   return [];
 }
 
+// ───── 业务查询：后台账变流水（POST /api/Financial/GetPageList，后台管理员
+// token，不依赖前台会员登录/DUAL_CHECK，任何模式下都能用） ─────
+// 2026-11-17实测确认(170940账号体育Cash Out案例)：体育"Sell/提前兑现"产生的
+// 入账记录，orderNo跟原始投注订单号前缀不一样(原投注"100032_B...", 兑现入账
+// 是"100032_C..."，数字部分相同、字母前缀从B变成C)，靠订单号匹配/靠"信不信
+// 未结算订单的winAmount字段"这类判断从根上就不可靠——真正可靠的办法是直接
+// 查账变流水，不管订单层面状态/字段怎么显示，只要钱真的动了，账变记录就会
+// 出现。这个接口用后台管理员token查，不需要会员账号密码，所以任何模式下
+// (不止DUAL_CHECK)都能作为比"官方统计口径/订单口径"更权威的会计恒等式核对
+// 补充维度。orderBy参数不可信(此前已实测确认)，客户端自己按createTime重排。
+const BACKEND_FINANCIAL_PAGE_SIZE_CANDIDATES = [200, 50, 10];
+
+async function fetchBackendFinancialToday(token, userId, maxPages = 20) {
+  const { beginTimeUnix, endTimeUnix } = todayRangeMs();
+  for (const pageSize of BACKEND_FINANCIAL_PAGE_SIZE_CANDIDATES) {
+    const seen = new Set();
+    const records = [];
+    let pageNo = 1;
+    let rejectedBySize = false;
+    while (pageNo <= maxPages) {
+      const payload = {
+        searchUserIdType: 1,
+        userId: Number(userId),
+        startTime: beginTimeUnix,
+        endTime: endTimeUnix,
+        pageNo,
+        pageSize,
+        orderBy: 'Desc',
+      };
+      const r = await postAdmin('/api/Financial/GetPageList', payload, token);
+      if (!r || r.code !== 0 || !r.data) {
+        const msg = r ? (r.msg || r.text || '') : '';
+        if (/pagesize/i.test(msg) && pageSize !== BACKEND_FINANCIAL_PAGE_SIZE_CANDIDATES[BACKEND_FINANCIAL_PAGE_SIZE_CANDIDATES.length - 1]) {
+          rejectedBySize = true;
+        } else {
+          if (r && r.code !== 0) console.log(`[投注核对] ⚠️ 后台账变流水查询第${pageNo}页失败: ${r.msg || r.code}（跳过，不影响主流程）`);
+        }
+        break;
+      }
+      const list = r.data.list || [];
+      for (const f of list) {
+        if (!f.id || seen.has(f.id)) continue;
+        seen.add(f.id);
+        records.push(f);
+      }
+      const totalPage = Number(r.data.totalPage) || 1;
+      if (pageNo >= totalPage || list.length === 0) break;
+      pageNo++;
+      await sleep(150);
+    }
+    if (!rejectedBySize) {
+      records.sort((a, b) => Number(a.createTime || 0) - Number(b.createTime || 0));
+      return records;
+    }
+  }
+  return [];
+}
+
 // ───── 按游戏名称分组统计 ─────
 function groupByGame(orders) {
   const groups = {};
@@ -705,6 +763,19 @@ async function snapshot(token, userId, verbose) {
     console.log(JSON.stringify(abnormalOrders[0], null, 2));
   }
 
+  // 后台账变流水：不依赖DUAL_CHECK，任何模式下都查——这是比"未结算订单该不该
+  // 信winAmount"更权威的数据源(2026-11-17体育Cash Out案例实测确认，见
+  // fetchBackendFinancialToday文件头注释)。
+  const backendFinancial = await fetchBackendFinancialToday(token, userId);
+  if (verbose) {
+    if (backendFinancial.length > 0) {
+      console.log(`[调试] 后台账变流水(Financial/GetPageList): 当天累计${backendFinancial.length}条记录，首条原始JSON：`);
+      console.log(JSON.stringify(backendFinancial[0], null, 2));
+    } else {
+      console.log('[调试] 后台账变流水(Financial/GetPageList): 查询失败或当天暂无记录');
+    }
+  }
+
   return {
     time: new Date(),
     balance: balanceInfo ? balanceInfo.value : null,
@@ -712,6 +783,7 @@ async function snapshot(token, userId, verbose) {
     orders,
     summary: sumGroups(groupByGame(orders)),
     abnormalOrders,
+    backendFinancial,
   };
 }
 
@@ -765,6 +837,10 @@ function buildReportMarkdown(rounds, baseline, finalSnapshot) {
   const totalBet = rounds.reduce((s, r) => s + r.total.betAmount, 0);
   const totalWin = rounds.reduce((s, r) => s + r.total.winAmount, 0);
   const totalProfit = rounds.reduce((s, r) => s + r.total.profit, 0);
+  // 已结算笔数(total.count)不含"未结算"注单——2026-11-17用户指出这会漏算
+  // 真实发生过的注单数，这里单独统计"未结算"笔数/投注额，总览表/分局详情
+  // 都把它跟已结算笔数并列展示，而不是悄悄漏掉。
+  const totalAbnormalCount = rounds.reduce((s, r) => s + ((r.newAbnormalOrders || []).length), 0);
 
   const lines = [];
   lines.push('# 游戏投注核对报告（自动化脚本生成）');
@@ -793,16 +869,23 @@ function buildReportMarkdown(rounds, baseline, finalSnapshot) {
     const gameNames = Object.keys(r.groups).join(' + ') || '（无新增注单）';
     const beforeTxt = r.balanceBefore !== null ? fmt(r.balanceBefore) : '—';
     const afterTxt = r.balanceAfter !== null ? fmt(r.balanceAfter) : '—';
+    const roundAbnormalCount = (r.newAbnormalOrders || []).length;
+    const countTxt = roundAbnormalCount > 0
+      ? `${r.total.count + roundAbnormalCount}（含${roundAbnormalCount}笔未结算）`
+      : String(r.total.count);
     if (DUAL_CHECK) {
-      lines.push(`| ${r.roundNo} | ${gameNames} | ${r.total.count} | ${fmt(r.total.betAmount)} | ${fmt(r.total.winAmount)} | ${fmt(r.total.profit)} | ${beforeTxt} → ${afterTxt} | ${r.verdict} | ${r.crossCheck || '—'} |`);
+      lines.push(`| ${r.roundNo} | ${gameNames} | ${countTxt} | ${fmt(r.total.betAmount)} | ${fmt(r.total.winAmount)} | ${fmt(r.total.profit)} | ${beforeTxt} → ${afterTxt} | ${r.verdict} | ${r.crossCheck || '—'} |`);
     } else {
-      lines.push(`| ${r.roundNo} | ${gameNames} | ${r.total.count} | ${fmt(r.total.betAmount)} | ${fmt(r.total.winAmount)} | ${fmt(r.total.profit)} | ${beforeTxt} → ${afterTxt} | ${r.verdict} |`);
+      lines.push(`| ${r.roundNo} | ${gameNames} | ${countTxt} | ${fmt(r.total.betAmount)} | ${fmt(r.total.winAmount)} | ${fmt(r.total.profit)} | ${beforeTxt} → ${afterTxt} | ${r.verdict} |`);
     }
   }
+  const totalCountTxt = totalAbnormalCount > 0
+    ? `${totalCount + totalAbnormalCount}笔（含${totalAbnormalCount}笔未结算）`
+    : `${totalCount}笔`;
   if (DUAL_CHECK) {
-    lines.push(`| **合计** | — | **${totalCount}笔** | **${fmt(totalBet)}** | **${fmt(totalWin)}** | **${fmt(totalProfit)}** | — | — | — |`);
+    lines.push(`| **合计** | — | **${totalCountTxt}** | **${fmt(totalBet)}** | **${fmt(totalWin)}** | **${fmt(totalProfit)}** | — | — | — |`);
   } else {
-    lines.push(`| **合计** | — | **${totalCount}笔** | **${fmt(totalBet)}** | **${fmt(totalWin)}** | **${fmt(totalProfit)}** | — | — |`);
+    lines.push(`| **合计** | — | **${totalCountTxt}** | **${fmt(totalBet)}** | **${fmt(totalWin)}** | **${fmt(totalProfit)}** | — | — |`);
   }
   lines.push('');
   lines.push('---');
@@ -811,7 +894,9 @@ function buildReportMarkdown(rounds, baseline, finalSnapshot) {
   lines.push('');
   for (const r of rounds) {
     const gameNames = Object.keys(r.groups).join(' + ') || '（无新增注单）';
-    lines.push(`### 第${r.roundNo}局 ${gameNames} — ${r.total.count}笔`);
+    const roundAbnormalCount = (r.newAbnormalOrders || []).length;
+    const headerCountTxt = roundAbnormalCount > 0 ? `${r.total.count}笔已结算 + ${roundAbnormalCount}笔未结算` : `${r.total.count}笔`;
+    lines.push(`### 第${r.roundNo}局 ${gameNames} — ${headerCountTxt}`);
     if (Object.keys(r.groups).length > 1) {
       lines.push('| 游戏 | 笔数 | 投注 | 派奖 | 盈亏 |');
       lines.push('|---|---|---|---|---|');
@@ -825,9 +910,24 @@ function buildReportMarkdown(rounds, baseline, finalSnapshot) {
     }
     lines.push(`本局充值净增${r.rechargeDelta !== null ? fmt(r.rechargeDelta) : '未知'}  提现净增${r.withdrawDelta !== null ? fmt(r.withdrawDelta) : '未知'}  活动奖励净增${r.activityRewardDelta !== null ? fmt(r.activityRewardDelta) : '未知'}${r.freezeDelta !== null && Math.abs(r.freezeDelta) >= 0.01 ? `  ⚠️冻结金额变化${fmt(r.freezeDelta)}(可能是提现被冻结未到账，请人工核实)` : ''}`);
     lines.push(`后台官方今日统计核对：${r.officialCheck || '—'}`);
-    lines.push(`后台余额：${r.balanceBefore !== null ? fmt(r.balanceBefore) : '—'} → ${r.balanceAfter !== null ? fmt(r.balanceAfter) : '—'}（变化${r.balanceDelta !== null ? fmt(r.balanceDelta) : '—'}，预期变化${fmt(r.expectedDelta)}=游戏盈亏${fmt(r.total.profit)}+充值${r.rechargeDelta !== null ? fmt(r.rechargeDelta) : 0}-提现${r.withdrawDelta !== null ? fmt(r.withdrawDelta) : 0}+活动奖励${r.activityRewardDelta !== null ? fmt(r.activityRewardDelta) : 0}） ${r.verdict}`);
-    if (r.abnormalOrderCount > 0) {
-      lines.push(`⚠️ 当前存在${r.abnormalOrderCount}笔非已结算状态注单（不一定是本局产生的，差额异常时可作为候选原因参考）`);
+    const abnormalDeductionTxt = (r.abnormalBetDeduction !== 0) ? `+未结算注单投注扣除${fmt(r.abnormalBetDeduction)}` : '';
+    const crossSettledTxt = (r.crossSettledBetAmount !== 0) ? `+核销跨局结算重复投注${fmt(r.crossSettledBetAmount)}` : '';
+    lines.push(`后台余额：${r.balanceBefore !== null ? fmt(r.balanceBefore) : '—'} → ${r.balanceAfter !== null ? fmt(r.balanceAfter) : '—'}（变化${r.balanceDelta !== null ? fmt(r.balanceDelta) : '—'}，预期变化${fmt(r.expectedDelta)}=游戏盈亏${fmt(r.total.profit)}+充值${r.rechargeDelta !== null ? fmt(r.rechargeDelta) : 0}-提现${r.withdrawDelta !== null ? fmt(r.withdrawDelta) : 0}+活动奖励${r.activityRewardDelta !== null ? fmt(r.activityRewardDelta) : 0}${abnormalDeductionTxt}${crossSettledTxt}） ${r.verdict}`);
+    if (roundAbnormalCount > 0) {
+      lines.push(`⚠️ 本局新增${roundAbnormalCount}笔"未结算"注单（上方笔数已计入，游戏盈亏暂未计入，派奖是否已到账需结合资金流水核对）：`);
+      lines.push('| 厂商 | 游戏名称 | 投注金额 | 派奖金额 | 订单号 | 状态(orderState) |');
+      lines.push('|---|---|---|---|---|---|');
+      for (const o of r.newAbnormalOrders) {
+        lines.push(`| ${o.vendorCode || '未知'} | ${o.gameName || o.gameCode || '未知'} | ${fmt(o.betAmount)} | ${fmt(o.winAmount)} | ${o.orderNo} | ${o.orderState} |`);
+      }
+    }
+    if (r.abnormalOrderCount > roundAbnormalCount) {
+      lines.push(`ℹ️ 账上另外累计存在${r.abnormalOrderCount - roundAbnormalCount}笔非本局产生的历史遗留"未结算"注单（不计入本局，差额异常时可作为候选原因参考）`);
+    }
+    lines.push(`后台账变流水(Financial/GetPageList，${r.backendFinNewRecords.length}笔)：净额${fmt(r.backendFinNetAmount)}  ${r.backendFinCheck}`);
+    {
+      const typeLines = Object.keys(r.backendFinByType).map((t) => `${t}: ${r.backendFinByType[t].count}笔/净额${fmt(r.backendFinByType[t].amount)}`);
+      if (typeLines.length > 0) lines.push(`　明细：${typeLines.join('，')}`);
     }
     if (DUAL_CHECK) {
       lines.push(`前台余额(RecoverSaasBalance)：${r.feBalanceBefore !== null ? fmt(r.feBalanceBefore) : '—'} → ${r.feBalanceAfter !== null ? fmt(r.feBalanceAfter) : '—'}（变化${r.feBalanceDelta !== null ? fmt(r.feBalanceDelta) : '—'}） ${r.feBalanceCheck || '—'}`);
@@ -850,19 +950,119 @@ function buildReportMarkdown(rounds, baseline, finalSnapshot) {
   lines.push('');
   lines.push(`- 起始余额：**${baseline.balance !== null ? fmt(baseline.balance) : '未知'}**`);
   lines.push(`- ${rounds.length}局游戏净盈亏合计：**${fmt(totalProfit)}**`);
+
+  // ── 官方统计口径：汇总各局已经算好的 rechargeDelta/withdrawDelta/
+  // activityRewardDelta(来自GetUserDetail.activeTodayRsp累计值做差)，把
+  // 2026-11-16"余额变化应等于游戏盈亏"的修正公式从"单局"提升到"全程"层面，
+  // 不再是之前那个完全不管充值/提现、承认"脚本只核对游戏投注,不追踪资金
+  // 流水"的弱版本。
+  const activeKnownRounds = rounds.filter((r) => r.rechargeDelta !== null);
+  const totalRecharge = round2(activeKnownRounds.reduce((s, r) => s + r.rechargeDelta, 0));
+  const totalWithdraw = round2(activeKnownRounds.reduce((s, r) => s + r.withdrawDelta, 0));
+  const totalActivityReward = round2(activeKnownRounds.reduce((s, r) => s + r.activityRewardDelta, 0));
+  const totalFreezeChange = round2(rounds.reduce((s, r) => s + (r.freezeDelta || 0), 0));
+  const activeIncomplete = activeKnownRounds.length < rounds.length;
+
+  // ⚠️ 全程层面"未结算注单投注扣除"不能直接把各局的abnormalBetDeduction相加——
+  // 如果某笔订单在第N局还未结算(被算进第N局的abnormalBetDeduction)，但到第N+1局
+  // 已经同步结算了，它的betAmount会作为"新增已结算订单"被fetchTodayOrders正常
+  // 查到、计入第N+1局的total.profit/betAmount，这时候如果全程层面还把第N局那次
+  // 的扣除也加总进来，这笔订单的投注金额就被扣了两次。正确做法：只统计"相对于
+  // 一开始的基线新增、且到最后一局结束时依然还没结算"的那些订单——中途产生又
+  // 中途被结算掉的订单，已经通过它们"变成已结算"后正常走total.profit核算过了，
+  // 不需要(也不能)再额外扣一次。
+  const baselineAbnormalNos = new Set((baseline.abnormalOrders || []).map((o) => o.orderNo));
+  const stillAbnormalAtEnd = (finalSnapshot.abnormalOrders || []).filter((o) => !baselineAbnormalNos.has(o.orderNo));
+  // ⚠️ 这里不能再加总各局的crossSettledBetAmount——那个修正项只在"单局维度"
+  // 才需要(让每一局的verdict只反映"本局新发生"的资金变动)。在全程维度，
+  // totalProfit(各局total.profit求和)本身已经是正确的：任何一笔订单，不管
+  // 它的betAmount/winAmount是当局产生就结算、还是跨好几局才结算，都只会在
+  // 它"变成已结算"的那一局的total里出现一次、且是完整数据，不会被重复计入
+  // 其他任何一局的total——所以全程累加后天然不重复，只有"从始至终都没结算"
+  // 的那部分订单(stillAbnormalAtEnd)才是total统计不到、需要额外补回的部分。
+  const totalAbnormalBetDeduction = round2(-stillAbnormalAtEnd.reduce((s, o) => s + parseFloat(o.betAmount || 0), 0));
+
   if (baseline.balance !== null && finalSnapshot.balance !== null) {
-    const expectedFinal = baseline.balance + totalProfit;
-    lines.push(`- 预期余额（起始余额 + 累计盈亏，未计入期间任何充值/提现）= ${fmt(expectedFinal)}`);
+    lines.push(`- 累计充值${fmt(totalRecharge)}  累计提现${fmt(totalWithdraw)}  累计活动奖励${fmt(totalActivityReward)}${activeIncomplete ? `（⚠️有${rounds.length - activeKnownRounds.length}局未查到官方统计，此项不完整）` : ''}${Math.abs(totalFreezeChange) >= 0.01 ? `  累计冻结金额变化${fmt(totalFreezeChange)}` : ''}${stillAbnormalAtEnd.length > 0 ? `  截止目前仍有${stillAbnormalAtEnd.length}笔未结算注单(彩票/体育等待开奖完赛属正常)，已扣除投注合计${fmt(-totalAbnormalBetDeduction)}` : ''}`);
+    const expectedFinal = round2(baseline.balance + totalProfit + totalRecharge - totalWithdraw + totalActivityReward + totalAbnormalBetDeduction);
+    lines.push(`- 预期余额（起始余额 + 累计盈亏 + 累计充值 - 累计提现 + 累计活动奖励${stillAbnormalAtEnd.length > 0 ? ' + 仍未结算注单投注扣除' : ''}，官方统计口径）= ${fmt(expectedFinal)}`);
     lines.push(`- 实际最终余额：**${fmt(finalSnapshot.balance)}**`);
     const diff = round2(finalSnapshot.balance - expectedFinal);
     if (Math.abs(diff) < 0.01) {
-      lines.push('- ✅ 完全吻合（期间无未解释的充值/提现穿插）');
+      lines.push('- ✅ 官方统计口径完全吻合');
     } else {
-      lines.push(`- ⚠️ 差额 ${fmt(diff)}，可能期间发生了充值/提现（脚本只核对游戏投注，不追踪资金流水），请人工核实`);
+      const freezeHint = Math.abs(totalFreezeChange) >= 0.01 ? `，累计冻结金额变化${fmt(totalFreezeChange)}(可能是提现刚发起被冻结、尚未计入官方"累计提现"统计，请结合下方资金流水口径核对)` : '';
+      lines.push(`- ⚠️ 官方统计口径差额${fmt(diff)}${freezeHint}，请人工核实`);
     }
   } else {
     lines.push('- ⚠️ 余额字段未能自动识别，无法做全程总核对，请人工核实（见上方各局调试JSON）');
   }
+
+  // ── 后台账变流水口径（不依赖DUAL_CHECK，任何模式下都做）：直接汇总各局
+  // "后台账变流水(Financial/GetPageList)"新增记录amount之和，跟上面的官方
+  // 统计口径并列展示。2026-11-17实测确认：体育Cash Out提前兑现产生的入账
+  // 记录，orderNo跟原投注订单号不一致、原订单orderState依然是未结算，官方
+  // 统计口径(基于订单数据+未结算推测)天然无法捕捉到这类资金——这个口径
+  // 按时间窗口查账变流水，不管订单号/类型怎么变，钱动了就会被记录到，是
+  // 比官方统计口径更权威的会计恒等式核对。
+  if (baseline.balance !== null && finalSnapshot.balance !== null) {
+    const backendFinKnownRounds = rounds.filter((r) => r.backendFinNetAmount !== null && r.backendFinNewRecords);
+    const totalBackendFinNet = round2(backendFinKnownRounds.reduce((s, r) => s + r.backendFinNetAmount, 0));
+    const backendActualDelta = round2(finalSnapshot.balance - baseline.balance);
+    const totalBackendFinByType = {};
+    for (const r of rounds) {
+      for (const t in (r.backendFinByType || {})) {
+        if (!totalBackendFinByType[t]) totalBackendFinByType[t] = { count: 0, amount: 0 };
+        totalBackendFinByType[t].count += r.backendFinByType[t].count;
+        totalBackendFinByType[t].amount += r.backendFinByType[t].amount;
+      }
+    }
+    const backendFinTypeLines = Object.keys(totalBackendFinByType).map((t) => `${t}: ${totalBackendFinByType[t].count}笔/净额${fmt(totalBackendFinByType[t].amount)}`);
+    lines.push('');
+    lines.push(`- **后台账变流水口径**（Financial/GetPageList，${backendFinKnownRounds.length < rounds.length ? `仅覆盖${backendFinKnownRounds.length}/${rounds.length}局` : '覆盖全部局数'}）：累计净额${fmt(totalBackendFinNet)}，后台余额变化${fmt(backendActualDelta)}`);
+    if (backendFinTypeLines.length > 0) lines.push(`　明细：${backendFinTypeLines.join('，')}`);
+    if (Math.abs(totalBackendFinNet - backendActualDelta) < 0.01) {
+      lines.push('- ✅ 后台账变流水口径完全吻合（会计恒等式验证通过，能覆盖体育Cash Out等"订单号/类型跟原投注不一致"的穿插资金，比官方统计口径更权威）');
+    } else {
+      lines.push(`- ⚠️ 后台账变流水口径差额${fmt(round2(backendActualDelta - totalBackendFinNet))}，需人工核实`);
+    }
+  }
+
+  // ── 资金流水口径（仅DUAL_CHECK）：直接汇总各局"前台账变流水
+  // (GetUserFinancialList)"新增记录amount之和，跟上面的官方统计口径并列
+  // 展示。这个口径不依赖对activeTodayRsp字段何时更新的任何假设——哪怕
+  // 提现刚发起还在审核、尚未计入官方"累计提现"统计，只要钱已经从余额里
+  // 划走，账变记录会立刻出现，资金流水口径能完整捕捉到(2026-11-17实测
+  // 案例：一笔5000提现刚发起，账变流水立刻记一条Withdraw净额-5000，官方
+  // 统计口径的累计提现仍是0导致对不上，资金流水口径却完全吻合，并且能在
+  // 下面的"明细"里直接指出是哪笔类型的记录造成的，不用再翻每一局的细节)。
+  if (DUAL_CHECK) {
+    const finKnownRounds = rounds.filter((r) => r.finNetAmount !== null);
+    if (finKnownRounds.length > 0 && baseline.feBalance !== null && finalSnapshot.feBalance !== null) {
+      const totalFinNet = round2(finKnownRounds.reduce((s, r) => s + r.finNetAmount, 0));
+      const feActualDelta = round2(finalSnapshot.feBalance - baseline.feBalance);
+      const totalFinByType = {};
+      for (const r of rounds) {
+        for (const t in (r.finByType || {})) {
+          if (!totalFinByType[t]) totalFinByType[t] = { count: 0, amount: 0 };
+          totalFinByType[t].count += r.finByType[t].count;
+          totalFinByType[t].amount += r.finByType[t].amount;
+        }
+      }
+      const finTypeLines = Object.keys(totalFinByType).map((t) => `${t}: ${totalFinByType[t].count}笔/净额${fmt(totalFinByType[t].amount)}`);
+      lines.push('');
+      lines.push(`- **资金流水口径**（前台账变流水GetUserFinancialList，${finKnownRounds.length < rounds.length ? `仅覆盖${finKnownRounds.length}/${rounds.length}局` : '覆盖全部局数'}）：累计净额${fmt(totalFinNet)}，前台余额变化${fmt(feActualDelta)}`);
+      if (finTypeLines.length > 0) lines.push(`　明细：${finTypeLines.join('，')}`);
+      if (Math.abs(totalFinNet - feActualDelta) < 0.01) {
+        lines.push('- ✅ 资金流水口径完全吻合（会计恒等式验证通过，不依赖官方统计字段何时更新，能覆盖"已划款但尚未计入官方统计"的穿插资金）');
+      } else {
+        lines.push(`- ⚠️ 资金流水口径差额${fmt(round2(feActualDelta - totalFinNet))}，需人工核实`);
+      }
+    } else {
+      lines.push('- ⚠️ 资金流水口径数据不完整（部分局前台账变流水或前台余额查询失败），无法做全程资金流水核对');
+    }
+  }
+
   if (DUAL_CHECK) {
     lines.push(`- 前台最终余额(RecoverSaasBalance)：**${finalSnapshot.feBalance !== null ? fmt(finalSnapshot.feBalance) : '未知'}**（应与后台最终余额一致，因为是同一账号同一份真实资金）`);
   }
@@ -958,6 +1158,13 @@ async function main() {
   const rounds = [];
   let roundNo = 1;
   let prevSnapshot = baseline;
+  // 全程(跨越所有局)累积的"曾经识别为未结算"的订单号——彩票/体育这类慢结算
+  // 游戏，一笔订单完全可能跨越好几局才真正同步成已结算。如果不记录这个全程
+  // 状态，等它结算完成那一局，fetchTodayOrders会把它完整的betAmount也计入
+  // 该局的total，但这笔betAmount对应的扣款早在它还未结算、被识别进
+  // abnormalBetDeduction的那一局就已经真实发生过了——不做这层追踪会导致
+  // 同一笔投注被扣两次，凭空制造出一个等于该订单betAmount的虚假差额。
+  let allSeenAbnormalOrderNos = new Set((baseline.abnormalOrders || []).map((o) => o.orderNo));
 
   console.log('\n[投注核对] 进入交互模式：浏览器里玩完一局后回车确认（end=结束出报告，skip=跳过本局不计入）\n');
 
@@ -984,6 +1191,14 @@ async function main() {
     const newOrders = cur.orders.filter((o) => !prevOrderNos.has(o.orderNo));
     const groups = groupByGame(newOrders);
     const total = sumGroups(groups);
+
+    // 本局新增已结算订单里，有哪些之前曾经处于"未结算"状态(跨局才完成结算)——
+    // 这些订单的betAmount已经在它未结算的那一局被扣进abnormalBetDeduction里了，
+    // 这里要把total.profit里重复算的那部分betAmount核销掉，不影响groups/total
+    // 展示的完整投注/派奖数字(照常如实显示，只是不重复参与expectedDelta核算)。
+    const crossSettledBetAmount = round2(newOrders
+      .filter((o) => allSeenAbnormalOrderNos.has(o.orderNo))
+      .reduce((s, o) => s + parseFloat(o.betAmount || 0), 0));
 
     const balanceBefore = prevSnapshot.balance;
     const balanceAfter = cur.balance;
@@ -1017,40 +1232,79 @@ async function main() {
       officialCheck = '⚠️ 未查到activeTodayRsp，跳过官方统计核对';
     }
 
-    const nonGameAdjustment = (rechargeDelta !== null ? rechargeDelta : 0) - (withdrawDelta !== null ? withdrawDelta : 0) + (activityRewardDelta !== null ? activityRewardDelta : 0);
-    const expectedDelta = round2(total.profit + nonGameAdjustment);
-
-    // 本局新增的"非已结算状态"注单(orderNo diff)——这类订单的betAmount/
-    // winAmount不会被fetchTodayOrders(orderState:1过滤)计入total，是差额的
-    // 常见候选来源：游戏供应商可能已经把派奖打到账户了，但orderState字段
-    // 还没同步更新。单独算出它们的净盈亏，判断能否精确解释差额。
+    // 本局新增的"非已结算状态"注单(orderNo diff)——彩票/棋牌/体育这类非电子
+    // 游戏，结算往往要等开奖/完赛(几分钟到几小时不等)，投完一局马上查，大概率
+    // 还是"未结算"，这是预期内的正常状态，不是异常。2026-11-17用户明确要求：
+    // 只要能查到这些订单、确认投注金额已经真实扣款，让"总金额对得上"即可，不
+    // 要求它们必须已结算才能让本局核对通过。
+    // ⚠️ 2026-11-17实测确认(170940账号历史遗留订单)：未结算状态下winAmount
+    // 字段不可信——查到一笔orderState=0的订单winAmount显示57.36，但对应账变
+    // 流水里完全没有任何GameEnd(派奖)记录，说明这只是个中间/预估值，不代表
+    // 钱已经到账。因此这里只信任betAmount(投注扣款这一步已经真实发生，有
+    // GameBet账变记录为证)，完全不采信未结算订单的winAmount——只把"投注
+    // 扣除"正式并入预期余额公式，绝不把未结算订单的派奖当成已到账的钱去抵消
+    // 差额(那样会虚高预期余额、人为制造出新的、本不存在的差额)。
     const prevAbnormalNos = new Set((prevSnapshot.abnormalOrders || []).map((o) => o.orderNo));
     const newAbnormalOrders = (cur.abnormalOrders || []).filter((o) => !prevAbnormalNos.has(o.orderNo));
     const abnormalTotal = sumGroups(groupByGame(newAbnormalOrders));
+    const abnormalBetDeduction = round2(-abnormalTotal.betAmount);
+
+    const nonGameAdjustment = (rechargeDelta !== null ? rechargeDelta : 0) - (withdrawDelta !== null ? withdrawDelta : 0) + (activityRewardDelta !== null ? activityRewardDelta : 0);
+    const expectedDelta = round2(total.profit + nonGameAdjustment + abnormalBetDeduction + crossSettledBetAmount);
 
     let verdict;
     if (balanceDelta === null) {
       verdict = '⚠️ 余额字段未识别，无法自动核对';
     } else if (Math.abs(balanceDelta - expectedDelta) < 0.01) {
-      verdict = nonGameAdjustment !== 0 ? `✅ PASS（含充值/提现/活动奖励净调整${fmt(nonGameAdjustment)}）` : '✅ PASS';
+      const parts = [];
+      if (nonGameAdjustment !== 0) parts.push(`充值/提现/活动奖励净调整${fmt(nonGameAdjustment)}`);
+      if (newAbnormalOrders.length > 0) parts.push(`${newAbnormalOrders.length}笔未结算注单投注扣除${fmt(abnormalBetDeduction)}(暂不计入其派奖，等真正结算后在后续局里体现)`);
+      if (crossSettledBetAmount !== 0) parts.push(`核销${fmt(crossSettledBetAmount)}跨局结算重复投注(之前某局未结算时已扣过一次)`);
+      verdict = parts.length > 0 ? `✅ PASS（含${parts.join('，')}）` : '✅ PASS';
     } else {
       const diffAmount = round2(balanceDelta - expectedDelta);
       const freezeHint = (freezeDelta !== null && Math.abs(freezeDelta) >= 0.01) ? `，检测到冻结金额变化${fmt(freezeDelta)}(可能是提现被冻结未到账，请人工核实)` : '';
-      let abnormalHint = '';
-      if (newAbnormalOrders.length > 0) {
-        if (Math.abs(diffAmount - abnormalTotal.profit) < 0.01) {
-          abnormalHint = `，差额已精确匹配：本局新增${newAbnormalOrders.length}笔"非已结算"注单(投注${fmt(abnormalTotal.betAmount)}/派奖${fmt(abnormalTotal.winAmount)}/净盈亏${fmt(abnormalTotal.profit)})——订单状态未同步更新但派奖已到账，导致total漏算了它们`;
-        } else {
-          abnormalHint = `，本局新增${newAbnormalOrders.length}笔"非已结算"注单(净盈亏${fmt(abnormalTotal.profit)}，候选原因之一，未能精确匹配差额)`;
-        }
+      const abnormalHint = newAbnormalOrders.length > 0 ? `（已计入${newAbnormalOrders.length}笔未结算注单投注扣除${fmt(abnormalBetDeduction)}，仍未解释）` : '';
+      const crossSettledHint = crossSettledBetAmount !== 0 ? `（已核销${fmt(crossSettledBetAmount)}跨局结算重复投注）` : '';
+      verdict = `⚠️ 差额${fmt(diffAmount)}（已计入充值${rechargeDelta !== null ? fmt(rechargeDelta) : '未知'}/提现${withdrawDelta !== null ? fmt(withdrawDelta) : '未知'}/活动奖励${activityRewardDelta !== null ? fmt(activityRewardDelta) : '未知'}${abnormalHint}${crossSettledHint}仍有差额${freezeHint}，可能是账变记账本身也有同步延迟，需人工核实）`;
+    }
+    if (newAbnormalOrders.length > 0) {
+      console.log('    非已结算注单明细(orderNo/游戏/投注/winAmount字段原样/状态)——仅投注金额已计入核对，winAmount暂不采信：');
+      for (const o of newAbnormalOrders) {
+        console.log(`      ${o.orderNo}  ${o.gameName || o.gameCode || '未知'}  ${o.betAmount}  ${o.winAmount}  orderState=${o.orderState}`);
       }
-      verdict = `⚠️ 差额${fmt(diffAmount)}（已计入充值${rechargeDelta !== null ? fmt(rechargeDelta) : '未知'}/提现${withdrawDelta !== null ? fmt(withdrawDelta) : '未知'}/活动奖励${activityRewardDelta !== null ? fmt(activityRewardDelta) : '未知'}仍有差额${freezeHint}${abnormalHint}）`;
-      if (newAbnormalOrders.length > 0) {
-        console.log('    非已结算注单明细(orderNo/游戏/投注/派奖/状态)：');
-        for (const o of newAbnormalOrders) {
-          console.log(`      ${o.orderNo}  ${o.gameName || o.gameCode || '未知'}  ${o.betAmount}  ${o.winAmount}  orderState=${o.orderState}`);
-        }
-      }
+    }
+
+    // ── 后台账变流水核对：不依赖DUAL_CHECK，任何模式下都做。本局新增记录
+    // (按id去重diff)的amount之和，必须严格等于后台余额变化——这是比上面
+    // "官方统计口径+未结算投注扣除推测"更权威的会计恒等式核对，能捕捉到
+    // 2026-11-17实测发现的体育Cash Out场景：提前兑现入账的orderNo跟原始
+    // 投注订单号不一致(原投注"100032_B..."，兑现入账"100032_C...")，靠订单
+    // 口径/靠信不信winAmount字段都会漏掉这笔真实到账的钱，但账变流水按时间
+    // 窗口查询，不管订单号/类型怎么变，钱动了就会被记录到。
+    const prevBackendFinIds = new Set((prevSnapshot.backendFinancial || []).map((f) => f.id));
+    const backendFinNewRecords = (cur.backendFinancial || []).filter((f) => !prevBackendFinIds.has(f.id));
+    const backendFinNetAmount = round2(backendFinNewRecords.reduce((s, f) => s + parseFloat(f.amount || 0), 0));
+    const backendFinByType = {};
+    for (const f of backendFinNewRecords) {
+      const t = f.type || '未知';
+      if (!backendFinByType[t]) backendFinByType[t] = { count: 0, amount: 0 };
+      backendFinByType[t].count += 1;
+      backendFinByType[t].amount += parseFloat(f.amount || 0);
+    }
+    let backendFinCheck;
+    if (!cur.backendFinancial || cur.backendFinancial.length === 0) {
+      backendFinCheck = '⚠️ 后台账变流水查询失败或当天暂无记录，跳过此项核对';
+    } else if (balanceDelta === null) {
+      backendFinCheck = '⚠️ 余额未知，无法核对后台账变净额';
+    } else if (Math.abs(backendFinNetAmount - balanceDelta) < 0.01) {
+      backendFinCheck = '✅ 后台账变净额与余额变化一致';
+    } else {
+      backendFinCheck = `⚠️ 后台账变净额${fmt(backendFinNetAmount)}与余额变化${fmt(balanceDelta)}不一致(差${fmt(round2(balanceDelta - backendFinNetAmount))})，可能是分页遗漏或记账延迟，需人工核实`;
+    }
+    console.log(`  后台账变流水(${backendFinNewRecords.length}笔)：净额${fmt(backendFinNetAmount)}  ${backendFinCheck}`);
+    for (const t in backendFinByType) {
+      console.log(`    - ${t}：${backendFinByType[t].count}笔，净额${fmt(backendFinByType[t].amount)}`);
     }
 
     // ── 前后台核对：①前台Game History逐笔汇总 ②前台官方报表增量 ③前台余额
@@ -1196,9 +1450,13 @@ async function main() {
       balanceBefore, balanceAfter, balanceDelta, expectedDelta, verdict,
       rechargeDelta, withdrawDelta, activityRewardDelta, freezeDelta, officialCheck,
       abnormalOrderCount: (cur.abnormalOrders ? cur.abnormalOrders.length : 0),
+      newAbnormalOrders, abnormalBetDeduction, crossSettledBetAmount,
+      backendFinNewRecords, backendFinNetAmount, backendFinByType, backendFinCheck,
       feTotal, feBalanceBefore, feBalanceAfter, feBalanceDelta, feBalanceCheck, feReportDelta,
       finNewRecords, finNetAmount, finByType, finCheck, crossCheck,
     });
+    // 把本局新识别到的未结算订单号并入全程累积集合，供后续局判断"是否跨局结算"用
+    newAbnormalOrders.forEach((o) => allSeenAbnormalOrderNos.add(o.orderNo));
     prevSnapshot = cur;
     roundNo++;
   }
