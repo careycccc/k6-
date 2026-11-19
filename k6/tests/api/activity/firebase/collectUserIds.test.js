@@ -125,7 +125,10 @@ export function setup() {
     console.log(`[${TAG}] ========== Setup 开始 ==========`);
     console.log(`[${TAG}] 租户: ${TENANT_ID} | 目标: ${TARGET} 条 | 每页: ${PAGE_SIZE} | 并发线程: ${THREADS}`);
 
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    // forceTenant=true：本文件 buildPageRequest 直接拼 envConfig.BASE_ADMIN_URL(商户自己域名)走http.batch，
+    // 不经过 tenantRequest 的集团路由；域名已固定到商户域，token 也必须用商户自己的管理员token，
+    // 否则集团token在GetPageList上会报 No operation permission(2026-11 实测踩坑同一个坑)
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[${TAG}] 后台登录失败`);
     console.log(`[${TAG}] ✅ 后台登录成功`);
 

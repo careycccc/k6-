@@ -96,6 +96,10 @@
  *   PowerShell 写法（分号分隔，无需反斜杠续行）：
  *     $env:TENANT="3004"; $env:USER_ID="170900"; $env:MEMBER_ACCOUNT="4879330960"; \
  *       $env:MEMBER_PASSWORD="qwer1234"; node k6/playwrith/betVerifyInteractive.js
+ *   自动轮询模式（额外提供POLL_INTERVAL_SEC=轮询间隔秒数；有真人在手机/浏览器
+ *   里连续游玩，脚本不再等回车，自动识别新厂商切局，随时敲end收尾；基线和
+ *   end收尾各做一次完整前后台核对，轮询期间暂停前台查询，不会顶掉你的登录）：
+ *     $env:TENANT="3004"; $env:USER_ID="171082"; $env:POLL_INTERVAL_SEC="8";$env:MEMBER_ACCOUNT="8906008501"; $env:MEMBER_PASSWORD="qwer1234"; node betVerifyInteractive.js
  */
 
 const crypto = require('crypto');
@@ -142,21 +146,49 @@ const TENANTS = {
   '3101': { admin: ENV_FILE['ENV_3101_BASE_ADMIN_URL'], desk: ENV_FILE['ENV_3101_BASE_DESK_URL'], user: ENV_FILE['ENV_3101_ADMIN_USERNAME'], code: ENV_FILE['ENV_3101_COUNTRY_CODE'] },
 };
 
-const TENANT     = String(process.env.TENANT || process.env.TENANT_ID || '3004');
-const T          = TENANTS[TENANT] || TENANTS['3004'];
-const ADMIN_URL  = process.env.ADMIN_URL || T.admin;
-const DESK_URL   = process.env.DESK_URL || T.desk;
+const TENANT = String(process.env.TENANT || process.env.TENANT_ID || '3004');
+const T = TENANTS[TENANT] || TENANTS['3004'];
+const ADMIN_URL = process.env.ADMIN_URL || T.admin;
+const DESK_URL = process.env.DESK_URL || T.desk;
 const ADMIN_USER = process.env.ADMIN_USER || T.user;
-const ADMIN_PWD  = process.env.ADMIN_PWD || ENV_FILE[`ENV_${TENANT}_ADMIN_PASSWORD`] || '';
+const ADMIN_PWD = process.env.ADMIN_PWD || ENV_FILE[`ENV_${TENANT}_ADMIN_PASSWORD`] || '';
 const COUNTRY_CODE = process.env.COUNTRY_CODE || T.code || '91';
-const LANG       = process.env.LANG_CODE || 'zh';
-const USER_ID    = process.env.USER_ID || '';
+const LANG = process.env.LANG_CODE || 'zh';
+const USER_ID = process.env.USER_ID || '';
 
 // 前台会员账号密码（可选）：两者都提供才开启"前后台双重核对"模式。手机号不带
 // 国家区号，脚本自动拼上 COUNTRY_CODE（跟登录表单"+91"那个分开显示的区号同理）。
-const MEMBER_ACCOUNT  = process.env.MEMBER_ACCOUNT || '';
+const MEMBER_ACCOUNT = process.env.MEMBER_ACCOUNT || '';
 const MEMBER_PASSWORD = process.env.MEMBER_PASSWORD || '';
-const DUAL_CHECK = Boolean(MEMBER_ACCOUNT && MEMBER_PASSWORD);
+// WANT_DUAL_CHECK：用户是否提供了会员账号密码、真正想不想做前后台双重核对
+// (不受AUTO_POLL影响，是"意图"而不是"当前这一刻是否真的在查前台")。
+const WANT_DUAL_CHECK = Boolean(MEMBER_ACCOUNT && MEMBER_PASSWORD);
+// DUAL_CHECK：dualSnapshot()实际读取的、可随时切换的运行时开关。
+let DUAL_CHECK = WANT_DUAL_CHECK;
+
+// ───── 自动轮询模式（2026-11-19新增） ─────
+// 有真人在手机/浏览器里连续游玩时，脚本不再等"回车确认"，而是按
+// POLL_INTERVAL_SEC自动轮询后台、自动识别新厂商切局，随时敲end收尾。
+// 2026-11-19用户先要求自动轮询模式下彻底不碰前台(DUAL_CHECK强制关掉)——
+// 因为前台会员token快过期时的自动刷新会重新调用memberLogin()，而同一账号
+// 重复login会顶掉其他端(手机PWA)正在玩的那个会话。后来用户进一步明确：
+// 希望基线(一开始)和敲end收尾那一刻仍然各做一次完整的前后台核对，只是
+// "轮询期间"(真人正在玩的这段时间)不要碰前台——这样才能拿到baseline→
+// final的前后台差额对比，而不是完全没有前台数据。所以实际做法是：
+// WANT_DUAL_CHECK=true时，基线快照正常登录前台(跟手动模式完全一样，若
+// 浏览器已登录会被顶一次，提示你登录好了再开始玩)；main()里拿完基线后，
+// 如果是AUTO_POLL，才把运行时的DUAL_CHECK临时按下去(轮询期间=false，
+// 避免token刷新顶号)；敲end进入结算缓冲那一刻，再把DUAL_CHECK临时提起来
+// (=true)，让最后这一次查询(连同全程核对)重新带上前台数据——这时候你已
+// 经玩完了，就算这一下触发了token刷新/重新登录，也不会再打断你。
+const POLL_INTERVAL_SEC = process.env.POLL_INTERVAL_SEC ? parseFloat(process.env.POLL_INTERVAL_SEC) : null;
+const AUTO_POLL = (POLL_INTERVAL_SEC !== null && !isNaN(POLL_INTERVAL_SEC) && POLL_INTERVAL_SEC > 0);
+// 敲end之后的"结算缓冲"：不管手动/自动模式，都先等这么多秒、再查一次全新
+// 快照，才真正收尾出报告——避免"最后一刻下的注还没来得及被后台记录到，
+// 就被当成最终状态"而凭空制造一个解释不了的差额(2026-11-19用户提出的顾虑，
+// 发现这其实是手动模式下也一直存在的老漏洞：之前敲end是直接break，完全
+// 没有用新数据刷新一次finalSnapshot)。
+const SETTLE_GRACE_SEC = process.env.SETTLE_GRACE_SEC ? parseFloat(process.env.SETTLE_GRACE_SEC) : 5;
 
 if (!USER_ID) {
   console.error('[投注核对] ❌ 请通过环境变量 USER_ID 指定要核对的会员ID，例如：');
@@ -362,9 +394,16 @@ function extractBalance(data) {
 // betAmount/prizeAmount同时也是免费的第五数据源，可跟脚本自己统计的注单
 // 汇总交叉核对(不需要DUAL_CHECK，纯后台接口自带)。
 // accountFundsRsp.freezeAmount(冻结金额)一并记录：若本局期间发起提现申请
-// 但未审核，钱可能从walletBalance转入freezeAmount导致余额"看起来变少"但
-// 并未真正出账——这一假设未经实测验证，本脚本不把freezeAmount计入总余额，
-// 只在核对失败时把freezeAmount的变化量打印出来供人工核实，不代为下结论。
+// 但未审核，钱会从walletBalance转入freezeAmount，余额"看起来变少"但并未
+// 真正出账——2026-11-18用户要求+实测验证(170995账号)：确认official
+// withdrawAmount(今日累计提现)只在提现真正完成(审核通过到账)时才增加，
+// 提现刚发起冻结中的这笔钱既不在walletBalance里也不算进official
+// withdrawAmount，会凭空制造一个等于冻结金额的虚假差额。用freezeDelta
+// (冻结金额变化量)去核销：freeze增加(新发起冻结)时在预期余额里扣掉；
+// freeze减少时分两种情况——若是提现被拒钱退回wallet，预期余额加回来；
+// 若是提现审核通过完成，同一时刻official withdrawAmount也会增加，两者
+// 刚好互相抵消(该round净调整为0)，不会重复扣钱。三种情况用同一条
+// "- freezeDelta"规则都能自动算对，不需要区分究竟是哪种情况。
 function extractActiveToday(data) {
   if (!data || !data.activeTodayRsp) return null;
   const a = data.activeTodayRsp;
@@ -922,11 +961,12 @@ function buildReportMarkdown(rounds, baseline, finalSnapshot) {
     } else {
       lines.push(`投注合计${fmt(r.total.betAmount)} / 派奖合计${fmt(r.total.winAmount)} / 盈亏${fmt(r.total.profit)}。`);
     }
-    lines.push(`本局充值净增${r.rechargeDelta !== null ? fmt(r.rechargeDelta) : '未知'}  提现净增${r.withdrawDelta !== null ? fmt(r.withdrawDelta) : '未知'}  活动奖励净增${r.activityRewardDelta !== null ? fmt(r.activityRewardDelta) : '未知'}${r.freezeDelta !== null && Math.abs(r.freezeDelta) >= 0.01 ? `  ⚠️冻结金额变化${fmt(r.freezeDelta)}(可能是提现被冻结未到账，请人工核实)` : ''}`);
+    lines.push(`本局充值净增${r.rechargeDelta !== null ? fmt(r.rechargeDelta) : '未知'}  提现净增${r.withdrawDelta !== null ? fmt(r.withdrawDelta) : '未知'}  活动奖励净增${r.activityRewardDelta !== null ? fmt(r.activityRewardDelta) : '未知'}${r.freezeDelta !== null && Math.abs(r.freezeDelta) >= 0.01 ? `  冻结金额变化${fmt(r.freezeDelta)}(提现冻结中/解冻，已计入预期余额核销)` : ''}`);
     lines.push(`后台官方今日统计核对：${r.officialCheck || '—'}`);
     const abnormalDeductionTxt = (r.abnormalBetDeduction !== 0) ? `+未结算注单投注扣除${fmt(r.abnormalBetDeduction)}` : '';
     const crossSettledTxt = (r.crossSettledBetAmount !== 0) ? `+核销跨局结算重复投注${fmt(r.crossSettledBetAmount)}` : '';
-    lines.push(`后台余额：${r.balanceBefore !== null ? fmt(r.balanceBefore) : '—'} → ${r.balanceAfter !== null ? fmt(r.balanceAfter) : '—'}（变化${r.balanceDelta !== null ? fmt(r.balanceDelta) : '—'}，预期变化${fmt(r.expectedDelta)}=游戏盈亏${fmt(r.total.profit)}+充值${r.rechargeDelta !== null ? fmt(r.rechargeDelta) : 0}-提现${r.withdrawDelta !== null ? fmt(r.withdrawDelta) : 0}+活动奖励${r.activityRewardDelta !== null ? fmt(r.activityRewardDelta) : 0}${abnormalDeductionTxt}${crossSettledTxt}） ${r.verdict}`);
+    const freezeAdjustmentTxt = (r.freezeDelta !== null && Math.abs(r.freezeDelta) >= 0.01) ? `-冻结金额变化核销${fmt(r.freezeDelta)}` : '';
+    lines.push(`后台余额：${r.balanceBefore !== null ? fmt(r.balanceBefore) : '—'} → ${r.balanceAfter !== null ? fmt(r.balanceAfter) : '—'}（变化${r.balanceDelta !== null ? fmt(r.balanceDelta) : '—'}，预期变化${fmt(r.expectedDelta)}=游戏盈亏${fmt(r.total.profit)}+充值${r.rechargeDelta !== null ? fmt(r.rechargeDelta) : 0}-提现${r.withdrawDelta !== null ? fmt(r.withdrawDelta) : 0}+活动奖励${r.activityRewardDelta !== null ? fmt(r.activityRewardDelta) : 0}${freezeAdjustmentTxt}${abnormalDeductionTxt}${crossSettledTxt}） ${r.verdict}`);
     if (roundAbnormalCount + roundRefundedCount > 0) {
       lines.push(`⚠️ 本局新增${headerParts.join(' + ')}注单（上方笔数已计入，"未结算"的投注金额已计入扣除、"已撤单退款"钱已全额退回不计入扣除，游戏盈亏暂未计入，派奖是否已到账需结合资金流水核对）：`);
       lines.push('| 厂商 | 游戏名称 | 投注金额 | 派奖金额 | 订单号 | 状态(orderState) | 类型 |');
@@ -999,25 +1039,46 @@ function buildReportMarkdown(rounds, baseline, finalSnapshot) {
   // 被误当成"还扣着的未结算"多扣了一次)。
   const stillPendingAtEnd = stillAbnormalAtEnd.filter((o) => !o.settlementTime);
   const refundedAtEnd = stillAbnormalAtEnd.filter((o) => o.settlementTime);
-  // ⚠️ 这里不能再加总各局的crossSettledBetAmount——那个修正项只在"单局维度"
-  // 才需要(让每一局的verdict只反映"本局新发生"的资金变动)。在全程维度，
-  // totalProfit(各局total.profit求和)本身已经是正确的：任何一笔订单，不管
-  // 它的betAmount/winAmount是当局产生就结算、还是跨好几局才结算，都只会在
-  // 它"变成已结算"的那一局的total里出现一次、且是完整数据，不会被重复计入
-  // 其他任何一局的total——所以全程累加后天然不重复，只有"从始至终都没结算"
-  // 的那部分订单(stillPendingAtEnd)才是total统计不到、需要额外补回的部分。
+  // 上面这条"全程层面天然不重复"的结论只对"本次session开始后才变成未结算"
+  // 的订单成立；2026-11-18二次修正：如果某笔订单在baseline捕获之前就已经处
+  // 于未结算状态(即baseline.abnormalOrders里的订单)，它的betAmount早在
+  // baseline余额被读取之前就已经真实离开钱包——baseline.balance本身已经"少"
+  // 这笔钱了。等它在本次session期间正常结算(orderState变成1)后，
+  // total.profit会把这笔betAmount再算一次(profit=winAmount-betAmount)，相当
+  // 于从baseline往后又扣了一次，凭空制造出一个等于该betAmount的虚假差额——
+  // 跟单局层面crossSettledBetAmount要核销的是同一类问题，只是发生时点更早
+  // (在baseline之前)，不能直接把各局的crossSettledBetAmount求和(那里面混了
+  // "session期间才变成未结算"的订单，这部分在全程层面本不需要核销，加进来
+  // 反而会凭空多出一个差额)。只找"baseline时就是未结算、到finalSnapshot时
+  // 已经不在未结算列表里"的订单(说明走完了orderState=1的正常结算路径，不是
+  // orderState=2退款路径——退款的订单仍会留在finalSnapshot.abnormalOrders
+  // 里，不会被误判进来)，把它们的betAmount单独加回来核销一次。
+  const finalAbnormalNos = new Set((finalSnapshot.abnormalOrders || []).map((o) => o.orderNo));
+  const baselineOrdersSettledDuringSession = (baseline.abnormalOrders || []).filter((o) => !finalAbnormalNos.has(o.orderNo));
+  const totalCrossSettledBetAmount = round2(baselineOrdersSettledDuringSession.reduce((s, o) => s + parseFloat(o.betAmount || 0), 0));
   const totalAbnormalBetDeduction = round2(-stillPendingAtEnd.reduce((s, o) => s + parseFloat(o.betAmount || 0), 0));
+  // expectedFinal/overallBalanceAlreadyVerified 提到这里统一算一次，后面
+  // "后台账变流水口径"/"资金流水口径"两处是否降级为ℹ️的判断都复用这一份结果——
+  // 2026-11-18教训：这两处原来各自维护一份"全程预期余额是否已核对通过"的
+  // 判断，这次改freeze/crossSettled核销公式只改了下面官方统计口径这一处，
+  // 差点忘了同步后台账变流水口径那边自己复刻的一份旧公式——两份公式一旦
+  // 分叉，未来某次冻结/历史跨局结算金额非零的报告里，降级判断就会用错过时
+  // 的旧公式算出错误结果。统一成一份，不管后面加几个"后台/资金流水口径"
+  // 都不会再出现这种分叉。
+  const expectedFinal = (baseline.balance !== null)
+    ? round2(baseline.balance + totalProfit + totalRecharge - totalWithdraw + totalActivityReward - totalFreezeChange + totalAbnormalBetDeduction + totalCrossSettledBetAmount)
+    : null;
+  const overallBalanceAlreadyVerified = (expectedFinal !== null && finalSnapshot.balance !== null && Math.abs(finalSnapshot.balance - expectedFinal) < 0.01);
 
   if (baseline.balance !== null && finalSnapshot.balance !== null) {
-    lines.push(`- 累计充值${fmt(totalRecharge)}  累计提现${fmt(totalWithdraw)}  累计活动奖励${fmt(totalActivityReward)}${activeIncomplete ? `（⚠️有${rounds.length - activeKnownRounds.length}局未查到官方统计，此项不完整）` : ''}${Math.abs(totalFreezeChange) >= 0.01 ? `  累计冻结金额变化${fmt(totalFreezeChange)}` : ''}${stillPendingAtEnd.length > 0 ? `  截止目前仍有${stillPendingAtEnd.length}笔未结算注单(彩票/体育等待开奖完赛属正常)，已扣除投注合计${fmt(-totalAbnormalBetDeduction)}` : ''}${refundedAtEnd.length > 0 ? `  另有${refundedAtEnd.length}笔已撤单退款共${fmt(refundedAtEnd.reduce((s, o) => s + parseFloat(o.betAmount || 0), 0))}(钱已全额退回，不计入扣除)` : ''}`);
-    const expectedFinal = round2(baseline.balance + totalProfit + totalRecharge - totalWithdraw + totalActivityReward + totalAbnormalBetDeduction);
-    lines.push(`- 预期余额（起始余额 + 累计盈亏 + 累计充值 - 累计提现 + 累计活动奖励${stillPendingAtEnd.length > 0 ? ' + 仍未结算注单投注扣除' : ''}，官方统计口径）= ${fmt(expectedFinal)}`);
+    lines.push(`- 累计充值${fmt(totalRecharge)}  累计提现${fmt(totalWithdraw)}  累计活动奖励${fmt(totalActivityReward)}${activeIncomplete ? `（⚠️有${rounds.length - activeKnownRounds.length}局未查到官方统计，此项不完整）` : ''}${Math.abs(totalFreezeChange) >= 0.01 ? `  累计冻结金额变化${fmt(totalFreezeChange)}(提现冻结中/解冻，已计入预期余额核销)` : ''}${stillPendingAtEnd.length > 0 ? `  截止目前仍有${stillPendingAtEnd.length}笔未结算注单(彩票/体育等待开奖完赛属正常)，已扣除投注合计${fmt(-totalAbnormalBetDeduction)}` : ''}${refundedAtEnd.length > 0 ? `  另有${refundedAtEnd.length}笔已撤单退款共${fmt(refundedAtEnd.reduce((s, o) => s + parseFloat(o.betAmount || 0), 0))}(钱已全额退回，不计入扣除)` : ''}${baselineOrdersSettledDuringSession.length > 0 ? `  另核销${baselineOrdersSettledDuringSession.length}笔session开始前就已挂着未结算、本次session期间才结算的历史订单投注${fmt(totalCrossSettledBetAmount)}(baseline余额已经不含这笔钱，避免重复扣)` : ''}`);
+    lines.push(`- 预期余额（起始余额 + 累计盈亏 + 累计充值 - 累计提现 + 累计活动奖励${Math.abs(totalFreezeChange) >= 0.01 ? ' - 累计冻结金额变化核销' : ''}${stillPendingAtEnd.length > 0 ? ' + 仍未结算注单投注扣除' : ''}${baselineOrdersSettledDuringSession.length > 0 ? ' + 历史跨局结算核销' : ''}，官方统计口径）= ${fmt(expectedFinal)}`);
     lines.push(`- 实际最终余额：**${fmt(finalSnapshot.balance)}**`);
     const diff = round2(finalSnapshot.balance - expectedFinal);
     if (Math.abs(diff) < 0.01) {
       lines.push('- ✅ 官方统计口径完全吻合');
     } else {
-      const freezeHint = Math.abs(totalFreezeChange) >= 0.01 ? `，累计冻结金额变化${fmt(totalFreezeChange)}(可能是提现刚发起被冻结、尚未计入官方"累计提现"统计，请结合下方资金流水口径核对)` : '';
+      const freezeHint = Math.abs(totalFreezeChange) >= 0.01 ? `（已核销累计冻结金额变化${fmt(totalFreezeChange)}，仍有差额说明另有原因，请结合下方资金流水口径核对）` : '';
       lines.push(`- ⚠️ 官方统计口径差额${fmt(diff)}${freezeHint}，请人工核实`);
     }
   } else {
@@ -1051,9 +1112,8 @@ function buildReportMarkdown(rounds, baseline, finalSnapshot) {
       lines.push('- ✅ 后台账变流水口径完全吻合（会计恒等式验证通过，能覆盖体育Cash Out等"订单号/类型跟原投注不一致"的穿插资金，比官方统计口径更权威）');
     } else {
       // 跟单局那条检查同款降级：全程余额本身是否已经核对通过(官方统计口径
-      // expectedFinal)，决定这条差额是真问题还是历史结存/分页遗漏这类口径噪音。
-      const overallExpectedFinal = round2(baseline.balance + totalProfit + totalRecharge - totalWithdraw + totalActivityReward + totalAbnormalBetDeduction);
-      const overallBalanceAlreadyVerified = (baseline.balance !== null && finalSnapshot.balance !== null && Math.abs(finalSnapshot.balance - overallExpectedFinal) < 0.01);
+      // expectedFinal，复用上面统一算过的overallBalanceAlreadyVerified)，
+      // 决定这条差额是真问题还是历史结存/分页遗漏这类口径噪音。
       if (overallBalanceAlreadyVerified) {
         lines.push(`- ℹ️ 后台账变流水口径差额${fmt(round2(backendActualDelta - totalBackendFinNet))}，但全程余额已核实PASS——大概率是开局前游戏钱包就有历史结存被首次切换游戏时一并转出，不代表真实资金异常，仅供参考`);
       } else {
@@ -1072,10 +1132,14 @@ function buildReportMarkdown(rounds, baseline, finalSnapshot) {
   // 下面的"明细"里直接指出是哪笔类型的记录造成的，不用再翻每一局的细节)。
   if (DUAL_CHECK) {
     const finKnownRounds = rounds.filter((r) => r.finNetAmount !== null);
+    let totalFinNet = null;
+    let feActualDelta = null;
+    let totalFinByType = null;
+    let coverageNote = '';
     if (finKnownRounds.length > 0 && baseline.feBalance !== null && finalSnapshot.feBalance !== null) {
-      const totalFinNet = round2(finKnownRounds.reduce((s, r) => s + r.finNetAmount, 0));
-      const feActualDelta = round2(finalSnapshot.feBalance - baseline.feBalance);
-      const totalFinByType = {};
+      totalFinNet = round2(finKnownRounds.reduce((s, r) => s + r.finNetAmount, 0));
+      feActualDelta = round2(finalSnapshot.feBalance - baseline.feBalance);
+      totalFinByType = {};
       for (const r of rounds) {
         for (const t in (r.finByType || {})) {
           if (!totalFinByType[t]) totalFinByType[t] = { count: 0, amount: 0 };
@@ -1083,12 +1147,42 @@ function buildReportMarkdown(rounds, baseline, finalSnapshot) {
           totalFinByType[t].amount += r.finByType[t].amount;
         }
       }
+      coverageNote = finKnownRounds.length < rounds.length ? `仅覆盖${finKnownRounds.length}/${rounds.length}局` : '覆盖全部局数';
+    } else if (baseline.feFinancial && finalSnapshot.feFinancial && baseline.feBalance !== null && finalSnapshot.feBalance !== null) {
+      // 2026-11-19发现：自动轮询+首尾双重核对模式下，轮询期间每局
+      // DUAL_CHECK都是关的(避免token刷新顶掉手机/浏览器会话)，所有局的
+      // finNetAmount都是null，上面"各局求和"的老路子永远凑不出数据，
+      // 会一直误报"数据不完整"——哪怕baseline和end各自都完整查过一次
+      // 前台。这种情况下直接拿baseline/finalSnapshot的feFinancial原始
+      // 列表做一次"从头到尾"的整体diff，等价于把整个session当一个大局
+      // 核对，口径跟①①逐局diff完全一致，只是不经过round累加这一步。
+      const baselineFinIds = new Set(baseline.feFinancial.map((f) => f.id));
+      const directFinNewRecords = finalSnapshot.feFinancial.filter((f) => !baselineFinIds.has(f.id));
+      totalFinNet = round2(directFinNewRecords.reduce((s, f) => s + parseFloat(f.amount || 0), 0));
+      feActualDelta = round2(finalSnapshot.feBalance - baseline.feBalance);
+      totalFinByType = {};
+      for (const f of directFinNewRecords) {
+        const t = f.type || '未知';
+        if (!totalFinByType[t]) totalFinByType[t] = { count: 0, amount: 0 };
+        totalFinByType[t].count += 1;
+        totalFinByType[t].amount += parseFloat(f.amount || 0);
+      }
+      coverageNote = '自动轮询模式：轮询期间前台未查，基线+end各查一次直接整体对比';
+    }
+    if (totalFinNet !== null) {
       const finTypeLines = Object.keys(totalFinByType).map((t) => `${t}: ${totalFinByType[t].count}笔/净额${fmt(totalFinByType[t].amount)}`);
       lines.push('');
-      lines.push(`- **资金流水口径**（前台账变流水GetUserFinancialList，${finKnownRounds.length < rounds.length ? `仅覆盖${finKnownRounds.length}/${rounds.length}局` : '覆盖全部局数'}）：累计净额${fmt(totalFinNet)}，前台余额变化${fmt(feActualDelta)}`);
+      lines.push(`- **资金流水口径**（前台账变流水GetUserFinancialList，${coverageNote}）：累计净额${fmt(totalFinNet)}，前台余额变化${fmt(feActualDelta)}`);
       if (finTypeLines.length > 0) lines.push(`　明细：${finTypeLines.join('，')}`);
       if (Math.abs(totalFinNet - feActualDelta) < 0.01) {
         lines.push('- ✅ 资金流水口径完全吻合（会计恒等式验证通过，不依赖官方统计字段何时更新，能覆盖"已划款但尚未计入官方统计"的穿插资金）');
+      } else if (overallBalanceAlreadyVerified) {
+        // 2026-11-18发现：这条之前一直是硬⚠️，没有跟后台账变流水口径那条
+        // 一样做"全程余额已核实PASS就降级"的判断——同一个历史结存/分页遗漏
+        // 现象(GameTransIn/Out净额对不上)，前后台两条口径数值经常完全一样，
+        // 却一条ℹ️一条⚠️，容易让人以为前台这边真的有问题。统一用同一份
+        // overallBalanceAlreadyVerified降级。
+        lines.push(`- ℹ️ 资金流水口径差额${fmt(round2(feActualDelta - totalFinNet))}，但全程余额已核实PASS——大概率是开局前游戏钱包就有历史结存被首次切换游戏时一并转出，不代表真实资金异常，仅供参考`);
       } else {
         lines.push(`- ⚠️ 资金流水口径差额${fmt(round2(feActualDelta - totalFinNet))}，需人工核实`);
       }
@@ -1164,6 +1258,13 @@ async function main() {
     console.log('[投注核对] ℹ️ 提示：基线查询期间前台token被自动刷新过一次，如果你的浏览器已登录可能掉线了，请现在重新登录浏览器再开始玩');
     feTokenState.refreshed = false;
   }
+  // 自动轮询模式：基线已经按WANT_DUAL_CHECK正常登录/查过前台了，从现在
+  // 开始(真人正在玩的这段时间)把DUAL_CHECK临时按下去，轮询期间只查后台，
+  // 不再碰前台token；敲end进入结算缓冲时会重新打开，做最后一次完整核对。
+  if (AUTO_POLL && WANT_DUAL_CHECK) {
+    console.log('[投注核对] ℹ️ 基线前后台核对已完成。接下来轮询期间暂停前台查询(避免token刷新顶掉你手机/浏览器的会话)，敲end收尾时会恢复、做最后一次完整的前后台核对。');
+    DUAL_CHECK = false;
+  }
   console.log(`\n[投注核对] 基线后台余额: ${baseline.balance !== null ? fmt(baseline.balance) : '未识别'}`);
   console.log(`[投注核对] 基线后台当天已结算注单: ${baseline.orders.length}笔（投注${fmt(baseline.summary.betAmount)} / 派奖${fmt(baseline.summary.winAmount)}）`);
   if (baseline.abnormalOrders && baseline.abnormalOrders.length > 0) {
@@ -1200,13 +1301,51 @@ async function main() {
   // 同一笔投注被扣两次，凭空制造出一个等于该订单betAmount的虚假差额。
   let allSeenAbnormalOrderNos = new Set((baseline.abnormalOrders || []).map((o) => o.orderNo));
 
-  console.log('\n[投注核对] 进入交互模式：浏览器里玩完一局后回车确认（end=结束出报告，skip=跳过本局不计入）\n');
+  if (AUTO_POLL) {
+    console.log(`\n[投注核对] 自动轮询模式：每${POLL_INTERVAL_SEC}秒自动查一次后台，有新动静才打印，没有就安静跳过；在手机/浏览器里正常玩就行，不用回这边确认。干净PASS的局只打一行，真有⚠️才展开细节。⚠️ 单局差额有时是查询延迟导致(钱动的时刻早于记录变得可查询的时刻)，常会在后续一两局自动抵消，不代表真的有问题；最终以end收尾时的"全程总核对"为准。随时敲 end 回车收尾出报告。\n`);
+  } else {
+    console.log('\n[投注核对] 进入交互模式：浏览器里玩完一局后回车确认（end=结束出报告，skip=跳过本局不计入）\n');
+  }
 
-  while (true) {
-    const raw = await rl.question(`第${roundNo}局：玩完后回车确认 > `);
-    const ans = raw.trim().toLowerCase();
-    if (ans === 'end') break;
+  // ⚠️ 自动轮询模式下的end检测：不能每次等待都临时注册一个新的'line'监听器
+  // 再注销——实测发现这样会出现"监听器空窗期"：上一轮waitForNextTrigger
+  // 超时返回之后、到下一轮重新rl.on('line',...)之前，中间还要跑一次
+  // processOneRound(通常要几秒)，如果用户正好在这个空窗期敲了end，这行
+  // 输入会被readline当场emit掉、却没有任何监听器在收，直接永久丢失，
+  // 脚本会卡住再也等不到end。改法：整个自动轮询期间只注册一次'line'监听器
+  // (不会丢)，敲end只是把一个常驻标志位endRequested置true；
+  // waitForNextTrigger只是短间隔(200ms)轮询这个标志位，不负责接收输入本身。
+  let endRequested = false;
+  if (AUTO_POLL) {
+    rl.on('line', (raw) => {
+      if (raw.trim().toLowerCase() === 'end') endRequested = true;
+    });
+  }
+  function waitForNextTrigger(promptRoundNo) {
+    if (!AUTO_POLL) {
+      return rl.question(`第${promptRoundNo}局：玩完后回车确认 > `).then((raw) => raw.trim().toLowerCase());
+    }
+    if (endRequested) return Promise.resolve('end');
+    return new Promise((resolve) => {
+      const deadline = Date.now() + POLL_INTERVAL_SEC * 1000;
+      const timer = setInterval(() => {
+        if (endRequested) {
+          clearInterval(timer);
+          resolve('end');
+        } else if (Date.now() >= deadline) {
+          clearInterval(timer);
+          resolve('');
+        }
+      }, 200);
+    });
+  }
 
+  // 处理一次"抓快照+跟上一次做diff"：quiet=true时如果这次完全没有新结算
+  // 注单、余额也完全没变，就静默推进prevSnapshot、不打印整段round小结、
+  // 不占用roundNo(2026-11-19新增，自动轮询模式下避免每隔几秒就刷一屏)。
+  // 哪怕是"投了但还没结算"的新注单，下注那一刻余额也会立刻变化，不会被
+  // 这条判断误伤而被安静跳过。返回true=这次确实处理了内容，false=空轮询。
+  async function processOneRound(quiet, feResumedAfterPause) {
     await sleep(2000); // 订单结算需要时间，复刻之前实测教训：立即查可能orderState还是0
     const cur = await dualSnapshot(token, feTokenState, USER_ID, false);
     if (DUAL_CHECK && feTokenState.refreshed) {
@@ -1214,15 +1353,16 @@ async function main() {
       feTokenState.refreshed = false;
     }
 
-    if (ans === 'skip') {
-      console.log('[投注核对] 已跳过本局（不计入报告，基线已更新为当前快照）\n');
-      prevSnapshot = cur;
-      roundNo++;
-      continue;
-    }
-
     const prevOrderNos = new Set(prevSnapshot.orders.map((o) => o.orderNo));
     const newOrders = cur.orders.filter((o) => !prevOrderNos.has(o.orderNo));
+    const balanceBefore = prevSnapshot.balance;
+    const balanceAfter = cur.balance;
+    const balanceDelta = (balanceBefore === null || balanceAfter === null) ? null : round2(balanceAfter - balanceBefore);
+    if (quiet && newOrders.length === 0 && (balanceDelta === null || Math.abs(balanceDelta) < 0.01)) {
+      prevSnapshot = cur;
+      return false;
+    }
+
     const groups = groupByGame(newOrders);
     const total = sumGroups(groups);
 
@@ -1234,16 +1374,15 @@ async function main() {
       .filter((o) => allSeenAbnormalOrderNos.has(o.orderNo))
       .reduce((s, o) => s + parseFloat(o.betAmount || 0), 0));
 
-    const balanceBefore = prevSnapshot.balance;
-    const balanceAfter = cur.balance;
-    const balanceDelta = (balanceBefore === null || balanceAfter === null) ? null : round2(balanceAfter - balanceBefore);
+    // balanceBefore/balanceAfter/balanceDelta 已经在上面quiet检查之前算过了，
+    // 这里不用重复声明。
 
     // ── 本局充值/提现/活动奖励增量：用 GetUserDetail.activeTodayRsp 的"今日
     // 累计值"做差得到，修正"余额变化应等于游戏盈亏"这个在有资金穿插时会
     // 误判的假设(用户2026-11-16明确要求)。同时拿 activeTodayRsp.betAmount/
     // prizeAmount 的增量跟脚本自己统计的 total 做交叉核对(免费的第五数据源，
-    // 不依赖 DUAL_CHECK)。freezeAmount 的变化只记录、不计入预期余额(假设未
-    // 经实测验证，不武断下结论)。
+    // 不依赖 DUAL_CHECK)。freezeAmount 的变化(freezeDelta)已核实并入下方
+    // nonGameAdjustment——详见上面extractActiveToday附近的注释。
     const prevActive = prevSnapshot.activeToday;
     const curActive = cur.activeToday;
     let rechargeDelta = null, withdrawDelta = null, activityRewardDelta = null, freezeDelta = null;
@@ -1293,7 +1432,8 @@ async function main() {
     const abnormalTotal = sumGroups(groupByGame(newPendingAbnormalOrders));
     const abnormalBetDeduction = round2(-abnormalTotal.betAmount);
 
-    const nonGameAdjustment = (rechargeDelta !== null ? rechargeDelta : 0) - (withdrawDelta !== null ? withdrawDelta : 0) + (activityRewardDelta !== null ? activityRewardDelta : 0);
+    const freezeAdjustment = (freezeDelta !== null ? -freezeDelta : 0);
+    const nonGameAdjustment = (rechargeDelta !== null ? rechargeDelta : 0) - (withdrawDelta !== null ? withdrawDelta : 0) + (activityRewardDelta !== null ? activityRewardDelta : 0) + freezeAdjustment;
     const expectedDelta = round2(total.profit + nonGameAdjustment + abnormalBetDeduction + crossSettledBetAmount);
 
     let verdict;
@@ -1302,26 +1442,19 @@ async function main() {
     } else if (Math.abs(balanceDelta - expectedDelta) < 0.01) {
       const parts = [];
       if (nonGameAdjustment !== 0) parts.push(`充值/提现/活动奖励净调整${fmt(nonGameAdjustment)}`);
+      if (freezeDelta !== null && Math.abs(freezeDelta) >= 0.01) parts.push(`冻结金额变化${fmt(freezeDelta)}(提现冻结中/解冻，已在预期余额里核销，不是资金异常)`);
       if (newPendingAbnormalOrders.length > 0) parts.push(`${newPendingAbnormalOrders.length}笔未结算注单投注扣除${fmt(abnormalBetDeduction)}(暂不计入其派奖，等真正结算后在后续局里体现)`);
       if (newRefundedAbnormalOrders.length > 0) parts.push(`${newRefundedAbnormalOrders.length}笔已撤单退款(钱已全额退回，不计入扣除)`);
       if (crossSettledBetAmount !== 0) parts.push(`核销${fmt(crossSettledBetAmount)}跨局结算重复投注(之前某局未结算时已扣过一次)`);
       verdict = parts.length > 0 ? `✅ PASS（含${parts.join('，')}）` : '✅ PASS';
     } else {
       const diffAmount = round2(balanceDelta - expectedDelta);
-      const freezeHint = (freezeDelta !== null && Math.abs(freezeDelta) >= 0.01) ? `，检测到冻结金额变化${fmt(freezeDelta)}(可能是提现被冻结未到账，请人工核实)` : '';
+      const freezeHint = (freezeDelta !== null && Math.abs(freezeDelta) >= 0.01) ? `（已核销冻结金额变化${fmt(freezeDelta)}）` : '';
       const abnormalHint = newPendingAbnormalOrders.length > 0 ? `（已计入${newPendingAbnormalOrders.length}笔未结算注单投注扣除${fmt(abnormalBetDeduction)}，仍未解释）` : '';
       const refundedHint = newRefundedAbnormalOrders.length > 0 ? `（另有${newRefundedAbnormalOrders.length}笔已撤单退款不计入扣除）` : '';
       const crossSettledHint = crossSettledBetAmount !== 0 ? `（已核销${fmt(crossSettledBetAmount)}跨局结算重复投注）` : '';
-      verdict = `⚠️ 差额${fmt(diffAmount)}（已计入充值${rechargeDelta !== null ? fmt(rechargeDelta) : '未知'}/提现${withdrawDelta !== null ? fmt(withdrawDelta) : '未知'}/活动奖励${activityRewardDelta !== null ? fmt(activityRewardDelta) : '未知'}${abnormalHint}${refundedHint}${crossSettledHint}仍有差额${freezeHint}，可能是账变记账本身也有同步延迟，需人工核实）`;
+      verdict = `⚠️ 差额${fmt(diffAmount)}（已计入充值${rechargeDelta !== null ? fmt(rechargeDelta) : '未知'}/提现${withdrawDelta !== null ? fmt(withdrawDelta) : '未知'}/活动奖励${activityRewardDelta !== null ? fmt(activityRewardDelta) : '未知'}${freezeHint}${abnormalHint}${refundedHint}${crossSettledHint}仍有差额，可能是账变记账本身也有同步延迟，需人工核实）`;
     }
-    if (newAbnormalOrders.length > 0) {
-      console.log('    非已结算注单明细(orderNo/游戏/投注/winAmount字段原样/状态)——"未结算"(settlementTime=0)已计入投注扣除，"已撤单退款"(settlementTime已有值，钱已通过GameReturn退回)不计入扣除，winAmount暂不采信：');
-      for (const o of newAbnormalOrders) {
-        const tag = o.settlementTime ? '已撤单退款,不扣' : '未结算,已扣';
-        console.log(`      ${o.orderNo}  ${o.gameName || o.gameCode || '未知'}  ${o.betAmount}  ${o.winAmount}  orderState=${o.orderState}  [${tag}]`);
-      }
-    }
-
     // ── 后台账变流水核对：不依赖DUAL_CHECK，任何模式下都做。本局新增记录
     // (按id去重diff)的amount之和，必须严格等于后台余额变化——这是比上面
     // "官方统计口径+未结算投注扣除推测"更权威的会计恒等式核对，能捕捉到
@@ -1361,10 +1494,6 @@ async function main() {
         backendFinCheck = `⚠️ 后台账变净额${fmt(backendFinNetAmount)}与余额变化${fmt(balanceDelta)}不一致(差${fmt(round2(balanceDelta - backendFinNetAmount))})，可能是分页遗漏或记账延迟，需人工核实`;
       }
     }
-    console.log(`  后台账变流水(${backendFinNewRecords.length}笔)：净额${fmt(backendFinNetAmount)}  ${backendFinCheck}`);
-    for (const t in backendFinByType) {
-      console.log(`    - ${t}：${backendFinByType[t].count}笔，净额${fmt(backendFinByType[t].amount)}`);
-    }
 
     // ── 前后台核对：①前台Game History逐笔汇总 ②前台官方报表增量 ③前台余额
     // 变化(跟后台余额变化比)④前台账变流水净额(跟前台余额变化比，会计恒等式)，
@@ -1378,7 +1507,28 @@ async function main() {
     let finCheck = null;
     let crossCheck = null;
 
-    if (DUAL_CHECK) {
+    if (DUAL_CHECK && feResumedAfterPause) {
+      // ⚠️ 2026-11-19实测发现的真bug：end收尾时恢复DUAL_CHECK，prevSnapshot
+      // 是轮询暂停期间(DUAL_CHECK=false)查的最后一次快照，根本没有前台数据
+      // (feOrders/feBalance等全是null)。如果还按下面①②③④的写法拿
+      // prevSnapshot.feXxx去跟cur.feXxx做"增量"，分母全是null，会被误判成
+      // "查询失败"——但cur.feBalance其实已经查到了，只是"没有可比的上一次
+      // 前台数据"而已，不代表真的查询失败。而且就算改成跟baseline比，backend
+      // 这一侧(total)用的还是prevSnapshot的增量(只是这一下轮询的极小窗口)，
+      // 跟baseline比的frontend(整个session的累计)根本不是一个量级，怎么比都
+      // 会"不一致"。所以这种情况干脆不做本局的前台增量比对——cur.feBalance等
+      // 原始值已经拿到手，会正确进入finalSnapshot，下面"三、全程总核对"/
+      // "资金流水口径"本来就是直接拿baseline跟finalSnapshot比，不依赖这里的
+      // 逐局diff，核对结果不受影响。
+      const feOk = (cur.feBalance !== null && cur.feOrders !== null && cur.feReport !== null && cur.feFinancial !== null);
+      feBalanceBefore = null;
+      feBalanceAfter = cur.feBalance;
+      feBalanceCheck = feOk ? 'ℹ️ 前台查询已恢复，轮询暂停期跨度太大不做增量比对' : '⚠️ 前台余额查询失败';
+      finCheck = 'ℹ️ 本局不做前台账变流水增量比对(轮询暂停期跨度太大)';
+      crossCheck = feOk
+        ? 'ℹ️ 前台查询已恢复成功，本局不做增量比对，完整前后台核对见下方"三、全程总核对"'
+        : '⚠️ 前台查询恢复后仍有数据获取失败，完整核对结果请看下方"三、全程总核对"';
+    } else if (DUAL_CHECK) {
       const issues = [];
 
       // ① Game History 逐笔汇总 vs 后台
@@ -1467,40 +1617,62 @@ async function main() {
       crossCheck = issues.length === 0 ? '✅ 前后台核对一致' : `⚠️ ${issues.join('；')}`;
     }
 
-    console.log(`\n── 第${roundNo}局小结（本局新增注单${newOrders.length}笔）──`);
-    if (newOrders.length === 0) {
-      console.log('  未查到任何新增已结算注单（可能还没结算完，或刚才那局是无效操作）');
-    }
-    for (const g in groups) {
-      const gr = groups[g];
-      console.log(`  ${g}：${gr.count}笔  投注${fmt(gr.betAmount)}  派奖${fmt(gr.winAmount)}  盈亏${fmt(gr.winAmount - gr.betAmount)}`);
-    }
-    console.log(`  合计：${total.count}笔  投注${fmt(total.betAmount)}  派奖${fmt(total.winAmount)}  盈亏${fmt(total.profit)}`);
-    console.log(`  本局充值净增${rechargeDelta !== null ? fmt(rechargeDelta) : '未知'}  提现净增${withdrawDelta !== null ? fmt(withdrawDelta) : '未知'}  活动奖励净增${activityRewardDelta !== null ? fmt(activityRewardDelta) : '未知'}${freezeDelta !== null && Math.abs(freezeDelta) >= 0.01 ? `  ⚠️冻结金额变化${fmt(freezeDelta)}` : ''}`);
-    console.log(`  后台官方今日统计核对：${officialCheck}`);
-    console.log(`  后台余额：${balanceBefore !== null ? fmt(balanceBefore) : '—'} → ${balanceAfter !== null ? fmt(balanceAfter) : '—'}（变化${balanceDelta !== null ? fmt(balanceDelta) : '—'}，预期变化${fmt(expectedDelta)}）  ${verdict}`);
-    if (cur.abnormalOrders && cur.abnormalOrders.length > 0) {
-      console.log(`  ⚠️ 账上累计存在${cur.abnormalOrders.length}笔非已结算状态注单（含历史遗留，本局新增部分已在上面verdict里单独列出）`);
-    }
-    if (DUAL_CHECK) {
-      console.log(`  前台余额：${feBalanceBefore !== null ? fmt(feBalanceBefore) : '—'} → ${feBalanceAfter !== null ? fmt(feBalanceAfter) : '—'}（变化${feBalanceDelta !== null ? fmt(feBalanceDelta) : '—'}）  ${feBalanceCheck}`);
-      console.log(`  前台Game History：${feTotal.count}笔  投注${fmt(feTotal.betAmount)}  派奖${fmt(feTotal.winAmount)}`);
-      console.log(`  前台官方报表：${feReportDelta ? `${feReportDelta.count}笔  投注${fmt(feReportDelta.betAmount)}  派奖${fmt(feReportDelta.winAmount)}` : '—（查询失败）'}`);
-      console.log(`  前台账变流水：${finNetAmount !== null ? `${finNewRecords.length}笔，净额${fmt(finNetAmount)}` : '—（查询失败）'}  ${finCheck}`);
-      for (const t in finByType) {
-        console.log(`    - ${t}：${finByType[t].count}笔，净额${fmt(finByType[t].amount)}`);
+    // ── 打印（2026-11-19重排）：之前"非已结算注单明细"/"后台账变流水"两段
+    // 细节是在"第N局小结"标题之前打的，看起来像是上一局的内容，容易看错
+    // 是哪一局的数据——改成统一先打主体结论、细节放在后面。另外自动轮询
+    // 模式下，干净PASS的局只打一行带过，不刷屏；手动模式或者真的有⚠️时，
+    // 仍然保留完整的多行细节方便排查。
+    const gameNamesStr = Object.keys(groups).join('+') || '（无新增）';
+    const isCleanPass = (balanceDelta !== null && Math.abs(balanceDelta - expectedDelta) < 0.01);
+    if (AUTO_POLL && isCleanPass) {
+      console.log(`\n── 第${roundNo}局 ${gameNamesStr}  ${total.count}笔  投注${fmt(total.betAmount)}  派奖${fmt(total.winAmount)}  盈亏${fmt(total.profit)}  |  余额${fmt(balanceBefore)}→${fmt(balanceAfter)}(${fmt(balanceDelta)})  ${verdict}`);
+    } else {
+      console.log(`\n── 第${roundNo}局小结（本局新增注单${newOrders.length}笔）──`);
+      if (newOrders.length === 0) {
+        console.log('  未查到任何新增已结算注单（可能还没结算完，或刚才那局是无效操作）');
       }
-      // finCheck不是完全一致(✅)时，把每条新增记录的createTime也打印出来，
-      // 方便判断是否是"基线查询漏掉的历史记录"(createTime会明显早于本局
-      // 开始时间)，而不是真的本局新产生的账变。
-      if (finCheck && !finCheck.startsWith('✅') && finNewRecords.length > 0) {
-        console.log('    明细(id/type/amount/createTime)：');
-        for (const f of finNewRecords) {
-          const ts = f.createTime ? new Date(Number(f.createTime)).toLocaleString('zh-CN') : '未知';
-          console.log(`      ${f.id}  ${f.type}  ${f.amount}  ${ts}`);
+      for (const g in groups) {
+        const gr = groups[g];
+        console.log(`  ${g}：${gr.count}笔  投注${fmt(gr.betAmount)}  派奖${fmt(gr.winAmount)}  盈亏${fmt(gr.winAmount - gr.betAmount)}`);
+      }
+      console.log(`  合计：${total.count}笔  投注${fmt(total.betAmount)}  派奖${fmt(total.winAmount)}  盈亏${fmt(total.profit)}`);
+      console.log(`  本局充值净增${rechargeDelta !== null ? fmt(rechargeDelta) : '未知'}  提现净增${withdrawDelta !== null ? fmt(withdrawDelta) : '未知'}  活动奖励净增${activityRewardDelta !== null ? fmt(activityRewardDelta) : '未知'}${freezeDelta !== null && Math.abs(freezeDelta) >= 0.01 ? `  冻结金额变化${fmt(freezeDelta)}(已计入预期余额核销)` : ''}`);
+      console.log(`  后台官方今日统计核对：${officialCheck}`);
+      console.log(`  后台余额：${balanceBefore !== null ? fmt(balanceBefore) : '—'} → ${balanceAfter !== null ? fmt(balanceAfter) : '—'}（变化${balanceDelta !== null ? fmt(balanceDelta) : '—'}，预期变化${fmt(expectedDelta)}）  ${verdict}`);
+      if (!AUTO_POLL && cur.abnormalOrders && cur.abnormalOrders.length > 0) {
+        console.log(`  ⚠️ 账上累计存在${cur.abnormalOrders.length}笔非已结算状态注单（含历史遗留，本局新增部分已在上面verdict里单独列出）`);
+      }
+      if (newAbnormalOrders.length > 0) {
+        console.log('    非已结算注单明细(orderNo/游戏/投注/winAmount字段原样/状态)——"未结算"(settlementTime=0)已计入投注扣除，"已撤单退款"(settlementTime已有值，钱已通过GameReturn退回)不计入扣除，winAmount暂不采信：');
+        for (const o of newAbnormalOrders) {
+          const tag = o.settlementTime ? '已撤单退款,不扣' : '未结算,已扣';
+          console.log(`      ${o.orderNo}  ${o.gameName || o.gameCode || '未知'}  ${o.betAmount}  ${o.winAmount}  orderState=${o.orderState}  [${tag}]`);
         }
       }
-      console.log(`  前后台核对：${crossCheck}`);
+      console.log(`  后台账变流水(${backendFinNewRecords.length}笔)：净额${fmt(backendFinNetAmount)}  ${backendFinCheck}`);
+      for (const t in backendFinByType) {
+        console.log(`    - ${t}：${backendFinByType[t].count}笔，净额${fmt(backendFinByType[t].amount)}`);
+      }
+      if (DUAL_CHECK) {
+        console.log(`  前台余额：${feBalanceBefore !== null ? fmt(feBalanceBefore) : '—'} → ${feBalanceAfter !== null ? fmt(feBalanceAfter) : '—'}（变化${feBalanceDelta !== null ? fmt(feBalanceDelta) : '—'}）  ${feBalanceCheck}`);
+        console.log(`  前台Game History：${feTotal.count}笔  投注${fmt(feTotal.betAmount)}  派奖${fmt(feTotal.winAmount)}`);
+        console.log(`  前台官方报表：${feReportDelta ? `${feReportDelta.count}笔  投注${fmt(feReportDelta.betAmount)}  派奖${fmt(feReportDelta.winAmount)}` : '—（查询失败）'}`);
+        console.log(`  前台账变流水：${finNetAmount !== null ? `${finNewRecords.length}笔，净额${fmt(finNetAmount)}` : '—（查询失败）'}  ${finCheck}`);
+        for (const t in finByType) {
+          console.log(`    - ${t}：${finByType[t].count}笔，净额${fmt(finByType[t].amount)}`);
+        }
+        // finCheck不是完全一致(✅)时，把每条新增记录的createTime也打印出来，
+        // 方便判断是否是"基线查询漏掉的历史记录"(createTime会明显早于本局
+        // 开始时间)，而不是真的本局新产生的账变。
+        if (finCheck && !finCheck.startsWith('✅') && finNewRecords.length > 0) {
+          console.log('    明细(id/type/amount/createTime)：');
+          for (const f of finNewRecords) {
+            const ts = f.createTime ? new Date(Number(f.createTime)).toLocaleString('zh-CN') : '未知';
+            console.log(`      ${f.id}  ${f.type}  ${f.amount}  ${ts}`);
+          }
+        }
+        console.log(`  前后台核对：${crossCheck}`);
+      }
     }
     console.log('');
 
@@ -1519,6 +1691,32 @@ async function main() {
     newAbnormalOrders.forEach((o) => allSeenAbnormalOrderNos.add(o.orderNo));
     prevSnapshot = cur;
     roundNo++;
+    return true;
+  }
+
+  while (true) {
+    const ans = await waitForNextTrigger(roundNo);
+    if (ans === 'end') {
+      console.log(`[投注核对] 检测到end，进入结算缓冲(等待${SETTLE_GRACE_SEC}秒，确保最后的注单有机会被后台记录到)后再查一次最终状态...`);
+      let feResumedAfterPause = false;
+      if (AUTO_POLL && WANT_DUAL_CHECK && !DUAL_CHECK) {
+        console.log('[投注核对] ℹ️ 你已经玩完了，现在恢复前台查询，做最后一次完整的前后台核对（若token已过期会自动重新登录一次，这时候不会再打断你）...');
+        DUAL_CHECK = true;
+        feResumedAfterPause = true;
+      }
+      await sleep(SETTLE_GRACE_SEC * 1000);
+      await processOneRound(false, feResumedAfterPause); // 收尾这一下不走quiet，不管有没有新动静都正常处理/打印
+      break;
+    }
+    if (ans === 'skip') {
+      await sleep(2000);
+      const cur = await dualSnapshot(token, feTokenState, USER_ID, false);
+      console.log('[投注核对] 已跳过本局（不计入报告，基线已更新为当前快照）\n');
+      prevSnapshot = cur;
+      roundNo++;
+      continue;
+    }
+    await processOneRound(AUTO_POLL);
   }
   rl.close();
 

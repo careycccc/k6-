@@ -92,7 +92,7 @@ export function setup() {
         throw new Error('[Setup] ❌ 未提供渠道来源，请通过 -e CHANNEL_PACKAGE_ID=xxx 传入');
     }
 
-    const adminToken = tenantAdminLogin(tenantId);
+    const adminToken = tenantAdminLogin(tenantId, true);
     if (!adminToken) {
         throw new Error(`[Setup] ❌ 租户 ${tenantId} 管理员登录失败`);
     }
@@ -125,7 +125,7 @@ export default function (data) {
         console.log(`[SameDay] 查询日期: ${range.dateStr}`);
         console.log(`[SameDay] 时间范围: ${new Date(range.startTime).toISOString()} ~ ${new Date(range.endTime).toISOString()}`);
 
-        const orders = fetchAllRechargeOrders(adminToken, range.startTime, range.endTime, 'Payed', channelPackageId);
+        const orders = fetchAllRechargeOrders(adminToken, range.startTime, range.endTime, 'Payed', channelPackageId, true);
         const result = analyzeSameDayRetention(orders);
 
         _reportData.sameDayDate = range.dateStr;
@@ -148,8 +148,8 @@ export default function (data) {
         console.log(`[NextDay] 第一天: ${day1Range.dateStr}`);
         console.log(`[NextDay] 第二天: ${day2Range.dateStr}`);
 
-        const day1Orders = fetchAllRechargeOrders(adminToken, day1Range.startTime, day1Range.endTime, 'Payed', channelPackageId);
-        const day2Orders = fetchAllRechargeOrders(adminToken, day2Range.startTime, day2Range.endTime, 'Payed', channelPackageId);
+        const day1Orders = fetchAllRechargeOrders(adminToken, day1Range.startTime, day1Range.endTime, 'Payed', channelPackageId, true);
+        const day2Orders = fetchAllRechargeOrders(adminToken, day2Range.startTime, day2Range.endTime, 'Payed', channelPackageId, true);
         const result = analyzeNextDayRetention(day1Orders, day2Orders);
 
         _reportData.nextDayDate1 = day1Range.dateStr;

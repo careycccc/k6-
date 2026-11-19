@@ -106,7 +106,7 @@ function runWithdraw(userToken, userId, adminToken, enableBackendApproval) {
     console.log(`[AdjustBatch] 计划提现金额: ${withdrawAmount}`);
 
     // 3. 添加钱包
-    addAllWallets(adminToken, userId, userToken);
+    addAllWallets(adminToken, userId, userToken, true);
     sleep(1);
 
     // 4. 设置提现密码
@@ -161,7 +161,7 @@ function runWithdraw(userToken, userId, adminToken, enableBackendApproval) {
     // 10. 后台审核（可选）
     if (enableBackendApproval) {
         sleep(2);
-        const approved = runBackendWithdrawApproval(adminToken, userId, withdrawType, withdrawAmount);
+        const approved = runBackendWithdrawApproval(adminToken, userId, withdrawType, withdrawAmount, true);
         console.log(approved ? '[AdjustBatch] ✅ 后台审核通过' : '[AdjustBatch] ⚠️ 后台审核失败');
     }
 
@@ -224,7 +224,7 @@ export function setup() {
 
     for (const tenantId of tenants) {
         console.log(`[Setup] 租户 ${tenantId} 管理员登录...`);
-        const adminToken = tenantAdminLogin(tenantId);
+        const adminToken = tenantAdminLogin(tenantId, true);
         if (!adminToken) throw new Error(`[Setup] ❌ 租户 ${tenantId} 管理员登录失败`);
 
         adminTokens[tenantId] = adminToken;
@@ -282,7 +282,7 @@ export default function (data) {
         sleep(3 + Math.random() * 4);
 
         // ── 注册 ──────────────────────────────────────────────
-        const registerResult = adjustIdentityRegister(userName, { token: adminToken, envConfig }, {
+        const registerResult = adjustIdentityRegister(userName, { token: adminToken, envConfig, forceTenant: true }, {
             pixelId: adjustCfg.pixelId,
             eventConfigId: adjustCfg.id,
             eventType: adjustCfg.eventType,
@@ -320,20 +320,20 @@ export default function (data) {
                 sleep(3);
                 eventBatchFrontendRechargeRequest(userToken, getConfigRechargeAmount());
                 doubleRechargeCounter.add(1, { tenant: tenantId });
-                eventBatchAuditUserOrders(adminToken, userId);
+                eventBatchAuditUserOrders(adminToken, userId, true);
                 rechargeSuccess = true;
             } else {
                 console.log(`[AdjustBatch] [VU${__VU}][租户${tenantId}] 🚶 Mode A: 串行双充`);
-                const r1 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
+                const r1 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount(), forceTenant: true });
                 sleep(3);
-                const r2 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
+                const r2 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount(), forceTenant: true });
                 doubleRechargeCounter.add(1, { tenant: tenantId });
                 rechargeSuccess = r1.success || r2.success;
             }
         } else {
             console.log(`[AdjustBatch] [VU${__VU}][租户${tenantId}] 标准单充`);
             sleep(2);
-            const r = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
+            const r = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount(), forceTenant: true });
             firstRechargeCounter.add(1, { tenant: tenantId });
             rechargeSuccess = r.success;
         }
@@ -456,7 +456,7 @@ function runWithTeam(data, tenantId, adminToken, envConfig) {
     const rootPhone = generateRandomPhone(countryCode);
     console.log(`[AdjustTeam] 注册总代: ${rootPhone}`);
 
-    const rootResult = adjustIdentityRegister(rootPhone, { token: adminToken, envConfig }, {
+    const rootResult = adjustIdentityRegister(rootPhone, { token: adminToken, envConfig, forceTenant: true }, {
         pixelId: adjustCfg.pixelId,
         eventConfigId: adjustCfg.id,
         eventType: adjustCfg.eventType,

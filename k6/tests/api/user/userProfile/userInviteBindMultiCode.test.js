@@ -100,12 +100,12 @@ export function setup() {
   }
 
   // 管理员登录（查验证码用）
-  const adminToken = tenantAdminLogin(tenantId);
+  const adminToken = tenantAdminLogin(tenantId, true);
   if (!adminToken) throw new Error('[Setup] 管理员登录失败');
   console.log('[Setup] ✅ 管理员登录成功');
 
   // 账号只登录一次
-  const userToken = autoLoginByAccount(userName, adminToken);
+  const userToken = autoLoginByAccount(userName, adminToken, true);
   if (!userToken) throw new Error(`[Setup] 前台登录失败: ${userName}`);
   console.log(`[Setup] ✅ 前台登录成功: ${userName}`);
   console.log(`[Setup] 同一 token 将被 ${vuCount} 个 VU 并发使用\n`);

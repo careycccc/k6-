@@ -568,7 +568,7 @@ function passRulePayload(id, r) {
 /** 规则启用/停用（页面上的状态开关）：UpdateAutoAuditConfigState {id, state}；UpdateAutoAuditConfig 里带 state 不生效 */
 function setRuleState(adminToken, id, state) {
     for (let a = 1; a <= 3; a++) {
-        const res = sendRequest({ id, state }, '/api/InvitedWheel/UpdateAutoAuditConfigState', TAG, false, adminToken);
+        const res = sendRequest({ id, state }, '/api/InvitedWheel/UpdateAutoAuditConfigState', TAG, false, adminToken, true);
         if (res === true || (res && res.msgCode === 0)) return true;
         console.error(`[${TAG}] 规则 ${id} 开关设为 ${state} 失败(第${a}次): ${JSON.stringify(res)}`);
         sleep(3);
@@ -577,7 +577,7 @@ function setRuleState(adminToken, id, state) {
 }
 function updateRule(adminToken, payload) {
     for (let a = 1; a <= 3; a++) {
-        const res = sendRequest(payload, '/api/InvitedWheel/UpdateAutoAuditConfig', TAG, false, adminToken);
+        const res = sendRequest(payload, '/api/InvitedWheel/UpdateAutoAuditConfig', TAG, false, adminToken, true);
         if (res === true || (res && res.msgCode === 0)) return true;
         console.error(`[${TAG}] 更新规则 ${payload.id} 失败(第${a}次): ${JSON.stringify(res)}`);
         sleep(3);
@@ -618,7 +618,7 @@ function applyBatchConfig(adminToken, batch) {
 
 // ================= 后台：会员 / 提现历史 / 充值订单 =================
 function getUserDetail(adminToken, userId) {
-    const res = sendRequest({ userId }, '/api/Users/GetUserDetail', TAG, false, adminToken);
+    const res = sendRequest({ userId }, '/api/Users/GetUserDetail', TAG, false, adminToken, true);
     const d = (res && res.usersBaseRsp) ? res : (res && res.data ? res.data : res);
     if (!d || !d.usersBaseRsp) return null;
     return {
@@ -630,15 +630,15 @@ function getUserDetail(adminToken, userId) {
 function cumOf(adminToken, userId) { const d = getUserDetail(adminToken, userId); return d ? d.cum : 0; }
 /** 明文账号：GetUserDetail 的 account 是脱敏的，登录要用 GetPageList(按 userId) 的 account */
 function plainAccount(adminToken, userId) {
-    const res = sendRequest({ userId: Number(userId), userType: [0], pageNo: 1, pageSize: 20, orderBy: 'Desc' }, '/api/Users/GetPageList', TAG, false, adminToken);
+    const res = sendRequest({ userId: Number(userId), userType: [0], pageNo: 1, pageSize: 20, orderBy: 'Desc' }, '/api/Users/GetPageList', TAG, false, adminToken, true);
     const u = listOf(res).find(x => Number(x.userId) === Number(userId));
     return u && u.account && !String(u.account).includes('*') ? String(u.account) : null;
 }
 /** 该会员近24小时的充值订单(三方+本地)，_local 标记来源 */
 function listOrders(adminToken, userId) {
     const now = Date.now();
-    const third = listOf(getRechargeOrderPageListFull(adminToken, { userId, startTime: now - 86400000, endTime: now + 600000, pageSize: 100, dateType: 0 }));
-    const local = getLocalRechargeOrderPageList(adminToken, userId, now - 86400000, now + 600000) || [];
+    const third = listOf(getRechargeOrderPageListFull(adminToken, { userId, startTime: now - 86400000, endTime: now + 600000, pageSize: 100, dateType: 0 }, true));
+    const local = getLocalRechargeOrderPageList(adminToken, userId, now - 86400000, now + 600000, true) || [];
     return [...third.map(o => Object.assign({}, o, { _local: false })), ...local.map(o => Object.assign({}, o, { _local: true }))];
 }
 function payTimeOf(o) { return Number(o.payTime || o.auditTime || o.lastUpdateTime || o.updateTime || 0); }
@@ -646,7 +646,7 @@ function payTimeOf(o) { return Number(o.payTime || o.auditTime || o.lastUpdateTi
 /** 某会员全部转盘提现记录（按 userId 过滤 + 客户端再过滤一次） */
 function fetchHistory(adminToken, userId) {
     const res = sendRequest({ userId, startDay: HIST_START, endDay: dateStr(1), pageNo: 1, pageSize: 500, orderBy: 'Desc' },
-        '/api/InvitedWheel/GetPageListWithdrawRecord', TAG, false, adminToken);
+        '/api/InvitedWheel/GetPageListWithdrawRecord', TAG, false, adminToken, true);
     return listOf(res).filter(r => Number(r.userId) === Number(userId));
 }
 function summarize(recs) {
@@ -695,7 +695,7 @@ function scanRecordsByUser(adminToken, start) {
     const byUser = {};
     for (let page = 1; page <= 20; page++) {
         const res = sendRequest({ startDay: start, endDay: dateStr(1), pageNo: page, pageSize: 500, orderBy: 'Desc' },
-            '/api/InvitedWheel/GetPageListWithdrawRecord', TAG, false, adminToken);
+            '/api/InvitedWheel/GetPageListWithdrawRecord', TAG, false, adminToken, true);
         const list = listOf(res);
         for (const r of list) (byUser[r.userId] = byUser[r.userId] || []).push(r);
         if (list.length < 500) break;
@@ -719,7 +719,7 @@ function pickFromMemberList(adminToken, need, used) {
         }
     }
     for (let page = 1; page <= POOL_PAGES; page++) {
-        const res = sendRequest({ userType: [0], packageId: [String(pid)], pageNo: page, pageSize: 20, orderBy: 'Desc' }, '/api/Users/GetPageList', TAG, false, adminToken);
+        const res = sendRequest({ userType: [0], packageId: [String(pid)], pageNo: page, pageSize: 20, orderBy: 'Desc' }, '/api/Users/GetPageList', TAG, false, adminToken, true);
         const list = listOf(res);
         if (!list.length) break;
         for (const u of list) {
@@ -745,13 +745,13 @@ function pickRejectOnly(adminToken, need, used) {
 
 /** 核实用户指定的账号是否满足用例条件（渠道 / 成功轮次 / 无审核中 / 累计充值）；不满足返回原因 */
 function givenAccount(adminToken, account, need) {
-    const res = sendRequest({ userName: account, userType: [0], pageNo: 1, pageSize: 20, orderBy: 'Desc' }, '/api/Users/GetPageList', TAG, false, adminToken);
+    const res = sendRequest({ userName: account, userType: [0], pageNo: 1, pageSize: 20, orderBy: 'Desc' }, '/api/Users/GetPageList', TAG, false, adminToken, true);
     let u = listOf(res).find(x => String(x.account) === String(account));
     if (!u) {   // 按账号查不到 → 登录拿 userId 再按 userId 查
         const t = login(account);
         const info = t ? getFrontUserInfo(t) : null;
         if (info && info.userId) {
-            const r2 = sendRequest({ userId: Number(info.userId), userType: [0], pageNo: 1, pageSize: 20, orderBy: 'Desc' }, '/api/Users/GetPageList', TAG, false, adminToken);
+            const r2 = sendRequest({ userId: Number(info.userId), userType: [0], pageNo: 1, pageSize: 20, orderBy: 'Desc' }, '/api/Users/GetPageList', TAG, false, adminToken, true);
             u = listOf(r2).find(x => Number(x.userId) === Number(info.userId));
         }
     }
@@ -771,7 +771,7 @@ function givenAccount(adminToken, account, need) {
 export function setup() {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[${TAG}] 租户 ${TENANT_ID} 管理员登录失败`);
     ensureWheelConfig(adminToken);
 
@@ -835,7 +835,7 @@ const login = account => loginByPasswordRetry(account, PWD, 3);
 function loginOrReset(adminToken, account, userId) {
     let t = login(account);
     if (t) return { token: t, reset: false };
-    const r = sendRequest({ userId, password: PWD }, '/api/Users/UpdatePassword', TAG, false, adminToken);
+    const r = sendRequest({ userId, password: PWD }, '/api/Users/UpdatePassword', TAG, false, adminToken, true);
     console.log(`[${TAG}] userId=${userId} 登录失败 → 改密码 ${JSON.stringify(r)}，等 5s`);
     sleep(5);
     t = login(account);

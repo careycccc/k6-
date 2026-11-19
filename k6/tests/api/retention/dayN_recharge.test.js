@@ -60,11 +60,11 @@ export function setup() {
     }
     console.log(`[DayNRecharge] 渠道来源: ${channelPackageId}`);
 
-    const adminToken = tenantAdminLogin(tenantId);
+    const adminToken = tenantAdminLogin(tenantId, true);
     if (!adminToken) throw new Error(`[DayNRecharge] ❌ 租户 ${tenantId} 管理员登录失败`);
 
     console.log(`[DayNRecharge] ✅ 管理员登录成功`);
-    return { token: adminToken };
+    return { token: adminToken, forceTenant: true };
 }
 
 export default function (data) {
@@ -83,7 +83,7 @@ export default function (data) {
     console.log(`${'='.repeat(60)}\n`);
 
     // 1. 查询N天前充值用户
-    const userIds = getRechargedUserIds(adminData.token, tenantId, daysAgo, channelPackageId);
+    const userIds = getRechargedUserIds(adminData.token, tenantId, daysAgo, channelPackageId, !!adminData.forceTenant);
 
     if (userIds.length === 0) {
         console.warn(`[DayNRecharge] ⚠️ ${daysAgo} 天前无充值用户，脚本结束`);
@@ -92,7 +92,7 @@ export default function (data) {
     }
 
     // 2. 批量获取账号
-    const userList = getUsersWithAccounts(adminData.token, userIds);
+    const userList = getUsersWithAccounts(adminData.token, userIds, !!adminData.forceTenant);
 
     if (userList.length === 0) {
         console.warn(`[DayNRecharge] ⚠️ 获取账号失败，脚本结束`);

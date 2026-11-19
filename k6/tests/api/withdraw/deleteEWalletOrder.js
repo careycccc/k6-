@@ -26,8 +26,8 @@ const DELETE_API = '/api/WorkOrder/DeleteElectronicWallet';
  * @param {string} electronicName - 电子钱包标识（注意不是accountNo，是 electronicName 字段）
  * @returns {boolean}
  */
-export function submitDeleteEWalletOrder(userToken, adminToken, recordId, electronicName) {
-    return submitDeleteWalletOrder(userToken, adminToken, WORK_ORDER_TYPE_ID, 'EWallet', `${recordId}|${electronicName}`, TAG);
+export function submitDeleteEWalletOrder(userToken, adminToken, recordId, electronicName, forceTenant = false) {
+    return submitDeleteWalletOrder(userToken, adminToken, WORK_ORDER_TYPE_ID, 'EWallet', `${recordId}|${electronicName}`, TAG, forceTenant);
 }
 
 /**
@@ -36,6 +36,6 @@ export function submitDeleteEWalletOrder(userToken, adminToken, recordId, electr
  * @param {number} userId
  * @returns {boolean}
  */
-export function approveAndExecuteDeleteEWallet(adminToken, userId) {
-    return approveAndExecuteDeleteWalletOrder(adminToken, userId, DELETE_API, TAG);
+export function approveAndExecuteDeleteEWallet(adminToken, userId, forceTenant = false) {
+    return approveAndExecuteDeleteWalletOrder(adminToken, userId, DELETE_API, TAG, forceTenant);
 }

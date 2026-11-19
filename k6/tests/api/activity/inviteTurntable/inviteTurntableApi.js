@@ -13,7 +13,7 @@ import { getTimeRandom } from '../../../utils/utils.js';
  * @param {string} adminToken - 管理员token
  * @returns {object} { success: boolean, config: object, isOpen: boolean, cashToMainWallet: boolean, autoRotate: boolean }
  */
-export function getInvitedWheelConfig(adminToken) {
+export function getInvitedWheelConfig(adminToken, forceTenant = true) {
     console.log(`[GetInvitedWheelConfig] 获取邀请转盘配置...`);
 
     const api = '/api/InvitedWheel/GetConfig';
@@ -27,7 +27,7 @@ export function getInvitedWheelConfig(adminToken) {
 
     try {
         httpClient.setAuthToken(adminToken);
-        const response = httpClient.post(api, payload, {}, false);
+        const response = httpClient.post(api, payload, { forceTenant }, false);
 
         if (!response || !response.body) {
             console.error('[GetInvitedWheelConfig] 响应为空');
@@ -77,7 +77,7 @@ export function getInvitedWheelConfig(adminToken) {
  * @param {string} value1 - 配置值
  * @returns {object} { success: boolean }
  */
-export function updateInvitedWheelConfig(adminToken, settingKey, value1) {
+export function updateInvitedWheelConfig(adminToken, settingKey, value1, forceTenant = true) {
     console.log(`[UpdateInvitedWheelConfig] 更新配置：${settingKey} = ${value1}`);
 
     const api = '/api/InvitedWheel/UpdateConfig';
@@ -93,7 +93,7 @@ export function updateInvitedWheelConfig(adminToken, settingKey, value1) {
 
     try {
         httpClient.setAuthToken(adminToken);
-        const response = httpClient.post(api, payload, {}, false);
+        const response = httpClient.post(api, payload, { forceTenant }, false);
 
         if (!response || !response.body) {
             console.error('[UpdateInvitedWheelConfig] 响应为空');

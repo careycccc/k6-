@@ -82,20 +82,20 @@ function dateStr(offsetDays) {
 }
 
 // ================= 查询：转盘提现记录 =================
-function fetchWithdrawRecords(adminToken, userId) {
+function fetchWithdrawRecords(adminToken, userId, forceTenant = false) {
     const api = '/api/InvitedWheel/GetPageListWithdrawRecord';
     const payload = { userId, startDay: dateStr(-30), endDay: dateStr(1), pageNo: 1, pageSize: 100, orderBy: 'Desc' };
-    const res = sendRequest(payload, api, TAG, false, adminToken);
+    const res = sendRequest(payload, api, TAG, false, adminToken, forceTenant);
     if (res && res.data && Array.isArray(res.data.list)) return res.data.list;
     if (res && Array.isArray(res.list)) return res.list;
     return [];
 }
 
 /** 全站捞一个 auditState=2 且渠道匹配的老号 userId（用于通过规则）；返回 {userId, account} 或 null */
-function findOldSuccessUser(adminToken, channel) {
+function findOldSuccessUser(adminToken, channel, forceTenant = false) {
     const api = '/api/InvitedWheel/GetPageListWithdrawRecord';
     const payload = { startDay: dateStr(-60), endDay: dateStr(1), pageNo: 1, pageSize: 200, orderBy: 'Desc' };
-    const res = sendRequest(payload, api, TAG, false, adminToken);
+    const res = sendRequest(payload, api, TAG, false, adminToken, forceTenant);
     const list = (res && res.data && Array.isArray(res.data.list)) ? res.data.list : (res && Array.isArray(res.list) ? res.list : []);
     // 统计每个 userId 的成功(auditState=2)次数
     const okCount = {};
@@ -103,7 +103,7 @@ function findOldSuccessUser(adminToken, channel) {
     const candidates = Object.keys(okCount).map(Number);
     console.log(`[${TAG}] 捞到 auditState=2 的候选老号 ${candidates.length} 个`);
     for (const uid of candidates) {
-        const account = getUserAccount(adminToken, uid);
+        const account = getUserAccount(adminToken, uid, forceTenant);
         if (!account) continue;
         // 渠道匹配：用 GetUserDetail 的 packageName 粗判（tiktok 含 fb 包+埋点较难精确，先按能登录为主）
         const token = loginWithPassword(account, PWD);
@@ -117,8 +117,8 @@ function findOldSuccessUser(adminToken, channel) {
 }
 
 /** userId → account（GetUserDetail.usersBaseRsp.account） */
-function getUserAccount(adminToken, userId) {
-    const res = sendRequest({ userId }, '/api/Users/GetUserDetail', TAG, false, adminToken);
+function getUserAccount(adminToken, userId, forceTenant = false) {
+    const res = sendRequest({ userId }, '/api/Users/GetUserDetail', TAG, false, adminToken, forceTenant);
     const d = (res && res.usersBaseRsp) ? res : (res && res.data ? res.data : res);
     return d && d.usersBaseRsp ? d.usersBaseRsp.account : null;
 }
@@ -166,7 +166,7 @@ export function setup() {
 
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[${TAG}] ❌ 租户 ${TENANT_ID} 管理员登录失败`);
     ensureWheelConfig(adminToken);
     return { adminToken, envConfig };
@@ -198,7 +198,7 @@ export default function (data) {
             const info = token && getFrontUserInfo(token);
             agent = token && info ? { phone: acct, token, userId: info.userId } : null;
         } else {
-            agent = findOldSuccessUser(adminToken, cfg.channel);
+            agent = findOldSuccessUser(adminToken, cfg.channel, true);
         }
         if (!agent) { emitResult(cfg, null, 0, 0, 0, `老号 ${acct || '(自动捞)'} 登录失败(需带区号91)`); return; }
     } else {
@@ -216,7 +216,7 @@ export default function (data) {
     // 3) 本人本轮充值（点礼物盒之后 = 本轮内）
     let selfRecharge = 0;
     if (cfg.selfRecharge > 0) {
-        const r = hybridRecharge({ userToken: agent.token, adminToken, userId: agent.userId, amount: cfg.selfRecharge, frontendFirst: true, remark: `Audit-${CASE}-self` });
+        const r = hybridRecharge({ userToken: agent.token, adminToken, userId: agent.userId, amount: cfg.selfRecharge, frontendFirst: true, remark: `Audit-${CASE}-self`, forceTenant: true });
         if (r && r.success !== false) selfRecharge = cfg.selfRecharge;
         sleep(2);
     }
@@ -236,7 +236,7 @@ export default function (data) {
         const subInfo = getFrontUserInfo(subToken);
         const rcCount = cfg.subRechargeCount != null ? cfg.subRechargeCount : cfg.subCount; // 充值的下级数(其余不充=未首充)
         if (cfg.subRecharge > 0 && i < rcCount && subInfo && subInfo.userId) {
-            const r = hybridRecharge({ userToken: subToken, adminToken, userId: subInfo.userId, amount: cfg.subRecharge, frontendFirst: true, remark: `Audit-${CASE}-sub` });
+            const r = hybridRecharge({ userToken: subToken, adminToken, userId: subInfo.userId, amount: cfg.subRecharge, frontendFirst: true, remark: `Audit-${CASE}-sub`, forceTenant: true });
             if (r && r.success !== false) subRechargeSum += cfg.subRecharge;
         }
         sleep(1);
@@ -255,7 +255,7 @@ export default function (data) {
 
     // 6) 等待自动审核 + 查结果
     sleep(AUDIT_WAIT);
-    const records = fetchWithdrawRecords(adminToken, agent.userId);
+    const records = fetchWithdrawRecords(adminToken, agent.userId, true);
     const latest = records.length ? records[0] : null;             // Desc 第一条=本次
     const rounds = records.filter(r => Number(r.auditState) === 2).length; // 成功领取轮次(含本次若通过)
     emitResult(cfg, agent.userId, selfRecharge, subRechargeSum, cfg.subCount, null, latest, rounds);

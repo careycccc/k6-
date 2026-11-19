@@ -130,7 +130,7 @@ export function setup() {
     console.log(`[${TAG}] ===== 租户 ${TENANT_ID} 投注能力探测 =====`);
     console.log(`[${TAG}] 前台=${env.BASE_DESK_URL}  待测游戏=${TARGET_GAMES.length} 个  每注=${AMOUNT}`);
 
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[${TAG}] 租户 ${TENANT_ID} 管理员登录失败`);
 
     let account = ACCOUNT;
@@ -234,7 +234,7 @@ export default function (data) {
     const br = tenantRequest('/api/ThirdGame/GetBetRecordPageList', {
         categoryType: 3, queryTimeType: 'BetTime', userId,
         beginTimeUnix: startTs - 600000, endTimeUnix: Date.now(), pageNo: 1, pageSize: 100, orderBy: 'Desc', sortField: 'BetTime'
-    }, { token: adminToken, isDesk: false });
+    }, { token: adminToken, isDesk: false, forceTenant: true });
     (((br && br.data && br.data.list)) || []).forEach(it => {
         landed[it.gameCode] = landed[it.gameCode] || [];
         landed[it.gameCode].push({ bet: it.betAmount, valid: it.validAmount, fee: it.feeAmount, content: it.betContent, play: it.playType, state: it.orderState });

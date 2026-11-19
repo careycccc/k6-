@@ -62,7 +62,7 @@ export function setup() {
     console.log(`[Setup] 用户ID: ${userId}`);
 
     // 管理员登录
-    const adminToken = tenantAdminLogin(tenantId);
+    const adminToken = tenantAdminLogin(tenantId, true);
     if (!adminToken) {
         throw new Error('[Setup] ❌ 管理员登录失败');
     }
@@ -102,7 +102,7 @@ export default function (data) {
         maxActualAmount: '',
         dateType: 0,
         orderBy: 'Desc'
-    });
+    }, true);
 
     if (result) {
         // 处理响应数据

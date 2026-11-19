@@ -19,7 +19,8 @@ export function getAgentHierarchyList(adminToken, userId, options = {}) {
     const {
         isAll = true,
         isIncludeSelfAndParent = true,
-        pageSize = 500
+        pageSize = 500,
+        forceTenant = false
     } = options;
 
     const api = '/api/Agent/GetPageListAgentList';
@@ -36,7 +37,7 @@ export function getAgentHierarchyList(adminToken, userId, options = {}) {
     //console.log(`[AgentApi] 请求接口: ${api}`);
     //console.log(`[AgentApi] 请求参数: ${JSON.stringify(payload)}`);
 
-    const result = sendRequest(payload, api, tag, false, adminToken);
+    const result = sendRequest(payload, api, tag, false, adminToken, forceTenant);
 
     //console.log(`[AgentApi] 原始响应类型: ${typeof result}`);
     //console.log(`[AgentApi] 原始响应: ${JSON.stringify(result).substring(0, 500)}...`);

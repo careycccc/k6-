@@ -50,7 +50,7 @@ export function setup() {
     console.log(`\n[Setup] 开始准备批量充值用户数据 (目标数量: ${FETCH_COUNT})...`);
 
     // 1. 管理员登录
-    const adminToken = tenantAdminLogin(tenantId);
+    const adminToken = tenantAdminLogin(tenantId, true);
     if (!adminToken) {
         throw new Error('[Setup] ❌ 管理员登录失败');
     }
@@ -65,7 +65,7 @@ export function setup() {
         orderBy: 'Desc'
     };
 
-    const response = sendRequest(payload, userPageApi, 'GetUserPageList', false, adminToken);
+    const response = sendRequest(payload, userPageApi, 'GetUserPageList', false, adminToken, true);
 
     if (!response || !response.list) {
         throw new Error('[Setup] ❌ 获取用户列表失败');
@@ -75,7 +75,7 @@ export function setup() {
     const userIds = rawUsers.map(u => u.userId);
 
     // 3. 将 userId 转换为真实账号
-    const userAccounts = batchGetUserAccounts(adminToken, userIds, 300);
+    const userAccounts = batchGetUserAccounts(adminToken, userIds, 300, true);
 
     return {
         accounts: userAccounts

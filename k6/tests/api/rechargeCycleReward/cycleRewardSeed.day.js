@@ -130,7 +130,7 @@ function fetchTodayRecords(adminToken, date) {
     const api = '/api/RechargeCycleReward/GetRecordPageList';
     const list = fetchAllPages(pageNo => sendRequest(
         { startRewardDate: date, endRewardDate: date, pageNo, pageSize: PAGE_SIZE, orderBy: 'Desc' },
-        api, TAG, false, adminToken), { maxPages: 200, pause: 0.3 });
+        api, TAG, false, adminToken, true), { maxPages: 200, pause: 0.3 });
     const byUser = {};
     for (const r of list) {
         const uid = Number(r.userId);
@@ -145,7 +145,7 @@ function fetchTodayOrdersByUser(adminToken, date, tzMs) {
     const { startTime, endTime } = dayRange(date, tzMs);
     const list = fetchAllPages(pageNo => sendRequest(
         { rechargeState: 'Payed', startTime, endTime, pageNo, pageSize: PAGE_SIZE, dateType: 1, orderBy: 'Desc' },
-        api, TAG, false, adminToken), { maxPages: 200, pause: 0.3 });
+        api, TAG, false, adminToken, true), { maxPages: 200, pause: 0.3 });
     const seen = {}, byUser = {};
     for (const o of list) {
         if (o.orderNo && seen[o.orderNo]) continue;
@@ -162,7 +162,7 @@ function fetchTodayOrdersByUser(adminToken, date, tzMs) {
  *   {error}            网络 / 空响应 / 其他错误码 → 调用方只跳过这个人
  */
 function fetchAccount(adminToken, userId) {
-    const res = sendRequest({ userId }, '/api/Users/GetUserAccount', TAG, false, adminToken);
+    const res = sendRequest({ userId }, '/api/Users/GetUserAccount', TAG, false, adminToken, true);
     if (typeof res === 'string' && res) return { account: res };
     if (res && typeof res === 'object') {
         const msg = String(res.msg || '');
@@ -180,7 +180,7 @@ function loginMember(account, adminToken) {
     const pwd = loginWithPassword(account, PASSWORD);
     if (pwd) return { token: pwd, method: 'password', at: Date.now() };
     console.warn(`[${TAG}] ${account} 密码登录失败，改用验证码登录`);
-    const sms = autoLoginByAccount(String(account), adminToken);
+    const sms = autoLoginByAccount(String(account), adminToken, true);
     if (typeof sms === 'string' && sms.length > 10) return { token: sms, method: 'sms', at: Date.now() };
     return null;
 }
@@ -188,7 +188,7 @@ function loginMember(account, adminToken) {
 /** token 距上次登录超过 TOKEN_REFRESH_SEC（或 force）就用同一种方式重登 */
 function freshToken(sess, account, adminToken, force) {
     if (!force && Date.now() - sess.at < TOKEN_REFRESH_SEC * 1000) return sess.token;
-    const t = sess.method === 'password' ? loginWithPassword(account, PASSWORD) : autoLoginByAccount(String(account), adminToken);
+    const t = sess.method === 'password' ? loginWithPassword(account, PASSWORD) : autoLoginByAccount(String(account), adminToken, true);
     if (typeof t === 'string' && t.length > 10) { sess.token = t; sess.at = Date.now(); }
     return sess.token;
 }
@@ -253,7 +253,7 @@ function recordTier(stats, tier, isPayer) {
 function doRecharge(adminToken, userToken, userId, plan, isPayer, remark, stats) {
     recordTier(stats, plan.tier, isPayer);
     if (plan.amount <= 0) { stats.rechargeSkip++; return { planned: 0, actual: 0, success: false, tier: tierStr(plan.tier), note: plan.note }; }
-    const rr = rechargeToTarget({ adminToken, userToken, userId, amount: plan.amount, remark });
+    const rr = rechargeToTarget({ adminToken, userToken, userId, amount: plan.amount, remark, forceTenant: true });
     const ok = rr.successCount > 0;
     if (ok) { stats.rechargeUsers++; stats.totalAmount += rr.totalAmount; } else stats.rechargeFailUsers++;
     return { planned: plan.amount, actual: rr.totalAmount, success: ok, tier: tierStr(plan.tier), note: plan.note };
@@ -434,16 +434,16 @@ export function setup() {
         throw new Error(`[${TAG}] ❌ 站点时间 ${now.date} ${now.hhmm}：00:10 前（奖励记录约 00:05 才生成）或 23:30 后（跑到一半会过零点）不允许启动`);
     }
 
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[${TAG}] ❌ 租户 ${TENANT_ID} 管理员登录失败`);
     console.log(`[${TAG}] ✅ 管理员登录成功  站点时间 ${now.date} ${now.hhmm}`);
 
     // 档位配置（失败在此抛错 → 终止程序）
-    const tiers = getCycleRewardConfig({ token: adminToken });
+    const tiers = getCycleRewardConfig({ token: adminToken, forceTenant: true });
     console.log(`[${TAG}] ✅ 获取到档位配置 ${tiers.length} 档：${tiers.map(t => `${tierStr(t)}付费要求${t.paidRechargeRequire}`).join('  ')}`);
 
     try {
-        const settings = getCycleRewardSettings({ token: adminToken });
+        const settings = getCycleRewardSettings({ token: adminToken, forceTenant: true });
         console.log(`[${TAG}] 活动总开关=${settings.switchOn ? '开' : '关'} | 付费采用累计=${settings.paidUseCumulative ? '是(累计)' : '否(单笔)'}（实际以每条奖励记录上的 paidUseCumulative 为准）`);
     } catch (e) { /* 忽略：开关查询失败不影响造数 */ }
 

@@ -241,7 +241,9 @@ export function setup() {
     console.log(`[${TAG}] 并发竞争测试: ${ENABLE_RACE_TEST ? '启用' : '禁用'}`);
 
     // 1. 后台登录
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    // forceTenant=true：集团token对GetPageList/GetUserDetail/钱包等"具体会员"
+    // 接口没权限，必须强制走商户自己登录
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[${TAG}] 后台登录失败`);
     console.log(`[${TAG}] ✅ 后台登录成功`);
 
@@ -253,7 +255,7 @@ export function setup() {
 
     // 3. 绑定钱包（关键步骤，避免假PASS）
     console.log(`[${TAG}] 正在为用户绑定所有类型钱包...`);
-    const walletsOk = addAllWallets(adminToken, session.userId, session.userToken);
+    const walletsOk = addAllWallets(adminToken, session.userId, session.userToken, true);
     if (!walletsOk) {
         console.warn(`[${TAG}] ⚠️ 部分钱包绑定失败，但继续执行测试（已有钱包可用即可）`);
     } else {

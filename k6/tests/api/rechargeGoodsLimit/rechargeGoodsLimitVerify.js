@@ -82,15 +82,17 @@ function checkEligibility(userToken) {
     return { eligible: Array.isArray(tiers) && tiers.length > 0, tiers };
 }
 
+// forceTenant=true：本文件adminToken固定走tenantAdminLogin(TENANT_ID, true)拿商户
+// 自己的token，这里统一透传true，避免集团路由把请求错配到集团域名
 function queryStageReward(adminToken, userId, financialType) {
     const resp = sendRequest({
         searchUserIdType: 1, financialTypeList: [financialType], userId, pageNo: 1, pageSize: 20, orderBy: 'Desc'
-    }, '/api/Financial/GetPageList', 'QueryStageReward', false, adminToken);
+    }, '/api/Financial/GetPageList', 'QueryStageReward', false, adminToken, true);
     return (resp && resp.list) || (resp && resp.data && resp.data.list) || [];
 }
 
 function getRiskControlCount(adminToken, accountNo, riskControlType) {
-    const resp = sendRequest({ accountNo, riskControlType, pageNo: 1, pageSize: 1, orderBy: 'Desc' }, '/api/Users/GetUserRiskControlPageList', 'RiskControl', false, adminToken);
+    const resp = sendRequest({ accountNo, riskControlType, pageNo: 1, pageSize: 1, orderBy: 'Desc' }, '/api/Users/GetUserRiskControlPageList', 'RiskControl', false, adminToken, true);
     const data = (resp && resp.data) || resp;
     return data ? data.totalCount : null;
 }
@@ -102,7 +104,7 @@ function doStageRecharge(adminToken, acc, stage, label, tierIndex = 0) {
     const amount = tier.amount;
     const expectBonus = tier.bonus;
 
-    const r = assembleFiatRechargeNoUsdt(acc.userToken, adminToken, acc.userId, amount, { audit: true });
+    const r = assembleFiatRechargeNoUsdt(acc.userToken, adminToken, acc.userId, amount, { audit: true, forceTenant: true });
     if (!r.success) { console.error(`[${label}] 充值${amount}失败: ${r.reason}`); return { ok: false, amount, reason: 'RECHARGE_FAILED' }; }
     sleep(1);
     const records = queryStageReward(adminToken, acc.userId, cfg.financialType);
@@ -133,7 +135,7 @@ function doThresholdRecharge(adminToken, acc, stage, amount, label) {
     const cfg = STAGE_CONFIG[stage];
     const expected = expectedTierForAmount(stage, amount);
     const before = queryStageReward(adminToken, acc.userId, cfg.financialType).length;
-    const r = assembleFiatRechargeNoUsdt(acc.userToken, adminToken, acc.userId, amount, { audit: true });
+    const r = assembleFiatRechargeNoUsdt(acc.userToken, adminToken, acc.userId, amount, { audit: true, forceTenant: true });
     if (!r.success) { console.error(`[${label}] 充值${amount}失败: ${r.reason}`); return { ok: false, amount, reason: 'RECHARGE_FAILED' }; }
     sleep(1);
     const records = queryStageReward(adminToken, acc.userId, cfg.financialType);
@@ -187,7 +189,7 @@ function reportThreshold(group, label, outcome, userId) {
 export default function () {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     Object.assign(ENV_CONFIG, envConfig);
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) { console.error('登录失败'); return; }
 
     // ============== E组：同设备限2 ==============
@@ -301,7 +303,7 @@ export default function () {
 
         sleep(1);
         const before4 = snapshotAllStageCounts(adminToken, accB7.userId);
-        const r4 = assembleFiatRechargeNoUsdt(accB7.userToken, adminToken, accB7.userId, 100, { audit: true });
+        const r4 = assembleFiatRechargeNoUsdt(accB7.userToken, adminToken, accB7.userId, 100, { audit: true, forceTenant: true });
         const r4ok = r4.success;
         sleep(1);
         const after4 = snapshotAllStageCounts(adminToken, accB7.userId);

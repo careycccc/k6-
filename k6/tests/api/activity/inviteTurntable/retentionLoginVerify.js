@@ -42,7 +42,7 @@ export const options = {
 // ---------- 工具 ----------
 
 /** 某自然日全站「登录用户」userId 集：GetUserLoginLogPageList（照 retentionVerify 口径） */
-function fetchLoginUsers(token, dateStr) {
+function fetchLoginUsers(token, dateStr, forceTenant = false) {
     const api = '/api/RptUserInfo/GetUserLoginLogPageList';
     const set = new Set();
     let pageNo = 1;
@@ -53,7 +53,7 @@ function fetchLoginUsers(token, dateStr) {
             endTime: `${dateStr} 23:59:59`,
             pageNo, pageSize: PAGE_SIZE, orderBy: 'Desc'
         };
-        const res = sendRequest(payload, api, TAG, false, token);
+        const res = sendRequest(payload, api, TAG, false, token, forceTenant);
         const list = extractList(res);
         for (const it of list) {
             if (it.userId != null && (!it.loginDate || it.loginDate === dateStr)) set.add(Number(it.userId));
@@ -67,8 +67,8 @@ function fetchLoginUsers(token, dateStr) {
 }
 
 /** 手机号 → userId：先用 Users/GetPageList{userName} 精确查；查不到再登录兜底 */
-function resolveUserId(token, phone) {
-    const res = sendRequest({ userName: phone, pageNo: 1, pageSize: 20, orderBy: 'Desc' }, '/api/Users/GetPageList', TAG, false, token);
+function resolveUserId(token, phone, forceTenant = false) {
+    const res = sendRequest({ userName: phone, pageNo: 1, pageSize: 20, orderBy: 'Desc' }, '/api/Users/GetPageList', TAG, false, token, forceTenant);
     const list = extractList(res);
     for (const u of list) {
         if (u.userId != null && String(u.userName) === phone) return { uid: Number(u.userId), via: 'query' };
@@ -87,7 +87,7 @@ function resolveUserId(token, phone) {
 export function setup() {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
-    const token = tenantAdminLogin(TENANT_ID);
+    const token = tenantAdminLogin(TENANT_ID, true);
     if (!token) throw new Error(`[${TAG}] 租户 ${TENANT_ID} 管理员登录失败`);
     return { token };
 }
@@ -102,7 +102,7 @@ export default function (data) {
     const miss = [];
     let viaLogin = 0;
     for (const phone of PHONES) {
-        const r = resolveUserId(token, phone);
+        const r = resolveUserId(token, phone, true);
         if (r) { ids.push(r.uid); id2phone[r.uid] = phone; if (r.via === 'login') viaLogin++; }
         else { miss.push(phone); }
         sleep(0.2);
@@ -110,7 +110,7 @@ export default function (data) {
     console.log(`##R## userId解析成功=${ids.length}  登录兜底=${viaLogin}  失败=${miss.length}${miss.length ? (' [' + miss.join(',') + ']') : ''}`);
 
     // 2) 每天全站登录 userId 集
-    const sets = DAYS.map(d => ({ d, set: fetchLoginUsers(token, d) }));
+    const sets = DAYS.map(d => ({ d, set: fetchLoginUsers(token, d, true) }));
     sets.forEach(x => console.log(`##R## ${x.d} 全站登录人数=${x.set.size}`));
 
     const d1 = sets[0] ? sets[0].set : new Set();

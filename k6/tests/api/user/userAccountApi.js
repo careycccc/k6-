@@ -13,13 +13,13 @@ const tag = 'UserAccountApi';
  * @param {number} userId - 用户ID
  * @returns {string|null} 用户账号（手机号或邮箱）
  */
-export function getUserAccount(adminToken, userId) {
+export function getUserAccount(adminToken, userId, forceTenant = false) {
     const api = '/api/Users/GetUserAccount';
     const payload = {
         userId: userId
     };
 
-    const result = sendRequest(payload, api, tag, false, adminToken);
+    const result = sendRequest(payload, api, tag, false, adminToken, forceTenant);
 
     if (!result) {
         console.error(`[${tag}] 获取用户 ${userId} 账号失败`);
@@ -67,7 +67,7 @@ export function detectAccountType(account) {
  * @param {number} delayMs - 每次请求间隔（毫秒），默认1000ms
  * @returns {Array<{userId: number, account: string, accountType: string}>}
  */
-export function batchGetUserAccounts(adminToken, userIds, delayMs = 1000) {
+export function batchGetUserAccounts(adminToken, userIds, delayMs = 1000, forceTenant = false) {
     const results = [];
 
     console.log(`[${tag}] 开始批量查询 ${userIds.length} 个用户账号...`);
@@ -77,7 +77,7 @@ export function batchGetUserAccounts(adminToken, userIds, delayMs = 1000) {
 
         console.log(`[${tag}] [${i + 1}/${userIds.length}] 查询用户 ${userId}...`);
 
-        const account = getUserAccount(adminToken, userId);
+        const account = getUserAccount(adminToken, userId, forceTenant);
 
         if (account) {
             const accountType = detectAccountType(account);
@@ -124,9 +124,9 @@ import { emailAutoLoginFlow } from '../login/EmailAutoLogin.test.js';
  * @example
  * const userToken = autoLoginByUserId(adminToken, 112389);
  */
-export function autoLoginByUserId(adminToken, userId) {
+export function autoLoginByUserId(adminToken, userId, forceTenant = false) {
     // Step 1: userId → 账号
-    const account = getUserAccount(adminToken, userId);
+    const account = getUserAccount(adminToken, userId, forceTenant);
     if (!account) {
         console.error(`[AutoLogin] userId=${userId} 获取账号失败`);
         return null;
@@ -137,7 +137,7 @@ export function autoLoginByUserId(adminToken, userId) {
     console.log(`[AutoLogin] userId=${userId} → 账号: ${account} (类型: ${accountType})`);
 
     // Step 3: 对应登录方式
-    const adminData = { token: adminToken };
+    const adminData = { token: adminToken, forceTenant };
     let token = null;
 
     if (accountType === 'phone') {

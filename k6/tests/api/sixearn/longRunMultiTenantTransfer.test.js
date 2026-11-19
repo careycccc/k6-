@@ -229,7 +229,7 @@ function distributePeople(totalPeople, levels) {
  */
 function doSingleRecharge(userToken, userId, adminToken) {
     const amount = getConfigRechargeAmount();
-    const r = hybridRecharge({ userToken, adminToken, userId, amount, frontendFirst: true });
+    const r = hybridRecharge({ userToken, adminToken, userId, amount, frontendFirst: true, forceTenant: true });
     return { success: r.success, amount: r.success ? r.amount : 0 };
 }
 
@@ -293,7 +293,7 @@ function doSingleWithdraw(userToken, userId, adminToken) {
     const amt = calcWithdrawAmount(balInfo.balance || 0);
     if (amt <= 0) return { success: false, amount: 0 };
 
-    addAllWallets(adminToken, userId, userToken);
+    addAllWallets(adminToken, userId, userToken, true);
     sleep(1);
     setWithdrawPassword(userToken, '123456');
     sleep(1);
@@ -317,7 +317,7 @@ function doSingleWithdraw(userToken, userId, adminToken) {
 
     if (ENABLE_BACKEND_APPROVAL) {
         sleep(2);
-        runBackendWithdrawApproval(adminToken, userId, cat.withdrawType, amt);
+        runBackendWithdrawApproval(adminToken, userId, cat.withdrawType, amt, true);
     }
     return { success: true, amount: amt };
 }
@@ -353,13 +353,13 @@ const UNBIND_WAIT_SECONDS = parseInt(__ENV.UNBIND_WAIT_SECONDS || '60', 10);
  */
 function doTransfer(adminToken, userId, targetInviteCode) {
     console.log(`[Transfer] 解绑 userId=${userId}`);
-    sendRequest({ userId }, '/api/Agent/UserInviteUnBind', TAG, false, adminToken);
+    sendRequest({ userId }, '/api/Agent/UserInviteUnBind', TAG, false, adminToken, true);
 
     console.log(`[Transfer] 解绑完成，等待 ${UNBIND_WAIT_SECONDS} 秒后再绑定（系统处理时间）...`);
     sleep(UNBIND_WAIT_SECONDS);
 
     console.log(`[Transfer] 绑定 userId=${userId} → inviteCode=${targetInviteCode}`);
-    sendRequest({ userId, inviteCode: targetInviteCode }, '/api/Agent/UserInviteBind', TAG, false, adminToken);
+    sendRequest({ userId, inviteCode: targetInviteCode }, '/api/Agent/UserInviteBind', TAG, false, adminToken, true);
     sleep(2);
 }
 
@@ -447,7 +447,7 @@ export function setup() {
         Object.assign(ENV_CONFIG, envCfg);
 
         // 登录管理员
-        const adminToken = tenantAdminLogin(tenantId);
+        const adminToken = tenantAdminLogin(tenantId, true);
         if (!adminToken) throw new Error(`[Setup] 租户${tenantId} 管理员登录失败`);
         console.log(`[Setup] 租户${tenantId} 管理员登录成功`);
 
@@ -464,7 +464,7 @@ export function setup() {
             // 断点续跑：直接使用已有总代
             console.log(`[Setup] 租户${tenantId} 使用已有总代: ${existingRootUids.join(',')}`);
             for (const rootUid of existingRootUids.slice(0, AGENTS_PER_TENANT)) {
-                const token = autoLoginByUserId(adminToken, rootUid);
+                const token = autoLoginByUserId(adminToken, rootUid, true);
                 sleep(1);
                 const info = token ? getFrontUserInfo(token) : null;
                 agents.push({
@@ -505,7 +505,7 @@ export function setup() {
 
             // 检查是否已有成员（断点续跑时跳过注册）
             const existingMembers = getAgentHierarchyList(adminToken, agent.userId, {
-                isAll: true, isIncludeSelfAndParent: true, pageSize: 2000
+                isAll: true, isIncludeSelfAndParent: true, pageSize: 2000, forceTenant: true
             });
 
             if (existingMembers && existingMembers.length > 1) {
@@ -525,7 +525,7 @@ export function setup() {
 
                 // 重新获取成员列表
                 const members = getAgentHierarchyList(adminToken, agent.userId, {
-                    isAll: true, isIncludeSelfAndParent: true, pageSize: 2000
+                    isAll: true, isIncludeSelfAndParent: true, pageSize: 2000, forceTenant: true
                 });
                 agent.members = members || [];
             }
@@ -548,12 +548,12 @@ export function setup() {
             const batchSize = 50;
             for (let start = 0; start < userIds.length; start += batchSize) {
                 const batch = userIds.slice(start, start + batchSize);
-                const accounts = batchGetUserAccounts(adminToken, batch, 500);
+                const accounts = batchGetUserAccounts(adminToken, batch, 500, true);
 
                 for (const { userId, account } of accounts) {
                     if (memberTokenMap[userId]) continue; // 已登录
                     sleep(0.5);
-                    const token = loginByAccount(account, adminToken);
+                    const token = loginByAccount(account, adminToken, true);
                     if (!token) {
                         console.warn(`[Setup] userId=${userId} 登录失败`);
                         continue;
@@ -968,7 +968,7 @@ export default function (data) {
         // 从转出方团队中随机选人（按层级加权）
         // 注意：同一人可以被多次选中
         const fromMembers = getAgentHierarchyList(adminToken, fromAgent.userId, {
-            isAll: true, isIncludeSelfAndParent: false, pageSize: 2000
+            isAll: true, isIncludeSelfAndParent: false, pageSize: 2000, forceTenant: true
         });
 
         if (!fromMembers || fromMembers.length === 0) {
@@ -984,7 +984,7 @@ export default function (data) {
 
         // 从转入方团队中随机选目标上级（包含总代自身，层级0也可以）
         const toMembers = getAgentHierarchyList(adminToken, toAgent.userId, {
-            isAll: true, isIncludeSelfAndParent: true, pageSize: 2000
+            isAll: true, isIncludeSelfAndParent: true, pageSize: 2000, forceTenant: true
         });
 
         let targetInviteCode = toAgent.inviteCode; // 默认挂在总代下
@@ -1015,10 +1015,10 @@ export default function (data) {
         if (!fromMemberInfo) {
             // 尝试临时登录
             console.warn(`[Main] userId=${fromMember.userId} 无缓存token，尝试临时登录`);
-            const accounts = batchGetUserAccounts(adminToken, [fromMember.userId], 500);
+            const accounts = batchGetUserAccounts(adminToken, [fromMember.userId], 500, true);
             if (accounts.length > 0) {
                 const { account } = accounts[0];
-                const token = loginByAccount(account, adminToken);
+                const token = loginByAccount(account, adminToken, true);
                 if (token) {
                     sleep(0.5);
                     const frontInfo = getFrontUserInfo(token);

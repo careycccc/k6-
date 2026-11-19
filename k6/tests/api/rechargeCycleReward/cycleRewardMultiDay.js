@@ -50,7 +50,7 @@ function fetchRecordsRange(adminToken, startDate, endDate) {
     let totalCount = null;
     while (true) {
         const payload = { startRewardDate: startDate, endRewardDate: endDate, pageNo, pageSize: 2000, orderBy: 'Desc' };
-        const res = sendRequest(payload, api, TAG, false, adminToken);
+        const res = sendRequest(payload, api, TAG, false, adminToken, true);
         const list = extractList(res);
         for (const r of list) { if (r.orderNo) byOrderNo[r.orderNo] = r; }
         if (totalCount == null) totalCount = extractTotalCount(res);
@@ -79,7 +79,7 @@ export function setup() {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
 
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[${TAG}] ❌ 租户 ${TENANT_ID} 管理员登录失败`);
     console.log(`[${TAG}] ✅ 管理员登录成功`);
 

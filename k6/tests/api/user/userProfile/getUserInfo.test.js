@@ -62,10 +62,10 @@ export function setup() {
     if (env) Object.assign(ENV_CONFIG, env);
   }
 
-  const adminToken = tenantAdminLogin(tenantId);
+  const adminToken = tenantAdminLogin(tenantId, true);
   if (!adminToken) throw new Error('[Setup] 管理员登录失败');
 
-  const userToken = autoLoginByAccount(userName, adminToken);
+  const userToken = autoLoginByAccount(userName, adminToken, true);
   if (!userToken) throw new Error(`[Setup] 前台登录失败: ${userName}`);
 
   console.log(`[Setup] ✅ 登录成功: ${userName}\n`);

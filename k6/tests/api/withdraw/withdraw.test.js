@@ -275,7 +275,9 @@ export function setup() {
     console.log(`[${tag}] 账号列表: ${userList.join(', ')}`);
 
     // 后台登录一次，所有 VU 复用同一个 adminToken
-    const adminToken = tenantAdminLogin(tenantId);
+    // forceTenant=true：2026-11-19发现，集团token对本脚本后续要查/改的"具体某个
+    // 会员"相关接口(钱包/提现审核等)没有权限，必须强制走商户自己登录
+    const adminToken = tenantAdminLogin(tenantId, true);
     if (!adminToken) {
         console.error(`[${tag}] ❌ 后台登录失败，Setup 终止`);
         return null;
@@ -319,7 +321,7 @@ export function RunWithDrawCase(targetUser, tenantId, adminToken) {
 
     // 2. 添加所有类型的钱包
     console.log(`[${tag}][${vuLabel}] 正在为用户添加钱包...`);
-    const walletsAdded = addAllWallets(adminToken, userId, token);
+    const walletsAdded = addAllWallets(adminToken, userId, token, true);
     if (!walletsAdded) {
         console.warn(`[${tag}][${vuLabel}] ⚠️ 部分钱包添加失败，但继续执行提现流程`);
     } else {
@@ -377,7 +379,8 @@ export function RunWithDrawCase(targetUser, tenantId, adminToken) {
             adminToken,
             userId,
             withdrawResult.withDrawaType,
-            withdrawResult.withDrawaAmont
+            withdrawResult.withDrawaAmont,
+            true
         );
 
         if (approvalSuccess) {

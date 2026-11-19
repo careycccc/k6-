@@ -50,7 +50,7 @@ export function setup() {
     }
     console.log(`[Verify] 渠道来源: ${channelPackageId}`);
 
-    const adminToken = tenantAdminLogin(tenantId);
+    const adminToken = tenantAdminLogin(tenantId, true);
     if (!adminToken) throw new Error(`[Verify] ❌ 租户 ${tenantId} 管理员登录失败`);
 
     console.log(`[Verify] ✅ 管理员登录成功`);
@@ -101,7 +101,7 @@ function buildSameDayReport(adminToken) {
     const range = getDayRange(0, tenantId);
     console.log(`[Verify] 当日复充验证，查询日期: ${range.dateStr}`);
 
-    const orders = fetchAllRechargeOrders(adminToken, range.startTime, range.endTime, 'Payed', channelPackageId);
+    const orders = fetchAllRechargeOrders(adminToken, range.startTime, range.endTime, 'Payed', channelPackageId, true);
     const result = analyzeSameDayRetention(orders);
 
     // 获取当天的渠道总注册人数
@@ -179,7 +179,7 @@ function buildMultiDayReport(adminToken) {
     const daySets = [];
     for (let i = retentionDays - 1; i >= 0; i--) {
         const range = getDayRange(i, tenantId);
-        const orders = fetchAllRechargeOrders(adminToken, range.startTime, range.endTime, 'Payed', channelPackageId);
+        const orders = fetchAllRechargeOrders(adminToken, range.startTime, range.endTime, 'Payed', channelPackageId, true);
         const userMap = new Map();
         for (const order of orders) {
             const uid = String(order.userId);

@@ -108,7 +108,9 @@ export function setup() {
     console.log(`[Setup] 提现次数分布 (WITHDRAW_COUNT_DIST="${WITHDRAW_COUNT_DIST_RAW}"): ${withdrawDistText()}`);
 
     // 1. 管理员登录
-    const adminToken = tenantAdminLogin(tenantId);
+    // forceTenant=true：集团token对GetPageList/充值/钱包等"具体会员"接口没权限，
+    // 必须强制走商户自己登录
+    const adminToken = tenantAdminLogin(tenantId, true);
     if (!adminToken) {
         throw new Error('[Setup] ❌ 管理员登录失败，无法继续');
     }
@@ -122,7 +124,7 @@ export function setup() {
 
     while (picked.length < FETCH_COUNT && pageNo <= MAX_PAGES) {
         const payload = { userType: 0, state: 1, pageNo, pageSize: PAGE_SIZE, orderBy: 'Desc' };
-        const response = sendRequest(payload, userPageApi, 'GetUserPageList', false, adminToken);
+        const response = sendRequest(payload, userPageApi, 'GetUserPageList', false, adminToken, true);
 
         if (!response || !response.list) {
             if (pageNo === 1) {
@@ -162,7 +164,7 @@ export function setup() {
     console.log(`[Setup] ✅ 凑够 ${userIds.length} 个余额 > ${MIN_BALANCE} 的用户（共扫描 ${scanned} 人）`);
 
     // 3. 将 userId 转换为真实账号
-    const userAccounts = batchGetUserAccounts(adminToken, userIds, 500);
+    const userAccounts = batchGetUserAccounts(adminToken, userIds, 500, true);
 
     if (userAccounts.length === 0) {
         throw new Error('[Setup] ❌ 无法转换任何用户的真实账号');
@@ -204,7 +206,7 @@ export default function (data) {
 
     // 1. 登录会话获取 userToken（自动识别手机号/邮箱，调用对应登录方式）
     console.log(`[BatchWithdraw] 正在执行验证码登录流程: ${account}...`);
-    const userToken = autoLoginByAccount(String(account), adminToken);
+    const userToken = autoLoginByAccount(String(account), adminToken, true);
 
     if (!userToken) {
         console.error(`[BatchWithdraw] ❌ 用户 ${account} 验证码登录失败`);
@@ -218,7 +220,7 @@ export default function (data) {
     if (!SKIP_RECHARGE) {
         const rechargeAmount = getRandomInt(2000, 5000);
         console.log(`[BatchWithdraw] 正在为用户充值(top-up)，金额: ${rechargeAmount}...`);
-        const rechargeRes = backendRecharge(adminToken, userId, rechargeAmount, 'Batch Withdraw Recharge');
+        const rechargeRes = backendRecharge(adminToken, userId, rechargeAmount, 'Batch Withdraw Recharge', true);
         if (!rechargeRes || !rechargeRes.success) {
             console.warn(`[BatchWithdraw] ⚠️ 用户 ${account} 充值失败，改用已有余额继续提现`);
         } else {
@@ -231,7 +233,7 @@ export default function (data) {
 
     // 3. 绑卡
     console.log(`[BatchWithdraw] 正在尝试绑定钱包 (前台接口)...`);
-    addAllWallets(adminToken, userId, userToken);
+    addAllWallets(adminToken, userId, userToken, true);
     sleep(1);
 
     // 4. 设置/重置提现密码

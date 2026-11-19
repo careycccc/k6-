@@ -59,10 +59,10 @@ export const options = {
 
 // ================= 取数工具（照抄 verifyRetention.day.js，已验证好用） =================
 
-function callApi(token, api, payload, what) {
+function callApi(token, api, payload, what, forceTenant = false) {
     let last = null;
     for (let i = 0; i < 3; i++) {
-        const r = tenantRequest(api, payload, { token, isDesk: false });
+        const r = tenantRequest(api, payload, { token, isDesk: false, forceTenant });
         if (r && r.msgCode === 0 && r.data) return r.data;
         last = r;
         sleep(1);
@@ -70,11 +70,11 @@ function callApi(token, api, payload, what) {
     throw new Error(`[VerifyRecharge] 查询失败 ${what}: msgCode=${last && last.msgCode} msg=${last && last.msg}`);
 }
 
-function fetchAllRows(token, api, payload, pageSize, what) {
+function fetchAllRows(token, api, payload, pageSize, what, forceTenant = false) {
     const rows = [];
     let first = null;
     for (let pageNo = 1; pageNo <= 500; pageNo++) {
-        const d = callApi(token, api, Object.assign({}, payload, { pageNo, pageSize }), `${what} 第${pageNo}页`);
+        const d = callApi(token, api, Object.assign({}, payload, { pageNo, pageSize }), `${what} 第${pageNo}页`, forceTenant);
         if (pageNo === 1) first = d;
         const list = d.list || [];
         rows.push(...list);
@@ -106,7 +106,7 @@ const safe = s => String(s === null || s === undefined ? '' : s).replace(/\|/g, 
 
 export function setup() {
     const today = getDayRange(0, TENANT_ID).dateStr;
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[VerifyRecharge] 租户 ${TENANT_ID} 管理员登录失败`);
     return { today, adminToken };
 }
@@ -120,7 +120,7 @@ export default function (data) {
 
     // ---- 1) 归因记录表(全量回溯) ----
     const attrStart = addDays(today, -LOOKBACK_DAYS);
-    const attr = fetchAllRows(adminToken, '/api/RptFbAd/GetAttributionPageList', { startTime: attrStart, endTime: today }, 100, '广告归因记录');
+    const attr = fetchAllRows(adminToken, '/api/RptFbAd/GetAttributionPageList', { startTime: attrStart, endTime: today }, 100, '广告归因记录', true);
     const attrs = attr.rows;
     console.log(`##R## 租户=${TENANT_ID} 今天=${today} 时区偏移=${tzMs / 3600000}h 归因记录=${attrs.length}条`);
     if (attrs.length === 0) {
@@ -182,7 +182,7 @@ export default function (data) {
     }
 
     // ---- 3) 被测报表 ----
-    const rep = fetchAllRows(adminToken, '/api/RptFbAd/GetRechargePageList', { startTime: START_DATE, endTime: END_DATE }, 100, '充值分析报表');
+    const rep = fetchAllRows(adminToken, '/api/RptFbAd/GetRechargePageList', { startTime: START_DATE, endTime: END_DATE }, 100, '充值分析报表', true);
     const backend = new Map();
     for (const r of rep.rows) backend.set(groupKey(r.reportDate, r.campaignId, r.adsetId, r.adId), r);
     const sumTotal = (rep.first && rep.first.sumTotal) || {};
@@ -201,7 +201,7 @@ export default function (data) {
         for (let attempt = 0; attempt < 3; attempt++) {
             const got = fetchAllRows(adminToken, '/api/RechargeOrder/GetRechargeOrderPageList',
                 { userId: uid, rechargeState: 'Payed', startTime: startMs, endTime: endMs, dateType: 1, minActualAmount: '', maxActualAmount: '', orderBy: 'Desc' },
-                200, `充值订单 uid=${uid}`);
+                200, `充值订单 uid=${uid}`, true);
             byDay = {}; total = 0;
             for (const o of got.rows) {
                 const ms = o.rechargeSuccessTime || o.createTime;

@@ -53,9 +53,9 @@ function loginExistingMember(account, password = 'qwer1234') {
     return { token, phone: account };
 }
 
-function getUserId(adminToken, account, retries = 4) {
+function getUserId(adminToken, account, retries = 4, forceTenant = false) {
     for (let i = 0; i <= retries; i++) {
-        const pageResp = tenantRequest('/api/Users/GetPageList', { account, pageNo: 1, pageSize: 10 }, { token: adminToken, isDesk: false });
+        const pageResp = tenantRequest('/api/Users/GetPageList', { account, pageNo: 1, pageSize: 10 }, { token: adminToken, isDesk: false, forceTenant });
         const userId = pageResp && pageResp.data && pageResp.data.list && pageResp.data.list[0] && pageResp.data.list[0].userId;
         if (userId) return userId;
         console.warn(`[GetUserId] 账号${account}暂时查不到userId(第${i + 1}次)，2s后重试`);
@@ -88,7 +88,9 @@ function buildAddBankCardRequest(baseUrl, userToken, cardNo, holderName) {
 
 export function setup() {
     const envConfig = getEnvByTenantId(tenantId);
-    const adminToken = tenantAdminLogin(tenantId);
+    // forceTenant=true：集团token对GetPageList/GetWallet/配置开关等"具体会员"
+    // 接口没权限，必须强制走商户自己登录
+    const adminToken = tenantAdminLogin(tenantId, true);
     if (!adminToken) throw new Error('[ConcurrentVerify] 管理员登录失败');
     return { adminToken, adminData: { token: adminToken, envConfig, tenantId } };
 }
@@ -97,15 +99,15 @@ export default function (data) {
     const { adminToken, adminData } = data;
 
     console.log(`\n========== 并发绑定同一张银行卡验证 ==========`);
-    setBankUniqueness(adminToken, true);
+    setBankUniqueness(adminToken, true, true);
     sleep(3);
 
     const memberC = loginExistingMember(ACCOUNT_C);
     const memberD = loginExistingMember(ACCOUNT_D);
     if (!memberC || !memberD) { console.error('登录账号失败，中止'); return; }
 
-    const userIdC = getUserId(adminToken, memberC.phone);
-    const userIdD = getUserId(adminToken, memberD.phone);
+    const userIdC = getUserId(adminToken, memberC.phone, 4, true);
+    const userIdD = getUserId(adminToken, memberD.phone, 4, true);
     console.log(`用户C: ${memberC.phone} userId=${userIdC}`);
     console.log(`用户D: ${memberD.phone} userId=${userIdD}`);
 
@@ -135,8 +137,8 @@ export default function (data) {
     sleep(2);
 
     // 后台实查：这张卡最终落在谁名下，有没有出现两边都有（并发漏洞）或两边都没有的异常情况
-    const detailC = tenantRequest('/api/Users/GetWallet', { userId: userIdC }, { token: adminToken, isDesk: false });
-    const detailD = tenantRequest('/api/Users/GetWallet', { userId: userIdD }, { token: adminToken, isDesk: false });
+    const detailC = tenantRequest('/api/Users/GetWallet', { userId: userIdC }, { token: adminToken, isDesk: false, forceTenant: true });
+    const detailD = tenantRequest('/api/Users/GetWallet', { userId: userIdD }, { token: adminToken, isDesk: false, forceTenant: true });
     const cHasCard = (detailC.data.usersWalletbankList || []).some((c) => c.cardNo === fixedCardNo);
     const dHasCard = (detailD.data.usersWalletbankList || []).some((c) => c.cardNo === fixedCardNo);
 

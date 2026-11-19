@@ -69,10 +69,10 @@ function rawWithdraw(amt, userToken, timeData) {
     return { success, code, msg: body ? body.msg : undefined };
 }
 
-function fetchWithdrawRecords(adminToken, userId) {
+function fetchWithdrawRecords(adminToken, userId, forceTenant = false) {
     const res = sendRequest(
         { userId, startDay: '2026-01-01', endDay: '2026-12-31', pageNo: 1, pageSize: 50, orderBy: 'Desc' },
-        '/api/InvitedWheel/GetPageListWithdrawRecord', TAG, false, adminToken
+        '/api/InvitedWheel/GetPageListWithdrawRecord', TAG, false, adminToken, forceTenant
     );
     const list = extractList(res);
     const cnt = totalCountOf(res);
@@ -112,7 +112,7 @@ function registerWithRetry(kind, parentCode, ctx) {
 export function setup() {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[${TAG}] 租户 ${TENANT_ID} 管理员登录失败`);
     ensureWheelConfig(adminToken);
 
@@ -143,7 +143,7 @@ export function setup() {
     for (let i = 0; i < SUBS; i++) {
         const sub = registerWithRetry('sub', wheelCode, ctx);
         if (!sub) { C(`下级${i + 1} 注册失败`); continue; }
-        hybridRecharge({ userToken: sub.token, adminToken, userId: sub.userId, amount: SUB_RECHARGE, frontendFirst: true, remark: 'WithdrawConcSub' });
+        hybridRecharge({ userToken: sub.token, adminToken, userId: sub.userId, amount: SUB_RECHARGE, frontendFirst: true, remark: 'WithdrawConcSub', forceTenant: true });
         subOk++;
         C(`下级${i + 1} phone=${sub.phone} userId=${sub.userId} 充值=${SUB_RECHARGE}`);
         sleep(1);
@@ -156,7 +156,7 @@ export function setup() {
     C(`转盘奖金 totalPrizeAmount=${amt}  已旋转 userWheelAmount=${info ? info.userWheelAmount : '?'}`);
     if (!amt || amt <= 0) throw new Error(`[${TAG}] 无可提奖金，加大 SUBS/SUB_RECHARGE 后重试`);
 
-    const before = fetchWithdrawRecords(adminToken, agent.userId);
+    const before = fetchWithdrawRecords(adminToken, agent.userId, true);
     C(`提现前 订单数=${before.count}`);
 
     // SAME 模式：预生成一份 payload，所有 VU 共用（相同重放）
@@ -176,7 +176,7 @@ export default function (data) {
 // ---------- Teardown：统计结果 ----------
 export function teardown(data) {
     sleep(5); // 等订单落库
-    const after = fetchWithdrawRecords(data.adminToken, data.agentUserId);
+    const after = fetchWithdrawRecords(data.adminToken, data.agentUserId, true);
     const delta = after.count - data.before;
     C(`—— 结论 ——`);
     C(`提现前订单=${data.before}  并发${CONC}发提现后订单=${after.count}  (增量=${delta})`);

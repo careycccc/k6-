@@ -105,7 +105,7 @@ export function buildSetup(tenantId, vuCount) {
 
         // ── Step 2: 管理员登录 ────────────────────────────────
         console.log(`\n[Setup] Step 2/3 → 管理员登录...`);
-        const adminToken = tenantAdminLogin(tenantId);
+        const adminToken = tenantAdminLogin(tenantId, true);
         if (!adminToken) {
             throw new Error(
                 `[Setup] ❌ 租户 ${tenantId} 管理员登录失败，请检查账号密码配置`

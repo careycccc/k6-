@@ -20,8 +20,8 @@ const DELETE_API = '/api/WorkOrder/DeleteUserUsdt';
  * @param {string} address - USDT地址
  * @returns {boolean}
  */
-export function submitDeleteUsdtOrder(userToken, adminToken, recordId, address) {
-    return submitDeleteWalletOrder(userToken, adminToken, WORK_ORDER_TYPE_ID, 'UsdtAddress', `${recordId}|${address}`, TAG);
+export function submitDeleteUsdtOrder(userToken, adminToken, recordId, address, forceTenant = false) {
+    return submitDeleteWalletOrder(userToken, adminToken, WORK_ORDER_TYPE_ID, 'UsdtAddress', `${recordId}|${address}`, TAG, forceTenant);
 }
 
 /**
@@ -30,6 +30,6 @@ export function submitDeleteUsdtOrder(userToken, adminToken, recordId, address) 
  * @param {number} userId
  * @returns {boolean}
  */
-export function approveAndExecuteDeleteUsdt(adminToken, userId) {
-    return approveAndExecuteDeleteWalletOrder(adminToken, userId, DELETE_API, TAG);
+export function approveAndExecuteDeleteUsdt(adminToken, userId, forceTenant = false) {
+    return approveAndExecuteDeleteWalletOrder(adminToken, userId, DELETE_API, TAG, forceTenant);
 }

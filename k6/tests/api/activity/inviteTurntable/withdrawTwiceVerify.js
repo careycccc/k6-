@@ -73,10 +73,10 @@ function rawWithdraw(amt, userToken, timeData) {
 }
 
 /** 查总代的邀请转盘提现订单（管理员口径） */
-function fetchWithdrawRecords(adminToken, userId) {
+function fetchWithdrawRecords(adminToken, userId, forceTenant = false) {
     const res = sendRequest(
         { userId, startDay: '2026-01-01', endDay: '2026-12-31', pageNo: 1, pageSize: 50, orderBy: 'Desc' },
-        '/api/InvitedWheel/GetPageListWithdrawRecord', TAG, false, adminToken
+        '/api/InvitedWheel/GetPageListWithdrawRecord', TAG, false, adminToken, forceTenant
     );
     const list = extractList(res);
     const cnt = totalCountOf(res);
@@ -118,7 +118,7 @@ function registerWithRetry(kind, parentCode, ctx) {
 export function setup() {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
-    const token = tenantAdminLogin(TENANT_ID);
+    const token = tenantAdminLogin(TENANT_ID, true);
     if (!token) throw new Error(`[${TAG}] 租户 ${TENANT_ID} 管理员登录失败`);
     ensureWheelConfig(token);
     return { token, envConfig };
@@ -160,7 +160,7 @@ export default function (data) {
     for (let i = 0; i < SUBS; i++) {
         const sub = registerWithRetry('sub', wheelCode, ctx);
         if (!sub) { W(`下级${i + 1} 注册失败`); continue; }
-        hybridRecharge({ userToken: sub.token, adminToken, userId: sub.userId, amount: SUB_RECHARGE, frontendFirst: true, remark: 'WithdrawTwiceSub' });
+        hybridRecharge({ userToken: sub.token, adminToken, userId: sub.userId, amount: SUB_RECHARGE, frontendFirst: true, remark: 'WithdrawTwiceSub', forceTenant: true });
         subOk++;
         W(`下级${i + 1} phone=${sub.phone} userId=${sub.userId} 充值=${SUB_RECHARGE}`);
         sleep(1);
@@ -175,7 +175,7 @@ export default function (data) {
     if (!amt || amt <= 0) { W('⚠️ 无可提奖金，测不了提现（可加大 SUBS / SUB_RECHARGE 后重试）'); return; }
 
     // 6) 提现前订单数
-    const before = fetchWithdrawRecords(adminToken, agent.userId);
+    const before = fetchWithdrawRecords(adminToken, agent.userId, true);
     W(`提现前 订单数=${before.count}`);
 
     // 7) 第一次提现（预生成一次 payload，两次共用）
@@ -184,7 +184,7 @@ export default function (data) {
     const w1 = rawWithdraw(amt, agent.token, timeData);
     W(`第一次提现 success=${w1.success} code=${w1.code} msg=${w1.msg || (w1.success ? 'Succeed' : '?')}`);
     sleep(3);
-    const after1 = fetchWithdrawRecords(adminToken, agent.userId);
+    const after1 = fetchWithdrawRecords(adminToken, agent.userId, true);
     W(`第一次后 订单数=${after1.count}  (增量=${after1.count - before.count})`);
 
     // 8) 隔 GAP 秒，用【完全相同的 payload】再发一次（同一 timeData）
@@ -192,7 +192,7 @@ export default function (data) {
     const w2 = rawWithdraw(amt, agent.token, timeData);
     W(`第二次提现(payload一摸一样) success=${w2.success} code=${w2.code} msg=${w2.msg || (w2.success ? 'Succeed' : '?')}`);
     sleep(3);
-    const after2 = fetchWithdrawRecords(adminToken, agent.userId);
+    const after2 = fetchWithdrawRecords(adminToken, agent.userId, true);
     W(`第二次后 订单数=${after2.count}  (增量=${after2.count - after1.count})`);
 
     // 9) 结论

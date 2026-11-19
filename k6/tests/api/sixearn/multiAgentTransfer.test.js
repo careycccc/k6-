@@ -54,7 +54,7 @@ function doRecharge(userToken, userId, adminToken) {
     let totalAmt = 0, times = 0;
     for (let i = 0; i < count; i++) {
         if (i > 0) sleep(2);
-        const r = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount(), frontendFirst: true });
+        const r = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount(), frontendFirst: true, forceTenant: true });
         if (r.success) { totalAmt += r.amount; times++; } else break;
     }
     return { totalAmt, times };
@@ -83,7 +83,7 @@ function doWithdraw(userToken, userId, adminToken) {
     if (!balInfo) return { totalAmt: 0, times: 0 };
     const amt = calcWithdrawAmount(balInfo.balance || 0);
     if (amt <= 0) return { totalAmt: 0, times: 0 };
-    addAllWallets(adminToken, userId, userToken);
+    addAllWallets(adminToken, userId, userToken, true);
     sleep(1);
     setWithdrawPassword(userToken, '123456');
     const wInfo = getWithdrawBasicInfo(userToken);
@@ -95,14 +95,14 @@ function doWithdraw(userToken, userId, adminToken) {
     if (!walletId) return { totalAmt: 0, times: 0 };
     const ok = withdrawApply(userToken, amt, walletId, cat.id, cat.withdrawType, '123456');
     if (!ok) return { totalAmt: 0, times: 0 };
-    if (ENABLE_BACKEND_APPROVAL) { sleep(2); runBackendWithdrawApproval(adminToken, userId, cat.withdrawType, amt); }
+    if (ENABLE_BACKEND_APPROVAL) { sleep(2); runBackendWithdrawApproval(adminToken, userId, cat.withdrawType, amt, true); }
     return { totalAmt: amt, times: 1 };
 }
 
 function transferMember(adminToken, userId, targetInviteCode) {
-    sendRequest({ userId }, '/api/Agent/UserInviteUnBind', TAG, false, adminToken);
+    sendRequest({ userId }, '/api/Agent/UserInviteUnBind', TAG, false, adminToken, true);
     sleep(2);
-    sendRequest({ userId, inviteCode: targetInviteCode }, '/api/Agent/UserInviteBind', TAG, false, adminToken);
+    sendRequest({ userId, inviteCode: targetInviteCode }, '/api/Agent/UserInviteBind', TAG, false, adminToken, true);
     sleep(2);
     console.log('[Transfer] userId=' + userId + ' 转线到 inviteCode=' + targetInviteCode);
 }
@@ -253,13 +253,13 @@ export function setup() {
     const envCfg = getEnvByTenantId(TENANT_ID);
     Object.assign(ENV_CONFIG, envCfg);
     console.log('\n[Setup] 租户: ' + TENANT_ID + ' | 总代: ' + ROOT_UIDS.join(','));
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error('[Setup] 管理员登录失败');
     console.log('[Setup] 登录成功');
 
     const rootMembersMap = {};
     ROOT_UIDS.forEach(rootUid => {
-        const members = getAgentHierarchyList(adminToken, rootUid, { isAll: true, isIncludeSelfAndParent: true, pageSize: 500 });
+        const members = getAgentHierarchyList(adminToken, rootUid, { isAll: true, isIncludeSelfAndParent: true, pageSize: 500, forceTenant: true });
         rootMembersMap[rootUid] = members || [];
         console.log('[Setup] 总代 ' + rootUid + ': ' + (members ? members.length : 0) + ' 个成员');
     });
@@ -298,7 +298,7 @@ export function setup() {
     const memberTokenMap = {};
     newlyRegistered.forEach(nr => {
         sleep(1);
-        const token = loginByAccount(nr.account, adminToken);
+        const token = loginByAccount(nr.account, adminToken, true);
         if (token) { memberTokenMap[nr.userId] = { ...nr, token }; console.log('[Setup] 新用户登录成功: ' + nr.account); }
     });
 
@@ -308,11 +308,11 @@ export function setup() {
         const userIds = nonRoot.map(m => m.userId).filter(uid => !memberTokenMap[uid]);
         if (userIds.length === 0) return;
         console.log('\n[Setup] 总代 ' + rootUid + ': 批量获取 ' + userIds.length + ' 个成员账号...');
-        const accounts = batchGetUserAccounts(adminToken, userIds, 300);
+        const accounts = batchGetUserAccounts(adminToken, userIds, 300, true);
         accounts.forEach(({ userId, account }) => {
             sleep(0.5);
             const memberInfo = nonRoot.find(m => m.userId === userId);
-            const token = loginByAccount(account, adminToken);
+            const token = loginByAccount(account, adminToken, true);
             if (token) {
                 sleep(0.5);
                 const frontInfo = getFrontUserInfo(token);
@@ -327,7 +327,7 @@ export function setup() {
 
     const inviteCodes = {};
     ROOT_UIDS.forEach(rootUid => {
-        const token = autoLoginByUserId(adminToken, rootUid);
+        const token = autoLoginByUserId(adminToken, rootUid, true);
         if (token) {
             sleep(1);
             const info = getFrontUserInfo(token);

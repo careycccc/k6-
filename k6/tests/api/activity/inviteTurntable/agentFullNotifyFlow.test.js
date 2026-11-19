@@ -99,10 +99,10 @@ function getEnv() {
 /** 充值: method=manual 走免打码后台充值 / front 走前台真实充值 */
 function doRecharge(method, userToken, adminToken, userId, amount, remark) {
     if (method === 'manual') {
-        const r = manualRecharge(adminToken, userId, amount, 0, remark); // amountOfCode=0 免打码
+        const r = manualRecharge(adminToken, userId, amount, 0, remark, 3, true); // amountOfCode=0 免打码
         return !!(r && r.success !== false);
     }
-    const r = hybridRecharge({ userToken, adminToken, userId, amount, frontendFirst: true, remark });
+    const r = hybridRecharge({ userToken, adminToken, userId, amount, frontendFirst: true, remark, forceTenant: true });
     return !!(r && r.success !== false);
 }
 
@@ -174,7 +174,7 @@ export function setup() {
     const env = getEnv();
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, env);
 
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[${TAG}] ❌ 管理员登录失败`);
     console.log(`[${TAG}] ✅ 管理员登录成功`);
 
@@ -305,7 +305,7 @@ export default function (data) {
 
     // ========== 8. 总代提现申请 ==========
     console.log(`\n[${TAG}] ===== 8. 总代提现(绑卡 → 设密码 → 申请) =====`);
-    addAllWallets(adminToken, agent.userId, agent.token);
+    addAllWallets(adminToken, agent.userId, agent.token, true);
     sleep(2);
     setWithdrawPassword(agent.token);
     sleep(1);
@@ -326,7 +326,7 @@ export default function (data) {
             if (ENABLE_BACKEND_APPROVAL) {
                 console.log(`\n[${TAG}] ===== 9. 后台审核出款(提现到账) =====`);
                 sleep(2);
-                const payout = runBackendWithdrawApproval(adminToken, agent.userId, wdResult.withDrawaType, wdResult.withDrawaAmont);
+                const payout = runBackendWithdrawApproval(adminToken, agent.userId, wdResult.withDrawaType, wdResult.withDrawaAmont, true);
                 summary.backendPayout = !!payout;
                 console.log(`[${TAG}] 后台出款 ${payout ? '✅ 完成(提现到账)' : '⚠️ 未完成'}`);
             } else {

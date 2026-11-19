@@ -40,7 +40,12 @@ export const options = {
     }
 };
 
-const adminReq = (api, payload, token) => tenantRequest(api, payload, { token, isDesk: false, tenantId: TENANT_ID });
+// 2026-11-19发现：集团token对GetPageList/GetUserDetail这类"查具体会员详情"的
+// 接口没有权限(报No operation permission)，必须用商户自己的token——forceTenant
+// 这里必须同时传给登录(tenantAdminLogin)和每次请求(tenantRequest)，否则会出现
+// "商户token打到集团域名"的新错配(groupRouting.js resolveQueryRoute 的注释里
+// 提到过反向案例：集团token打到商户域名会报 Account type does not match)。
+const adminReq = (api, payload, token) => tenantRequest(api, payload, { token, isDesk: false, tenantId: TENANT_ID, forceTenant: true });
 const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
 const pct = (a, b) => (b > 0 ? (a / b) * 100 : 0);
 const f2 = v => (Math.round(v * 100) / 100).toFixed(2);
@@ -323,7 +328,9 @@ function mkSkip(name, note, reason = 'disabled') {
 // ============================================================
 export default function () {
     if (!USER_ID) throw new Error('请传 -e USER_ID=会员ID');
-    const token = tenantAdminLogin(TENANT_ID);
+    // forceTenant=true：这个脚本全程查的是单个会员的详情类接口(GetPageList/
+    // GetUserDetail等)，集团token对这类接口没权限，必须强制走商户自己登录
+    const token = tenantAdminLogin(TENANT_ID, true);
     if (!token) throw new Error('后台登录失败');
 
     const listItem = getUserListItem(token);

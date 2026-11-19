@@ -16,13 +16,13 @@ import { hybridRecharge, eventBatchFrontendRechargeRequest } from '../recharge/r
  * @param {number} channelPackageId - 渠道来源ID（必填）
  * @returns {Array<number>} 去重后的 userId 列表
  */
-export function getRechargedUserIds(adminToken, tenantId, daysAgo, channelPackageId) {
+export function getRechargedUserIds(adminToken, tenantId, daysAgo, channelPackageId, forceTenant = false) {
     console.log(`[RetentionService] 查询 ${daysAgo} 天前充值用户...`);
 
     const range = getDayRange(daysAgo, tenantId);
     console.log(`[RetentionService] 时间范围: ${range.dateStr} (${new Date(range.startTime).toISOString()} ~ ${new Date(range.endTime).toISOString()})`);
 
-    const orders = fetchAllRechargeOrders(adminToken, range.startTime, range.endTime, 'Payed', channelPackageId);
+    const orders = fetchAllRechargeOrders(adminToken, range.startTime, range.endTime, 'Payed', channelPackageId, forceTenant);
 
     if (!orders || orders.length === 0) {
         console.warn(`[RetentionService] ${daysAgo} 天前无充值订单`);
@@ -47,7 +47,7 @@ export function getRechargedUserIds(adminToken, tenantId, daysAgo, channelPackag
  * @param {Array<number>} userIds
  * @returns {Array<{userId: number, account: string, accountType: string}>}
  */
-export function getUsersWithAccounts(adminToken, userIds) {
+export function getUsersWithAccounts(adminToken, userIds, forceTenant = false) {
     console.log(`[RetentionService] 开始批量获取 ${userIds.length} 个用户账号...`);
 
     const results = [];
@@ -59,7 +59,7 @@ export function getUsersWithAccounts(adminToken, userIds) {
             console.log(`[RetentionService] 进度: ${i}/${userIds.length}`);
         }
 
-        const account = getUserAccount(adminToken, userId);
+        const account = getUserAccount(adminToken, userId, forceTenant);
 
         if (account) {
             const accountType = detectAccountType(account);
@@ -88,7 +88,7 @@ export function getUsersWithAccounts(adminToken, userIds) {
  */
 export function autoLogin(account, accountType, adminData) {
     console.log(`[RetentionService] 自动登录: ${account} (${accountType})`);
-    const token = autoLoginByAccount(account, adminData.token);
+    const token = autoLoginByAccount(account, adminData.token, !!adminData.forceTenant);
     if (token) {
         console.log(`[RetentionService] ✅ 登录成功: ${account}`);
     } else {
@@ -108,7 +108,7 @@ export function autoLogin(account, accountType, adminData) {
  * @param {string} strategy - 'single' / 'double' / 'random'
  * @returns {object} { success: boolean, rechargeCount: number, totalAmount: number }
  */
-export function executeUserRecharge(userId, account, accountType, userToken, adminToken, strategy = 'random') {
+export function executeUserRecharge(userId, account, accountType, userToken, adminToken, strategy = 'random', forceTenant = false) {
     console.log(`[RetentionService] 用户 ${userId} (${account}) 开始复充，策略: ${strategy}`);
 
     // 级联充值：90%充1次 → 50%充2次 → 20%充3次
@@ -164,7 +164,8 @@ export function executeUserRecharge(userId, account, accountType, userToken, adm
                 userId,
                 amount,
                 frontendFirst: true,
-                remark: `Day N Recharge - ${i + 1}`
+                remark: `Day N Recharge - ${i + 1}`,
+                forceTenant
             });
 
             if (result.success) {
@@ -246,7 +247,8 @@ export function batchRecharge(userList, adminData, options = {}) {
             user.accountType,
             userToken,
             adminData.token,
-            strategy
+            strategy,
+            !!adminData.forceTenant
         );
 
         if (result.success) {

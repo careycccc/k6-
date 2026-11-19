@@ -164,7 +164,7 @@ function createNewAccount(countryCode) {
  * @returns {object} 完整的账号记录(已经emit过)
  */
 function operateAccount(adminToken, userToken, userId, phone, opts) {
-    const { rechargeCount = 1, pendingCount = 0, createdDay = null, role = 'new', fishedInfo = null } = opts;
+    const { rechargeCount = 1, pendingCount = 0, createdDay = null, role = 'new', fishedInfo = null, forceTenant = false } = opts;
 
     const support = ensureUsdtSupport(userToken);
     const canUsdtAny = support.recharge || support.withdraw;
@@ -190,8 +190,8 @@ function operateAccount(adminToken, userToken, userId, phone, opts) {
     function doOneRecharge(audit) {
         const targetAmount = useUsdtRecharge ? randInt(USDT_RECHARGE_AMOUNT_MIN, USDT_RECHARGE_AMOUNT_MAX) : ENV_CONFIG.RECHARGE_AMOUNT_MIN || 2000;
         const result = useUsdtRecharge
-            ? assembleUsdtRecharge(userToken, adminToken, userId, targetAmount, { audit })
-            : assembleFiatRechargeNoUsdt(userToken, adminToken, userId, targetAmount, { audit });
+            ? assembleUsdtRecharge(userToken, adminToken, userId, targetAmount, { audit, forceTenant })
+            : assembleFiatRechargeNoUsdt(userToken, adminToken, userId, targetAmount, { audit, forceTenant });
         if (!result.success) {
             console.warn(`[AccountSeed] ⚠️ ${phone} 充值失败: ${result.reason}`);
             return false;
@@ -242,7 +242,7 @@ function operateAccount(adminToken, userToken, userId, phone, opts) {
     sleep(2);
 
     // 提现：同理，只有该商户真的支持USDT提现才走USDT，否则降级为法币
-    prepareWithdraw(adminToken, userId, userToken);
+    prepareWithdraw(adminToken, userId, userToken, forceTenant);
     const withdrawCount = randInt(WITHDRAW_COUNT_MIN, WITHDRAW_COUNT_MAX);
     let forceType = 'USDT';
     if (!useUsdtWithdraw) {
@@ -254,7 +254,7 @@ function operateAccount(adminToken, userToken, userId, phone, opts) {
     // 侧 seedOneAccount 传 pendingCount:0 的保守做法保持一致，模式A流程
     // 完全不受这次改动影响。
     const withdrawPendingCount = createdDay != null ? WITHDRAW_PENDING_COUNT : 0;
-    const { attempts, stopReason } = doWithdrawMultiple(adminToken, userId, userToken, withdrawCount, withdrawAmount, forceType, withdrawPendingCount);
+    const { attempts, stopReason } = doWithdrawMultiple(adminToken, userId, userToken, withdrawCount, withdrawAmount, forceType, withdrawPendingCount, forceTenant);
     record.withdrawAttempts = attempts.length;
     record.withdrawSuccessCount = attempts.filter(a => a.withdrew).length;
     record.withdrawRealType = forceType;
@@ -273,10 +273,10 @@ function operateAccount(adminToken, userToken, userId, phone, opts) {
 
 // ========================= 模式A：单批次造数(原有逻辑，不变) =========================
 
-function seedOneAccount(adminToken, countryCode) {
+function seedOneAccount(adminToken, countryCode, forceTenant = false) {
     const created = createNewAccount(countryCode);
     if (!created) return null;
-    return operateAccount(adminToken, created.userToken, created.userId, created.phone, { rechargeCount: 1, pendingCount: 0, createdDay: null, role: 'new' });
+    return operateAccount(adminToken, created.userToken, created.userId, created.phone, { rechargeCount: 1, pendingCount: 0, createdDay: null, role: 'new', forceTenant });
 }
 
 // ========================= 模式B：多天衰减系列 =========================
@@ -294,7 +294,7 @@ export function runNewAccounts(data) {
         if (!created) continue;
         const rechargeCount = randInt(RECHARGE_COUNT_MIN, RECHARGE_COUNT_MAX);
         const pendingCount = randInt(RECHARGE_PENDING_MIN, RECHARGE_PENDING_MAX);
-        operateAccount(adminToken, created.userToken, created.userId, created.phone, { rechargeCount, pendingCount, createdDay: DAY_INDEX, role: 'new' });
+        operateAccount(adminToken, created.userToken, created.userId, created.phone, { rechargeCount, pendingCount, createdDay: DAY_INDEX, role: 'new', forceTenant: true });
         sleep(1);
     }
     console.log(`[AccountSeed] [新增] 第${DAY_INDEX}天新增完成`);
@@ -316,7 +316,7 @@ export function runFishOldAccounts(data) {
         const pendingCount = randInt(RECHARGE_PENDING_MIN, RECHARGE_PENDING_MAX);
         operateAccount(adminToken, token, m.userId, m.account, {
             rechargeCount, pendingCount, createdDay: DAY_INDEX, role: 'fished',
-            fishedInfo: { fishedOnDay: DAY_INDEX, passwordWasReset }
+            fishedInfo: { fishedOnDay: DAY_INDEX, passwordWasReset }, forceTenant: true
         });
         sleep(1);
     }
@@ -332,13 +332,13 @@ export function runBackfillAudit(data) {
     const { toApprove, toLeave } = splitApproveDecision(candidates, BACKFILL_APPROVE_RATE);
     console.log(`[AccountSeed] [补单-充值] 第${targetDay}天的待审核订单共${candidates.length}笔，本次审核通过${toApprove.length}笔，维持不动${toLeave.length}笔`);
     for (const { record, pending } of toApprove) {
-        resolvePendingOrder(adminToken, pending, { approve: true });
+        resolvePendingOrder(adminToken, pending, { approve: true, forceTenant: true });
         pending.resolvedDay = DAY_INDEX;
         emitAcct(record);
         sleep(1);
     }
     for (const { record, pending } of toLeave) {
-        resolvePendingOrder(adminToken, pending, { approve: false });
+        resolvePendingOrder(adminToken, pending, { approve: false, forceTenant: true });
         emitAcct(record);
     }
 
@@ -348,13 +348,13 @@ export function runBackfillAudit(data) {
     const { toApprove: wToApprove, toLeave: wToLeave } = splitApproveDecision(withdrawCandidates, BACKFILL_APPROVE_RATE);
     console.log(`[AccountSeed] [补单-提现] 第${targetDay}天的待审核提现共${withdrawCandidates.length}笔，本次审核通过${wToApprove.length}笔，维持不动${wToLeave.length}笔`);
     for (const { record, pending } of wToApprove) {
-        resolvePendingWithdrawOrder(adminToken, pending, { approve: true });
+        resolvePendingWithdrawOrder(adminToken, pending, { approve: true, forceTenant: true });
         pending.resolvedDay = DAY_INDEX;
         emitAcct(record);
         sleep(1);
     }
     for (const { record, pending } of wToLeave) {
-        resolvePendingWithdrawOrder(adminToken, pending, { approve: false });
+        resolvePendingWithdrawOrder(adminToken, pending, { approve: false, forceTenant: true });
         emitAcct(record);
     }
 
@@ -369,7 +369,7 @@ export function setup() {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
 
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[AccountSeed] ❌ 租户 ${TENANT_ID} 管理员登录失败`);
     console.log('[AccountSeed] ✅ 管理员登录成功');
 
@@ -388,7 +388,7 @@ export default function (data) {
     let usdtCount = 0;
     for (let i = 0; i < ACCOUNT_COUNT; i++) {
         console.log(`[AccountSeed] ===== 第${i + 1}/${ACCOUNT_COUNT}个账号 =====`);
-        const record = seedOneAccount(adminToken, countryCode);
+        const record = seedOneAccount(adminToken, countryCode, true);
         if (record && record.isUsdt) usdtCount++;
         sleep(1);
     }

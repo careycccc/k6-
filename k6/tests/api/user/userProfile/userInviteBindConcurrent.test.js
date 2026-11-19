@@ -101,7 +101,7 @@ export function setup() {
   }
 
   // 管理员登录（查验证码用）
-  const adminToken = tenantAdminLogin(tenantId);
+  const adminToken = tenantAdminLogin(tenantId, true);
   if (!adminToken) throw new Error('[Setup] 管理员登录失败');
   console.log('[Setup] ✅ 管理员登录成功\n');
 
@@ -111,7 +111,7 @@ export function setup() {
     const userName = usernameList[i];
     console.log(`[Setup] 登录账号 [${i + 1}/${usernameList.length}]: ${userName}`);
 
-    const userToken = autoLoginByAccount(userName, adminToken);
+    const userToken = autoLoginByAccount(userName, adminToken, true);
     if (!userToken) {
       throw new Error(`[Setup] 账号登录失败: ${userName}`);
     }

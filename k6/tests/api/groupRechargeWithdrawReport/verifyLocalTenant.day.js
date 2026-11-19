@@ -99,7 +99,7 @@ function emit(tag, obj) {
     console.log(`##${tag}##${JSON.stringify(obj)}`);
 }
 
-function aggregateRechargeOrders(adminToken, startTs, endTs) {
+function aggregateRechargeOrders(adminToken, startTs, endTs, forceTenant = false) {
     const userIds = new Set();
     const successByDay = new Map(); // 'YYYY-MM-DD' -> Set<userId>，按天去重，查多天时累加(和提现口径一致)
     let orderCount = 0, successCount = 0, failCount = 0;
@@ -124,7 +124,7 @@ function aggregateRechargeOrders(adminToken, startTs, endTs) {
 
     const orders = fetchAllPages(page => sendRequest({
         startTime: startTs - WINDOW_PAD_MS, endTime: endTs, pageNo: page, pageSize: 500, dateType: 0, orderBy: 'Desc'
-    }, '/api/RechargeOrder/GetRechargeOrderPageList', 'AggregateRecharge', false, adminToken), { maxPages: 200, pause: 0.3 });
+    }, '/api/RechargeOrder/GetRechargeOrderPageList', 'AggregateRecharge', false, adminToken, forceTenant), { maxPages: 200, pause: 0.3 });
 
     for (const o of orders) {
         const isThird = o.rechargeChannelType === 'ThirdRecharge';
@@ -176,7 +176,7 @@ function aggregateRechargeOrders(adminToken, startTs, endTs) {
     };
 }
 
-function aggregateWithdrawOrders(adminToken, startTs, endTs) {
+function aggregateWithdrawOrders(adminToken, startTs, endTs, forceTenant = false) {
     const userIds = new Set();
     const successByDay = new Map(); // 'YYYY-MM-DD' -> Set<userId>，每个会员每天只算1人，查多天时累加每天人数
     let orderCount = 0, successCount = 0;
@@ -199,7 +199,7 @@ function aggregateWithdrawOrders(adminToken, startTs, endTs) {
 
     const orders = fetchAllPages(page => sendRequest({
         startTime: startTs - WINDOW_PAD_MS, endTime: endTs, pageNo: page, pageSize: 500, dateType: 1, orderBy: 'Desc'
-    }, '/api/WithdrawOrder/GetWithdrawOrderPageList', 'AggregateWithdraw', false, adminToken), { maxPages: 200, pause: 0.3 });
+    }, '/api/WithdrawOrder/GetWithdrawOrderPageList', 'AggregateWithdraw', false, adminToken, forceTenant), { maxPages: 200, pause: 0.3 });
 
     for (const o of orders) {
         const hasChannel = o.withdrawChannelId != null && o.withdrawChannelId !== 0;
@@ -247,7 +247,7 @@ export default function () {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
 
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) { console.error(`[VerifyLocalTenant] 租户${TENANT_ID}管理员登录失败`); return; }
 
     // 集团报表按 'YYYY-MM-DD' 查询，统计口径里充值按dateType=0、提现按dateType=1，
@@ -255,8 +255,8 @@ export default function () {
     const startTs = dateStartTs(START, 0);
     const endTs = dateEndTs(END, 0);
 
-    const rechargeStat = aggregateRechargeOrders(adminToken, startTs, endTs);
-    const withdrawStat = aggregateWithdrawOrders(adminToken, startTs, endTs);
+    const rechargeStat = aggregateRechargeOrders(adminToken, startTs, endTs, true);
+    const withdrawStat = aggregateWithdrawOrders(adminToken, startTs, endTs, true);
 
     emit('LOCAL', { tenantId: TENANT_ID, ...rechargeStat, ...withdrawStat });
     console.log(`[VerifyLocalTenant] 租户${TENANT_ID}本地聚合完成: ${JSON.stringify({ ...rechargeStat, ...withdrawStat })}`);

@@ -309,7 +309,7 @@ function runWheelRounds(agentToken, agentPhone, ctx, agentRecord) {
         for (const sub of subs) {
             const subRecord = { account: sub.phone, password: 'qwer1234', userId: sub.userId, tenantId: TENANT_ID, registerDate: today, role: 'sub' };
             emitAcct(subRecord);
-            hybridRecharge({ userToken: sub.token, adminToken, userId: sub.userId, amount: RECHARGE_AMOUNT, frontendFirst: true, remark: `InviteWheelSub-${today}` });
+            hybridRecharge({ userToken: sub.token, adminToken, userId: sub.userId, amount: RECHARGE_AMOUNT, frontendFirst: true, remark: `InviteWheelSub-${today}`, forceTenant: true });
             if (Math.random() < FISSION_RATE) {
                 if (participateWheel(sub.token)) {
                     subRecord.fissionDates = [today];
@@ -380,7 +380,7 @@ export function setup() {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
 
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[InviteWheel] ❌ 租户 ${TENANT_ID} 管理员登录失败`);
     console.log('[InviteWheel] ✅ 管理员登录成功');
 

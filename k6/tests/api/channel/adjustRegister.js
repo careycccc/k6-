@@ -41,7 +41,7 @@ export function adjustIdentityRegister(userName, data, options = {}) {
     console.log(`[AdjustRegister] 账号: ${userName} | 包名: ${packageName} | pixelId: ${pixelId}`);
 
     // 1. 获取验证码
-    const verifyCode = sendToGetVerCode(1, 1, userName, data.token, customFrontUrl);
+    const verifyCode = sendToGetVerCode(1, 1, userName, data.token, customFrontUrl, null, !!(data && data.forceTenant));
     if (!verifyCode) {
         console.error('[AdjustRegister] ❌ 获取验证码失败');
         return null;

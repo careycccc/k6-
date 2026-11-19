@@ -84,7 +84,7 @@ export const options = {
  * @param {number} amount - 传 0 或不传表示不限金额
  * @returns {object|null} { orderNo, createTime }
  */
-function queryPendingWithdrawOrder(adminToken, userId, amount) {
+function queryPendingWithdrawOrder(adminToken, userId, amount, forceTenant = false) {
     const api = '/api/WithdrawOrder/GetWithdrawLockPageList';
 
     // 计算今天的开始/结束时间戳（毫秒），覆盖当天所有订单
@@ -110,7 +110,7 @@ function queryPendingWithdrawOrder(adminToken, userId, amount) {
 
     console.log(`[${TAG}] 查询订单 payload: ${JSON.stringify(payload)}`);
 
-    const response = tenantRequest(api, payload, { token: adminToken, isDesk: false });
+    const response = tenantRequest(api, payload, { token: adminToken, isDesk: false, forceTenant });
 
     if (!response || response.msgCode !== 0) {
         console.error(`[${TAG}] 查询提现订单失败: msgCode=${response ? response.msgCode : 'null'} msg=${response ? response.msg : ''}`);
@@ -166,7 +166,10 @@ export function setup() {
 
     // 1. 主账号登录
     console.log(`[${TAG}] [1/3] 主账号登录...`);
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    // forceTenant=true：集团token对GetWithdrawLockPageList等"具体会员"接口
+    // 没权限，必须强制走商户自己登录；后面VU2用的limitedToken也是租户账号，
+    // 两者域名路由必须保持一致才不会错配
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) {
         throw new Error(`[${TAG}] 主账号登录失败`);
     }
@@ -195,7 +198,7 @@ export function setup() {
 
     // 4. 查询待审核订单
     console.log(`[${TAG}] [4/4] 查询待审核提现订单...`);
-    const orderInfo = queryPendingWithdrawOrder(adminToken, userId, AMOUNT);
+    const orderInfo = queryPendingWithdrawOrder(adminToken, userId, AMOUNT, true);
 
     if (!orderInfo) {
         throw new Error(`[${TAG}] 未找到待审核订单，请确认 userId=${userId} 今日存在待审核的提现订单`);
@@ -243,7 +246,9 @@ export default function (data) {
     console.log(`[${TAG}][VU${__VU}] 目标订单: ${orderInfo.orderNo}`);
 
     // 直接调用锁单，不做任何 sleep，最大化并发窗口
-    const lockSuccess = lockWithdrawOrder(token, userId, orderInfo);
+    // forceTenant=true：两个token(主账号/受限账号)都是商户自己的租户账号，不是
+    // 集团账号，必须强制走商户域名，否则域名路由可能解析到集团域名造成token/域名错配
+    const lockSuccess = lockWithdrawOrder(token, userId, orderInfo, true);
 
     // ── 结果断言 ──────────────────────────────────────────────
     if (lockSuccess) {

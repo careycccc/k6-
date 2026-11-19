@@ -330,9 +330,9 @@ export function distributePeople(totalPeople, levels) {
  * @returns {{successCount:number, totalAmount:number, totalInstallments:number}}
  */
 export function rechargeToTarget(p) {
-    const { adminToken, userToken, userId, amount, remark = 'CycleReward' } = p;
+    const { adminToken, userToken, userId, amount, remark = 'CycleReward', forceTenant = false } = p;
 
-    const r = hybridRecharge({ userToken, adminToken, userId, amount, frontendFirst: true, remark });
+    const r = hybridRecharge({ userToken, adminToken, userId, amount, frontendFirst: true, remark, forceTenant });
 
     if (r && r.success) {
         return { successCount: 1, totalAmount: r.amount, totalInstallments: 1 };

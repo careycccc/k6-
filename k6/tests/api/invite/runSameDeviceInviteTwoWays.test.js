@@ -277,7 +277,7 @@ export function setup() {
         console.log(`[${TAG}] ✅ ENV_CONFIG 切换为租户 ${TENANT_ID}`);
     }
 
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) throw new Error(`[${TAG}] ❌ 管理员登录失败`);
     console.log(`[${TAG}] ✅ 管理员登录成功`);
 

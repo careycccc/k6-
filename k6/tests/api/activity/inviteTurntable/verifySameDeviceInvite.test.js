@@ -416,7 +416,7 @@ export function setup() {
         console.log(`[${tag}] ✅ ENV_CONFIG 已切换为租户 ${config.tenantId}`);
     }
 
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) throw new Error('后台登录失败');
     console.log(`[${tag}] ✅ 后台登录成功`);
 

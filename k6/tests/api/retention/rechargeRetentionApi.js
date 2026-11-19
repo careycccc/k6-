@@ -33,9 +33,12 @@ const TAG_RECHARGE_ORDER = 'GetRechargeOrderPageList';
  * @param {number} endTime    - 毫秒时间戳
  * @param {string} rechargeState - 默认 'Payed'
  * @param {number|null} channelPackageId - 渠道来源ID（必填，不传则报错）
+ * @param {boolean} [forceTenant=false] - 强制走商户自己的域名，不套集团路由（2026-11-19新增，
+ *   默认false不影响现有调用方）。集团token对这类后台查询接口是否有权限未逐一验证，商户自己的
+ *   管理员token对自己商户的查询理应有完整权限，改传true更安全。
  * @returns {Array} 全量订单列表
  */
-export function fetchAllRechargeOrders(adminToken, startTime, endTime, rechargeState = 'Payed', channelPackageId = null) {
+export function fetchAllRechargeOrders(adminToken, startTime, endTime, rechargeState = 'Payed', channelPackageId = null, forceTenant = false) {
     if (!channelPackageId) {
         throw new Error('[RetentionApi] ❌ 未提供渠道来源（channelPackageId），请通过 -e CHANNEL_PACKAGE_ID=xxx 传入');
     }
@@ -59,7 +62,7 @@ export function fetchAllRechargeOrders(adminToken, startTime, endTime, rechargeS
             orderBy: 'Desc'
         };
 
-        const response = sendRequest(payload, API_RECHARGE_ORDER, TAG_RECHARGE_ORDER, false, adminToken);
+        const response = sendRequest(payload, API_RECHARGE_ORDER, TAG_RECHARGE_ORDER, false, adminToken, forceTenant);
 
         if (!response) {
             console.error(`[RetentionApi] 第 ${pageNo} 页请求失败`);

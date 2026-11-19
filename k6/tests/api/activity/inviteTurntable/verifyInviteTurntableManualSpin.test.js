@@ -645,7 +645,7 @@ export function setup() {
     }
 
     console.log(`\n[${tag}] 后台管理员登录...`);
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) {
         throw new Error('后台管理员登录失败');
     }

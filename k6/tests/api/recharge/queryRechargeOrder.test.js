@@ -120,7 +120,7 @@ export function getRechargeOrderPageList(
     // 解包过的 data 本身（形如 {list, summary, pageNo, totalPage, totalCount}），不再含
     // code/msgCode 这些顶层字段，所以不能也不需要在这里重复判断 response.code。这里的
     // check() 验证的是 sendRequest 判断不到的那一层：返回的数据结构本身对不对。
-    const response = sendRequest(payload, api, tag, false, adminToken);
+    const response = sendRequest(payload, api, tag, false, adminToken, true);
 
     if (!response) {
         console.error(`[${tag}] ❌ 查询订单列表失败: 响应为空`);
@@ -176,7 +176,7 @@ export function setup() {
     console.log(`[Setup] 充值状态: ${rechargeState}`);
 
     // 管理员登录
-    const adminToken = tenantAdminLogin(tenantId);
+    const adminToken = tenantAdminLogin(tenantId, true);
     if (!adminToken) {
         throw new Error('[Setup] ❌ 管理员登录失败');
     }

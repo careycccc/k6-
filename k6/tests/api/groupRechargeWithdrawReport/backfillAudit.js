@@ -70,7 +70,8 @@ export function splitApproveDecision(candidates, approveRate = 0.5) {
  * @param {{approve:boolean}} opts
  */
 export function resolvePendingOrder(adminToken, pending, opts) {
-    const current = findOrderByOrderNo(adminToken, pending.userId, pending.orderNo, pending.rechargeType, pending.createTime);
+    const forceTenant = !!(opts && opts.forceTenant);
+    const current = findOrderByOrderNo(adminToken, pending.userId, pending.orderNo, pending.rechargeType, pending.createTime, forceTenant);
     if (!current) {
         pending.auditDecisionMade = true;
         pending.auditResult = 'order-not-found';
@@ -84,7 +85,7 @@ export function resolvePendingOrder(adminToken, pending, opts) {
     }
 
     if (opts.approve) {
-        const ok = auditOrderNow(adminToken, current, pending.amount);
+        const ok = auditOrderNow(adminToken, current, pending.amount, forceTenant);
         pending.auditDecisionMade = true;
         pending.auditResult = ok ? 'approved' : 'approve-failed';
         if (ok) console.log(`[BackfillAudit] 订单${pending.orderNo}补单审核通过`);
@@ -110,7 +111,7 @@ export function resolvePendingOrder(adminToken, pending, opts) {
  */
 export function resolvePendingWithdrawOrder(adminToken, pending, opts) {
     if (opts.approve) {
-        const { approved } = resolvePendingWithdraw(adminToken, pending.userId, pending.withdrawType, pending.amount, true);
+        const { approved } = resolvePendingWithdraw(adminToken, pending.userId, pending.withdrawType, pending.amount, true, !!(opts && opts.forceTenant));
         pending.auditDecisionMade = true;
         pending.auditResult = approved ? 'approved' : 'approve-failed';
     } else {

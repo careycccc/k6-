@@ -137,7 +137,7 @@ function fetchLoginUsers(token, dateStr) {
             endTime: `${dateStr} 23:59:59`,
             pageNo, pageSize: PAGE_SIZE, orderBy: 'Desc'
         };
-        return sendRequest(payload, api, TAG, false, token);
+        return sendRequest(payload, api, TAG, false, token, true);
     }, { maxPages: MAX_SCAN_PAGES, pause: 0.3 });
     for (const it of list) {
         // 只认 loginDate == 当日的记录（保险；正常传单天范围即当日）
@@ -154,7 +154,7 @@ function fetchLoginUsersByLastLogin(token, startTime, endTime) {
     const all = new Set(), type02 = new Set();
     const list = fetchAllPages(pageNo => {
         const payload = { loginBeginTime: startTime, loginEndTime: endTime, pageNo, pageSize: PAGE_SIZE, orderBy: 'Desc' };
-        return sendRequest(payload, api, TAG, false, token);
+        return sendRequest(payload, api, TAG, false, token, true);
     }, { maxPages: MAX_SCAN_PAGES, pause: 0.3 });
     for (const u of list) {
         if (u.userId == null) continue;
@@ -171,7 +171,7 @@ function fetchRechargeUsers(token, startTime, endTime) {
     const set = new Set();
     const list = fetchAllPages(pageNo => {
         const payload = { rechargeState: 'Payed', startTime, endTime, pageNo, pageSize: PAGE_SIZE, dateType: 1, orderBy: 'Desc' };
-        return sendRequest(payload, api, TAG, false, token);
+        return sendRequest(payload, api, TAG, false, token, true);
     }, { maxPages: MAX_SCAN_PAGES, pause: 0.3 });
     for (const o of list) { if (o.userId != null) set.add(Number(o.userId)); }
     return set;
@@ -185,7 +185,7 @@ function fetchRegisterUsers(token, startTime, endTime, withType) {
     const list = fetchAllPages(pageNo => {
         const payload = { registerBeginTime: startTime, registerEndTime: endTime, pageNo, pageSize: PAGE_SIZE, orderBy: 'Desc' };
         if (withType) payload.userType = [0, 2];
-        return sendRequest(payload, api, TAG, false, token);
+        return sendRequest(payload, api, TAG, false, token, true);
     }, { maxPages: MAX_SCAN_PAGES, pause: 0.3 });
     for (const u of list) { if (u.userId != null) set[Number(u.userId)] = true; }
     return Object.keys(set).map(Number);
@@ -206,7 +206,7 @@ function fetchBetSumByUser(token, startTime, endTime) {
                 beginTimeUnix: startTime, endTimeUnix: endTime,
                 pageNo, pageSize: PAGE_SIZE, sortField: 'BetTime'
             };
-            return sendRequest(payload, api, TAG, false, token);
+            return sendRequest(payload, api, TAG, false, token, true);
         }, { maxPages: MAX_SCAN_PAGES, pause: 0.3 });
         for (const b of list) {
             if (b.userId == null) continue;
@@ -220,7 +220,7 @@ function fetchBetSumByUser(token, startTime, endTime) {
 
 /** userId → 人生首充时间(firstRechargeTime, 毫秒)；未充值返回 0 */
 function getFirstRechargeTime(token, userId) {
-    const res = sendRequest({ userId }, '/api/Users/GetUserDetail', TAG, false, token);
+    const res = sendRequest({ userId }, '/api/Users/GetUserDetail', TAG, false, token, true);
     const d = (res && res.userDepositWithdrawInfo) ? res : (res && res.data ? res.data : null);
     if (!d || !d.userDepositWithdrawInfo) return 0;
     return Number(d.userDepositWithdrawInfo.firstRechargeTime) || 0;
@@ -228,7 +228,7 @@ function getFirstRechargeTime(token, userId) {
 
 /** userId → userType（GetUserDetail.usersBaseRsp.userType）；查不到返回 -1 */
 function getUserType(token, userId) {
-    const res = sendRequest({ userId }, '/api/Users/GetUserDetail', TAG, false, token);
+    const res = sendRequest({ userId }, '/api/Users/GetUserDetail', TAG, false, token, true);
     const d = (res && res.usersBaseRsp) ? res : (res && res.data ? res.data : res);
     const base = d && d.usersBaseRsp ? d.usersBaseRsp : {};
     return (base.userType === undefined || base.userType === null) ? -1 : Number(base.userType);
@@ -238,7 +238,7 @@ function getUserType(token, userId) {
 
 /** 活跃阈值：/api/RptUserActivity/GetRetentionBetAmountConfig → retentionBetAmount.value1 */
 function fetchActiveThreshold(token) {
-    const res = sendRequest({}, '/api/RptUserActivity/GetRetentionBetAmountConfig', TAG, false, token);
+    const res = sendRequest({}, '/api/RptUserActivity/GetRetentionBetAmountConfig', TAG, false, token, true);
     const d = (res && res.retentionBetAmount) ? res : (res && res.data ? res.data : null);
     const v = d && d.retentionBetAmount ? d.retentionBetAmount.value1 : undefined;
     const n = parseFloat(v);
@@ -252,7 +252,7 @@ function fetchRetentionReport(token, startDate, endDate, retainType) {
         startTime: `${startDate} 00:00:00`, endTime: `${endDate} 23:59:59`,
         retainType, orderBy: 'Desc', pageNo: 1, pageSize: 200
     };
-    const res = sendRequest(payload, api, TAG, false, token);
+    const res = sendRequest(payload, api, TAG, false, token, true);
     return extractList(res);
 }
 
@@ -263,7 +263,7 @@ function fetchBehaviorReport(token, startDate, endDate, retainType) {
         startTime: startDate, endTime: endDate,
         retainType, orderBy: 'Desc', pageNo: 1, pageSize: 200
     };
-    const res = sendRequest(payload, api, TAG, false, token);
+    const res = sendRequest(payload, api, TAG, false, token, true);
     return extractList(res);
 }
 
@@ -277,7 +277,7 @@ export function setup() {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
 
-    const token = tenantAdminLogin(TENANT_ID);
+    const token = tenantAdminLogin(TENANT_ID, true);
     if (!token) throw new Error(`[${TAG}] ❌ 租户 ${TENANT_ID} 管理员登录失败`);
     console.log(`[${TAG}] ✅ 管理员登录成功`);
 

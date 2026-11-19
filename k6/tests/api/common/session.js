@@ -63,8 +63,11 @@ export function getTestSession(userName, isRegister = false, accountType = 'phon
     }
 
     // 1. 获取后台管理员Token（为了获取验证码）
+    // forceTenant=true：2026-11-19发现，集团token对GetVerifyCodePageList这类
+    // "查具体某个会员"的接口没有权限(No operation permission)，这个会话管理
+    // 模块全程只服务单个会员，必须强制走商户自己登录
     console.log(`[${tag}] 准备获取AdminToken...`);
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) {
         console.error(`[${tag}] 后台管理员登录失败，无法继续流程`);
         return null;
@@ -130,7 +133,7 @@ export function getTestSession(userName, isRegister = false, accountType = 'phon
         }
     } else {
         console.log(`[${tag}] 执行${isEmail ? '邮箱' : '手机号'}自动登录流程: ${userName}`);
-        userToken = autoLoginByAccount(userName, adminData.token);
+        userToken = autoLoginByAccount(userName, adminData.token, true);
     }
 
     if (!userToken) {

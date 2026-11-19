@@ -60,7 +60,7 @@ export function setup() {
     console.log(`[Seed] 租户: ${tenantId}，计划注册: ${userCount} 人`);
     console.log(`[Seed] 包类型: ${scenarioConfig.desc}，邀请码: ${finalInviteCode || '(无)'}`);
 
-    const adminToken = tenantAdminLogin(tenantId);
+    const adminToken = tenantAdminLogin(tenantId, true);
     if (!adminToken) throw new Error(`[Seed] ❌ 租户 ${tenantId} 管理员登录失败`);
 
     console.log(`[Seed] ✅ 管理员登录成功`);
@@ -112,7 +112,7 @@ export default function (data) {
     }
 
     const amount1 = 2000 + Math.floor(Math.random() * 3001);
-    const result1 = hybridRecharge({ userToken, adminToken, userId, amount: amount1 });
+    const result1 = hybridRecharge({ userToken, adminToken, userId, amount: amount1, forceTenant: true });
 
     if (!result1.success) {
         console.error(`[Seed] [VU${__VU}] ❌ 第1次充值失败`);
@@ -131,7 +131,7 @@ export default function (data) {
 
     sleep(3);
     const amount2 = 2000 + Math.floor(Math.random() * 3001);
-    const result2 = hybridRecharge({ userToken, adminToken, userId, amount: amount2 });
+    const result2 = hybridRecharge({ userToken, adminToken, userId, amount: amount2, forceTenant: true });
 
     if (!result2.success) {
         console.error(`[Seed] [VU${__VU}] ❌ 第2次充值失败`);
@@ -150,7 +150,7 @@ export default function (data) {
 
     sleep(3);
     const amount3 = 2000 + Math.floor(Math.random() * 3001);
-    const result3 = hybridRecharge({ userToken, adminToken, userId, amount: amount3 });
+    const result3 = hybridRecharge({ userToken, adminToken, userId, amount: amount3, forceTenant: true });
 
     if (!result3.success) {
         console.error(`[Seed] [VU${__VU}] ❌ 第3次充值失败`);

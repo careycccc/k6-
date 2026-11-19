@@ -110,8 +110,8 @@ function pad2(n) { return String(n).padStart(2, '0'); }
 function dateStr(off) { const d = new Date(Date.now() + off * 86400000); return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`; }
 
 /** GetUserDetail → { account, cumRecharge(累计), packageName } */
-function getUserDetail(adminToken, userId) {
-    const res = sendRequest({ userId }, '/api/Users/GetUserDetail', TAG, false, adminToken);
+function getUserDetail(adminToken, userId, forceTenant = false) {
+    const res = sendRequest({ userId }, '/api/Users/GetUserDetail', TAG, false, adminToken, forceTenant);
     const d = (res && res.usersBaseRsp) ? res : (res && res.data ? res.data : res);
     if (!d) return null;
     return {
@@ -122,16 +122,16 @@ function getUserDetail(adminToken, userId) {
 }
 
 /** 提现记录（查 auditState / 成功轮次） */
-function fetchWithdrawRecords(adminToken, userId) {
+function fetchWithdrawRecords(adminToken, userId, forceTenant = false) {
     const res = sendRequest({ userId, startDay: dateStr(-60), endDay: dateStr(1), pageNo: 1, pageSize: 100, orderBy: 'Desc' },
-        '/api/InvitedWheel/GetPageListWithdrawRecord', TAG, false, adminToken);
+        '/api/InvitedWheel/GetPageListWithdrawRecord', TAG, false, adminToken, forceTenant);
     if (res && res.data && Array.isArray(res.data.list)) return res.data.list;
     if (res && Array.isArray(res.list)) return res.list;
     return [];
 }
 /** 成功领取轮次 = auditState==2 的条数 */
-function queryRound(adminToken, userId) {
-    return fetchWithdrawRecords(adminToken, userId).filter(r => Number(r.auditState) === 2).length;
+function queryRound(adminToken, userId, forceTenant = false) {
+    return fetchWithdrawRecords(adminToken, userId, forceTenant).filter(r => Number(r.auditState) === 2).length;
 }
 
 function ensureWheelConfig(adminToken) {
@@ -170,7 +170,7 @@ function inviteSubs(agent, wheelCode, n, each, ctx) {
         if (!info || !info.userId) continue;
         subIds.push(info.userId);
         if (each > 0) {
-            hybridRecharge({ userToken: token, adminToken: ctx.adminData.token, userId: info.userId, amount: each, frontendFirst: true, remark: `AuditRule-sub` });
+            hybridRecharge({ userToken: token, adminToken: ctx.adminData.token, userId: info.userId, amount: each, frontendFirst: true, remark: `AuditRule-sub`, forceTenant: true });
             subThisRound += each;
         }
         sleep(1);
@@ -185,7 +185,7 @@ function sumSubCumRecharge(adminToken, subUserIds, target) {
         sleep(SUB_CUM_WAIT);
         sum = 0;
         for (const uid of subUserIds) {
-            const d = getUserDetail(adminToken, uid);
+            const d = getUserDetail(adminToken, uid, true);
             if (d) sum += d.cumRecharge;
             sleep(0.3);
         }
@@ -199,7 +199,7 @@ function sumSubCumRecharge(adminToken, subUserIds, target) {
 export function setup() {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[${TAG}] 租户 ${TENANT_ID} 管理员登录失败`);
     ensureWheelConfig(adminToken);
     return { adminToken, envConfig };
@@ -237,7 +237,7 @@ function runCase(caseName, cfg, ctx) {
     const agent = { account: cfg.account, token, userId: info.userId };
 
     // 2) 查轮次 + 匹配规则
-    const round = queryRound(adminToken, agent.userId);
+    const round = queryRound(adminToken, agent.userId, true);
     const rule = matchRule(cfg.channel, round);
     const ruleId = rule ? rule.id : '(无匹配)';
     console.log(`[${TAG}] ${caseName} userId=${agent.userId} 渠道=${cfg.channel} 轮次=${round} → 规则=${ruleId}`);
@@ -253,7 +253,7 @@ function runCase(caseName, cfg, ctx) {
 
     // 5) 等自动审核 → 查 auditState
     sleep(AUDIT_WAIT);
-    const recs = fetchWithdrawRecords(adminToken, agent.userId);
+    const recs = fetchWithdrawRecords(adminToken, agent.userId, true);
     const latest = recs.length ? recs[0] : null;
     const auditState = latest ? Number(latest.auditState) : 0;
     const reason = latest ? (latest.reason || '') : '';
@@ -271,10 +271,10 @@ function buildData(agent, rule, intent, ctx) {
 
     // 组二意图：先在"活动前"把总代累计补到 ≥ g2.agent（点礼物盒之前充 = 只进累计不进本轮）
     if (intent === 'group2' && rule) {
-        const cur = getUserDetail(adminToken, agent.userId);
+        const cur = getUserDetail(adminToken, agent.userId, true);
         const need = rule.g2.agent - (cur ? cur.cumRecharge : 0);
         if (need > 0) {
-            hybridRecharge({ userToken: agent.token, adminToken, userId: agent.userId, amount: need, frontendFirst: true, remark: 'AuditRule-preCum' });
+            hybridRecharge({ userToken: agent.token, adminToken, userId: agent.userId, amount: need, frontendFirst: true, remark: 'AuditRule-preCum', forceTenant: true });
             sleep(2);
         }
     }
@@ -290,7 +290,7 @@ function buildData(agent, rule, intent, ctx) {
     if (intent === 'group1' && rule) selfRound = rule.g1.agent;      // 组一：本人充 ≥ g1.agent（若 op=or 一个够）
     else if (intent === 'none') selfRound = 101;                     // reject：>100 避开拒绝3，<300 不满足组一
     // group2：本人本轮不充（=0，组一人不满足）
-    if (selfRound > 0) { hybridRecharge({ userToken: agent.token, adminToken, userId: agent.userId, amount: selfRound, frontendFirst: true, remark: 'AuditRule-self' }); out.selfThisRound = selfRound; sleep(2); }
+    if (selfRound > 0) { hybridRecharge({ userToken: agent.token, adminToken, userId: agent.userId, amount: selfRound, frontendFirst: true, remark: 'AuditRule-self', forceTenant: true }); out.selfThisRound = selfRound; sleep(2); }
 
     // 邀请码
     const share = clickShareLink(agent.token);
@@ -322,7 +322,7 @@ function buildData(agent, rule, intent, ctx) {
     sleep(3);
 
     // 记录累计（供报表核对预期）
-    const agD = getUserDetail(adminToken, agent.userId);
+    const agD = getUserDetail(adminToken, agent.userId, true);
     out.agentCum = agD ? agD.cumRecharge : 0;
     out.subCum = inv.subUserIds.length ? sumSubCumRecharge(adminToken, inv.subUserIds, (intent === 'group2' && rule) ? rule.g2.sub : 0) : 0;
     return out;

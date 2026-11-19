@@ -64,9 +64,9 @@ function registerFreshMember(adminData) {
  * 按手机号查后台 userId，带重试——新注册账号不会立即出现在 GetPageList 查询结果里，
  * 紧跟着注册成功就查一次经常查不到（返回 undefined），必须重试等索引同步。
  */
-function getUserId(adminToken, account, retries = 4) {
+function getUserId(adminToken, account, retries = 4, forceTenant = false) {
     for (let i = 0; i <= retries; i++) {
-        const pageResp = tenantRequest('/api/Users/GetPageList', { account, pageNo: 1, pageSize: 10 }, { token: adminToken, isDesk: false });
+        const pageResp = tenantRequest('/api/Users/GetPageList', { account, pageNo: 1, pageSize: 10 }, { token: adminToken, isDesk: false, forceTenant });
         const userId = pageResp && pageResp.data && pageResp.data.list && pageResp.data.list[0] && pageResp.data.list[0].userId;
         if (userId) return userId;
         console.warn(`[GetUserId] 账号${account}暂时查不到userId(第${i + 1}次)，2s后重试`);
@@ -80,9 +80,9 @@ function getUserId(adminToken, account, retries = 4) {
  * 查用户钱包详情，带重试——网络抖动/接口瞬时异常偶尔会导致 tenantRequest 返回
  * 不含 data 字段的响应，不重试直接用会让整条长流程因为一次偶发故障而崩溃退出。
  */
-function getWalletDetailSafe(adminToken, userId, retries = 2) {
+function getWalletDetailSafe(adminToken, userId, retries = 2, forceTenant = false) {
     for (let i = 0; i <= retries; i++) {
-        const detail = tenantRequest('/api/Users/GetWallet', { userId }, { token: adminToken, isDesk: false });
+        const detail = tenantRequest('/api/Users/GetWallet', { userId }, { token: adminToken, isDesk: false, forceTenant });
         if (detail && detail.data) return detail;
         console.warn(`[GetWallet] 查询异常(第${i + 1}次)，2s后重试: ${JSON.stringify(detail)}`);
         sleep(2);
@@ -110,7 +110,7 @@ function getWalletDetailSafe(adminToken, userId, retries = 2) {
  *   setUniquenessFn- (adminToken, enabled) => boolean
  * @returns {Array}
  */
-function runUniquenessMatrix(adminToken, adminData, cfg) {
+function runUniquenessMatrix(adminToken, adminData, cfg, forceTenant = false) {
     const { typeLabel, bindFn, generateValueFn, listKey, submitDeleteFn, executeDeleteFn, setUniquenessFn } = cfg;
     const results = [];
 
@@ -120,16 +120,16 @@ function runUniquenessMatrix(adminToken, adminData, cfg) {
         if (!addOk) { console.error(`[${tag}] 绑定失败 value=${value}`); return null; }
         sleep(2);
 
-        const detail = getWalletDetailSafe(adminToken, userId);
+        const detail = getWalletDetailSafe(adminToken, userId, 2, forceTenant);
         if (!detail) { console.error(`[${tag}] 查钱包详情失败，中止`); return null; }
         const listBefore = detail.data[listKey] || [];
         const record = listBefore[0];
         if (!record) { console.error(`[${tag}] 查不到刚绑的记录`); return null; }
         console.log(`[${tag}] 绑定成功: value=${value} recordId=${record.id}`);
 
-        const submitOk = submitDeleteFn(memberToken, adminToken, record.id, value);
+        const submitOk = submitDeleteFn(memberToken, adminToken, record.id, value, forceTenant);
         sleep(2);
-        const execOk = executeDeleteFn(adminToken, userId);
+        const execOk = executeDeleteFn(adminToken, userId, forceTenant);
         sleep(2);
         if (!submitOk || !execOk) {
             console.error(`[${tag}] ⚠️ 删除流程未完全成功 submitOk=${submitOk} execOk=${execOk}`);
@@ -137,7 +137,7 @@ function runUniquenessMatrix(adminToken, adminData, cfg) {
 
         // 用数量变化判断删除是否生效，不依赖具体字段是否可比对——电子钱包的账号
         // 在查询结果里是脱敏的，没法用"值是否还在列表里"这种精确匹配方式核实
-        const detailAfter = getWalletDetailSafe(adminToken, userId);
+        const detailAfter = getWalletDetailSafe(adminToken, userId, 2, forceTenant);
         const countAfter = detailAfter ? (detailAfter.data[listKey] || []).length : null;
         console.log(`[${tag}] 删除后实查: 删除前数量=${listBefore.length} 删除后数量=${countAfter}`);
 
@@ -146,10 +146,10 @@ function runUniquenessMatrix(adminToken, adminData, cfg) {
 
     // ============ TC1 ============
     console.log(`\n========== [${typeLabel}] TC1: 开关开启，原用户重新绑定已删除的记录 ==========`);
-    setUniquenessFn(adminToken, true);
+    setUniquenessFn(adminToken, true, forceTenant);
     sleep(3);
     const memberA1 = registerFreshMember(adminData);
-    const userIdA1 = memberA1 && getUserId(adminToken, memberA1.phone);
+    const userIdA1 = memberA1 && getUserId(adminToken, memberA1.phone, 4, forceTenant);
     if (memberA1 && userIdA1) {
         const valueA1 = bindAndDelete(memberA1.token, userIdA1, `${typeLabel}-TC1`);
         if (valueA1) {
@@ -165,7 +165,7 @@ function runUniquenessMatrix(adminToken, adminData, cfg) {
     // ============ TC2 ============
     console.log(`\n========== [${typeLabel}] TC2: 开关开启，新用户绑定原用户已删除的记录 ==========`);
     const memberA2 = registerFreshMember(adminData);
-    const userIdA2 = memberA2 && getUserId(adminToken, memberA2.phone);
+    const userIdA2 = memberA2 && getUserId(adminToken, memberA2.phone, 4, forceTenant);
     if (memberA2 && userIdA2) {
         const valueA2 = bindAndDelete(memberA2.token, userIdA2, `${typeLabel}-TC2-A`);
         if (valueA2) {
@@ -180,10 +180,10 @@ function runUniquenessMatrix(adminToken, adminData, cfg) {
 
     // ============ TC3 ============
     console.log(`\n========== [${typeLabel}] TC3: 对照组-开关关闭，原用户重新绑定已删除的记录 ==========`);
-    setUniquenessFn(adminToken, false);
+    setUniquenessFn(adminToken, false, forceTenant);
     sleep(3);
     const memberA3 = registerFreshMember(adminData);
-    const userIdA3 = memberA3 && getUserId(adminToken, memberA3.phone);
+    const userIdA3 = memberA3 && getUserId(adminToken, memberA3.phone, 4, forceTenant);
     if (memberA3 && userIdA3) {
         const valueA3 = bindAndDelete(memberA3.token, userIdA3, `${typeLabel}-TC3`);
         if (valueA3) {
@@ -198,17 +198,17 @@ function runUniquenessMatrix(adminToken, adminData, cfg) {
 
     // ============ TC4(用例C) ============
     console.log(`\n========== [${typeLabel}] TC4(用例C): 开启时删除，切到关闭，等待1分钟后重新绑定 ==========`);
-    setUniquenessFn(adminToken, true);
+    setUniquenessFn(adminToken, true, forceTenant);
     sleep(3);
     const memberA4 = registerFreshMember(adminData);
-    const userIdA4 = memberA4 && getUserId(adminToken, memberA4.phone);
+    const userIdA4 = memberA4 && getUserId(adminToken, memberA4.phone, 4, forceTenant);
     if (memberA4 && userIdA4) {
         const valueA4 = bindAndDelete(memberA4.token, userIdA4, `${typeLabel}-TC4`);
         if (valueA4) {
             const beforeSwitchResult = bindFn(memberA4.token, valueA4);
             console.log(`${typeLabel} 切换开关前，重新绑定结果: ${beforeSwitchResult}（预期false，和TC1一致，作为对比基线）`);
 
-            setUniquenessFn(adminToken, false);
+            setUniquenessFn(adminToken, false, forceTenant);
             console.log(`${typeLabel} 开关已切换为关闭，等待1分钟...`);
             sleep(60);
 
@@ -222,14 +222,16 @@ function runUniquenessMatrix(adminToken, adminData, cfg) {
     }
 
     // 恢复开关为开启状态，不污染测试环境（截图确认过默认是开启的）
-    setUniquenessFn(adminToken, true);
+    setUniquenessFn(adminToken, true, forceTenant);
 
     return results;
 }
 
 export function setup() {
     const envConfig = getEnvByTenantId(tenantId);
-    const adminToken = tenantAdminLogin(tenantId);
+    // forceTenant=true：集团token对GetPageList/GetWallet/配置开关/工单等"具体
+    // 会员"接口没权限，必须强制走商户自己登录
+    const adminToken = tenantAdminLogin(tenantId, true);
     if (!adminToken) throw new Error('[UniquenessVerify] 管理员登录失败');
     return { adminToken, adminData: { token: adminToken, envConfig, tenantId } };
 }
@@ -247,7 +249,7 @@ export default function (data) {
             submitDeleteFn: submitDeleteBankCardOrder,
             executeDeleteFn: approveAndExecuteDeleteBankCard,
             setUniquenessFn: setBankUniqueness
-        }));
+        }, true));
     }
 
     if (ENABLED_TYPES.includes('usdt')) {
@@ -259,7 +261,7 @@ export default function (data) {
             submitDeleteFn: submitDeleteUsdtOrder,
             executeDeleteFn: approveAndExecuteDeleteUsdt,
             setUniquenessFn: setUsdtUniqueness
-        }));
+        }, true));
     }
 
     if (ENABLED_TYPES.includes('ewallet')) {
@@ -271,7 +273,7 @@ export default function (data) {
             submitDeleteFn: submitDeleteEWalletOrder,
             executeDeleteFn: approveAndExecuteDeleteEWallet,
             setUniquenessFn: setEWalletUniqueness
-        }));
+        }, true));
     }
 
     console.log(`\n========== 全部验证结果汇总 ==========`);

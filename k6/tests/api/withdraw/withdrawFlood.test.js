@@ -137,7 +137,7 @@ function acquireAccount(adminToken) {
         cSwitch.add(1);
 
         // 1) 免密登录（用 adminToken 换会员 token，走验证码流程但全自动，无需人工）
-        const token = autoLoginByAccount(account, adminToken);
+        const token = autoLoginByAccount(account, adminToken, true);
         cLogin.add(1);
         if (!token) { console.log(`[Flood]SKIP ${account} 登录失败`); continue; }
 
@@ -148,14 +148,14 @@ function acquireAccount(adminToken) {
         let balance = Number(bal.balance) || 0;
 
         // 3) 提现前置（必须）：绑定银行卡等钱包 + 设置提现密码
-        addAllWallets(adminToken, userId, token);   // 绑银行卡/电子钱包/PIX/USDT；后面 GetUserWithdrawWallet 拿的就是这里绑的卡
+        addAllWallets(adminToken, userId, token, true);   // 绑银行卡/电子钱包/PIX/USDT；后面 GetUserWithdrawWallet 拿的就是这里绑的卡
         setWithdrawPassword(token, WD_PWD);  // 提现密码，与 withdrawApply 的 withdrawPassword 一致
         sleep(1);                            // 等钱包数据同步，否则随后 GetUserWithdrawWallet 可能查不到刚绑的卡
 
         // 4) 余额不足则上分补到 TOPUP_TO（amountOfCode=0 免打码，充完即可提）
         if (balance < TOPUP_TO) {
             const need = TOPUP_TO - balance;
-            const r = manualRecharge(adminToken, userId, need, 0, 'flood-topup');
+            const r = manualRecharge(adminToken, userId, need, 0, 'flood-topup', 3, true);
             if (r && r.success) { balance = TOPUP_TO; cRecharge.add(1); }
             else { console.log(`[Flood]WARN ${account} 上分失败: ${r && (r.msg || r.error)}`); }
         }
@@ -207,7 +207,9 @@ export function setup() {
     console.log(`[Flood] 租户=${TENANT} 前台=${env.BASE_DESK_URL} 账号池=${ACCOUNTS.length} 目标=${TOTAL} 并发=${VUS} 金额=[${MIN_AMOUNT},${MAX_AMOUNT}] 间隔=${GAP}s`);
     if (ACCOUNTS.length === 0) throw new Error(`账号池为空：${POOL_FILE}（先跑 collect-users.js 采集渠道账号）`);
 
-    const adminToken = tenantAdminLogin(TENANT);
+    // forceTenant=true：集团token对GetPageList/GetUserDetail/钱包/人工充值等
+    // "具体会员"接口没权限，必须强制走商户自己登录
+    const adminToken = tenantAdminLogin(TENANT, true);
     if (!adminToken) throw new Error('后台登录失败（检查 GOOGLE_SECRET / 时钟）');
     console.log('[Flood] ✅ 后台登录成功');
     return { adminToken };

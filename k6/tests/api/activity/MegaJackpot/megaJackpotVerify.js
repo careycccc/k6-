@@ -39,7 +39,7 @@ export const options = {
     scenarios: { mega_jackpot_verify: { executor: 'per-vu-iterations', vus: 1, iterations: 1, maxDuration: '60m' } }
 };
 
-const adminReq = (api, payload, token) => tenantRequest(api, payload, { token, isDesk: false, tenantId: TENANT_ID });
+const adminReq = (api, payload, token) => tenantRequest(api, payload, { token, isDesk: false, tenantId: TENANT_ID, forceTenant: true });
 const fmt = ms => formatTs(ms, getTzOffsetMs(TENANT_ID));
 const near = (a, b) => Math.abs(toNum(a) - toNum(b)) < 1e-6;
 
@@ -248,7 +248,7 @@ const STATUS_TEXT = {
 // ============================================================
 export default function () {
     const runStart = Date.now();
-    const token = tenantAdminLogin(TENANT_ID);
+    const token = tenantAdminLogin(TENANT_ID, true);
     if (!token) fail('后台登录失败');
 
     const { limit: globalLimit } = loadGlobalSetting(token);

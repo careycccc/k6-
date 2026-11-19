@@ -58,7 +58,9 @@ export const options = {
     }
 };
 
-const adminReq = (api, payload, token) => tenantRequest(api, payload, { token, isDesk: false, tenantId: TENANT_ID });
+// forceTenant=true：集团token对GetPageList/GetUserDetail这类"具体会员"接口
+// 没权限，必须强制走商户自己登录和域名
+const adminReq = (api, payload, token) => tenantRequest(api, payload, { token, isDesk: false, tenantId: TENANT_ID, forceTenant: true });
 const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
 
 // ============================================================
@@ -269,7 +271,7 @@ export default function () {
         console.log(`[${TAG}] 账号 ${ACCOUNT} 登录成功 → userId=${USER_ID}`);
     }
     if (!USER_ID) throw new Error('请传 -e USER_ID=会员ID 或 -e ACCOUNT=会员账号');
-    const token = tenantAdminLogin(TENANT_ID);
+    const token = tenantAdminLogin(TENANT_ID, true);
     if (!token) throw new Error('后台登录失败');
 
     const packageId = getUserPackageId(token);

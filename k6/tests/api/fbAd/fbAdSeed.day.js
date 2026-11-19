@@ -182,7 +182,8 @@ function seedOneAccount(adminToken, registerDate, rechargeTier, fbChannel) {
             userId,
             amount,
             frontendFirst: true,
-            remark: `FbAdSeed-${i + 1}`
+            remark: `FbAdSeed-${i + 1}`,
+            forceTenant: true
         });
         if (rechargeResult && rechargeResult.success) {
             d0RechargeCount++;
@@ -240,7 +241,7 @@ function makeExecutors(acc, adminToken, today) {
             if (index > 0) sleep(3);
             const r = hybridRecharge({
                 userToken: token, adminToken, userId: acc.userId, amount,
-                frontendFirst: true, remark: `FbAdSim-${today}-${index + 1}`
+                frontendFirst: true, remark: `FbAdSim-${today}-${index + 1}`, forceTenant: true
             });
             return r && r.success ? { success: true, amount: r.amount } : { success: false, reason: 'recharge_failed' };
         },
@@ -257,10 +258,10 @@ function makeExecutors(acc, adminToken, today) {
             const types = ((info && info.withdrawCategoryList) || []).map(c => c.withdrawType).filter(x => x !== 'UPI' && x !== 'ARPay');
             if (types.length === 0) return { success: false, reason: 'NO_CHANNEL' };
             const forceType = types[hashSeed(acc.seed, today, 'withdrawType', index) % types.length];
-            let r = doWithdrawOnce(adminToken, acc.userId, t, amount, forceType, { audit: true });
+            let r = doWithdrawOnce(adminToken, acc.userId, t, amount, forceType, { audit: true, forceTenant: true });
             if (r && r.skipReason === 'NO_WALLET') {
-                prepareWithdraw(adminToken, acc.userId, t);
-                r = doWithdrawOnce(adminToken, acc.userId, t, amount, forceType, { audit: true });
+                prepareWithdraw(adminToken, acc.userId, t, true);
+                r = doWithdrawOnce(adminToken, acc.userId, t, amount, forceType, { audit: true, forceTenant: true });
             }
             return r && r.withdrew ? { success: true, amount: r.actualAmount || amount } : { success: false, reason: (r && r.skipReason) || 'withdraw_failed' };
         } : undefined
@@ -326,7 +327,7 @@ export function setup() {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
 
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[FbAdSeed] ❌ 租户 ${TENANT_ID} 管理员登录失败`);
     console.log('[FbAdSeed] ✅ 管理员登录成功');
 

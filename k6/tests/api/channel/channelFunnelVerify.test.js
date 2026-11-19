@@ -93,7 +93,7 @@ function fetchRealUsers(adminToken, packageId, startTs, endTs) {
         pageNo,
         pageSize: 500,
         orderBy: 'Desc'
-    }, api, TAG, false, adminToken), { pause: 0.3, maxPages: Infinity });
+    }, api, TAG, false, adminToken, true), { pause: 0.3, maxPages: Infinity });
 
     list.forEach(u => {
         if (u.userType !== 1) users.push(u);  // 剔除测试账号
@@ -109,7 +109,7 @@ function fetchAdSpend(adminToken, packageId, startDateStr, endDateStr) {
         reportDateEnd: endDateStr,
         pageNo: 1,
         pageSize: 200
-    }, '/api/FinanceAdSpend/GetPageList', TAG, false, adminToken);
+    }, '/api/FinanceAdSpend/GetPageList', TAG, false, adminToken, true);
 
     if (!result || !result.list || result.list.length === 0) {
         return { spendAmount: 0, impressions: 0, clicks: 0 };
@@ -136,7 +136,7 @@ function fetchFunnelReport(adminToken, packageId, startDateStr, endDateStr) {
         pageSize: 200,
         sortField: 'ReportDate',
         orderBy: 1
-    }, '/api/RptChannelFunnel/GetPageList', TAG, false, adminToken);
+    }, '/api/RptChannelFunnel/GetPageList', TAG, false, adminToken, true);
 
     if (!result || !result.list || result.list.length === 0) return {};
 
@@ -169,7 +169,7 @@ function fetchUserRecharge(adminToken, userId, startTs, endTs) {
         pageSize: 500,
         dateType: 0,
         orderBy: 'Desc'
-    }, '/api/RechargeOrder/GetRechargeOrderPageList', TAG, false, adminToken);
+    }, '/api/RechargeOrder/GetRechargeOrderPageList', TAG, false, adminToken, true);
 
     return result && result.list ? result.list : [];
 }
@@ -181,7 +181,7 @@ function fetchUserRptRecharge(adminToken, userId, startDateStr, endDateStr) {
         memberId: userId,
         startTime: `${startDateStr} 00:00:00`,
         endTime: `${endDateStr} 23:59:59`
-    }, '/api/RptUserInfo/GetUserRptRechargePageList', TAG, false, adminToken);
+    }, '/api/RptUserInfo/GetUserRptRechargePageList', TAG, false, adminToken, true);
 
     return result && result.list ? result.list : [];
 }
@@ -198,7 +198,7 @@ function fetchUserWithdraw(adminToken, userId, startTs, endTs) {
         dateType: 1,
         orderBy: 'Desc',
         sortField: ''
-    }, '/api/WithdrawOrder/GetWithdrawOrderPageList', TAG, false, adminToken);
+    }, '/api/WithdrawOrder/GetWithdrawOrderPageList', TAG, false, adminToken, true);
 
     return result && result.list ? result.list : [];
 }
@@ -216,7 +216,7 @@ function fetchUserBet(adminToken, userId, startTs, endTs) {
                 endTimeUnix: endTs,
                 pageSize: 200,
                 sortField: 'BetTime'
-            }, '/api/ThirdGame/GetBetRecordPageList', TAG, false, adminToken);
+            }, '/api/ThirdGame/GetBetRecordPageList', TAG, false, adminToken, true);
 
             if (result && result.sum) {
                 betAmount += parseFloat(result.sum.betAmountSum || 0);
@@ -239,7 +239,7 @@ function fetchUserActivityAmount(adminToken, userId, startDateStr, endDateStr) {
         memberId: userId,
         startTime: `${startDateStr} 00:00:00`,
         endTime: `${endDateStr} 23:59:59`
-    }, '/api/RptUserInfo/GetUserRptActivityPageList', TAG, false, adminToken);
+    }, '/api/RptUserInfo/GetUserRptActivityPageList', TAG, false, adminToken, true);
 
     if (!result || !result.summary) return 0;
     return parseFloat(result.summary.totalAllActivityAmount || 0);
@@ -535,7 +535,7 @@ function printSummaryCard(needSummary, label, calcResults) {
 export function setup() {
     console.log(`\n${'='.repeat(75)}`);
     console.log(`[Setup] 开始管理员登录 | 租户: ${TENANT_ID}`);
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) {
         console.error('[Setup] ❌ 管理员登录失败');
         throw new Error('管理员登录失败');

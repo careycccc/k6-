@@ -77,7 +77,9 @@ export const TENANT_CONFIGS = {
         enabled: true,
         frontUrl: 'https://arplatsaassit4.club',   // 前台地址（普通注册）
         adminUrl: 'https://arsitasdfghjklusa.com'   // 管理后台地址
-        // 邀请注册地址见 envconfig.js ENV_3004.INVITE_REGISTER_URL = https://register.arplatsaassit4.club
+        // 邀请注册地址见 envconfig.js ENV_3004.INVITE_REGISTER_URL = https://arplatsaassit4.club
+        // 2026-11-19更正：原值 https://register.arplatsaassit4.club 该子域名DNS已不存在（本地/8.8.8.8均查询失败），
+        // 已改为直接复用前台域名，与frontUrl保持一致
     },
     // 可以继续添加更多租户
 };

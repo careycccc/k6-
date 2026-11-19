@@ -25,8 +25,8 @@ export { loginWithPassword as loginByPassword };
 export { autoLoginByAccount, autoLoginByUserId };
 
 /** 验证码免密登录：账号含 @ 走邮箱，否则一律走手机号 */
-export function loginByCode(account, adminToken) {
-    const adminData = { token: adminToken };
+export function loginByCode(account, adminToken, forceTenant = false) {
+    const adminData = { token: adminToken, forceTenant };
     if (account.includes('@')) return emailAutoLoginFlow(account, adminData);
     return mobileAutoLoginFlow(account, adminData);
 }

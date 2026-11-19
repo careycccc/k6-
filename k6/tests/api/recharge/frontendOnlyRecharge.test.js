@@ -147,7 +147,7 @@ export function setup() {
         // 注意：setup 是同步的，getPoolSize 是 async，这里用 console 提示
         console.log(`[Setup] ⚠️ 请确保已运行 batchRegister.test.js 预先注入 token`);
 
-        const adminToken = tenantAdminLogin(tenantId);
+        const adminToken = tenantAdminLogin(tenantId, true);
         if (!adminToken) {
             throw new Error(`[Setup] ❌ 租户 ${tenantId} 管理员登录失败`);
         }
@@ -246,7 +246,7 @@ function frontendOnlyRecharge(userToken, adminToken, tenantId) {
         if (rechargeType === 'LocalEWallet') {
             const startTime = rechargeRequestTime - 60000;
             const endTime = Date.now() + 60000;
-            const orders = getLocalRechargeOrderPageList(adminToken, null, startTime, endTime);
+            const orders = getLocalRechargeOrderPageList(adminToken, null, startTime, endTime, true);
 
             if (orders && orders.length > 0) {
                 orders.sort((a, b) => b.createTime - a.createTime);
@@ -256,12 +256,12 @@ function frontendOnlyRecharge(userToken, adminToken, tenantId) {
                     (o.rechargeState === 'Wait' || o.rechargeState === 'PendingReview')
                 );
                 if (target) {
-                    const auditRes = manualAuditLocalRechargeOrder(adminToken, target.orderNo, null, target.createTime, amount);
+                    const auditRes = manualAuditLocalRechargeOrder(adminToken, target.orderNo, null, target.createTime, amount, "auto-audit", true);
                     if (auditRes) return { success: true, amount, message: `通道: ${name}` };
                 }
             }
         } else {
-            const orders = getRechargeOrderPageList(adminToken, null, 'ThirdRecharge');
+            const orders = getRechargeOrderPageList(adminToken, null, 'ThirdRecharge', true);
             if (orders && orders.length > 0) {
                 orders.sort((a, b) => b.createTime - a.createTime);
                 const target = orders.find(o =>
@@ -269,7 +269,7 @@ function frontendOnlyRecharge(userToken, adminToken, tenantId) {
                     o.createTime >= rechargeRequestTime - 120000
                 );
                 if (target) {
-                    const auditRes = manualAuditRechargeOrder(adminToken, target.orderNo, null, target.createTime, amount);
+                    const auditRes = manualAuditRechargeOrder(adminToken, target.orderNo, null, target.createTime, amount, "auto-audit", true);
                     if (auditRes) return { success: true, amount, message: `通道: ${name}` };
                 }
             }

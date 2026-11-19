@@ -56,17 +56,17 @@ export const options = {
 
 export function setup() {
     const today = getDayRange(0, TENANT_ID).dateStr;
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[VerifyAttribution] 租户 ${TENANT_ID} 管理员登录失败`);
     return { today, adminToken };
 }
 
-function fetchAttribution(token, startTime, endTime) {
+function fetchAttribution(token, startTime, endTime, forceTenant = false) {
     const rows = [];
     for (let pageNo = 1; pageNo <= 200; pageNo++) {
         let d = null;
         for (let i = 0; i < 3 && !d; i++) {
-            const r = tenantRequest('/api/RptFbAd/GetAttributionPageList', { startTime, endTime, pageNo, pageSize: 100 }, { token, isDesk: false });
+            const r = tenantRequest('/api/RptFbAd/GetAttributionPageList', { startTime, endTime, pageNo, pageSize: 100 }, { token, isDesk: false, forceTenant });
             if (r && r.msgCode === 0 && r.data) d = r.data;
         }
         if (!d) throw new Error(`[VerifyAttribution] 查询归因记录失败(第${pageNo}页)`);
@@ -93,7 +93,7 @@ export default function (data) {
     }
 
     // 归因表按注册时间过滤：查 [START_DATE, END_DATE] 即可覆盖这个区间内注册的本地账号
-    const backendRows = fetchAttribution(adminToken, START_DATE, END_DATE);
+    const backendRows = fetchAttribution(adminToken, START_DATE, END_DATE, true);
     const byUser = new Map();
     for (const r of backendRows) byUser.set(Number(r.userId), r);
     const localIds = new Set(local.map(a => Number(a.userId)));

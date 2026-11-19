@@ -105,7 +105,7 @@ function runWithdraw(userToken, userId, adminToken, enableBackendApproval) {
         return false;
     }
 
-    addAllWallets(adminToken, userId, userToken);
+    addAllWallets(adminToken, userId, userToken, true);
     sleep(1);
 
     const pwdRes = setWithdrawPassword(userToken, '123456');
@@ -135,7 +135,7 @@ function runWithdraw(userToken, userId, adminToken, enableBackendApproval) {
 
     if (enableBackendApproval) {
         sleep(2);
-        const approved = runBackendWithdrawApproval(adminToken, userId, withdrawType, withdrawAmount);
+        const approved = runBackendWithdrawApproval(adminToken, userId, withdrawType, withdrawAmount, true);
         console.log(approved ? '[TiktokBatch] ✅ 后台审核通过' : '[TiktokBatch] ⚠️ 后台审核失败');
     }
 
@@ -192,7 +192,7 @@ export function setup() {
     const adminTokens = {}, envConfigs = {};
 
     for (const tenantId of tenants) {
-        const adminToken = tenantAdminLogin(tenantId);
+        const adminToken = tenantAdminLogin(tenantId, true);
         if (!adminToken) throw new Error(`[Setup] ❌ 租户 ${tenantId} 管理员登录失败`);
         adminTokens[tenantId] = adminToken;
         envConfigs[tenantId] = getEnvByTenantId(tenantId);
@@ -287,13 +287,13 @@ export default function (data) {
                 eventBatchFrontendRechargeRequest(userToken, amt2);
                 doubleRechargeCounter.add(1, { tenant: tenantId });
                 embedRechargeCounter.add(amt1 + amt2, { tenant: tenantId });
-                eventBatchAuditUserOrders(adminToken, userId);
+                eventBatchAuditUserOrders(adminToken, userId, true);
                 rechargeSuccess = true;
             } else {
                 console.log(`[TiktokBatch] [VU${__VU}][租户${tenantId}] 🚶 Mode A: 串行双充`);
-                const r1 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
+                const r1 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount(), forceTenant: true });
                 sleep(3);
-                const r2 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
+                const r2 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount(), forceTenant: true });
                 doubleRechargeCounter.add(1, { tenant: tenantId });
                 if (r1.success) embedRechargeCounter.add(r1.amount, { tenant: tenantId });
                 if (r2.success) embedRechargeCounter.add(r2.amount, { tenant: tenantId });
@@ -303,7 +303,7 @@ export default function (data) {
             console.log(`[TiktokBatch] [VU${__VU}][租户${tenantId}] 标准单充`);
             sleep(2);
             const amt = getConfigRechargeAmount();
-            const r = hybridRecharge({ userToken, adminToken, userId, amount: amt });
+            const r = hybridRecharge({ userToken, adminToken, userId, amount: amt, forceTenant: true });
             firstRechargeCounter.add(1, { tenant: tenantId });
             if (r.success) embedRechargeCounter.add(amt, { tenant: tenantId });
             rechargeSuccess = r.success;

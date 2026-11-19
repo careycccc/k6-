@@ -105,7 +105,7 @@ function enumerateDates(startDate, endDate) {
  * @param {number} endTime    毫秒时间戳
  * @returns {number} 总提现金额（actualAmount 累加）
  */
-function fetchTotalWithdraw(adminToken, userId, startTime, endTime) {
+function fetchTotalWithdraw(adminToken, userId, startTime, endTime, forceTenant = false) {
     const api = '/api/WithdrawOrder/GetWithdrawOrderPageList';
     let total = 0;
     const list = fetchAllPages(p => sendRequest({
@@ -118,7 +118,7 @@ function fetchTotalWithdraw(adminToken, userId, startTime, endTime) {
         dateType: 1,
         orderBy: 'Desc',
         sortField: ''
-    }, api, TAG, false, adminToken), { pause: 0.2, maxPages: Infinity });
+    }, api, TAG, false, adminToken, forceTenant), { pause: 0.2, maxPages: Infinity });
     list.forEach(order => {
         total += parseFloat(order.actualAmount || 0);
     });
@@ -244,7 +244,7 @@ function calcRootAgentStats(adminToken, rootUid, startDate, endDate, dates) {
 
     // ── Step 1: 获取团队成员列表 ──────────────────────────────
     console.log(`\n  [${rootUid}] 查询团队成员列表...`);
-    const memberList = getAgentHierarchyList(adminToken, rootUid, { isAll: true, isIncludeSelfAndParent: true, pageSize: 500 });
+    const memberList = getAgentHierarchyList(adminToken, rootUid, { isAll: true, isIncludeSelfAndParent: true, pageSize: 500, forceTenant: true });
     const totalMembers = memberList.filter(m => m.userId !== rootUid).length; // 不含总代自身
 
     // 确定总代自身的绝对层级
@@ -307,7 +307,7 @@ function calcRootAgentStats(adminToken, rootUid, startDate, endDate, dates) {
         totalRecharge += memberRecharge;
 
         // 提现
-        const memberWithdraw = fetchTotalWithdraw(adminToken, member.userId, startTs, endTs);
+        const memberWithdraw = fetchTotalWithdraw(adminToken, member.userId, startTs, endTs, true);
         totalWithdraw += memberWithdraw;
 
         // 投注（复用 GetBetRecordPageList，构造 enriched 对象）
@@ -460,7 +460,7 @@ export function setup() {
     if (!DATE_RANGE) throw new Error('请通过 -e DATE_RANGE=YYYY-MM-DD~YYYY-MM-DD 传入时间段');
 
     console.log(`\n[Setup] 租户: ${TENANT_ID} | 总代: ${ROOT_UIDS.join(',')} | 时间段: ${DATE_RANGE} | 代理类型: ${AGENT_TYPE} | 佣金层级: L${REBATE_LEVEL}`);
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error('[Setup] 管理员登录失败');
     console.log(`[Setup] ✅ 登录成功`);
     return { adminToken };

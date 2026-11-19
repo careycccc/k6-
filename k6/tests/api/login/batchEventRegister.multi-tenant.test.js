@@ -109,7 +109,10 @@ export function setup() {
     for (const tenantId of tenants) {
         console.log(`[Setup] 租户 ${tenantId} 管理员登录...`);
 
-        const adminToken = tenantAdminLogin(tenantId);
+        // forceTenant=true：2026-11-19发现，集团token对GetPageList/GetUserDetail/
+        // ArtificialRecharge等"具体到某个会员"的接口没有权限，这个脚本全程都是
+        // 单会员操作，必须强制走商户自己登录
+        const adminToken = tenantAdminLogin(tenantId, true);
         if (!adminToken) {
             throw new Error(`[Setup] ❌ 租户 ${tenantId} 管理员登录失败`);
         }
@@ -207,19 +210,19 @@ export default function (data) {
                     sleep(3);
                     eventBatchFrontendRechargeRequest(userToken, getConfigRechargeAmount());
                     doubleRechargeCounter.add(1, { tenant: tenantId });
-                    eventBatchAuditUserOrders(adminToken, userId);
+                    eventBatchAuditUserOrders(adminToken, userId, true);
                 } else {
                     console.log(`[BatchRegister] [VU${__VU}][租户${tenantId}] 🚶 Mode A: 串行双充`);
-                    hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
+                    hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount(), forceTenant: true });
                     sleep(3);
-                    hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
+                    hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount(), forceTenant: true });
                     doubleRechargeCounter.add(1, { tenant: tenantId });
                 }
             } else {
                 // 正常单次充值（仅单充用户计入 firstRechargeCounter）
                 console.log(`[BatchRegister] [VU${__VU}][租户${tenantId}] 标准单充`);
                 sleep(2);
-                hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
+                hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount(), forceTenant: true });
                 firstRechargeCounter.add(1, { tenant: tenantId });
             }
         } else {

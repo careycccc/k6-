@@ -64,7 +64,7 @@ function getDirectInvitees(adminToken, agentId) {
     let pageNo = 1;
     while (true) {
         const payload = { agentId, pageNo, pageSize: 500, orderBy: 'Desc' };
-        let res = sendQueryRequest(payload, api, TAG, false, adminToken);
+        let res = sendQueryRequest(payload, api, TAG, false, adminToken, true);
         if (typeof res !== 'object') {
             try { res = JSON.parse(res); } catch (e) { break; }
         }
@@ -126,16 +126,16 @@ export function setup() {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
 
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[${TAG}] ❌ 租户 ${TENANT_ID} 管理员登录失败`);
     console.log(`[${TAG}] ✅ 管理员登录成功`);
 
     // 档位配置（失败抛错终止）
-    const tiers = getCycleRewardConfig({ token: adminToken });
+    const tiers = getCycleRewardConfig({ token: adminToken, forceTenant: true });
     console.log(`[${TAG}] ✅ 获取到档位配置 ${tiers.length} 档`);
 
     try {
-        const settings = getCycleRewardSettings({ token: adminToken });
+        const settings = getCycleRewardSettings({ token: adminToken, forceTenant: true });
         console.log(`[${TAG}] 活动总开关=${settings.switchOn ? '开' : '关'} | 付费采用累计=${settings.paidUseCumulative ? '是(累计)' : '否(单笔)'}`);
     } catch (e) { /* 忽略 */ }
 
@@ -166,7 +166,7 @@ export default function (data) {
     // 2. userId → 账号
     const members = [];
     for (const uid of memberIds) {
-        const account = getUserAccount(adminToken, uid);
+        const account = getUserAccount(adminToken, uid, true);
         if (account) members.push({ userId: uid, account: account });
         else { stats.accountFail++; console.warn(`[${TAG}] userId=${uid} 取账号失败`); }
         sleep(0.2);
@@ -190,7 +190,7 @@ export default function (data) {
         recordTierHit(stats, plan);
         const rr = rechargeToTarget({
             adminToken, userToken: token, userId: m.userId,
-            amount: plan.target, remark: 'CycleTeam'
+            amount: plan.target, remark: 'CycleTeam', forceTenant: true
         });
         if (rr.successCount > 0) { stats.rechargeUsers++; stats.totalAmount += rr.totalAmount; }
         else stats.rechargeFailUsers++;

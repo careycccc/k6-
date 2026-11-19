@@ -570,18 +570,19 @@ export function eventBatchFrontendRechargeRequest(userToken, targetAmount) {
 /**
  * 【埋点压测专用】批量审核用户所有待处理订单
  * 支持“连续充值 -> 连续审核”场景
+ * @param {boolean} [forceTenant=false] - 同 getLocalRechargeOrderPageList 的 forceTenant
  */
-export function eventBatchAuditUserOrders(adminToken, userId) {
+export function eventBatchAuditUserOrders(adminToken, userId, forceTenant = false) {
     console.log(`[EventBatchAudit] 开始为用户 ${userId} 审核所有挂起订单...`);
     let auditedCount = 0;
 
     // 1. 处理本地订单 (查询范围 10 分钟内)
-    const localOrders = getLocalRechargeOrderPageList(adminToken, userId, Date.now() - 600000, Date.now() + 60000);
+    const localOrders = getLocalRechargeOrderPageList(adminToken, userId, Date.now() - 600000, Date.now() + 60000, forceTenant);
     if (localOrders && localOrders.length > 0) {
         for (let order of localOrders) {
             if (order.rechargeState === 'Wait' || order.rechargeState === 'PendingReview') {
                 console.log(`[EventBatchAudit] 匹配到本地待审核订单: ${order.orderNo}`);
-                if (manualAuditLocalRechargeOrder(adminToken, order.orderNo, userId, order.createTime, order.amount)) {
+                if (manualAuditLocalRechargeOrder(adminToken, order.orderNo, userId, order.createTime, order.amount, 'auto-audit', forceTenant)) {
                     auditedCount++;
                 }
             }
@@ -589,11 +590,11 @@ export function eventBatchAuditUserOrders(adminToken, userId) {
     }
 
     // 2. 处理三方订单
-    const thirdOrders = getRechargeOrderPageList(adminToken, userId, "ThirdRecharge");
+    const thirdOrders = getRechargeOrderPageList(adminToken, userId, "ThirdRecharge", forceTenant);
     if (thirdOrders && thirdOrders.length > 0) {
         for (let order of thirdOrders) {
             console.log(`[EventBatchAudit] 匹配到三方待审核订单: ${order.orderNo}`);
-            if (manualAuditRechargeOrder(adminToken, order.orderNo, userId, order.createTime, order.amount)) {
+            if (manualAuditRechargeOrder(adminToken, order.orderNo, userId, order.createTime, order.amount, 'auto-audit', forceTenant)) {
                 auditedCount++;
             }
         }

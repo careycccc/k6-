@@ -44,7 +44,7 @@ export function setup() {
     console.log(`[ChannelReport] ========== 渠道今日新增会员充值分析 ==========`);
     console.log(`[ChannelReport] 租户: ${tenantId}，渠道: ${channelPackageId}`);
 
-    const adminToken = tenantAdminLogin(tenantId);
+    const adminToken = tenantAdminLogin(tenantId, true);
     if (!adminToken) throw new Error(`[ChannelReport] ❌ 租户 ${tenantId} 管理员登录失败`);
 
     console.log(`[ChannelReport] ✅ 管理员登录成功`);
@@ -77,7 +77,7 @@ function fetchTodayNewUsers(adminToken, startTime, endTime) {
             timestamp: timeData.timestamp
         };
 
-        const response = sendRequest(payload, api, tag, false, adminToken);
+        const response = sendRequest(payload, api, tag, false, adminToken, true);
 
         if (!response) {
             console.error(`[ChannelReport] 第 ${pageNo} 页用户列表请求失败`);
@@ -132,7 +132,7 @@ export default function (data) {
 
     // ── 步骤2：查询今日充值订单 ──────────────────────────────
     console.log(`[ChannelReport] 查询今日充值订单...`);
-    const orders = fetchAllRechargeOrders(adminToken, todayRange.startTime, todayRange.endTime, 'Payed', channelPackageId);
+    const orders = fetchAllRechargeOrders(adminToken, todayRange.startTime, todayRange.endTime, 'Payed', channelPackageId, true);
 
     // ── 步骤3：交叉分析 ──────────────────────────────────────
     // 按 userId 聚合充值数据

@@ -83,9 +83,9 @@ function fetchAllUserIds(adminToken, extraPayload = {}) {
  * @param {number} userId
  * @returns {{ registerIp: string, registerDevice: string, registerFingerprint: string } | null}
  */
-function fetchUserDetail(adminToken, userId) {
+function fetchUserDetail(adminToken, userId, forceTenant = false) {
     const api = '/api/Users/GetUserDetail';
-    const result = sendRequest({ userId }, api, TAG, false, adminToken);
+    const result = sendRequest({ userId }, api, TAG, false, adminToken, forceTenant);
     if (!result) return null;
 
     // 优先从 registerSourceRsp 取，兜底从 riskControlRsp 取
@@ -158,7 +158,7 @@ function printDuplicateTable(title, col1Label, groupMap) {
 
 export function setup() {
     console.log(`\n[Setup] 租户: ${tenantId}`);
-    const adminToken = tenantAdminLogin(tenantId);
+    const adminToken = tenantAdminLogin(tenantId, true);
     if (!adminToken) throw new Error('[Setup] 管理员登录失败');
     console.log(`[Setup] ✅ 登录成功`);
     return { adminToken };
@@ -214,7 +214,7 @@ export default function (data) {
 
         sleep(0.2); // 避免请求过快
 
-        const detail = fetchUserDetail(adminToken, uid);
+        const detail = fetchUserDetail(adminToken, uid, true);
         if (!detail) {
             queryFailed++;
             return;

@@ -117,9 +117,11 @@ function orderTime(o) { return Number(o.rechargeSuccessTime || o.lastUpdateTime 
 const queryErrors = [];
 
 /** 发一页查询，响应里没有 list 就重试；3 次都失败返回 null 并记录 */
+// forceTenant=true：本文件token固定走tenantAdminLogin(TENANT_ID, true)拿商户自己的
+// token，这里统一传true，避免集团路由把请求错配到集团域名
 function queryPage(token, api, payload) {
     for (let i = 0; i < 3; i++) {
-        const res = sendRequest(payload, api, TAG, false, token);
+        const res = sendRequest(payload, api, TAG, false, token, true);
         if (res && (Array.isArray(res.list) || (res.data && Array.isArray(res.data.list)))) return res;
         sleep(1 + i);
     }
@@ -376,7 +378,7 @@ export function setup() {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
 
-    const token = tenantAdminLogin(TENANT_ID);
+    const token = tenantAdminLogin(TENANT_ID, true);
     if (!token) throw new Error(`[${TAG}] ❌ 租户 ${TENANT_ID} 管理员登录失败`);
     console.log(`[${TAG}] ✅ 管理员登录成功`);
     return { token, envConfig };

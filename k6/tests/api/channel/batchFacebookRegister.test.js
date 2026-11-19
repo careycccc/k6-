@@ -102,7 +102,7 @@ function runWithdraw(userToken, userId, adminToken, enableBackendApproval) {
     }
     console.log(`[FbBatch] 计划提现金额: ${withdrawAmount}`);
 
-    addAllWallets(adminToken, userId, userToken);
+    addAllWallets(adminToken, userId, userToken, true);
     sleep(1);
 
     const pwdRes = setWithdrawPassword(userToken, '123456');
@@ -138,7 +138,7 @@ function runWithdraw(userToken, userId, adminToken, enableBackendApproval) {
 
     if (enableBackendApproval) {
         sleep(2);
-        const approved = runBackendWithdrawApproval(adminToken, userId, withdrawType, withdrawAmount);
+        const approved = runBackendWithdrawApproval(adminToken, userId, withdrawType, withdrawAmount, true);
         console.log(approved ? '[FbBatch] ✅ 后台审核通过' : '[FbBatch] ⚠️ 后台审核失败');
     }
 
@@ -195,7 +195,7 @@ export function setup() {
     const adminTokens = {}, envConfigs = {};
 
     for (const tenantId of tenants) {
-        const adminToken = tenantAdminLogin(tenantId);
+        const adminToken = tenantAdminLogin(tenantId, true);
         if (!adminToken) throw new Error(`[Setup] ❌ 租户 ${tenantId} 管理员登录失败`);
         adminTokens[tenantId] = adminToken;
         envConfigs[tenantId] = getEnvByTenantId(tenantId);
@@ -286,20 +286,20 @@ export default function (data) {
                 sleep(3);
                 eventBatchFrontendRechargeRequest(userToken, getConfigRechargeAmount());
                 doubleRechargeCounter.add(1, { tenant: tenantId });
-                eventBatchAuditUserOrders(adminToken, userId);
+                eventBatchAuditUserOrders(adminToken, userId, true);
                 rechargeSuccess = true;
             } else {
                 console.log(`[FbBatch] [VU${__VU}][租户${tenantId}] 🚶 Mode A: 串行双充`);
-                const r1 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
+                const r1 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount(), forceTenant: true });
                 sleep(3);
-                const r2 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
+                const r2 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount(), forceTenant: true });
                 doubleRechargeCounter.add(1, { tenant: tenantId });
                 rechargeSuccess = r1.success || r2.success;
             }
         } else {
             console.log(`[FbBatch] [VU${__VU}][租户${tenantId}] 标准单充`);
             sleep(2);
-            const r = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
+            const r = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount(), forceTenant: true });
             firstRechargeCounter.add(1, { tenant: tenantId });
             rechargeSuccess = r.success;
         }

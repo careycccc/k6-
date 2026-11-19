@@ -123,7 +123,7 @@ function fetchPayedOrders(adminToken, startTime, endTime) {
     let pageNo = 1;
     while (true) {
         const payload = { rechargeState: 'Payed', startTime, endTime, pageNo, pageSize: 2000, dateType: 1, orderBy: 'Desc' };
-        const res = sendRequest(payload, api, TAG, false, adminToken);
+        const res = sendRequest(payload, api, TAG, false, adminToken, true);
         const list = extractList(res);
         for (const o of list) { if (o.orderNo) byOrderNo[o.orderNo] = o; }
         const totalPage = extractTotalPage(res);
@@ -142,7 +142,7 @@ function fetchRegisteredUserIds(adminToken, startTime, endTime) {
     while (true) {
         // 后台按注册时间查会员：registerBeginTime / registerEndTime（毫秒）
         const payload = { registerBeginTime: startTime, registerEndTime: endTime, pageNo, pageSize: 2000, orderBy: 'Desc' };
-        const res = sendRequest(payload, api, TAG, false, adminToken);
+        const res = sendRequest(payload, api, TAG, false, adminToken, true);
         const list = extractList(res);
         for (const u of list) { if (u.userId != null) set[Number(u.userId)] = true; }
         const totalPage = extractTotalPage(res);
@@ -155,7 +155,7 @@ function fetchRegisteredUserIds(adminToken, startTime, endTime) {
 
 /** userId → 首充时间(firstRechargeTime, 毫秒)；未充值返回 0 */
 function getFirstRechargeTime(adminToken, userId) {
-    const res = sendRequest({ userId }, '/api/Users/GetUserDetail', TAG, false, adminToken);
+    const res = sendRequest({ userId }, '/api/Users/GetUserDetail', TAG, false, adminToken, true);
     const d = (res && res.userDepositWithdrawInfo) ? res : (res && res.data ? res.data : null);
     if (!d || !d.userDepositWithdrawInfo) return 0;
     return Number(d.userDepositWithdrawInfo.firstRechargeTime) || 0;
@@ -165,7 +165,7 @@ function getFirstRechargeTime(adminToken, userId) {
 function fetchBackendReport(adminToken, dateStr) {
     const api = '/api/RptDataAnalysis/GetUserRptFirstRechargeRetentionPageList';
     const payload = { startTime: dateStr, endTime: dateStr, pageNo: 1, pageSize: 20, orderBy: 'Desc' };
-    const res = sendRequest(payload, api, TAG, false, adminToken);
+    const res = sendRequest(payload, api, TAG, false, adminToken, true);
     const list = extractList(res);
     return (list && list.length) ? list[0] : null;
 }
@@ -206,7 +206,7 @@ export function setup() {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
 
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[${TAG}] ❌ 租户 ${TENANT_ID} 管理员登录失败`);
     console.log(`[${TAG}] ✅ 管理员登录成功`);
     console.log(`[${TAG}] 多天并发：${DAY_LIST.join(', ')}（共 ${DAY_COUNT} 天，${DAY_COUNT} 个 VU 并发；起始 ${REPORT_DATE} → 今天 ${TODAY}）`);

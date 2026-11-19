@@ -180,7 +180,8 @@ function batchRechargeAccounts(accounts, adminToken, config) {
             userId: account.userId,
             amount: rechargeAmount,
             frontendFirst: true,
-            remark: `BatchRecharge-${i + 1}`
+            remark: `BatchRecharge-${i + 1}`,
+            forceTenant: true
         });
 
         if (rechargeResult.success) {
@@ -229,7 +230,7 @@ function withdrawSingleAccount(account, adminToken, config, index, total) {
 
     // 2. 添加钱包
     console.log(`[${tag}] [${index}/${total}] 步骤2: 添加提现钱包...`);
-    const walletsAdded = addAllWallets(adminToken, account.userId, account.token);
+    const walletsAdded = addAllWallets(adminToken, account.userId, account.token, true);
     if (!walletsAdded) {
         console.warn(`[${tag}] [${index}/${total}] ⚠️ 钱包添加失败，继续尝试提现`);
     } else {
@@ -329,7 +330,8 @@ function withdrawSingleAccount(account, adminToken, config, index, total) {
             adminToken,
             account.userId,
             withdrawType,
-            withdrawAmount
+            withdrawAmount,
+            true
         );
 
         if (approvalSuccess) {
@@ -496,7 +498,7 @@ export function setup() {
 
     // 后台管理员登录
     console.log(`\n[${tag}] 后台管理员登录...`);
-    const adminToken = tenantAdminLogin(config.tenantId);
+    const adminToken = tenantAdminLogin(config.tenantId, true);
     if (!adminToken) {
         throw new Error('后台管理员登录失败');
     }

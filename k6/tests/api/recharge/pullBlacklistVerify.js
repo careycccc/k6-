@@ -151,7 +151,7 @@ function countTodayOrders(adminToken, userId, rechargeState) {
     const resp = getRechargeOrderPageListFull(adminToken, {
         userId, rechargeState: rechargeState || '', startTime: info.startMs, endTime: info.endMs,
         pageNo: 1, pageSize: 200, dateType: 0, orderBy: 'Desc',
-    });
+    }, true);
     if (!resp) return 0;
     const d = resp.data || resp;
     if (d && d.totalCount != null) return d.totalCount;
@@ -197,22 +197,22 @@ function auditNUnpaidOrders(adminToken, userId, n) {
     const thirdResp = getRechargeOrderPageListFull(adminToken, {
         userId, rechargeState: '', startTime: info.startMs, endTime: info.endMs,
         pageNo: 1, pageSize: 200, dateType: 0, orderBy: 'Desc',
-    });
+    }, true);
     const thirdD = thirdResp ? (thirdResp.data || thirdResp) : null;
     const thirdList = thirdD && Array.isArray(thirdD.list) ? thirdD.list : [];
     for (const o of thirdList) {
         if (done >= n) break;
         if (o.rechargeState === 'Payed') continue;
-        if (manualAuditRechargeOrder(adminToken, o.orderNo, userId, o.createTime, o.amount)) done++;
+        if (manualAuditRechargeOrder(adminToken, o.orderNo, userId, o.createTime, o.amount, "auto-audit", true)) done++;
         sleep(0.5);
     }
     // 本地订单（补足；补所有非 Payed）
     if (done < n) {
-        const localList = getLocalRechargeOrderPageList(adminToken, userId, info.startMs, info.endMs) || [];
+        const localList = getLocalRechargeOrderPageList(adminToken, userId, info.startMs, info.endMs, true) || [];
         for (const o of localList) {
             if (done >= n) break;
             if (o.rechargeState === 'Payed') continue;
-            if (manualAuditLocalRechargeOrder(adminToken, o.orderNo, userId, o.createTime, o.amount)) done++;
+            if (manualAuditLocalRechargeOrder(adminToken, o.orderNo, userId, o.createTime, o.amount, "auto-audit", true)) done++;
             sleep(0.5);
         }
     }
@@ -229,7 +229,7 @@ function pollMonitor(adminToken, userId, maxWaitSec, intervalSec) {
     console.log(`[${TAG}] [轮询进表] userId=${userId} 开始轮询监控名单(每${intervalSec}s一次，最多等${Math.round(maxWaitSec / 60)}min；后台约每10min才入库)...`);
     while (Date.now() < deadline) {
         polls++;
-        const rec = getPullMonitorRecord(adminToken, userId, info.startStr, info.endStr);
+        const rec = getPullMonitorRecord(adminToken, userId, info.startStr, info.endStr, true);
         if (rec) {
             console.log(`[${TAG}] [轮询进表] userId=${userId} 第${polls}次命中✅ 已进表(pullOrderCount=${rec.pullOrderCount},paidOrderCount=${rec.paidOrderCount})`);
             return { rec, polls };
@@ -263,7 +263,7 @@ function caseTrigger(acct, ctx) {
         return R('trigger', acct, `累计未支付>${THRESHOLD}→进监控名单且今日仅1条`, `未支付=${b.unpaid} 轮询${p.polls}次(~${Math.round(POLL_SEC / 60)}min)仍未进表`, false, `fired=${b.fired},total=${b.total}`);
     // 一天一条：查该会员今日记录数，>1 即异常
     const info = indiaDayInfo();
-    const recs = getPullMonitorRecords(ctx.adminToken, acct.userId, info.startStr, info.endStr);
+    const recs = getPullMonitorRecords(ctx.adminToken, acct.userId, info.startStr, info.endStr, true);
     const unique = recs.length === 1;
     const actual = `未支付=${b.unpaid} 轮询${p.polls}次后进表: pullOrderCount=${rec.pullOrderCount}, paidOrderCount=${rec.paidOrderCount}, triggerTime=${fmtIndia(rec.triggerTime)}; 今日记录数=${recs.length}${unique ? '(唯一✓)' : '(❗应为1)'}`;
     return R('trigger', acct, `累计未支付>${THRESHOLD}→进监控名单且今日仅1条`, actual, unique, `fired=${b.fired},total=${b.total}`);
@@ -305,11 +305,11 @@ function caseLimitBlock(acct, ctx) {
     const enter = triggerIntoMonitor(acct, ctx);
     if (!enter.rec) return R('limit_block', acct, '设限后前台被拦', `未能进表(${enter.reason})`, false);
     const info = indiaDayInfo();
-    const set = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 30);
+    const set = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 30, true);
     if (!set || set.code !== 0)
         return R('limit_block', acct, '设限后前台被拦', `SetLimitTime失败 code=${set && set.code}, msg=${set && set.msg}`, false);
     sleep(3);
-    const rec = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr);
+    const rec = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr, true);
     const r = fireOneRecharge(acct.token, enter.gc);
     const actual = r.blocked
         ? `设限30min(至${fmtIndia(rec && rec.limitEndTime)})后前台发起被拦(msgCode=10068)`
@@ -342,10 +342,10 @@ function caseLimitBounds(acct, ctx) {
     const enter = triggerIntoMonitor(acct, ctx);
     if (!enter.rec) return R('limit_bounds', acct, '边界校验', `未能进表(${enter.reason})`, false);
     const info = indiaDayInfo();
-    const s29 = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 29); sleep(2);
-    const s1441 = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 1441); sleep(2);
-    const s30 = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 30); sleep(2);
-    const s1440 = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 1440); sleep(2);
+    const s29 = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 29, true); sleep(2);
+    const s1441 = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 1441, true); sleep(2);
+    const s30 = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 30, true); sleep(2);
+    const s1440 = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 1440, true); sleep(2);
     const c = s => (s ? s.code : 'null');
     const pass = s29 && s29.code !== 0 && s1441 && s1441.code !== 0 && s30 && s30.code === 0 && s1440 && s1440.code === 0;
     const actual = `29→code=${c(s29)}(期望≠0); 1441→code=${c(s1441)}(期望≠0); 30→code=${c(s30)}(期望0); 1440→code=${c(s1440)}(期望0)`;
@@ -357,15 +357,15 @@ function caseLimitIncrease(acct, ctx) {
     const enter = triggerIntoMonitor(acct, ctx);
     if (!enter.rec) return R('limit_increase_absolute', acct, '递增覆盖+绝对值', `未能进表(${enter.reason})`, false);
     const info = indiaDayInfo();
-    const s30 = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 30);
+    const s30 = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 30, true);
     if (!s30 || s30.code !== 0) return R('limit_increase_absolute', acct, '递增覆盖+绝对值', `首次设30失败 code=${s30 && s30.code}`, false);
     sleep(3);
-    const rec1 = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr);
+    const rec1 = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr, true);
     const start1 = rec1 && rec1.limitStartTime, end1 = rec1 && rec1.limitEndTime;
-    const s40 = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 40);
+    const s40 = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 40, true);
     if (!s40 || s40.code !== 0) return R('limit_increase_absolute', acct, '递增覆盖+绝对值', `设40失败 code=${s40 && s40.code}`, false);
     sleep(3);
-    const rec2 = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr);
+    const rec2 = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr, true);
     const start2 = rec2 && rec2.limitStartTime, end2 = rec2 && rec2.limitEndTime;
     const durMin = (end2 && start2) ? (end2 - start2) / 60000 : -1;
     const startUnchanged = start1 && start2 && Math.abs(start2 - start1) < 60000;
@@ -381,14 +381,14 @@ function caseLimitDecrease(acct, ctx) {
     const enter = triggerIntoMonitor(acct, ctx);
     if (!enter.rec) return R('limit_decrease_reject', acct, '递减被拒', `未能进表(${enter.reason})`, false);
     const info = indiaDayInfo();
-    const s40 = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 40);
+    const s40 = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 40, true);
     if (!s40 || s40.code !== 0) return R('limit_decrease_reject', acct, '递减被拒', `首次设40失败 code=${s40 && s40.code}`, false);
     sleep(3);
-    const rec1 = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr);
+    const rec1 = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr, true);
     const end1 = rec1 && rec1.limitEndTime;
-    const s30 = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 30);
+    const s30 = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 30, true);
     sleep(3);
-    const rec2 = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr);
+    const rec2 = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr, true);
     const end2 = rec2 && rec2.limitEndTime;
     const rejected = s30 && s30.code !== 0;
     const endUnchanged = end1 && end2 && Math.abs(end2 - end1) < 60000;
@@ -408,10 +408,10 @@ function caseCrossDay(acct, ctx) {
     let limitMinutes = Math.ceil((target - Date.now()) / 60000);
     if (limitMinutes < 30) limitMinutes = 30;
     if (limitMinutes > 1440) return R('cross_day', acct, '跨天后仍风控', `距明天00:30需${limitMinutes}min(>1440)，请临近午夜再跑`, false);
-    const set = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, limitMinutes);
+    const set = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, limitMinutes, true);
     if (!set || set.code !== 0) return R('cross_day', acct, '跨天后仍风控', `SetLimitTime失败 code=${set && set.code}`, false);
     sleep(3);
-    const rec = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr);
+    const rec = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr, true);
     const limitEnd = rec && rec.limitEndTime;
     console.log(`[${TAG}] cross_day userId=${acct.userId} 设限${limitMinutes}min，limitEnd=${fmtIndia(limitEnd)}，等待跨过今晚00点...`);
     const deadline = Date.now() + 26 * 3600 * 1000;
@@ -438,10 +438,10 @@ function caseDubaiRelease(acct, ctx) {
     let limitMinutes = Math.ceil((target - Date.now()) / 60000);
     if (limitMinutes < 30) limitMinutes = 30;
     if (limitMinutes > 1440) return R('dubai_release', acct, '迪拜10点解除后可充值', `距下个迪拜10点需${limitMinutes}min(>1440)，请更晚再跑`, false);
-    const set = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, limitMinutes);
+    const set = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, limitMinutes, true);
     if (!set || set.code !== 0) return R('dubai_release', acct, '迪拜10点解除后可充值', `SetLimitTime失败 code=${set && set.code}`, false);
     sleep(3);
-    const rec = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr);
+    const rec = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr, true);
     const limitEnd = rec && rec.limitEndTime;
     console.log(`[${TAG}] dubai_release userId=${acct.userId} 设限${limitMinutes}min，limitEnd=${fmtIndia(limitEnd)}(≈迪拜10:00)，等待解除...`);
     const deadline = Date.now() + 26 * 3600 * 1000;
@@ -512,7 +512,7 @@ function casePaidDuringNoRelease(acct, ctx) {
     let rec2 = null;
     while (Date.now() < deadline) {
         sleep(POLL_INTERVAL);
-        rec2 = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr);
+        rec2 = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr, true);
         if (rec2 && rec2.paidOrderCount >= paidDone) break;
         console.log(`[${TAG}] paid_during userId=${acct.userId} 等paidOrderCount更新，当前=${rec2 && rec2.paidOrderCount}，已等${Math.round((Date.now() - start) / 1000)}s`);
     }
@@ -528,17 +528,17 @@ function casePaidAfterLimit(acct, ctx) {
     const enter = triggerIntoMonitor(acct, ctx);
     if (!enter.rec) return R('paid_after_limit', acct, '限制期补单不解除限制', `未能进表(${enter.reason})`, false);
     const info = indiaDayInfo();
-    const set = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 30);
+    const set = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 30, true);
     if (!set || set.code !== 0) return R('paid_after_limit', acct, '限制期补单不解除限制', `SetLimitTime失败 code=${set && set.code}`, false);
     sleep(3);
-    const recA = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr);
+    const recA = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr, true);
     const endA = recA && recA.limitEndTime;
     const c0 = countUnpaid(ctx.adminToken, acct.userId);
     const toPaid = Math.max(1, c0.unpaid - (THRESHOLD - 1));
     const paidDone = auditNUnpaidOrders(ctx.adminToken, acct.userId, toPaid);
     sleep(3);
     const r = fireOneRecharge(acct.token, enter.gc);
-    const recB = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr);
+    const recB = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr, true);
     const endB = recB && recB.limitEndTime;
     const endUnchanged = endA && endB && Math.abs(endA - endB) < 60000;
     const pass = r.blocked && endUnchanged;
@@ -556,10 +556,10 @@ function caseDataKeepsUpdating(acct, ctx) {
     const paid1 = enter.rec.paidOrderCount;   // 进表时已支付数（通常 0）
 
     // 设限 30min（最短），模拟"被限制发起充值 30 分钟"
-    const set = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 30);
+    const set = setPullLimitTime(ctx.adminToken, acct.userId, info.dateStr, 30, true);
     if (!set || set.code !== 0) return R('data_keeps_updating', acct, '进表后数据持续累计更新', `SetLimitTime失败 code=${set && set.code}`, false);
     sleep(3);
-    const recL = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr);
+    const recL = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr, true);
     const limitEnd = recL && recL.limitEndTime;
     console.log(`[${TAG}] data_keeps_updating userId=${acct.userId} 进表 pull=${pull1},paid=${paid1}；设限30min limitEnd=${fmtIndia(limitEnd)}，等待解除...`);
 
@@ -592,7 +592,7 @@ function caseDataKeepsUpdating(acct, ctx) {
     let rec2 = enter.rec;
     while (Date.now() < dl2) {
         sleep(POLL_INTERVAL);
-        const rr = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr);
+        const rr = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr, true);
         if (rr) {
             rec2 = rr;
             if (rr.pullOrderCount > pull1 && rr.paidOrderCount >= paid1 + paidDone) break;
@@ -643,7 +643,7 @@ function caseUpdateLastBatch(acct, ctx, n, caseName) {
     let rec2 = enter.rec, updated = false;
     while (Date.now() < dl) {
         sleep(POLL_INTERVAL);
-        const rr = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr);
+        const rr = getPullMonitorRecord(ctx.adminToken, acct.userId, info.startStr, info.endStr, true);
         if (rr) {
             rec2 = rr;
             if (rr.pullOrderCount > pull0 || (lastUpd0 && rr.lastUpdateTime > lastUpd0)) { updated = true; break; }
@@ -702,7 +702,7 @@ function registerAccount(ctx) {
 export function setup() {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[${TAG}] 租户 ${TENANT_ID} 管理员登录失败`);
 
     const countryCode = __ENV.COUNTRY_CODE || envConfig.COUNTRY_CODE || '91';

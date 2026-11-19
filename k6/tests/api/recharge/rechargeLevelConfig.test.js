@@ -53,7 +53,7 @@ export const options = {
 function getActiveCategoryList(adminToken) {
     const api = '/api/RechargeCategory/GetPageList';
     const payload = { pageNo: 1, pageSize: 200 };
-    const res = sendQueryRequest(payload, api, 'GetCategoryList', false, adminToken);
+    const res = sendQueryRequest(payload, api, 'GetCategoryList', false, adminToken, true);
     const list = (res && res.list) || (res && res.data && res.data.list) || [];
     return list.filter(c => c.state === 1);
 }
@@ -62,7 +62,7 @@ function getActiveCategoryList(adminToken) {
 function getActiveChannelList(adminToken) {
     const api = '/api/RechargeChannel/GetPageList';
     const payload = { sortField: 'id', pageNo: 1, pageSize: 200 };
-    const res = sendQueryRequest(payload, api, 'GetChannelList', false, adminToken);
+    const res = sendQueryRequest(payload, api, 'GetChannelList', false, adminToken, true);
     const list = (res && res.list) || (res && res.data && res.data.list) || [];
     return list.filter(c => c.state === 1);
 }
@@ -90,7 +90,7 @@ function updateCategoryLevel(adminToken, category, rechargeLevelList) {
         rechargeGiftRatio: category.rechargeGiftRatioInfo,
         configList: configList
     };
-    const res = sendRequest(payload, api, 'UpdateCategoryLevel', false, adminToken);
+    const res = sendRequest(payload, api, 'UpdateCategoryLevel', false, adminToken, true);
     const code = res && (res.msgCode !== undefined ? res.msgCode : res.code);
     return code === 0;
 }
@@ -106,7 +106,7 @@ function updateChannelLevel(adminToken, channel, rechargeLevelList) {
         maxAmount: channel.maxAmount,
         rechargeLevelList: rechargeLevelList
     };
-    const res = sendRequest(payload, api, 'UpdateChannelLevel', false, adminToken);
+    const res = sendRequest(payload, api, 'UpdateChannelLevel', false, adminToken, true);
     const code = res && (res.msgCode !== undefined ? res.msgCode : res.code);
     return code === 0;
 }
@@ -124,7 +124,7 @@ function findAndLoginUser(adminToken, targetLevel) {
         ? { rechargeLevel: targetLevel, pageNo: 1, pageSize: 30 }
         : { pageNo: 1, pageSize: 30 };
 
-    const res = sendQueryRequest(filterPayload, api, tag, false, adminToken);
+    const res = sendQueryRequest(filterPayload, api, tag, false, adminToken, true);
     const list = (res && res.list) || (res && res.data && res.data.list) || [];
 
     if (list.length === 0) {
@@ -189,7 +189,7 @@ export function setup() {
     console.log('\n========== [Setup] 后台初始化 ==========');
 
     // 1. 后台登录
-    const adminToken = tenantAdminLogin();
+    const adminToken = tenantAdminLogin(null, true);
     if (!adminToken) throw new Error('[Setup] 后台登录失败');
     console.log('[Setup] ✅ 后台登录成功');
 

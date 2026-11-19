@@ -112,7 +112,7 @@ export function setup() {
     console.log(`[${TAG}] ========== Setup 开始 ==========`);
     console.log(`[${TAG}] 租户: ${TENANT_ID}`);
 
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) {
         throw new Error(`[${TAG}] 后台登录失败，终止测试`);
     }
@@ -171,7 +171,7 @@ export default function (data) {
 
     // codeType=5：绑定手机号专用类型
     // verifyCodeType=1：手机号
-    const verifyCode = sendToGetVerCode(1, 5, phone, adminToken);
+    const verifyCode = sendToGetVerCode(1, 5, phone, adminToken, null, null, true);
 
     if (!verifyCode) {
         console.error(`[${TAG}] ❌ 获取验证码失败，流程终止`);

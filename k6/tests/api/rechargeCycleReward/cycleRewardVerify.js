@@ -105,7 +105,7 @@ function fetchAllPayedOrders(adminToken, startTime, endTime) {
             dateType: 1,
             orderBy: 'Desc'
         };
-        const res = sendRequest(payload, api, TAG, false, adminToken);
+        const res = sendRequest(payload, api, TAG, false, adminToken, true);
         const list = extractList(res);
         for (const o of list) { if (o.orderNo) byOrderNo[o.orderNo] = o; } // 按 orderNo 去重(防翻页边界重叠)
         if (totalCount == null) totalCount = extractTotalCount(res);
@@ -129,7 +129,7 @@ function fetchAllRewardRecords(adminToken, rewardDate) {
     let totalCount = null;
     while (true) {
         const payload = { startRewardDate: rewardDate, endRewardDate: rewardDate, pageNo, pageSize: 2000, orderBy: 'Desc' };
-        const res = sendRequest(payload, api, TAG, false, adminToken);
+        const res = sendRequest(payload, api, TAG, false, adminToken, true);
         const list = extractList(res);
         for (const r of list) { if (r.orderNo) byOrderNo[r.orderNo] = r; } // 按 orderNo 去重(防翻页边界重叠)
         if (totalCount == null) totalCount = extractTotalCount(res);
@@ -226,11 +226,11 @@ export function setup() {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
 
-    const adminToken = tenantAdminLogin(TENANT_ID);
+    const adminToken = tenantAdminLogin(TENANT_ID, true);
     if (!adminToken) throw new Error(`[${TAG}] ❌ 租户 ${TENANT_ID} 管理员登录失败`);
     console.log(`[${TAG}] ✅ 管理员登录成功`);
 
-    const tiers = getCycleRewardConfig({ token: adminToken });
+    const tiers = getCycleRewardConfig({ token: adminToken, forceTenant: true });
     console.log(`[${TAG}] ✅ 获取到档位配置 ${tiers.length} 档`);
 
     return { token: adminToken, tiers, envConfig };

@@ -48,8 +48,8 @@ function rawWithdrawApply(token, amount, walletId, withdrawCategoryId, withdrawT
  * 提现前置准备：加全部钱包(银行卡/电子钱包/USDT) + 设置提现密码。
  * 幂等，账号已有钱包/密码时后端自己处理，不需要调用方关心。
  */
-export function prepareWithdraw(adminToken, userId, userToken) {
-    addAllWallets(adminToken, userId, userToken);
+export function prepareWithdraw(adminToken, userId, userToken, forceTenant = false) {
+    addAllWallets(adminToken, userId, userToken, forceTenant);
     setWithdrawPassword(userToken);
     sleep(1);
 }
@@ -76,30 +76,30 @@ export function prepareWithdraw(adminToken, userId, userToken) {
  * @param {number} amount
  * @returns {boolean}
  */
-function approveWithdrawOrder(adminToken, userId, withdrawType, amount) {
-    const orderInfo = getWithdrawLockPageList(adminToken, userId, withdrawType, amount, amount);
+function approveWithdrawOrder(adminToken, userId, withdrawType, amount, forceTenant = false) {
+    const orderInfo = getWithdrawLockPageList(adminToken, userId, withdrawType, amount, amount, forceTenant);
     if (!orderInfo) { console.error('[WithdrawApprove] 未找到待审核订单'); return false; }
 
     sleep(1);
-    if (!lockWithdrawOrder(adminToken, userId, orderInfo)) { console.error('[WithdrawApprove] 锁定订单失败'); return false; }
+    if (!lockWithdrawOrder(adminToken, userId, orderInfo, forceTenant)) { console.error('[WithdrawApprove] 锁定订单失败'); return false; }
 
     sleep(1);
-    const channelId = getCanWithdrawChannelByOrder(adminToken, userId, orderInfo);
+    const channelId = getCanWithdrawChannelByOrder(adminToken, userId, orderInfo, forceTenant);
     if (!channelId) {
         console.warn('[WithdrawApprove] 获取三方通道失败，降级到人工确认出款...');
         sleep(1);
-        return artificialConfirmWithdrawOrder(adminToken, userId, orderInfo);
+        return artificialConfirmWithdrawOrder(adminToken, userId, orderInfo, 'Auto artificial confirm by K6', forceTenant);
     }
 
     sleep(1);
-    if (!thirdWithdraw(adminToken, userId, orderInfo, channelId)) {
+    if (!thirdWithdraw(adminToken, userId, orderInfo, channelId, forceTenant)) {
         console.warn('[WithdrawApprove] 三方提现失败，降级到人工确认出款...');
         sleep(1);
-        return artificialConfirmWithdrawOrder(adminToken, userId, orderInfo);
+        return artificialConfirmWithdrawOrder(adminToken, userId, orderInfo, 'Auto artificial confirm by K6', forceTenant);
     }
 
     sleep(1);
-    return confirmWithdrawOrder(adminToken, userId, orderInfo);
+    return confirmWithdrawOrder(adminToken, userId, orderInfo, forceTenant);
 }
 
 /**
@@ -133,7 +133,7 @@ function approveWithdrawOrder(adminToken, userId, withdrawType, amount) {
  * @returns {{withdrew:boolean, msgCode:number|null, msg:string, skipReason:string|null, withdrawType:string, approved?:boolean, pending?:boolean}}
  */
 export function doWithdrawOnce(adminToken, userId, token, amount, forceType, opts = {}) {
-    const { audit = true } = opts;
+    const { audit = true, forceTenant = false } = opts;
     syncGameBalance(token);
     const basicInfo = getWithdrawBasicInfo(token);
     if (!basicInfo) {
@@ -200,7 +200,7 @@ export function doWithdrawOnce(adminToken, userId, token, amount, forceType, opt
 
     // 申请成功，走完整后台审核放款流程(先sleep让订单落库可查，避免查询太快查不到)
     sleep(2);
-    const approved = approveWithdrawOrder(adminToken, userId, forceType, amount);
+    const approved = approveWithdrawOrder(adminToken, userId, forceType, amount, forceTenant);
     if (!approved) {
         console.warn(`[WithdrawAssembler] 提现申请成功但审核放款失败: userId=${userId} amount=${amount} type=${forceType}`);
     }
@@ -224,9 +224,9 @@ export function doWithdrawOnce(adminToken, userId, token, amount, forceType, opt
  * 不会和这笔pending的订单混淆。
  * @returns {{approved:boolean}}
  */
-export function resolvePendingWithdraw(adminToken, userId, withdrawType, amount, approve) {
+export function resolvePendingWithdraw(adminToken, userId, withdrawType, amount, approve, forceTenant = false) {
     if (!approve) return { approved: false };
-    const approved = approveWithdrawOrder(adminToken, userId, withdrawType, amount);
+    const approved = approveWithdrawOrder(adminToken, userId, withdrawType, amount, forceTenant);
     if (!approved) console.error(`[WithdrawAssembler] [补单] userId=${userId} amount=${amount} type=${withdrawType} 补单审核调用失败`);
     else console.log(`[WithdrawAssembler] [补单] userId=${userId} amount=${amount} type=${withdrawType} 补单审核通过`);
     return { approved };
@@ -243,7 +243,7 @@ export function resolvePendingWithdraw(adminToken, userId, withdrawType, amount,
  * @param {number} [pendingCount=0]
  * @returns {{attempts:Array, stopReason:string|null}}
  */
-export function doWithdrawMultiple(adminToken, userId, token, count, amount, forceType, pendingCount = 0) {
+export function doWithdrawMultiple(adminToken, userId, token, count, amount, forceType, pendingCount = 0, forceTenant = false) {
     const attempts = [];
     let stopReason = null;
     const actualPending = Math.min(pendingCount, Math.max(0, count - 1));
@@ -251,7 +251,7 @@ export function doWithdrawMultiple(adminToken, userId, token, count, amount, for
 
     for (let i = 0; i < immediateCount; i++) {
         if (i > 0) sleep(2);
-        const result = doWithdrawOnce(adminToken, userId, token, amount, forceType, { audit: true });
+        const result = doWithdrawOnce(adminToken, userId, token, amount, forceType, { audit: true, forceTenant });
         attempts.push(result);
         if (!result.withdrew && (result.skipReason === 'DAILY_COUNT_LIMIT' || result.skipReason === 'CODING_NOT_CLEARED')) {
             stopReason = result.skipReason;
@@ -261,7 +261,7 @@ export function doWithdrawMultiple(adminToken, userId, token, count, amount, for
     if (!stopReason) {
         for (let i = 0; i < actualPending; i++) {
             sleep(2);
-            const result = doWithdrawOnce(adminToken, userId, token, amount, forceType, { audit: false });
+            const result = doWithdrawOnce(adminToken, userId, token, amount, forceType, { audit: false, forceTenant });
             attempts.push(result);
             if (!result.pending && (result.skipReason === 'DAILY_COUNT_LIMIT' || result.skipReason === 'CODING_NOT_CLEARED')) {
                 stopReason = result.skipReason;
