@@ -31,7 +31,7 @@ export const options = {
  */
 function withdrawForUser(adminToken, userId, userToken, enableApproval) {
     try {
-        addAllWallets(adminToken, userId, userToken);
+        addAllWallets(adminToken, userId, userToken, true);
         sleep(1); // 等待钱包数据同步
         const info = getWithdrawBasicInfo(userToken);
         if (!info) return 'no_info';
@@ -43,7 +43,7 @@ function withdrawForUser(adminToken, userId, userToken, enableApproval) {
         if (!r) return 'skip'; // 余额/次数/打码量/金额不满足，正常跳过
         if (enableApproval) {
             sleep(2);
-            runBackendWithdrawApproval(adminToken, userId, r.withDrawaType, r.withDrawaAmont);
+            runBackendWithdrawApproval(adminToken, userId, r.withDrawaType, r.withDrawaAmont, true);
         }
         return 'ok';
     } catch (e) {
@@ -54,7 +54,7 @@ function withdrawForUser(adminToken, userId, userToken, enableApproval) {
 
 export function setup() {
     const tenantId = __ENV.TENANT_ID || '3006';
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     const envConfig = getEnvByTenantId(tenantId);
 
     const rootId = parseInt(__ENV.ROOT_ID);
@@ -103,7 +103,7 @@ export default function (data) {
         
         // 随机设置返佣模式 (为了测试覆盖率)
         if (Math.random() < rebateChance) {
-            updateUserAgentRebateMode(adminData.token, uid, Math.floor(Math.random() * 2) + 1, Math.floor(Math.random() * 6) + 1);
+            updateUserAgentRebateMode(adminData.token, uid, Math.floor(Math.random() * 2) + 1, Math.floor(Math.random() * 6) + 1, true);
         }
     }
     
@@ -123,12 +123,12 @@ export default function (data) {
     let wdOk = 0, wdSkip = 0, wdFail = 0; // 提现：成功 / 正常跳过(打码未清等) / 异常
     for (let j = 0; j < processIds.length; j += 50) {
         const batchIds = processIds.slice(j, j + 50);
-        const accounts = batchGetUserAccounts(adminData.token, batchIds, 500);
+        const accounts = batchGetUserAccounts(adminData.token, batchIds, 500, true);
 
         const rechargeOnlySet = new Set(rechargeOnlyIds.map(String));
 
         for (const acc of accounts) {
-            const token = autoLoginByAccount(acc.account, adminData.token);
+            const token = autoLoginByAccount(acc.account, adminData.token, true);
             if (!token) { loginFail++; continue; }
 
             const isRechargeOnly = rechargeOnlySet.has(String(acc.userId));
@@ -142,7 +142,7 @@ export default function (data) {
                 if (i > 0) sleep(1);
                 const amt = getConfigRechargeAmount();
                 const res = hybridRecharge({
-                    userToken: token, adminToken: adminData.token, userId: acc.userId, amount: amt, frontendFirst: true
+                    userToken: token, adminToken: adminData.token, userId: acc.userId, amount: amt, frontendFirst: true, forceTenant: true
                 });
                 if (res.success) success = true;
             }

@@ -219,7 +219,7 @@ export function setup() {
         if (targetEnv) Object.assign(ENV_CONFIG, targetEnv);
     }
 
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) throw new Error('[Setup] 管理员登录失败');
 
     let rootInviteCode = __ENV.ROOT_INVITE_CODE || '';
@@ -231,7 +231,7 @@ export function setup() {
 
     // ── 模式一：复制上级的设备/指纹（FINGERPRINT / DEVICE / BOTH） ──
     if (matchMode === 'FINGERPRINT' || matchMode === 'DEVICE' || matchMode === 'BOTH') {
-        const sourceData = validateAndGetSuperiorSource(adminToken, rootUserId, matchMode);
+        const sourceData = validateAndGetSuperiorSource(adminToken, rootUserId, matchMode, true);
         requiredFingerprint = sourceData.requiredFingerprint;
         requiredDevice = sourceData.requiredDevice;
         rootInviteCode = rootUserId;
@@ -457,6 +457,7 @@ export default function (data) {
                     amount: amount,
                     frontendFirst: true,
                     remark: `PartnerBonus-${label}`,
+                    forceTenant: true,
                 });
                 // 监控：充値耗时
                 PERF_METRICS.RECHARGE.add(Date.now() - t1);
@@ -514,7 +515,7 @@ export default function (data) {
                 console.log(`[VU ${vuId}] 💳 开始提现流程 | ${phone}`);
 
                 // 4a. 绑定提现信息（addAllWallets = 绑定所有类型钱包）
-                addAllWallets(adminToken, userInfo.userId, token);
+                addAllWallets(adminToken, userInfo.userId, token, true);
                 sleep(1);
 
                 // 4b. 设置提现密码
@@ -536,7 +537,7 @@ export default function (data) {
                         // 4d. 后台自动审核（机审）
                         sleep(2);
                         const t4 = Date.now();
-                        runBackendWithdrawApproval(adminToken, userInfo.userId, wRes.withDrawaType, wRes.withDrawaAmont);
+                        runBackendWithdrawApproval(adminToken, userInfo.userId, wRes.withDrawaType, wRes.withDrawaAmont, true);
                         PERF_METRICS.WITHDRAW_APPROVAL.add(Date.now() - t4);  // 监控：审核耗时
                     } else {
                         ERROR_COUNTERS.WITHDRAW_FAIL.add(1);  // 监控：提现失败

@@ -141,7 +141,7 @@ function rechargeOneSub(subToken, adminToken, config, label) {
     const userInfo = getFrontUserInfo(subToken);
     if (!userInfo || !userInfo.userId) return { success: false, amount: 0 };
 
-    const r = hybridRecharge({ userToken: subToken, adminToken, userId: userInfo.userId, amount, frontendFirst: true, remark: `SameDevice-${label}` });
+    const r = hybridRecharge({ userToken: subToken, adminToken, userId: userInfo.userId, amount, frontendFirst: true, remark: `SameDevice-${label}`, forceTenant: true });
     return r.success ? { success: true, amount, userId: userInfo.userId } : { success: false, amount: 0, userId: userInfo.userId };
 }
 

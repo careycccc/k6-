@@ -23,7 +23,7 @@ export const FILE_CONFIG = {
 export function getUploadFileName() {
     try {
         console.log('开始上传图片...');
-        const token = AdminLogin();
+        const token = AdminLogin(true);
 
         if (!token) {
             console.error('AdminLogin 返回空值，登录失败');

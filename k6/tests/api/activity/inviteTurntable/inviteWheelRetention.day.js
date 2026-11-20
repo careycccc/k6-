@@ -51,6 +51,7 @@ import { getBetToken } from '../../runbet/betToken.js';
 import { betWingo } from '../../runbet/bet.js';
 import { isBet } from '../../runbet/issueNumber.js';
 import { getAccountBalance } from '../../balance/balance.test.js';
+import { getCapableGames } from '../../runbet/gameCapability.js';
 import { extractToken } from '../../../../libs/common/index.js';
 
 // ================= 参数（init 上下文） =================
@@ -120,7 +121,7 @@ function betFixed(loginToken, unit, multiple, userName) {
     const balanceInfo = getAccountBalance(loginToken);
     if (!balanceInfo || balanceInfo.balance < target) return false;
 
-    const games = ['WinGo_5M', 'WinGo_30S', 'TrxWinGo_10M'];
+    const games = getCapableGames(TENANT_ID, ['WinGo_5M', 'WinGo_30S', 'TrxWinGo_10M']);
     const contents = ['BigSmall_Big', 'BigSmall_Small', 'Color_Green', 'Color_Red'];
     for (let i = 0; i < games.length; i++) {
         const gameCode = games[i];

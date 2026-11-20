@@ -29,7 +29,10 @@
  * http.batch 真并发注册（测"同一邀请码同时被多人注册"是否有并发 bug），偶数轮
  * 依次注册。总代改多 VU 后，脚本结尾不再有跨总代汇总大表格（每个 VU 只负责 1 个
  * 总代），改为各 VU 打印自己负责总代的小结日志。
- *
+ * // 单个总代多轮次
+ *  k6p -e TENANT_ID=3004 -e WHEEL_NUMBER=4 verifyInviteTurntable.test.js
+ * 
+ * 
  * k6p verifyInviteTurntable.test.js -e TENANT_ID=3004
  * k6p verifyInviteTurntable.test.js -e TENANT_ID=3004 -e SUB_MIN_NUMBER=15 -e SUB_MAX_NUMBER=20
  * k6p -e TENANT_ID=3004 -e GENERAL_AGENT_COUNT=4 -e GENERAL_AGENT_CONCURRENT=2 -e WHEEL_NUMBER=3 -e SUB_MIN_NUMBER=3 -e SUB_MAX_NUMBER=5 -e MIN_MONEY=1000 -e MAX_MONEY=5000 verifyInviteTurntable.test.js
@@ -282,7 +285,8 @@ export function finishSubordinate(token, account, adminToken, config, index, tot
         userId: userId,
         amount: rechargeAmount,
         frontendFirst: true,
-        remark: `InviteTurntable-Sub-${index}`
+        remark: `InviteTurntable-Sub-${index}`,
+        forceTenant: true
     });
 
     if (rechargeResult.success) {

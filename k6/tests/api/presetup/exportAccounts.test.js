@@ -36,7 +36,7 @@ export default function () {
     const outputMode = __ENV.OUTPUT_MODE || 'full'; // 'full' 或 'csv'
 
     // 后台登录
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) {
         if (outputMode === 'full') console.error(`[${TAG}] ❌ 后台登录失败`);
         return;
@@ -48,7 +48,8 @@ export default function () {
         '/api/Users/GetPageList',
         TAG,
         false,
-        adminToken
+        adminToken,
+        true
     );
 
     if (!res || !res.list || res.list.length === 0) {
@@ -65,7 +66,7 @@ export default function () {
         const userId = user.userId;
 
         // 通过 userId 获取真实账号
-        const account = getUserAccount(adminToken, userId);
+        const account = getUserAccount(adminToken, userId, true);
 
         if (account) {
             const loginType = account.includes('@') ? 'Email' : 'Mobile';

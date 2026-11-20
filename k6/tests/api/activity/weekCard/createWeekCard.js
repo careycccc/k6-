@@ -172,7 +172,7 @@ function queryCardConfigs(data) {
 
         const payload = {};
 
-        const result = sendQueryRequest(payload, api, tag, false, token);
+        const result = sendQueryRequest(payload, api, tag, false, token, true);
 
         if (!result) {
             logger.error(`[${tag}] 查询配置失败: 响应为空`);
@@ -283,7 +283,7 @@ function createCard(data, cardId, cardType, cardName) {
 
         //logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
 
-        const result = sendRequest(payload, api, tag, false, token);
+        const result = sendRequest(payload, api, tag, false, token, true);
 
         //logger.info(`[${tag}] 创建响应: ${JSON.stringify(result)}`);
 
@@ -337,7 +337,7 @@ function enableCard(data, cardId, cardType) {
             "cardType": cardType
         };
 
-        const closeResult = sendRequest(closePayload, api, tag, false, token);
+        const closeResult = sendRequest(closePayload, api, tag, false, token, true);
 
         logger.info(`[${tag}] 关闭响应: ${JSON.stringify(closeResult)}`);
 
@@ -363,7 +363,7 @@ function enableCard(data, cardId, cardType) {
             "cardType": cardType
         };
 
-        const openResult = sendRequest(openPayload, api, tag, false, token);
+        const openResult = sendRequest(openPayload, api, tag, false, token, true);
 
         //logger.info(`[${tag}] 开启响应: ${JSON.stringify(openResult)}`);
 

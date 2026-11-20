@@ -27,7 +27,7 @@ function todayStr() { const d = new Date(); return `${d.getFullYear()}-${String(
 export function setup() {
     const tenantId = __ENV.TENANT_ID || '3004';
     if (tenantId !== '3004') { const e = getEnvByTenantId(tenantId); if (e) Object.assign(ENV_CONFIG, e); }
-    const token = AdminLogin();
+    const token = AdminLogin(true);
     if (!token) throw new Error('管理员登录失败');
     return { token, date: __ENV.DATE || todayStr(), tenantId };
 }

@@ -170,7 +170,7 @@ function createInviteTurntableConfig(data, config) {
     }
 
     try {
-        const result = sendRequest(payload, api, createInviteTurntableTag, false, token);
+        const result = sendRequest(payload, api, createInviteTurntableTag, false, token, true);
 
         if (result && result.msgCode === 0) {
             logger.info(`[${createInviteTurntableTag}] ${config.name}配置成功 - ${payload.configName}`);
@@ -209,7 +209,7 @@ function checkAndConfigureInviteTurntableSettings(data) {
     try {
         // 1. 获取当前配置
         logger.info(`[${createInviteTurntableTag}] 获取邀请转盘配置`);
-        const settingsResult = sendRequest({}, getSettingApi, createInviteTurntableTag, false, token);
+        const settingsResult = sendRequest({}, getSettingApi, createInviteTurntableTag, false, token, true);
 
         // 检查响应是否有效
         if (!settingsResult) {
@@ -260,7 +260,8 @@ function checkAndConfigureInviteTurntableSettings(data) {
             settings,
             configRules,
             updateApi: updateSettingApi,
-            tag: createInviteTurntableTag
+            tag: createInviteTurntableTag,
+            forceTenant: true
         });
 
         return result;

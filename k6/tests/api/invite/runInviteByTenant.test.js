@@ -4,10 +4,10 @@
  * 
  * 使用方法：
  * 1. 通过环境变量指定租户：
- *    k6p -e TENANT_ID=3003 -e ROOT_INVITE_CODE=TQNA5XN -e LEVELS=4,5,3,5,4 k6/tests/api/invite/runInviteByTenant.test.js
+ *    k6p -e TENANT_ID=3006 -e ROOT_INVITE_CODE=ZA7AWLN -e LEVELS=7,5,3,5,4 k6/tests/api/invite/runInviteByTenant.test.js
  * 
  * 2. 或者在 tenantConfig.js 中配置租户信息后直接运行：
- *    k6p -e TENANT_ID=3004 -e ROOT_INVITE_CODE=DJPGXTN -e LEVELS=6,5,3,2 runInviteByTenant.test.js
+ *    k6p -e TENANT_ID=3006 -e ROOT_INVITE_CODE=ZA7AWLN -e LEVELS=8,5,6,4 runInviteByTenant.test.js
  * 
  * # 模式1（默认，inviteCode 原样）
 k6p -e TENANT_ID=3005 -e ROOT_INVITE_CODE=LU9VJ9N -e LEVELS=3,4,2,3 runInviteByTenant.test.js
@@ -104,7 +104,7 @@ export function setup() {
   }
 
   // 使用目标租户的管理员登录
-  const adminToken = AdminLogin();
+  const adminToken = AdminLogin(true);
   if (!adminToken) {
     console.error('[Setup] 管理员登录失败');
     throw new Error('管理员登录失败');

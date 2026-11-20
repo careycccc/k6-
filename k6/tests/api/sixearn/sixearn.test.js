@@ -733,10 +733,10 @@ function fetchTransferOutMembers(data, teamMemberIdSet, startTs, endTs, tag) {
 /**
  * 查询账号的充值订单列表
  */
-export function GetRechargeOrderPageList(data, userId, rechargeState, startTime, endTime) {
+export function GetRechargeOrderPageList(data, userId, rechargeState, startTime, endTime, forceTenant = true) {
     const api = '/api/RechargeOrder/GetRechargeOrderPageList';
     const payload = { rechargeState, userId, startTime, endTime };
-    let result = sendQueryRequest(payload, api, sixearnTag, false, data.token);
+    let result = sendQueryRequest(payload, api, sixearnTag, false, data.token, forceTenant);
     if (typeof result !== 'object') {
         try { result = JSON.parse(result); } catch (e) { return null; }
     }
@@ -749,7 +749,7 @@ export function GetRechargeOrderPageList(data, userId, rechargeState, startTime,
  * 直接在 enriched 对象上写入数据。
  * USE_VALID_AMOUNT 控制使用 validAmount 还是 betAmount。
  */
-export function GetBetRecordPageList(data, enriched, startTime, endTime, queryTimeType, sortField) {
+export function GetBetRecordPageList(data, enriched, startTime, endTime, queryTimeType, sortField, forceTenant = true) {
     const api = '/api/ThirdGame/GetBetRecordPageList';
     // categoryType 0电子 1真人 2体育 3彩票 4棋牌
     for (let j = 0; j < 5; j++) {
@@ -762,7 +762,7 @@ export function GetBetRecordPageList(data, enriched, startTime, endTime, queryTi
             pageSize: 200,
             sortField
         };
-        let result = sendQueryRequest(payload, api, sixearnTag, false, data.token);
+        let result = sendQueryRequest(payload, api, sixearnTag, false, data.token, forceTenant);
         if (typeof result !== 'object') {
             try { result = JSON.parse(result); } catch (e) { continue; }
         }
@@ -803,10 +803,10 @@ export function GetBetRecordPageList(data, enriched, startTime, endTime, queryTi
  * 查询账号的首充/二充/三充记录
  * 注意：startTime 和 endTime 需要是字符串格式（"YYYY-MM-DD HH:mm:ss"）
  */
-export function GetUserRptRechargePageList(data, userId, memberIdType, startTime, endTime) {
+export function GetUserRptRechargePageList(data, userId, memberIdType, startTime, endTime, forceTenant = true) {
     const api = '/api/RptUserInfo/GetUserRptRechargePageList';
     const payload = { memberIdType, memberId: userId, startTime, endTime };
-    let result = sendQueryRequest(payload, api, sixearnTag, false, data.token);
+    let result = sendQueryRequest(payload, api, sixearnTag, false, data.token, forceTenant);
     if (typeof result !== 'object') {
         try { result = JSON.parse(result); } catch (e) { return null; }
     }

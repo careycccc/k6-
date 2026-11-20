@@ -5,7 +5,7 @@ import { AdminLogin } from '../../login/adminlogin.test.js';
 export default function () {
     // K6 requires a default function. We wrap existing createluckyDoubleBonus logic.
     // Get admin token using AdminLogin function
-    const token = AdminLogin();
+    const token = AdminLogin(true);
 
     if (!token) {
         logger.error(`[createluckyDoubleBonus_dispatch] 后台登录失败，无法创建活动`);

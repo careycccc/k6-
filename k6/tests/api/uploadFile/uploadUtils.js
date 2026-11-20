@@ -83,7 +83,7 @@ export function uploadSingleFile(filePath, token = null) {
     try {
         // 如果没有提供token，则自动登录
         if (!token) {
-            token = AdminLogin();
+            token = AdminLogin(true);
             if (!token) {
                 return {
                     success: false,
@@ -164,7 +164,7 @@ export function uploadSingleFile(filePath, token = null) {
 export function uploadMultipleFiles(filePaths, token = null) {
     // 如果没有提供token，则自动登录
     if (!token) {
-        token = AdminLogin();
+        token = AdminLogin(true);
         if (!token) {
             throw new Error('Login failed, no token');
         }

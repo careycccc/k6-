@@ -76,7 +76,7 @@ function buildChildrenMap(memberList) {
 function getRechargeAmount(data, userId, startTs, endTs) {
     const api = '/api/RechargeOrder/GetRechargeOrderPageList';
     const payload = { rechargeState: 'Payed', userId, startTime: startTs, endTime: endTs };
-    let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token);
+    let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token, true);
 
     if (typeof result !== 'object') {
         try { result = JSON.parse(result); } catch (e) { return 0; }
@@ -108,7 +108,7 @@ function getFirstRechargeAmount(data, userId, dateStr) {
         startTime: `${dateStr} 00:00:00`,
         endTime: `${dateStr} 23:59:59`
     };
-    let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token);
+    let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token, true);
     if (typeof result !== 'object') {
         try { result = JSON.parse(result); } catch (e) { return 0; }
     }
@@ -145,7 +145,7 @@ function getBetData(data, userId, startTs, endTs) {
             pageSize: 500,
             sortField: 'BetTime'
         };
-        let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token);
+        let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token, true);
         if (typeof result !== 'object') {
             try { result = JSON.parse(result); } catch (e) { continue; }
         }
@@ -199,7 +199,7 @@ function getInvitedListAllPages(data, agentId) {
 
     while (true) {
         const payload = { agentId, pageNo, pageSize, orderBy: 'Desc' };
-        let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token);
+        let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token, true);
         if (typeof result !== 'object') {
             try { result = JSON.parse(result); } catch (e) { break; }
         }
@@ -253,7 +253,7 @@ function getAllTeamMembers(data, rootId) {
 function getUserSelfInfo(data, userId) {
     const api = '/api/Users/GetPageList';
     const payload = { userId, pageNo: 1, pageSize: 20, orderBy: 'Desc' };
-    let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token);
+    let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token, true);
     if (typeof result !== 'object') {
         try { result = JSON.parse(result); } catch (e) { return null; }
     }
@@ -283,7 +283,7 @@ function getInviteOkRewardCount(data, userId) {
         pageSize: 20,
         orderBy: 'Desc'
     };
-    let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token);
+    let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token, true);
     if (typeof result !== 'object') {
         try { result = JSON.parse(result); } catch (e) { return 0; }
     }
@@ -748,7 +748,7 @@ export function runAgentL3Validation(data, targetUid) {
     // 1. 验证 InviteList
     const inviteApi = '/api/AgentL3/GetPageListInviteList';
     const invitePayload = { userId: rootId, pageNo: 1, pageSize: 20, orderBy: 'Desc' };
-    let inviteRes = sendQueryRequest(invitePayload, inviteApi, agentL3Tag, false, data.token);
+    let inviteRes = sendQueryRequest(invitePayload, inviteApi, agentL3Tag, false, data.token, true);
     if (typeof inviteRes !== 'object') {
         try { inviteRes = JSON.parse(inviteRes); } catch(e) {}
     }
@@ -769,7 +769,7 @@ export function runAgentL3Validation(data, targetUid) {
     console.log(`\n   ► 验证昨日 RebateList (${timeRange.yesterday.dateStr} 记录):`);
     const rebateApi = '/api/AgentL3/GetPageListRebateList';
     const rebatePayload = { reportDate: timeRange.yesterday.dateStr, userId: rootId, pageNo: 1, pageSize: 20, orderBy: "Desc" };
-    let rebateRes = sendQueryRequest(rebatePayload, rebateApi, agentL3Tag, false, data.token);
+    let rebateRes = sendQueryRequest(rebatePayload, rebateApi, agentL3Tag, false, data.token, true);
     if (typeof rebateRes !== 'object') {
         try { rebateRes = JSON.parse(rebateRes); } catch(e) {}
     }
@@ -818,7 +818,7 @@ export function snapshotL1Members(data, rootUserId) {
         pageSize: 500
     };
 
-    let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token);
+    let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token, true);
     if (typeof result !== 'object') {
         try { result = JSON.parse(result); } catch (e) { return new Set(); }
     }
@@ -897,7 +897,7 @@ export function runAgentL3ValidationWithOriginalTeam(data, targetUid, originalL1
     console.log('【Step 2】获取当前团队成员列表（用于返佣计算）...');
     const agentListApi = '/api/Agent/GetPageListAgentList';
     const agentPayload = { userId: rootId, isAll: true, isIncludeSelfAndParent: true, pageNo: 1, pageSize: 500 };
-    let agentResult = sendQueryRequest(agentPayload, agentListApi, agentL3Tag, false, data.token);
+    let agentResult = sendQueryRequest(agentPayload, agentListApi, agentL3Tag, false, data.token, true);
     if (typeof agentResult !== 'object') {
         try { agentResult = JSON.parse(agentResult); } catch (e) { return; }
     }
@@ -1129,7 +1129,7 @@ export function runAgentL3ValidationWithOriginalTeam(data, targetUid, originalL1
     };
 
     const inviteApi = '/api/AgentL3/GetPageListInviteList';
-    let inviteRes = sendQueryRequest({ userId: rootId, pageNo: 1, pageSize: 20, orderBy: 'Desc' }, inviteApi, agentL3Tag, false, data.token);
+    let inviteRes = sendQueryRequest({ userId: rootId, pageNo: 1, pageSize: 20, orderBy: 'Desc' }, inviteApi, agentL3Tag, false, data.token, true);
     if (typeof inviteRes !== 'object') { try { inviteRes = JSON.parse(inviteRes); } catch(e) {} }
 
     if (inviteRes && inviteRes.list && inviteRes.list.length > 0) {
@@ -1145,7 +1145,7 @@ export function runAgentL3ValidationWithOriginalTeam(data, targetUid, originalL1
     }
 
     const rebateApi = '/api/AgentL3/GetPageListRebateList';
-    let rebateRes = sendQueryRequest({ reportDate: timeRange.yesterday.dateStr, userId: rootId, pageNo: 1, pageSize: 20, orderBy: 'Desc' }, rebateApi, agentL3Tag, false, data.token);
+    let rebateRes = sendQueryRequest({ reportDate: timeRange.yesterday.dateStr, userId: rootId, pageNo: 1, pageSize: 20, orderBy: 'Desc' }, rebateApi, agentL3Tag, false, data.token, true);
     if (typeof rebateRes !== 'object') { try { rebateRes = JSON.parse(rebateRes); } catch(e) {} }
 
     if (rebateRes && rebateRes.list && rebateRes.list.length > 0) {

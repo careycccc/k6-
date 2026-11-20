@@ -153,7 +153,8 @@ function checkAndConfigureMegaJackpotSettings(data, config) {
             settings: config,
             configRules,
             updateApi: updateSettingApi,
-            tag: createMegaJackpotTag
+            tag: createMegaJackpotTag,
+            forceTenant: true
         });
 
         return result;
@@ -179,7 +180,7 @@ function getActivityId(data) {
     const payload = {};
 
     try {
-        const result = sendQueryRequest(payload, api, createMegaJackpotTag, false, token);
+        const result = sendQueryRequest(payload, api, createMegaJackpotTag, false, token, true);
 
         if (result && result.list && result.list.length > 0) {
             const activityId = result.list[0].id;
@@ -219,7 +220,7 @@ function enableActivity(data, activityId) {
     };
 
     try {
-        const result = sendRequest(payload, api, createMegaJackpotTag, false, token);
+        const result = sendRequest(payload, api, createMegaJackpotTag, false, token, true);
 
         if (result && result.msgCode === 0) {
             logger.info(`[${createMegaJackpotTag}] 活动启用成功 - ID: ${activityId}`);
@@ -252,7 +253,7 @@ function getJackpotConfig(data) {
     const payload = {};
 
     try {
-        const result = sendQueryRequest(payload, api, createMegaJackpotTag, false, token);
+        const result = sendQueryRequest(payload, api, createMegaJackpotTag, false, token, true);
 
         // result 直接就是配置对象，不需要 result.data
         if (result && typeof result === 'object') {
@@ -303,7 +304,7 @@ function updateJackpotConfig(data, settingKey, value1, value2) {
     };
 
     try {
-        const result = sendRequest(payload, api, createMegaJackpotTag, false, token);
+        const result = sendRequest(payload, api, createMegaJackpotTag, false, token, true);
 
         if (result && result.msgCode === 0) {
             return { success: true };
@@ -345,7 +346,7 @@ function createMegaJackpotActivity(data) {
     };
 
     try {
-        const result = sendRequest(payload, api, createMegaJackpotTag, false, token);
+        const result = sendRequest(payload, api, createMegaJackpotTag, false, token, true);
 
         if (result && result.msgCode === 0) {
             logger.info(`[${createMegaJackpotTag}] 超级大奖创建成功 - 奖金: ${payload.awardAmount}`);

@@ -54,14 +54,14 @@ export function registerAccountsForTenant(tenantId, registerType = 'phone', coun
         httpClient.adminBaseUrl = envConfig.BASE_ADMIN_URL;
         httpClient.deskBaseUrl = envConfig.BASE_DESK_URL;
 
-        const adminToken = AdminLogin();
+        const adminToken = AdminLogin(true);
         if (!adminToken) {
             throw new Error(`租户 ${tenantId} 后台登录失败`);
         }
 
         console.log(`[注册服务] 后台登录成功，token: ${adminToken.substring(0, 20)}...`);
 
-        const data = { token: adminToken };
+        const data = { token: adminToken, forceTenant: true };
         const accounts = [];
 
         // 4. 批量注册账号

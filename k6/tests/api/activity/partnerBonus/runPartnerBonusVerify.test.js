@@ -89,7 +89,7 @@ function fetchActivityConfig(adminToken) {
     const api = '/api/PartnerReward/GetConfig';
     console.log(`[${TAG}] 【Step 1】请求活动配置接口: ${api}`);
 
-    const raw = sendRequest({}, api, TAG, false, adminToken);
+    const raw = sendRequest({}, api, TAG, false, adminToken, true);
 
     // sendRequest 返回 parsedBody.data（即响应 data 字段）
     // 兼容两种路径：直接 data 对象，或完整响应对象
@@ -203,7 +203,7 @@ function fetchSystemReport(adminToken, startDate, endDate) {
             pageSize: 200,
         };
 
-        let raw = sendRequest(payload, api, TAG, false, adminToken);
+        let raw = sendRequest(payload, api, TAG, false, adminToken, true);
         if (typeof raw === 'string') {
             try { raw = JSON.parse(raw); } catch (e) { break; }
         }
@@ -284,7 +284,7 @@ function fetchTeamMembers(adminToken, userId) {
             pageSize: pageSize,
         };
 
-        let result = sendRequest(payload, api, TAG, false, adminToken);
+        let result = sendRequest(payload, api, TAG, false, adminToken, true);
         if (typeof result === 'string') {
             try { result = JSON.parse(result); } catch (e) { break; }
         }
@@ -340,7 +340,7 @@ function fetchTotalBetAmount(data, userId, startTs, endTs) {
             pageSize: 200,
             sortField: 'BetTime',
         };
-        let result = sendQueryRequest(payload, api, TAG, false, data.token);
+        let result = sendQueryRequest(payload, api, TAG, false, data.token, true);
         if (typeof result === 'string') {
             try { result = JSON.parse(result); } catch (e) { continue; }
         }
@@ -374,7 +374,7 @@ function fetchHasWithdrawInfo(data, userId) {
     const api = '/api/Users/GetWallet';
     const payload = { userId: userId };
 
-    let result = sendRequest(payload, api, TAG, false, data.token);
+    let result = sendRequest(payload, api, TAG, false, data.token, true);
     if (typeof result === 'string') {
         try { result = JSON.parse(result); } catch (e) { return false; }
     }
@@ -659,7 +659,7 @@ export function setup() {
         if (targetEnv) Object.assign(ENV_CONFIG, targetEnv);
     }
 
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) throw new Error('管理员登录失败');
 
     const data = { token: adminToken, envConfig: ENV_CONFIG };

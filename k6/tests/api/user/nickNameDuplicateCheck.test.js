@@ -107,7 +107,7 @@ export function setup() {
     console.log(`[Setup] 前台地址: ${envConfig.BASE_DESK_URL}`);
 
     // 管理员登录（用于后续需要时调用后台接口兜底）
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) {
         throw new Error('[Setup] ❌ 管理员登录失败，压测中止');
     }

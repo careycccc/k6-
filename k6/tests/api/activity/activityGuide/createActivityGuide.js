@@ -48,7 +48,7 @@ export function createActivityGuide(data) {
             "viewDuration": 10, // 观看时长，单位秒
         };
 
-        const result = sendRequest(payload, api, createActivityGuideTag, false, token);
+        const result = sendRequest(payload, api, createActivityGuideTag, false, token, true);
 
         if (result) {
             logger.info(`[${createActivityGuideTag}] 引导活动更新成功`);
@@ -93,7 +93,7 @@ export function queryActivityGuide(data) {
     const payload = {};
 
     try {
-        const result = sendQueryRequest(payload, api, createActivityGuideTag, false, token);
+        const result = sendQueryRequest(payload, api, createActivityGuideTag, false, token, true);
 
         if (!result || !result.list || result.list.length === 0) {
             logger.error(`[${createActivityGuideTag}] 查询引导活动列表为空`);
@@ -147,7 +147,7 @@ export function enableActivityGuide(data, id) {
         "id": id,
         "state": 1,
     }
-    const result = sendRequest(payload, api, createActivityGuideTag, false, token);
+    const result = sendRequest(payload, api, createActivityGuideTag, false, token, true);
     if (!result) {
         return {
             success: false,

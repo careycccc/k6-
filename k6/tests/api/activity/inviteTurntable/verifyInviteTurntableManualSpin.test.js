@@ -399,7 +399,8 @@ function selfRechargeAndBet(generalAgentToken, adminToken, userId, config) {
         userId: userId,
         amount: rechargeAmount,
         frontendFirst: true,
-        remark: 'InviteTurntable-SelfRecharge-Round3'
+        remark: 'InviteTurntable-SelfRecharge-Round3',
+        forceTenant: true
     });
 
     if (rechargeResult.success) {

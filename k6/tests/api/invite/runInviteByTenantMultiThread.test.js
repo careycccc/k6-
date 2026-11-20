@@ -84,7 +84,7 @@ export function setup() {
         if (targetEnv) Object.assign(ENV_CONFIG, targetEnv);
     }
 
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) throw new Error('管理员登录失败');
 
     const adminData = { token: adminToken, envConfig: ENV_CONFIG };
@@ -166,7 +166,7 @@ export default async function (data) {
                     sleep(1);
                     const rechargeAmount = getConfigRechargeAmount();
                     const rechargeResult = hybridRecharge({
-                        userToken: token, adminToken, userId: userInfo.userId, amount: rechargeAmount, frontendFirst: true, remark: 'MultiThread Invite'
+                        userToken: token, adminToken, userId: userInfo.userId, amount: rechargeAmount, frontendFirst: true, remark: 'MultiThread Invite', forceTenant: true
                     });
 
                     if (rechargeResult.success) {

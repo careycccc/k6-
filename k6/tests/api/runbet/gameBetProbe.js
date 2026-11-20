@@ -251,4 +251,19 @@ export default function (data) {
     console.log(`[${TAG}] 下注接口成功: ${okList.length ? okList.join(', ') : '无'}`);
     console.log(`[${TAG}] 后台真落库  : ${landedList.length ? landedList.join(', ') : '无'}`);
     openResults.forEach(g => console.log(`[${TAG}] 非彩票 ${g.vendor}/${g.game}: ${g.ok ? '能开游戏(但项目没有该厂商的下注实现)' : '开不了 ' + g.msg}`));
+
+    // 接口成功∩后台真落库 才算真能投——排除"接口返回成功但实际没落地"的假成功，
+    // 供 gameBetProbeRunner.js 截获后落盘到 state/gameCapability.ndjson，让
+    // betRun.js/betFixed 按租户过滤候选游戏（见 gameCapability.js）。
+    const capableGames = okList.filter(g => landedList.includes(g));
+    const failedGames = TARGET_GAMES.filter(g => !capableGames.includes(g));
+    console.log(`##GAMECAP##${JSON.stringify({
+        tenantId: TENANT_ID,
+        amount: AMOUNT,
+        probedAt: new Date().toISOString(),
+        account,
+        capableGames,
+        failedGames,
+        probedGames: TARGET_GAMES
+    })}`);
 }

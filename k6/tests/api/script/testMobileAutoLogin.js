@@ -11,7 +11,7 @@ import { mobileAutoLoginFlow, sendMobileAutoLoginVerifyCode, MobileAutoLogin } f
 
 export function setup() {
     console.log('[Setup] 开始后台登录...');
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) {
         console.error('后台登录失败');
         throw new Error('后台登录失败');
@@ -21,7 +21,7 @@ export function setup() {
         ? adminToken.substring(0, 20) + '...'
         : adminToken;
     console.log('[Setup] 后台登录成功，token:', tokenDisplay);
-    return { token: adminToken };
+    return { token: adminToken, forceTenant: true };
 }
 
 export const options = {

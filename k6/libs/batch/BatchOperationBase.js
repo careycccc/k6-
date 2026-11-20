@@ -66,7 +66,7 @@ export class BatchOperationBase {
       console.log('');
       console.log('[1/2] 正在获取登录Token...');
 
-      const token = AdminLogin();
+      const token = AdminLogin(true);
       if (!token) {
         throw new Error('Token获取失败');
       }

@@ -178,7 +178,7 @@ function configureAgentRank(data) {
     try {
         // 1. 查询现有排行榜配置
         logger.info(`[${createNewagentRankTag}] 查询代理排行榜配置列表`);
-        const rankConfigResult = sendQueryRequest({}, getRankConfigApi, createNewagentRankTag, false, token);
+        const rankConfigResult = sendQueryRequest({}, getRankConfigApi, createNewagentRankTag, false, token, true);
 
         if (!rankConfigResult) {
             logger.error(`[${createNewagentRankTag}] 查询排行榜配置失败: 响应为空`);
@@ -243,7 +243,7 @@ function configureAgentRank(data) {
         // logger.info(`[${createNewagentRankTag}] 更新Payload: ${JSON.stringify(updatePayload)}`);
 
         // 4. 发送更新请求
-        const updateResult = sendRequest(updatePayload, updateRankConfigApi, createNewagentRankTag, false, token);
+        const updateResult = sendRequest(updatePayload, updateRankConfigApi, createNewagentRankTag, false, token, true);
 
         logger.info(`[${createNewagentRankTag}] 排行榜配置更新响应: ${JSON.stringify(updateResult)}`);
 
@@ -293,7 +293,7 @@ function configureBonusDistribution(data) {
         //logger.info(`[${createNewagentRankTag}] 更新Payload: ${JSON.stringify(updatePayload)}`);
 
         // 发送更新请求
-        const updateResult = sendRequest(updatePayload, updateBonusConfigApi, createNewagentRankTag, false, token);
+        const updateResult = sendRequest(updatePayload, updateBonusConfigApi, createNewagentRankTag, false, token, true);
 
         logger.info(`[${createNewagentRankTag}] 奖金分配配置更新响应: ${JSON.stringify(updateResult)}`);
 
@@ -338,7 +338,7 @@ function toggleAgentRankState(data) {
             state: 0
         };
 
-        const closeResult = sendRequest(closePayload, updateStateApi, createNewagentRankTag, false, token);
+        const closeResult = sendRequest(closePayload, updateStateApi, createNewagentRankTag, false, token, true);
         logger.info(`[${createNewagentRankTag}] 关闭排行榜响应: ${JSON.stringify(closeResult)}`);
 
         // 检查关闭结果
@@ -362,7 +362,7 @@ function toggleAgentRankState(data) {
             state: 1
         };
 
-        const openResult = sendRequest(openPayload, updateStateApi, createNewagentRankTag, false, token);
+        const openResult = sendRequest(openPayload, updateStateApi, createNewagentRankTag, false, token, true);
         logger.info(`[${createNewagentRankTag}] 开启排行榜响应: ${JSON.stringify(openResult)}`);
 
         // 检查开启结果

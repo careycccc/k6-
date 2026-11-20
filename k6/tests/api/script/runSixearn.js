@@ -12,12 +12,12 @@ import { bundEarn as unbindSubAccountsFunc } from '../sixearn/bundearn.test.js';
 // ==================== setup：全局登录一次 ====================
 export function setup() {
     try {
-        const token = AdminLogin();
+        const token = AdminLogin(true);
         if (!token) {
             logger.error('AdminLogin 返回空值，登录失败');
             throw new Error('AdminLogin 返回空 token');
         }
-        return { token };
+        return { token, forceTenant: true };
     } catch (error) {
         logger.error('AdminLogin 发生异常:', error.message);
         throw new Error(`登录失败: ${error.message}`);
@@ -25,7 +25,7 @@ export function setup() {
 }
 
 export function loginExec() {
-    AdminLogin(); // 这里执行登录，会计入 metrics
+    AdminLogin(true); // 这里执行登录，会计入 metrics
 }
 
 

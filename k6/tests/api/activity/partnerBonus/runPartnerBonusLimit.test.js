@@ -27,7 +27,7 @@ export const options = {
 function getOrCreateGroup(adminToken, groupName) {
     const apiGet = '/api/Groups/GetPageList';
     const payloadGet = {sortField: "id", orderBy: "Desc", pageNo: 1, pageSize: 20};
-    const res = sendQueryRequest(payloadGet, apiGet, 'GroupSetup', false, adminToken);
+    const res = sendQueryRequest(payloadGet, apiGet, 'GroupSetup', false, adminToken, true);
     let list = res?.data?.list || res?.list || [];
     let group = list.find(g => g.name === groupName);
     if (group) return group.id;
@@ -35,10 +35,10 @@ function getOrCreateGroup(adminToken, groupName) {
     logger.info(`[PartnerBonusLimit] 创建分组: ${groupName}`);
     const apiSubmit = '/api/Groups/SubmitGroups';
     const payloadSubmit = { tagId: null, name: groupName, remark: `自动化-${groupName}` };
-    sendRequest(payloadSubmit, apiSubmit, 'GroupSetup', false, adminToken);
+    sendRequest(payloadSubmit, apiSubmit, 'GroupSetup', false, adminToken, true);
     sleep(1.5);
     
-    const res2 = sendQueryRequest(payloadGet, apiGet, 'GroupSetup', false, adminToken);
+    const res2 = sendQueryRequest(payloadGet, apiGet, 'GroupSetup', false, adminToken, true);
     list = res2?.data?.list || res2?.list || [];
     group = list.find(g => g.name === groupName);
     return group ? group.id : null;
@@ -47,7 +47,7 @@ function getOrCreateGroup(adminToken, groupName) {
 function getOrCreateBasicTag(adminToken, tagName, conditionType, color) {
     const apiGet = '/api/TagConfig/GetBasicTagPageList';
     const payloadGet = {pageNo: 1, pageSize: 100, orderBy: "Desc"};
-    const res = sendQueryRequest(payloadGet, apiGet, 'TagSetup', false, adminToken);
+    const res = sendQueryRequest(payloadGet, apiGet, 'TagSetup', false, adminToken, true);
     let list = res?.data || [];
     let tag = list.find(t => t.tagName === tagName);
     if (tag) return tag.id;
@@ -55,10 +55,10 @@ function getOrCreateBasicTag(adminToken, tagName, conditionType, color) {
     logger.info(`[PartnerBonusLimit] 创建基础标签: ${tagName}`);
     const apiSubmit = '/api/TagConfig/SubmitBasicTag';
     const payloadSubmit = { tagName: tagName, conditionType: conditionType, conditionMin: 1, conditionMax: 100, color: color };
-    sendRequest(payloadSubmit, apiSubmit, 'TagSetup', false, adminToken);
+    sendRequest(payloadSubmit, apiSubmit, 'TagSetup', false, adminToken, true);
     sleep(1.5);
 
-    const res2 = sendQueryRequest(payloadGet, apiGet, 'TagSetup', false, adminToken);
+    const res2 = sendQueryRequest(payloadGet, apiGet, 'TagSetup', false, adminToken, true);
     list = res2?.data || [];
     tag = list.find(t => t.tagName === tagName);
     return tag ? tag.id : null;
@@ -67,7 +67,7 @@ function getOrCreateBasicTag(adminToken, tagName, conditionType, color) {
 function getOrCreateCompositeTag(adminToken, tagName, basicTagId, color) {
     const apiGet = '/api/TagConfig/GetCompositeTagPageData';
     const payloadGet = {pageNo: 1, pageSize: 100};
-    const res = sendQueryRequest(payloadGet, apiGet, 'TagSetup', false, adminToken);
+    const res = sendQueryRequest(payloadGet, apiGet, 'TagSetup', false, adminToken, true);
     let list = res?.data?.list || res?.data || [];
     let tag = list.find(t => t.tagName === tagName);
     if (tag) return tag.id;
@@ -75,10 +75,10 @@ function getOrCreateCompositeTag(adminToken, tagName, basicTagId, color) {
     logger.info(`[PartnerBonusLimit] 创建组合标签: ${tagName}`);
     const apiSubmit = '/api/TagConfig/SubmitCompositeTag';
     const payloadSubmit = { tagName: tagName, color: color, packageIds: [], adGroupIds: [], conditionDetails: [{index: 0, basicTagIds: [basicTagId]}] };
-    sendRequest(payloadSubmit, apiSubmit, 'TagSetup', false, adminToken);
+    sendRequest(payloadSubmit, apiSubmit, 'TagSetup', false, adminToken, true);
     sleep(1.5);
 
-    const res2 = sendQueryRequest(payloadGet, apiGet, 'TagSetup', false, adminToken);
+    const res2 = sendQueryRequest(payloadGet, apiGet, 'TagSetup', false, adminToken, true);
     list = res2?.data?.list || res2?.data || [];
     tag = list.find(t => t.tagName === tagName);
     return tag ? tag.id : null;
@@ -101,7 +101,7 @@ function initFixedEnv(adminToken) {
 
 
 export function setup() {
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) throw new Error('管理员登录失败');
     
     // 初始化固定环境
@@ -187,7 +187,7 @@ export default function(data) {
             pageNo: 1,
             pageSize: 20
         };
-        const res = sendQueryRequest(payload, api, 'PartnerData', false, adminToken);
+        const res = sendQueryRequest(payload, api, 'PartnerData', false, adminToken, true);
         return res?.data?.totalCount || 0;
     };
 
@@ -196,7 +196,7 @@ export default function(data) {
         logger.info(`\n[Test: ${testName}] 🚀 开始验证用户: ${userId}`);
         
         // 1) 登录拿邀请码
-        const userToken = autoLoginByUserId(adminToken, userId);
+        const userToken = autoLoginByUserId(adminToken, userId, true);
         if (!userToken) {
             logger.error(`[Test: ${testName}] ❌ 自动登录失败`);
             return false;
@@ -239,7 +239,8 @@ export default function(data) {
             userId: childUserId,
             amount: 100,
             frontendFirst: true,
-            remark: 'Test-First-Recharge'
+            remark: 'Test-First-Recharge',
+            forceTenant: true
         });
         sleep(2);
 
@@ -250,7 +251,8 @@ export default function(data) {
             userId: childUserId,
             amount: 112,
             frontendFirst: true,
-            remark: 'Test-Second-Recharge'
+            remark: 'Test-Second-Recharge',
+            forceTenant: true
         });
         sleep(2);
 

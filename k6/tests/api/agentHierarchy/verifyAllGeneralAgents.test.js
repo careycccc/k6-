@@ -31,7 +31,7 @@ export function setup() {
         .map((s) => parseInt(s.trim(), 10))
         .filter(Boolean);
 
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) throw new Error(`租户 ${tenantId} 后台登录失败`);
     const envConfig = getEnvByTenantId(tenantId);
     if (tenantId !== '3004') Object.assign(ENV_CONFIG, envConfig);

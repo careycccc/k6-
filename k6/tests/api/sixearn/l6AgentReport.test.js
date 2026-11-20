@@ -123,7 +123,7 @@ function fetchBetData(data, enriched, startTs, endTs) {
             categoryType: j, queryTimeType: 'BetTime', userId: enriched.userId,
             beginTimeUnix: startTs, endTimeUnix: endTs, pageSize: 200, sortField: 'BetTime'
         };
-        let result = sendQueryRequest(payload, api, sixearnTag, false, data.token);
+        let result = sendQueryRequest(payload, api, sixearnTag, false, data.token, true);
         if (typeof result !== 'object') {
             try { result = JSON.parse(result); } catch (e) { continue; }
         }
@@ -304,7 +304,7 @@ function printComparison(title, rows, tol) {
 // 报表① 返佣数据报表 (团队/直属汇总)
 function fetchSystemAgentRebate(data, userId, dateStr) {
     const payload = { reportDate: `${dateStr} 00:00:00`, userId, pageNo: 1, pageSize: 20, orderBy: 'Desc', isAll: false };
-    let result = sendQueryRequest(payload, '/api/Agent/GetPageListAgentRebate', sixearnTag, false, data.token);
+    let result = sendQueryRequest(payload, '/api/Agent/GetPageListAgentRebate', sixearnTag, false, data.token, true);
     if (typeof result !== 'object') { try { result = JSON.parse(result); } catch (e) { return null; } }
     const c = (result && result.data) ? result.data : result;
     if (c && Array.isArray(c.list) && c.list.length > 0) return c.list.find(x => Number(x.userId) === Number(userId)) || c.list[0];
@@ -313,7 +313,7 @@ function fetchSystemAgentRebate(data, userId, dateStr) {
 // 报表② 会员返佣明细 (指定层级的每个成员)
 function fetchSystemUserRebate(data, userId, dateStr, hierarchy) {
     const payload = { userId, reportDate: `${dateStr} 00:00:00`, hierarchy, orderBy: 'Desc', pageNo: 1, pageSize: 500 };
-    let result = sendQueryRequest(payload, '/api/Agent/GetPageListUserRebate', sixearnTag, false, data.token);
+    let result = sendQueryRequest(payload, '/api/Agent/GetPageListUserRebate', sixearnTag, false, data.token, true);
     if (typeof result !== 'object') { try { result = JSON.parse(result); } catch (e) { return null; } }
     const c = (result && result.data) ? result.data : result;
     return (c && Array.isArray(c.list)) ? c.list : null;
@@ -321,7 +321,7 @@ function fetchSystemUserRebate(data, userId, dateStr, hierarchy) {
 // 报表③ 分层级返佣报表 (sumTotal + list[layer 1..6])
 function fetchSystemLvReport(data, userId, dateStr) {
     const payload = { userId, reportDate: `${dateStr} 00:00:00` };
-    let result = sendQueryRequest(payload, '/api/Agent/GetListUserRebateLvReport', sixearnTag, false, data.token);
+    let result = sendQueryRequest(payload, '/api/Agent/GetListUserRebateLvReport', sixearnTag, false, data.token, true);
     if (typeof result !== 'object') { try { result = JSON.parse(result); } catch (e) { return null; } }
     return (result && result.data) ? result.data : result;
 }
@@ -342,7 +342,7 @@ export function l6AgentReport(data, targetUid) {
 
     // 1. 查询该用户及其下级
     const agentPayload = { userId: accountId, isAll: true, isIncludeSelfAndParent: true, pageNo: 1, pageSize: 1000 };
-    let agentResult = sendQueryRequest(agentPayload, '/api/Agent/GetPageListAgentList', sixearnTag, false, data.token);
+    let agentResult = sendQueryRequest(agentPayload, '/api/Agent/GetPageListAgentList', sixearnTag, false, data.token, true);
     if (typeof agentResult === 'string') { try { agentResult = JSON.parse(agentResult); } catch (e) { return; } }
 
     let memberList = [];
@@ -739,7 +739,7 @@ export function l6AgentReport(data, targetUid) {
 export const options = { vus: 1, iterations: 1 };
 
 export function setup() {
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) throw new Error('[Setup] ❌ 管理员登录失败');
     return { token: adminToken };
 }

@@ -41,7 +41,8 @@ function multiRecharge(userDetail, adminToken, tag = 'ProcessUsers') {
             userId: userDetail.userId,
             amount: rechargeAmount,
             frontendFirst: true,
-            remark: `Invite - ${label}`
+            remark: `Invite - ${label}`,
+            forceTenant: true
         });
 
         if (rechargeResult.success) {
@@ -132,7 +133,7 @@ export async function processNewUsers(adminData, rebateChance = 0.2) {
             if (Math.random() < rebateChance) {
                 const rebateMode = Math.floor(Math.random() * 2) + 1;
                 const rebateLevel = Math.floor(Math.random() * 6) + 1;
-                updateUserAgentRebateMode(adminData.token, userId, rebateMode, rebateLevel);
+                updateUserAgentRebateMode(adminData.token, userId, rebateMode, rebateLevel, true);
                 sleep(0.5);
             }
             
@@ -782,7 +783,7 @@ export async function processNewUsersV2(adminData, rates = {}) {
                 if (Math.random() < rebateChance) {
                     const rebateMode = Math.floor(Math.random() * 2) + 1;
                     const rebateLevel = Math.floor(Math.random() * 6) + 1;
-                    updateUserAgentRebateMode(adminData.token, userId, rebateMode, rebateLevel);
+                    updateUserAgentRebateMode(adminData.token, userId, rebateMode, rebateLevel, true);
                     sleep(0.5);
                 }
             } else {

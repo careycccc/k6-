@@ -24,14 +24,14 @@ function signScalarOnly(payload) {
 }
 
 /** 后台 POST（带自定义签名） */
-function postSigned(api, payload, token) {
+function postSigned(api, payload, token, forceTenant = true) {
     const t = getTimeRandom();
     const full = { random: t.random, language: 'zh', ...payload };
     full.signature = signScalarOnly(full);              // 先签(此时无 signature/timestamp)
     full.timestamp = Math.floor(Date.now() / 1000);
 
     httpClient.setAuthToken(token);
-    const res = httpClient.post(api, full, { sign: false, params: { tags: { type: rptTag, name: api } } }, false); // isDesk=false → 后台
+    const res = httpClient.post(api, full, { sign: false, forceTenant, params: { tags: { type: rptTag, name: api } } }, false); // isDesk=false → 后台
 
     let parsed = null;
     try { parsed = typeof res.body === 'string' ? JSON.parse(res.body) : res.body; } catch (e) { /* 非JSON */ }
@@ -42,8 +42,8 @@ function postSigned(api, payload, token) {
  * 第一步：按 snapshotType 的时间序列快照
  * @returns {Array|null} [{ snapshotDate, snapshotType, snapshotData:[{snapshotTime, snapshotNum}] }, ...]
  */
-export function getRecordSnapshotList(token, date, snapshotTypes) {
-    const { parsed } = postSigned('/api/RptDashBoard/GetRecordSnapshotList', { snapshotTypes, dateList: [date] }, token);
+export function getRecordSnapshotList(token, date, snapshotTypes, forceTenant = true) {
+    const { parsed } = postSigned('/api/RptDashBoard/GetRecordSnapshotList', { snapshotTypes, dateList: [date] }, token, forceTenant);
     if (parsed && parsed.code === 0 && Array.isArray(parsed.data)) return parsed.data;
     console.error(`[${rptTag}] GetRecordSnapshotList 失败: ${parsed ? JSON.stringify(parsed).slice(0, 200) : '无响应'}`);
     return null;
@@ -53,8 +53,8 @@ export function getRecordSnapshotList(token, date, snapshotTypes) {
  * 第二步：实时数据统计报表（按时间节点）
  * @returns {object|null} { list:[{ timeNode, cells:[{date, registerCount, ...}] }], summary, ... }
  */
-export function getRealTimeSnapshotReport(token, date) {
-    const { parsed } = postSigned('/api/RptDashBoard/GetRealTimeSnapshotReport', { dateList: [date], pageNo: 1, pageSize: 2000, orderBy: 2 }, token);
+export function getRealTimeSnapshotReport(token, date, forceTenant = true) {
+    const { parsed } = postSigned('/api/RptDashBoard/GetRealTimeSnapshotReport', { dateList: [date], pageNo: 1, pageSize: 2000, orderBy: 2 }, token, forceTenant);
     if (parsed && parsed.code === 0 && parsed.data && Array.isArray(parsed.data.list)) return parsed.data;
     console.error(`[${rptTag}] GetRealTimeSnapshotReport 失败: ${parsed ? JSON.stringify(parsed).slice(0, 200) : '无响应'}`);
     return null;
@@ -64,9 +64,9 @@ export function getRealTimeSnapshotReport(token, date) {
  * 三方成功率数据源 —— 第一步：充值通道列表（只取 state===1）
  * @returns {Array|null} [{ channelId, name }, ...]
  */
-export function getRechargeChannels(token) {
+export function getRechargeChannels(token, forceTenant = true) {
     const { parsed } = postSigned('/api/RechargeChannel/GetPageList',
-        { sortField: 'id', orderBy: 'Desc', pageNo: 1, pageSize: 200 }, token);
+        { sortField: 'id', orderBy: 'Desc', pageNo: 1, pageSize: 200 }, token, forceTenant);
     if (parsed && parsed.code === 0 && parsed.data && Array.isArray(parsed.data.list)) {
         return parsed.data.list
             .filter(c => c.state === 1)
@@ -80,8 +80,8 @@ export function getRechargeChannels(token) {
  * 三方成功率数据源 —— 第二步：单通道成功率
  * @returns {object|null} { day1Rate, day1Count, day1Amount, day3Rate, day3Count, day3Amount }
  */
-export function getChannelSuccessRate(token, channelId) {
-    const { parsed } = postSigned('/api/RechargeChannel/GetSucessRate', { channelId }, token);
+export function getChannelSuccessRate(token, channelId, forceTenant = true) {
+    const { parsed } = postSigned('/api/RechargeChannel/GetSucessRate', { channelId }, token, forceTenant);
     if (parsed && parsed.code === 0 && parsed.data) return parsed.data;
     console.error(`[${rptTag}] GetSucessRate(channelId=${channelId}) 失败: ${parsed ? JSON.stringify(parsed).slice(0, 200) : '无响应'}`);
     return null;

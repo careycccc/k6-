@@ -21,7 +21,7 @@ export function setup() {
             Object.assign(ENV_CONFIG, targetEnv);
         }
 
-        const token = AdminLogin();
+        const token = AdminLogin(true);
         if (!token) {
             throw new Error('AdminLogin 返回空 token');
         }
@@ -65,7 +65,7 @@ export default function (data) {
         logger.info(`查询参数: ${JSON.stringify(payload)}`);
 
         try {
-            const result = sendQueryRequest(payload, api, 'test_query', false, token);
+            const result = sendQueryRequest(payload, api, 'test_query', false, token, true);
 
             logger.info(`响应类型: ${typeof result}`);
 

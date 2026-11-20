@@ -241,7 +241,7 @@ function queryRankConfigList(data) {
 
     try {
         logger.info(`[${createRankingTag}] 查询会员排行榜配置列表`);
-        const rankConfigResult = sendQueryRequest({}, getRankConfigApi, createRankingTag, false, token);
+        const rankConfigResult = sendQueryRequest({}, getRankConfigApi, createRankingTag, false, token, true);
 
         if (!rankConfigResult) {
             logger.error(`[${createRankingTag}] 查询排行榜配置失败: 响应为空`);
@@ -321,7 +321,7 @@ function updateRankSetting(data, settingKey, value) {
             value1: value
         };
 
-        const result = sendRequest(payload, updateSettingApi, createRankingTag, false, token);
+        const result = sendRequest(payload, updateSettingApi, createRankingTag, false, token, true);
 
         logger.info(`[${createRankingTag}] 更新设置响应: ${JSON.stringify(result)}`);
 
@@ -469,7 +469,7 @@ function editUserRankConfig(data, id, configTemplate) {
 
         logger.info(`[${createRankingTag}] 发送编辑配置请求 - ID: ${id}`);
 
-        const result = sendRequest(payload, updateConfigApi, createRankingTag, false, token);
+        const result = sendRequest(payload, updateConfigApi, createRankingTag, false, token, true);
 
         logger.info(`[${createRankingTag}] 编辑配置响应: ${JSON.stringify(result)}`);
 
@@ -511,7 +511,7 @@ function updateUserBonusConfig(data, rankType) {
 
         logger.info(`[${createRankingTag}] 发送奖金分配请求 - rankType: ${rankType}`);
 
-        const result = sendRequest(payload, updateBonusApi, createRankingTag, false, token);
+        const result = sendRequest(payload, updateBonusApi, createRankingTag, false, token, true);
 
         logger.info(`[${createRankingTag}] 奖金分配响应: ${JSON.stringify(result)}`);
 
@@ -553,7 +553,7 @@ function toggleUserRankState(data, rankType) {
             state: 0
         };
 
-        const closeResult = sendRequest(closePayload, updateStateApi, createRankingTag, false, token);
+        const closeResult = sendRequest(closePayload, updateStateApi, createRankingTag, false, token, true);
         logger.info(`[${createRankingTag}] 关闭排行榜响应: ${JSON.stringify(closeResult)}`);
 
         if (closeResult && closeResult.msgCode === 0) {
@@ -576,7 +576,7 @@ function toggleUserRankState(data, rankType) {
             state: 1
         };
 
-        const openResult = sendRequest(openPayload, updateStateApi, createRankingTag, false, token);
+        const openResult = sendRequest(openPayload, updateStateApi, createRankingTag, false, token, true);
         logger.info(`[${createRankingTag}] 开启排行榜响应: ${JSON.stringify(openResult)}`);
 
         if (openResult && openResult.msgCode === 0) {

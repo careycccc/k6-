@@ -113,7 +113,7 @@ const teamReports = [];
 export default function () {
   console.log('====== 多团队全随机无转线测试模式 ======');
 
-  const token = AdminLogin();
+  const token = AdminLogin(true);
   if (!token) {
     console.error('管理员登录失败');
     return;
@@ -158,7 +158,7 @@ export default function () {
     runMultiLevelInvite(root.inviteCode, distribution, adminData, tConfig, false, 0);
     sleep(2);
 
-    const members = getAgentHierarchyList(adminData.token, root.userId);
+    const members = getAgentHierarchyList(adminData.token, root.userId, { forceTenant: true });
     if (!members || members.length === 0) {
       console.error(`[${teamName}] 无法获取下级列表`);
       continue;
@@ -166,7 +166,7 @@ export default function () {
 
     // 排除总代自身
     const memberIds = members.filter((m) => m.userId !== root.userId).map((m) => m.userId);
-    const accountsInfo = batchGetUserAccounts(adminData.token, memberIds, 500);
+    const accountsInfo = batchGetUserAccounts(adminData.token, memberIds, 500, true);
 
     const hierarchyMap = {};
     members.forEach((m) => { hierarchyMap[m.userId] = m.hierarchy || 1; });
@@ -189,14 +189,14 @@ export default function () {
       let totalWithdraw = 0;
 
       if (group !== 'inactive') {
-        const userToken = autoLoginByAccount(accountInfo.account, adminData.token);
+        const userToken = autoLoginByAccount(accountInfo.account, adminData.token, true);
         if (!userToken) continue;
 
         const rechargeCount = Math.random() < 0.6 ? 1 : Math.random() < 0.9 ? 2 : 3;
         for (let i = 0; i < rechargeCount; i++) {
           const amount = getConfigRechargeAmount();
           const res = hybridRecharge({
-            userToken, adminToken: adminData.token, userId, amount, frontendFirst: true, remark: 'RandomRebate Recharge'
+            userToken, adminToken: adminData.token, userId, amount, frontendFirst: true, remark: 'RandomRebate Recharge', forceTenant: true
           });
           if (res.success) totalRecharge += res.amount;
           sleep(1);
@@ -209,7 +209,7 @@ export default function () {
 
           if (totalBet > 0) {
             console.log(`[${teamName}] 成员 UID=${userId} 开始提现流程...`);
-            addAllWallets(adminData.token, userId, userToken);
+            addAllWallets(adminData.token, userId, userToken, true);
             setWithdrawPassword(userToken, '123456');
             const withdrawInfo = getWithdrawBasicInfo(userToken);
             if (withdrawInfo && withdrawInfo.balance > 0) {
@@ -217,7 +217,7 @@ export default function () {
               if (wRes && wRes.withDrawaAmont) {
                 totalWithdraw += wRes.withDrawaAmont;
                 sleep(2);
-                runBackendWithdrawApproval(adminData.token, userId, wRes.withDrawaType, wRes.withDrawaAmont);
+                runBackendWithdrawApproval(adminData.token, userId, wRes.withDrawaType, wRes.withDrawaAmont, true);
               }
             }
           }

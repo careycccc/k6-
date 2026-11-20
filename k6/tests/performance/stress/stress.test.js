@@ -125,7 +125,7 @@ export function setup() {
   console.log(`[Stress] ⚠️  压力测试将持续递增至系统极限，请确保已告知后端团队！`);
   console.log(`[Stress] 预计总时长: ~28分钟`);
 
-  const adminToken = AdminLogin();
+  const adminToken = AdminLogin(true);
   if (!adminToken) {
     throw new Error('[Stress] ❌ 获取 AdminToken 失败，无法启动压力测试');
   }

@@ -41,7 +41,7 @@ export function createSystemActive(data) {
 
         if (!token) {
             logger.error(`[${createSystemActiveTag}] Token 不存在，尝试重新登录...`);
-            token = AdminLogin();
+            token = AdminLogin(true);
             if (!token) {
                 logger.error(`[${createSystemActiveTag}] 登录失败，无法创建系统活动`);
                 return {
@@ -198,7 +198,7 @@ function querySystemActivities(data) {
         logger.info(`[${createSystemActiveTag}] 开始查询系统活动列表，语言: ${language}...`);
         logger.info(`[${createSystemActiveTag}] 查询参数: ${JSON.stringify(payload)}`);
 
-        let result = sendQueryRequest(payload, api, createSystemActiveTag, false, token);
+        let result = sendQueryRequest(payload, api, createSystemActiveTag, false, token, true);
 
         // 打印原始响应用于调试
         logger.info(`[${createSystemActiveTag}] 查询响应类型: ${typeof result}`);
@@ -288,7 +288,7 @@ function updateSystemActivity(data, activityId, imgUrl, jumpTypeItem, sortIndex)
     };
 
     try {
-        const result = sendRequest(payload, api, createSystemActiveTag, false, token);
+        const result = sendRequest(payload, api, createSystemActiveTag, false, token, true);
         return !!result;
     } catch (error) {
         const errorMsg = getErrorMessage(error);
@@ -353,7 +353,7 @@ function enableSystemActive(data, id, state, sysLanguage) {
     };
 
     try {
-        const result = sendRequest(payload, api, createSystemActiveTag, false, token);
+        const result = sendRequest(payload, api, createSystemActiveTag, false, token, true);
         return !!result;
     } catch (error) {
         const errorMsg = getErrorMessage(error);

@@ -19,17 +19,18 @@ export function getGroups(adminToken, forceTenant = false) {
 
 /**
  * 更新用户分组（强行划组）
+ * @param {boolean} [forceTenant=false] - 同 getGroups 的 forceTenant，用商户token调用必须传true
  */
-export function updateUserGroup(adminToken, userId, groupId) {
+export function updateUserGroup(adminToken, userId, groupId, forceTenant = false) {
     // 假设接口为 /api/Users/UpdateGroup，通常接收单个或者多个 userIds
     // 如果是确切的后台接口，可能叫 groupId, userId。这里做兼容处理
     const api = '/api/Users/UpdateGroup';
-    const payload = { 
-        userId: userId, 
-        userIds: [userId], 
-        groupId: groupId 
+    const payload = {
+        userId: userId,
+        userIds: [userId],
+        groupId: groupId
     };
-    return sendRequest(payload, api, TAG, false, adminToken);
+    return sendRequest(payload, api, TAG, false, adminToken, forceTenant);
 }
 
 /**
@@ -75,16 +76,18 @@ export function getCompositeTags(adminToken, forceTenant = false) {
 /**
  * 获取渠道来源列表
  * @param channelType 'Facebook' | 'Adjust' | 'TikTok'
+ * @param {boolean} [forceTenant=false] - 同 getGroups 的 forceTenant
  */
-export function getChannels(adminToken, channelType) {
+export function getChannels(adminToken, channelType, forceTenant = false) {
     const api = `/api/${channelType}/GetList`;
     const payload = { pageNo: 1, pageSize: 50, orderBy: "Desc" };
-    return sendQueryRequest(payload, api, TAG, false, adminToken);
+    return sendQueryRequest(payload, api, TAG, false, adminToken, forceTenant);
 }
 
 /**
  * 通用活动配置更新
+ * @param {boolean} [forceTenant=false] - 同 getGroups 的 forceTenant，用商户token调用必须传true
  */
-export function updateActivityConfig(adminToken, updateApi, payload) {
-    return sendRequest(payload, updateApi, TAG, false, adminToken);
+export function updateActivityConfig(adminToken, updateApi, payload, forceTenant = false) {
+    return sendRequest(payload, updateApi, TAG, false, adminToken, forceTenant);
 }

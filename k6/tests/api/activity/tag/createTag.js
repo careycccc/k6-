@@ -254,7 +254,7 @@ function createManualTags(data) {
                 remark: tagConfig.remark
             };
 
-            const result = sendRequest(payload, submitTagApi, createTagTag, false, token);
+            const result = sendRequest(payload, submitTagApi, createTagTag, false, token, true);
 
             logger.info(`[${createTagTag}] 标签创建响应: ${JSON.stringify(result)}`);
 
@@ -324,7 +324,7 @@ function queryTagList(data) {
             orderBy: "Desc"
         };
 
-        const result = sendQueryRequest(payload, getTagListApi, createTagTag, false, token);
+        const result = sendQueryRequest(payload, getTagListApi, createTagTag, false, token, true);
 
         if (!result) {
             logger.error(`[${createTagTag}] 查询标签列表失败: 响应为空`);
@@ -423,7 +423,7 @@ function createBasicTags(data) {
                 conditionMax: tagConfig.conditionMax
             };
 
-            const result = sendRequest(payload, submitBasicTagApi, createTagTag, false, token);
+            const result = sendRequest(payload, submitBasicTagApi, createTagTag, false, token, true);
 
             logger.info(`[${createTagTag}] 基础标签创建响应: ${JSON.stringify(result)}`);
 
@@ -492,7 +492,7 @@ function queryBasicTagList(data) {
             orderBy: "Desc"
         };
 
-        const result = sendQueryRequest(payload, getBasicTagListApi, createTagTag, false, token);
+        const result = sendQueryRequest(payload, getBasicTagListApi, createTagTag, false, token, true);
 
         if (!result) {
             logger.error(`[${createTagTag}] 查询基础标签列表失败: 响应为空`);
@@ -634,7 +634,7 @@ function createCompositeTags(data) {
 
             logger.info(`[${createTagTag}] 组合标签payload: ${JSON.stringify(payload)}`);
 
-            const result = sendRequest(payload, submitCompositeTagApi, createTagTag, false, token);
+            const result = sendRequest(payload, submitCompositeTagApi, createTagTag, false, token, true);
 
             logger.info(`[${createTagTag}] 组合标签创建响应: ${JSON.stringify(result)}`);
 
@@ -701,7 +701,7 @@ function queryCompositeTagList(data) {
 
         const payload = {};
 
-        const result = sendQueryRequest(payload, getCompositeTagListApi, createTagTag, false, token);
+        const result = sendQueryRequest(payload, getCompositeTagListApi, createTagTag, false, token, true);
 
         if (!result) {
             logger.error(`[${createTagTag}] 查询组合标签列表失败: 响应为空`);

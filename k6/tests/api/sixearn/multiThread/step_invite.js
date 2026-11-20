@@ -32,7 +32,7 @@ const MAX_REG_ATTEMPTS = parseInt(__ENV.MAX_REG_ATTEMPTS || '6', 10);
 
 export function setup() {
     const tenantId = __ENV.TENANT_ID || '3004';
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     const envConfig = getEnvByTenantId(tenantId);
     if (tenantId !== '3004') Object.assign(ENV_CONFIG, envConfig);
 
@@ -51,9 +51,9 @@ function resolveInviteCode(adminToken, userId, cache) {
     if (cache[key] !== undefined) return cache[key];
 
     let code = null;
-    const accounts = batchGetUserAccounts(adminToken, [userId], 500);
+    const accounts = batchGetUserAccounts(adminToken, [userId], 500, true);
     if (accounts && accounts.length > 0) {
-        const token = autoLoginByAccount(accounts[0].account, adminToken);
+        const token = autoLoginByAccount(accounts[0].account, adminToken, true);
         if (token) {
             const info = getFrontUserInfo(token);
             if (info && info.inviteCode) code = info.inviteCode;

@@ -106,7 +106,7 @@ export class AITestUtils {
             logger.info(`尝试登录: ${username}`);
 
             // 使用项目现有的登录方法
-            const token = AdminLogin();
+            const token = AdminLogin(true);
 
             if (token) {
                 logger.info(`登录成功: ${username}`);

@@ -188,7 +188,7 @@ function createGiftCodeActivity(data, giftCode, expiredTime) {
     };
 
     try {
-        const result = sendRequest(payload, api, createGiftCodesTag, false, token);
+        const result = sendRequest(payload, api, createGiftCodesTag, false, token, true);
 
         if (result && result.msgCode === 0) {
             const codeInfo = isUnique

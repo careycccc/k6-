@@ -14,14 +14,20 @@ import { getBetToken } from './betToken.js';
 import { betWingo } from './bet.js';
 import { isBet } from './issueNumber.js';
 import { getAccountBalance } from '../balance/balance.test.js';
+import { getCapableGames } from './gameCapability.js';
+
+const DEFAULT_GAME_CODES = ['WinGo_5M', 'WinGo_30S', 'TrxWinGo_10M'];
 
 /**
  * 随机获取投注参数
  * @param {Array} excludeGameCodes - 要排除的游戏代码列表
+ * @param {string|number} [tenantId] - 不传则按 gameCapability.js 的 resolveTenant 兜底链识别
  * @returns {object} 投注参数，如果没有可用游戏则返回 null
  */
-function getBetResult(excludeGameCodes = []) {
-    const allGameCodes = ['WinGo_5M', 'WinGo_30S', 'TrxWinGo_10M'];
+function getBetResult(excludeGameCodes = [], tenantId) {
+    // 按租户只在"已探测出真能投"的游戏里选；没探测过该租户时回退默认3个游戏
+    // （见 gameCapability.js 和 gameBetProbeRunner.js 的探测流程）
+    const allGameCodes = getCapableGames(tenantId, DEFAULT_GAME_CODES);
 
     // 过滤掉已经失败的游戏类型
     const availableGameCodes = allGameCodes.filter(code => !excludeGameCodes.includes(code));
@@ -49,9 +55,10 @@ function getBetResult(excludeGameCodes = []) {
  * 执行投注流程
  * @param {string} loginToken - 登录token
  * @param {string} userName - 用户名
+ * @param {string|number} [tenantId] - 不传则按 gameCapability.js 的 resolveTenant 兜底链识别
  * @returns {boolean} 投注是否成功
  */
-export function betRun(loginToken, userName = '') {
+export function betRun(loginToken, userName = '', tenantId) {
     console.log('[BetRun] ========== 开始投注流程 ==========');
     if (userName) {
         console.log('[BetRun] 用户:', userName);
@@ -78,16 +85,17 @@ export function betRun(loginToken, userName = '') {
     }
 
     // 执行投注
-    return runBetFunc(loginToken, userName);
+    return runBetFunc(loginToken, userName, tenantId);
 }
 
 /**
  * 执行投注函数（带重试机制）
  * @param {string} loginToken - 登录token
  * @param {string} userName - 用户名
+ * @param {string|number} [tenantId]
  * @returns {boolean} 投注是否成功
  */
-function runBetFunc(loginToken, userName) {
+function runBetFunc(loginToken, userName, tenantId) {
     console.log('[BetRun] 开始执行投注（最多尝试3次）');
 
     const maxAttempts = 3;
@@ -97,7 +105,7 @@ function runBetFunc(loginToken, userName) {
         console.log(`[BetRun] ========== 第 ${attempt} 次投注尝试 ==========`);
 
         // 获取随机投注参数（排除已失败的游戏类型）
-        const betParams = getBetResult(failedGameCodes);
+        const betParams = getBetResult(failedGameCodes, tenantId);
 
         if (!betParams) {
             console.error('[BetRun] 所有游戏类型都已尝试失败');

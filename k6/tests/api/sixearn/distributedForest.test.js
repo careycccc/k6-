@@ -64,7 +64,7 @@ function localEmailRegisterByInvite(email, inviteCode, adminData, password = 'qw
     const customRegisterUrl = customUrls && customUrls.registerUrl ? customUrls.registerUrl : null;
 
     // 1. 发验证码（codeType=20 = 邮箱邀请注册）
-    const verifyCode = sendToGetVerCode(2, 20, email, adminData.token, customFrontUrl, customAdminUrl);
+    const verifyCode = sendToGetVerCode(2, 20, email, adminData.token, customFrontUrl, customAdminUrl, true);
     if (!verifyCode) {
         console.error(`[LocalEmailByInvite] 获取验证码失败: ${email}`);
         return null;
@@ -254,7 +254,7 @@ export function setup() {
     console.log('═'.repeat(70));
 
     // 1. 全局管理员登录
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) {
         throw new Error('[Setup] ❌ 管理员登录失败，压测中止');
     }

@@ -527,7 +527,7 @@ export function phoneRegisterWithCode(userName, data, password = 'qwer1234', inv
     console.log(`[PhoneRegisterWithCode] ========== 开始手机号注册流程（发送验证码）==========`);
     console.log(`[PhoneRegisterWithCode] 用户名: ${userName}`);
 
-    const verifyCode = sendToGetVerCode(1, 1, userName, data.token);
+    const verifyCode = sendToGetVerCode(1, 1, userName, data.token, null, null, data.forceTenant === true);
     if (!verifyCode) {
         console.error('[PhoneRegisterWithCode] 手机号注册失败：未能获取到验证码');
         return null;
@@ -577,7 +577,7 @@ export function phoneRegisterByInviteWithCode(userName, inviteCode, data, passwo
     const customAdminUrl = customUrls && customUrls.adminUrl ? customUrls.adminUrl : null;
     const customRegisterUrl = customUrls && customUrls.registerUrl ? customUrls.registerUrl : null;
 
-    const verifyCode = sendToGetVerCode(1, 19, userName, data.token, customFrontUrl, customAdminUrl);
+    const verifyCode = sendToGetVerCode(1, 19, userName, data.token, customFrontUrl, customAdminUrl, data.forceTenant === true);
     if (!verifyCode) {
         console.error('[PhoneRegisterByInviteWithCode] 邀请注册失败：未能获取到验证码');
         return null;
@@ -625,7 +625,7 @@ export function emailRegisterWithCode(email, data, password = 'qwer1234', invite
     console.log(`[EmailRegisterWithCode] ========== 开始邮箱注册流程（发送验证码）==========`);
     console.log(`[EmailRegisterWithCode] 邮箱: ${email}`);
 
-    const verifyCode = sendToGetVerCode(2, 2, email, data.token);
+    const verifyCode = sendToGetVerCode(2, 2, email, data.token, null, null, data.forceTenant === true);
     if (!verifyCode) {
         console.error('[EmailRegisterWithCode] 邮箱注册失败：未能获取到验证码');
         return null;
@@ -677,7 +677,7 @@ export function emailRegisterByInviteWithCode(email, inviteCode, data, password 
     const customAdminUrl = customUrls && customUrls.adminUrl ? customUrls.adminUrl : null;
     const customRegisterUrl = customUrls && customUrls.registerUrl ? customUrls.registerUrl : null;
 
-    const verifyCode = sendToGetVerCode(2, 20, email, data.token, customFrontUrl, customAdminUrl);
+    const verifyCode = sendToGetVerCode(2, 20, email, data.token, customFrontUrl, customAdminUrl, data.forceTenant === true);
     if (!verifyCode) {
         console.error('[EmailRegisterByInviteWithCode] 邮箱邀请注册失败：未能获取到验证码');
         return null;
@@ -738,7 +738,7 @@ export function eventIdentityRegisterWithCode(userName, data, options = {}) {
 
     console.log(`[EventRegisterWithCode] ========== 开始埋点注册流程（发送验证码，ID: ${eventConfigId}）==========`);
 
-    const verifyCode = sendToGetVerCode(1, 1, userName, data.token, customFrontUrl);
+    const verifyCode = sendToGetVerCode(1, 1, userName, data.token, customFrontUrl, null, data.forceTenant === true);
     if (!verifyCode) return null;
 
     const codeStr = String(verifyCode).trim();

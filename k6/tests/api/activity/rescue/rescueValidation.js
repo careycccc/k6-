@@ -29,7 +29,7 @@ function getRescueActivityList(data) {
         timestamp: timeData.timestamp
     };
 
-    let result = sendQueryRequest(payload, api, tag, false, data.token);
+    let result = sendQueryRequest(payload, api, tag, false, data.token, true);
     if (typeof result !== 'object') {
         try {
             result = JSON.parse(result);
@@ -60,7 +60,7 @@ function getRandomVipUser(data, vipLevel) {
         signature: "",
         timestamp: timeData.timestamp
     };
-    let result = sendQueryRequest(payload, api, tag, false, data.token);
+    let result = sendQueryRequest(payload, api, tag, false, data.token, true);
     if (typeof result !== 'object') {
         try {
             result = JSON.parse(result);
@@ -93,7 +93,7 @@ function getUserAccountByUid(data, userId) {
         signature: "",
         timestamp: timeData.timestamp
     };
-    let result = sendQueryRequest(payload, api, tag, false, data.token);
+    let result = sendQueryRequest(payload, api, tag, false, data.token, true);
     console.log("");
     console.log("result------", result)
     console.log("");
@@ -251,7 +251,7 @@ export function validateRescue(data) {
         }
 
         // 注册之后使用自动登录拿取前台Token
-        loginToken = autoLoginByAccount(targetAccount, data.token);
+        loginToken = autoLoginByAccount(targetAccount, data.token, true);
     } else {
         // VIP > 0 从现有的账号里找来的
         logger.info(`[${tag}] 以目标VIP查找获取到可操作后台绑定的用户ID: ${userRecord.userId}`);
@@ -291,7 +291,7 @@ export function validateRescue(data) {
         logger.info(`[${tag}] 还原真实账号以用于前台登录: ${targetAccount}`);
 
         // 使用现有账号执行自动登录拿取前台Token
-        loginToken = autoLoginByAccount(targetAccount, data.token);
+        loginToken = autoLoginByAccount(targetAccount, data.token, true);
     }
 
     if (!loginToken) {
@@ -339,7 +339,8 @@ export function validateRescue(data) {
             userId: frontUserId,
             amount: depositAmount,
             frontendFirst: true,
-            remark: 'Rescue activity deposit'
+            remark: 'Rescue activity deposit',
+            forceTenant: true
         });
 
         if (!rechargeResult.success) {

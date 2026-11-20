@@ -116,7 +116,7 @@ export function setup() {
   console.log(`[NormalLoad] 账号池大小: ${ACCOUNTS.length} 个账号`);
   console.log(`[NormalLoad] 场景配置: ${JSON.stringify(adaptedScenario, null, 2)}`);
 
-  const adminToken = AdminLogin();
+  const adminToken = AdminLogin(true);
   if (!adminToken) {
     throw new Error('[NormalLoad] ❌ 获取 AdminToken 失败，无法启动压测');
   }

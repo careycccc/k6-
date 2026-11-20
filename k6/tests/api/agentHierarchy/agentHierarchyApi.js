@@ -12,7 +12,7 @@ const MAX_PAGES = 50; // 翻页安全上限（500/页 → 最多 2.5 万条）
  * 按需求给定的 payload：isAll:false, isFullAgentLine:true, isIncludeSelfAndParent:true
  * @returns {{list: Array, totalCount: number, pages: number}}
  */
-export function fetchAgentLine(adminToken, userId, pageSize = 500) {
+export function fetchAgentLine(adminToken, userId, pageSize = 500, forceTenant = true) {
     const api = '/api/Agent/GetPageListAgentList';
     let all = [];
     let pageNo = 1;
@@ -29,7 +29,7 @@ export function fetchAgentLine(adminToken, userId, pageSize = 500) {
             pageSize: pageSize,
             orderBy: 'Desc'
         };
-        let res = sendRequest(payload, api, TAG, false, adminToken);
+        let res = sendRequest(payload, api, TAG, false, adminToken, forceTenant);
         if (typeof res !== 'object') { try { res = JSON.parse(res); } catch (e) { break; } }
         if (!res) break;
 
@@ -50,7 +50,7 @@ export function fetchAgentLine(adminToken, userId, pageSize = 500) {
  * 注意：必须用 sendRequest（sendQueryRequest 会覆盖 pageNo/pageSize 导致翻页失效）。
  * @returns {{list: Array, totalCount: number, pages: number}}
  */
-export function fetchDayTransfers(adminToken, timeFrom, timeTo, pageSize = 500) {
+export function fetchDayTransfers(adminToken, timeFrom, timeTo, pageSize = 500, forceTenant = true) {
     const api = '/api/Agent/GetPageListAgentTransfer';
     let all = [];
     let pageNo = 1;
@@ -66,7 +66,7 @@ export function fetchDayTransfers(adminToken, timeFrom, timeTo, pageSize = 500) 
             pageSize: pageSize,
             orderBy: 'Desc'
         };
-        let res = sendRequest(payload, api, TAG, false, adminToken);
+        let res = sendRequest(payload, api, TAG, false, adminToken, forceTenant);
         if (typeof res !== 'object') { try { res = JSON.parse(res); } catch (e) { break; } }
         if (!res) break;
 

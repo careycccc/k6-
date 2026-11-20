@@ -40,7 +40,7 @@ export function runMemberLimitAdapter(adminToken, options) {
         const payload = patchPayload(basePayload, data.config);
         logger.info(`[${TAG}] 注入配置: ${JSON.stringify(data.config)}`);
         
-        const updateRes = api.updateActivityConfig(adminToken, activityUpdateApi, payload);
+        const updateRes = api.updateActivityConfig(adminToken, activityUpdateApi, payload, true);
         if (!updateRes || updateRes.code !== 0 && updateRes.msgCode !== 0) {
             logger.error(`[${TAG}] ❌ 更新活动配置失败: ${JSON.stringify(updateRes)}`);
             return;
@@ -55,11 +55,11 @@ export function runMemberLimitAdapter(adminToken, options) {
             // 自愈 Teardown
             if (data.positive?.isForced) {
                 logger.info(`[${TAG}] 执行 Teardown: 还原正向账号分组`);
-                api.updateUserGroup(adminToken, data.positive.userId, data.positive.originalGroupId || 0);
+                api.updateUserGroup(adminToken, data.positive.userId, data.positive.originalGroupId || 0, true);
             }
             if (data.negative1?.isForced) {
                 logger.info(`[${TAG}] 执行 Teardown: 还原逆向账号分组`);
-                api.updateUserGroup(adminToken, data.negative1.userId, 0);
+                api.updateUserGroup(adminToken, data.negative1.userId, 0, true);
             }
         }
     }
@@ -105,7 +105,7 @@ export function runMemberLimitAdapter(adminToken, options) {
     logger.info(`[${TAG}] `);
     logger.info(`[${TAG}] >>>>> 准备执行: 恢复为全平台准入`);
     const finalPayload = patchPayload(basePayload, { type: 'platform' });
-    api.updateActivityConfig(adminToken, activityUpdateApi, finalPayload);
+    api.updateActivityConfig(adminToken, activityUpdateApi, finalPayload, true);
     sleep(CACHE_FLUSH_DELAY);
 
     logger.info(`[${TAG}] ========== 会员准入测试框架执行完毕 ==========`);

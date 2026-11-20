@@ -214,7 +214,7 @@ function addRegisterLuckyDouble(data) {
 
         //logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
 
-        const result = sendRequest(payload, api, tag, false, token);
+        const result = sendRequest(payload, api, tag, false, token, true);
 
         logger.info(`[${tag}] 创建响应: ${JSON.stringify(result)}`);
 
@@ -260,7 +260,7 @@ function queryRegisterActivity(data) {
 
         const payload = {};
 
-        const result = sendQueryRequest(payload, api, tag, false, token);
+        const result = sendQueryRequest(payload, api, tag, false, token, true);
 
         if (!result) {
             logger.error(`[${tag}] 查询活动列表失败: 响应为空`);
@@ -340,7 +340,7 @@ function openRegisterActivity(data, activityId) {
 
         //logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
 
-        const result = sendRequest(payload, api, tag, false, token);
+        const result = sendRequest(payload, api, tag, false, token, true);
 
         logger.info(`[${tag}] 开启响应: ${JSON.stringify(result)}`);
 
@@ -494,7 +494,7 @@ function addAutoLuckyDouble(data) {
 
         //logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
 
-        const result = sendRequest(payload, api, tag, false, token);
+        const result = sendRequest(payload, api, tag, false, token, true);
 
         logger.info(`[${tag}] 创建响应: ${JSON.stringify(result)}`);
 
@@ -540,7 +540,7 @@ function queryAutoActivity(data) {
 
         const payload = {};
 
-        const result = sendQueryRequest(payload, api, tag, false, token);
+        const result = sendQueryRequest(payload, api, tag, false, token, true);
 
         if (!result) {
             logger.error(`[${tag}] 查询活动列表失败: 响应为空`);
@@ -620,7 +620,7 @@ function openAutoActivity(data, activityId) {
 
         //logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
 
-        const result = sendRequest(payload, api, tag, false, token);
+        const result = sendRequest(payload, api, tag, false, token, true);
 
         logger.info(`[${tag}] 开启响应: ${JSON.stringify(result)}`);
 
@@ -771,7 +771,7 @@ function addManualLuckyDouble(data) {
         //logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
         logger.info(`[${tag}] 首充日期设置为: ${tomorrowDate}`);
 
-        const result = sendRequest(payload, api, tag, false, token);
+        const result = sendRequest(payload, api, tag, false, token, true);
 
         logger.info(`[${tag}] 创建响应: ${JSON.stringify(result)}`);
 
@@ -827,7 +827,7 @@ function queryManualActivity(data) {
 
         logger.info(`[${tag}] 查询时间范围: ${beginTime} - ${endTime}`);
 
-        const result = sendQueryRequest(payload, api, tag, false, token);
+        const result = sendQueryRequest(payload, api, tag, false, token, true);
 
         if (!result) {
             logger.error(`[${tag}] 查询活动列表失败: 响应为空`);
@@ -907,7 +907,7 @@ function openManualActivity(data, activityId) {
 
         //logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
 
-        const result = sendRequest(payload, api, tag, false, token);
+        const result = sendRequest(payload, api, tag, false, token, true);
 
         logger.info(`[${tag}] 开启响应: ${JSON.stringify(result)}`);
 

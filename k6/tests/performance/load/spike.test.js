@@ -112,7 +112,7 @@ export function setup() {
   console.log(`[Spike] 账号池大小: ${SPIKE_ACCOUNTS.length} 个账号`);
   console.log(`[Spike] ⚠️  突刺测试会产生极高瞬间流量，请确认目标环境已通知！`);
 
-  const adminToken = AdminLogin();
+  const adminToken = AdminLogin(true);
   if (!adminToken) {
     throw new Error('[Spike] ❌ 获取 AdminToken 失败，无法启动突刺测试');
   }

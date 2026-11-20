@@ -245,7 +245,7 @@ function doRechargeAndBet(sub, adminToken, label) {
         console.log(`[${TAG}] 💰 充值 ${label} ${sub.account}: userId=${sub.userId}, amount=${rechargeAmount}`);
         const rc = hybridRecharge({
             userToken: sub.token, adminToken, userId: sub.userId,
-            amount: rechargeAmount, frontendFirst: true, remark: `${TAG}-${label}`
+            amount: rechargeAmount, frontendFirst: true, remark: `${TAG}-${label}`, forceTenant: true
         });
         sub.recharged = !!(rc && rc.success);
         sub.rechargeAmount = sub.recharged ? (rc.amount || rechargeAmount) : 0;
@@ -354,7 +354,7 @@ export function setup() {
     // 充值需要后台 adminToken
     let adminToken = null;
     if (DO_RECHARGE) {
-        adminToken = AdminLogin();
+        adminToken = AdminLogin(true);
         if (!adminToken) throw new Error(`[${TAG}] ❌ 管理员登录失败(充值需要 adminToken)`);
         console.log(`[${TAG}] ✅ 管理员登录成功`);
     }

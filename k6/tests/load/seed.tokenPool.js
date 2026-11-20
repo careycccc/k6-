@@ -180,7 +180,7 @@ export async function setup() {
     // 第一步：验证 Redis 连通性，失败直接中止
     await checkRedisConnection(tenantId);
 
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) {
         throw new Error('[SeedTokenPool] ❌ 后台管理员登录失败，无法建立环境授权');
     }

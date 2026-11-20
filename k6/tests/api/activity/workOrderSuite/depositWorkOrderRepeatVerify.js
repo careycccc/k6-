@@ -115,7 +115,7 @@ export function setup() {
     const envConfig = getEnvByTenantId(TENANT_ID) || ENV_CONFIG;
     if (TENANT_ID !== '3004') Object.assign(ENV_CONFIG, envConfig);
     if (!ACCOUNT) throw new Error(`[${TAG}] 请用 -e ACCOUNT=账号 指定一个有 Wait 充值记录的会员`);
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) throw new Error(`[${TAG}] 后台登录失败`);
     return { adminToken, envConfig };
 }
@@ -126,7 +126,7 @@ export default function (data) {
     const env = envConfig;
 
     // 1) 账号登录
-    const memberToken = autoLoginByAccount(ACCOUNT, adminToken);
+    const memberToken = autoLoginByAccount(ACCOUNT, adminToken, true);
     if (!memberToken) { W(`❌ 账号 ${ACCOUNT} 登录失败`); return; }
     const info = getFrontUserInfo(memberToken);
     W(`账号=${ACCOUNT} userId=${info ? info.userId : '?'} 登录成功`);

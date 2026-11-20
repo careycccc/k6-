@@ -87,10 +87,10 @@ export function getAgentHierarchyList(adminToken, userId, options = {}) {
  * @param {number} userId - 用户ID
  * @returns {Array<number>} userId 列表
  */
-export function getAllRelatedUserIds(adminToken, userId) {
+export function getAllRelatedUserIds(adminToken, userId, forceTenant = false) {
     console.log(`[AgentApi] 查询用户 ${userId} 的所有上下级...`);
 
-    const agentList = getAgentHierarchyList(adminToken, userId);
+    const agentList = getAgentHierarchyList(adminToken, userId, { forceTenant });
 
     if (!agentList || agentList.length === 0) {
         console.warn(`[AgentApi] 未找到用户 ${userId} 的代理关系`);
@@ -111,7 +111,7 @@ export function getAllRelatedUserIds(adminToken, userId) {
  * @param {number} rebateLevel - 返佣等级 (1-6)
  * @returns {boolean} 是否成功
  */
-export function updateUserAgentRebateMode(adminToken, userId, rebateMode, rebateLevel) {
+export function updateUserAgentRebateMode(adminToken, userId, rebateMode, rebateLevel, forceTenant = false) {
     const api = '/api/Agent/UpdateUserAgentRebateMode';
     const payload = {
         userId: userId,
@@ -122,7 +122,7 @@ export function updateUserAgentRebateMode(adminToken, userId, rebateMode, rebate
     const rebateModeText = rebateMode === 1 ? '固定' : '特殊';
     console.log(`[AgentApi] 更新用户 ${userId} 返佣模式: ${rebateModeText}, 等级: ${rebateLevel}`);
 
-    const result = sendRequest(payload, api, tag, false, adminToken);
+    const result = sendRequest(payload, api, tag, false, adminToken, forceTenant);
 
     if (!result) {
         console.error(`[AgentApi] ❌ 更新返佣模式失败: 用户 ${userId}`);
@@ -142,7 +142,8 @@ export function updateUserAgentRebateMode(adminToken, userId, rebateMode, rebate
  */
 export function getL3AgentInvitedList(adminToken, agentId, options = {}) {
     const {
-        pageSize = 500
+        pageSize = 500,
+        forceTenant = false
     } = options;
 
     const api = '/api/AgentL3/GetPageListInvitedList';
@@ -156,7 +157,7 @@ export function getL3AgentInvitedList(adminToken, agentId, options = {}) {
 
     console.log(`[AgentApi] ========== 开始查询 L3 代理下级列表 ==========`);
 
-    const result = sendRequest(payload, api, tag, false, adminToken);
+    const result = sendRequest(payload, api, tag, false, adminToken, forceTenant);
 
     if (!result) {
         console.error(`[AgentApi] 请求失败，返回空`);
@@ -196,10 +197,10 @@ export function getL3AgentInvitedList(adminToken, agentId, options = {}) {
  * @param {number} agentId - L3代理ID
  * @returns {Array<number>} userId 列表
  */
-export function getL3AllRelatedUserIds(adminToken, agentId) {
+export function getL3AllRelatedUserIds(adminToken, agentId, forceTenant = false) {
     console.log(`[AgentApi] 查询 L3 代理 ${agentId} 的所有下级...`);
 
-    const agentList = getL3AgentInvitedList(adminToken, agentId);
+    const agentList = getL3AgentInvitedList(adminToken, agentId, { forceTenant });
 
     if (!agentList || agentList.length === 0) {
         console.warn(`[AgentApi] 未找到 L3 代理 ${agentId} 的下级关系`);
@@ -231,13 +232,13 @@ export function getL3AllRelatedUserIds(adminToken, agentId) {
  * @param {string|number} tenantId
  * @returns {Array<{userId:number, hierarchy:number}>}
  */
-export function getTeamMembersAuto(adminToken, rootId, tenantId) {
+export function getTeamMembersAuto(adminToken, rootId, tenantId, forceTenant = true) {
     const envConfig = getEnvByTenantId(String(tenantId));
     if (envConfig.AGENT_MODE === 1) {
         console.log(`[AgentApi] 租户 ${tenantId} 是3级代理(AGENT_MODE=1)，走 AgentL3 递归查询`);
-        return getAllTeamMembersL3({ token: adminToken }, rootId);
+        return getAllTeamMembersL3({ token: adminToken, forceTenant }, rootId);
     }
-    return getAgentHierarchyList(adminToken, rootId);
+    return getAgentHierarchyList(adminToken, rootId, { forceTenant });
 }
 
 /**

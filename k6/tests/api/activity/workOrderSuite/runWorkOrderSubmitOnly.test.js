@@ -16,7 +16,7 @@
  *   k6p -e TENANT_ID=3004 -e ACCOUNT_COUNT=5 -e VUS=2 -e ITERATIONS=2 runWorkOrderSubmitOnly.test.js
  *
  *   # 只触发已登录工单
- *   k6p -e TENANT_ID=3101 -e ACCOUNT_COUNT=2 -e VUS=2 -e TRIGGER_MODE=login runWorkOrderSubmitOnly.test.js
+ *   k6p -e TENANT_ID=3004 -e ACCOUNT_COUNT=2 -e VUS=2 -e TRIGGER_MODE=login runWorkOrderSubmitOnly.test.js
  *
  *   # 只触发未登录工单
  *   k6p -e TENANT_ID=3004 -e ACCOUNT_COUNT=2 -e VUS=2 -e TRIGGER_MODE=nologin runWorkOrderSubmitOnly.test.js
@@ -102,7 +102,7 @@ function getCurrentEnv() {
 export function setup() {
     logger.info(`[${TAG}] ========== Setup：账号预分配 ==========`);
 
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) throw new Error(`[${TAG}] 管理员登录失败，终止测试`);
 
     const accountCount = parseInt(__ENV.ACCOUNT_COUNT || '1', 10);
@@ -127,7 +127,7 @@ export function setup() {
         const userId = uinfo && uinfo.userId ? uinfo.userId : null;
         if (!userId) { logger.warn(`[${TAG}] ⚠️ 第${i + 1}个账号取 userId 失败: ${phone}`); continue; }
         // 绑全钱包:银行卡 + 电子钱包 + PIX + USDT(供删除/修改类工单使用)
-        addAllWallets(adminToken, userId, token);
+        addAllWallets(adminToken, userId, token, true);
         // 记录新账号(账号/密码/userId)
         logger.info(`[${TAG}] 📝 新账号就绪: account=${phone} | password=${PWD} | userId=${userId} (已绑全钱包)`);
         accountInfoList.push({ account: phone, userId });
@@ -150,7 +150,7 @@ export function setup() {
     const memberTokenMap = {};
     for (const info of accountInfoList) {
         logger.info(`[${TAG}] 预登录: ${info.account} (userId=${info.userId})`);
-        const memberToken = autoLoginByAccount(info.account, adminToken);
+        const memberToken = autoLoginByAccount(info.account, adminToken, true);
         if (memberToken) {
             memberTokenMap[info.userId] = memberToken;
             logger.info(`[${TAG}] ✅ 预登录成功: ${info.account}`);
@@ -194,14 +194,14 @@ export default function (data) {
         // 触发未登录工单（含未登录客服工单，只提交不回复）
         if (runNoLogin) {
             logger.info(`[${TAG}] [未登录] 触发工单...`);
-            triggerAllForAccount(adminToken, tenantId, accountInfo.account, accountInfo.userId);
+            triggerAllForAccount(adminToken, tenantId, accountInfo.account, accountInfo.userId, true);
             sleep(1);
         }
 
         // 触发已登录工单（含已登录客服工单，只提交不回复）
         if (runLogin) {
             logger.info(`[${TAG}] [已登录] 触发工单...`);
-            triggerLoginForAccount(adminToken, tenantId, accountInfo.account, accountInfo.userId, env, memberTokenMap);
+            triggerLoginForAccount(adminToken, tenantId, accountInfo.account, accountInfo.userId, env, memberTokenMap, { forceTenant: true });
         }
 
         sleep(1);

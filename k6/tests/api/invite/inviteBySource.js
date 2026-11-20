@@ -61,7 +61,7 @@ export function phoneRegisterBySource(userName, inviteCodeOrUserId, password = '
  * @param {string|number} rootUserId
  * @param {string} matchMode - 支持: FINGERPRINT, DEVICE, BOTH
  */
-export function validateAndGetSuperiorSource(adminToken, rootUserId, matchMode) {
+export function validateAndGetSuperiorSource(adminToken, rootUserId, matchMode, forceTenant = false) {
     const mode = (matchMode || '').toUpperCase();
     if (mode !== 'FINGERPRINT' && mode !== 'DEVICE' && mode !== 'BOTH') {
         return { requiredFingerprint: '', requiredDevice: '' };
@@ -72,7 +72,7 @@ export function validateAndGetSuperiorSource(adminToken, rootUserId, matchMode) 
     }
 
     console.log(`[Setup] 🔍 开启匹配模式: ${mode}，正在获取上级(userId: ${rootUserId})的设备/指纹信息...`);
-    const userDetailRes = getUserDetail(adminToken, rootUserId);
+    const userDetailRes = getUserDetail(adminToken, rootUserId, forceTenant);
     
     // 注意：底层的 sendQueryRequest 成功时直接返回了 response.data，去掉了外层的 code 和 msg
     if (!userDetailRes || !userDetailRes.registerSourceRsp) {

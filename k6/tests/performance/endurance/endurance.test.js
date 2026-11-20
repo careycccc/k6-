@@ -144,7 +144,7 @@ export function setup() {
   console.log(`[Endurance] 🔍 核心观测点：响应时间是否随运行时长持续上升`);
   console.log(`[Endurance] 🔍 核心观测点：内存/连接是否泄漏（建议配合后端 pprof）`);
 
-  const adminToken = AdminLogin();
+  const adminToken = AdminLogin(true);
   if (!adminToken) {
     throw new Error('[Endurance] ❌ 获取 AdminToken 失败，无法启动耐久测试');
   }

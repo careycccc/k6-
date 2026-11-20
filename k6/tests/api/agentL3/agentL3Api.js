@@ -84,7 +84,7 @@ export function getInvitedListAllPages(data, agentId) {
 
     while (true) {
         const payload = { agentId, pageNo, pageSize, orderBy: 'Desc' };
-        let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token);
+        let result = sendQueryRequest(payload, api, agentL3Tag, false, data.token, data.forceTenant === true);
         if (typeof result !== 'object') {
             try { result = JSON.parse(result); } catch (e) { break; }
         }

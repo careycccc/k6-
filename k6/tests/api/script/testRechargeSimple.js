@@ -9,7 +9,7 @@ import { sendRequest } from '../common/request.js';
 
 export function setup() {
     console.log('[Setup] 开始后台登录...');
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) {
         console.error('后台登录失败');
         throw new Error('后台登录失败');

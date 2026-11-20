@@ -199,7 +199,7 @@ export function uploadAllFiles(filePaths, token) {
 export function getUploadFileName() {
     try {
         console.log('开始上传图片...');
-        const token = AdminLogin();
+        const token = AdminLogin(true);
 
         if (!token) {
             logger.error('AdminLogin 返回空值，登录失败')

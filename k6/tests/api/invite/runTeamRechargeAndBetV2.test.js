@@ -81,7 +81,7 @@ export function setup() {
     }
 
     console.log('[Setup] 开始管理员登录...');
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) throw new Error('管理员登录失败');
     console.log('[Setup] ✅ 管理员登录成功\n');
 
@@ -91,9 +91,9 @@ export function setup() {
 
     console.log(`[Setup] 正在计算代理的层级结构...`);
     if (isL3) {
-        allUsers = getL3AgentInvitedList(adminToken, parseInt(targetUid));
+        allUsers = getL3AgentInvitedList(adminToken, parseInt(targetUid), { forceTenant: true });
     } else {
-        allUsers = getAgentHierarchyList(adminToken, parseInt(targetUid));
+        allUsers = getAgentHierarchyList(adminToken, parseInt(targetUid), { forceTenant: true });
     }
 
     let levels = 1;

@@ -102,7 +102,7 @@ export function setup() {
     const tenantId = __ENV.TENANT_ID || '3006';
     const teamName = __ENV.TEAM_NAME || 'TeamA';
     
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     const envConfig = getEnvByTenantId(tenantId);
     if (tenantId !== '3004') Object.assign(ENV_CONFIG, envConfig);
 

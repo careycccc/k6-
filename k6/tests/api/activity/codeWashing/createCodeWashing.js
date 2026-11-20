@@ -68,7 +68,7 @@ function checkAndConfigureCodeWashingSettings(data) {
     try {
         // 1. 获取当前配置
         logger.info(`[${createCodeWashingTag}] 获取洗码配置`);
-        const settingsResult = sendRequest({}, getSettingApi, createCodeWashingTag, false, token);
+        const settingsResult = sendRequest({}, getSettingApi, createCodeWashingTag, false, token, true);
 
         logger.info(`[${createCodeWashingTag}] 配置响应: ${JSON.stringify(settingsResult)}`);
 
@@ -119,7 +119,8 @@ function checkAndConfigureCodeWashingSettings(data) {
             settings,
             configRules,
             updateApi: updateSettingApi,
-            tag: createCodeWashingTag
+            tag: createCodeWashingTag,
+            forceTenant: true
         });
 
         return result;

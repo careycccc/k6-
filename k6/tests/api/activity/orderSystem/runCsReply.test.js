@@ -10,7 +10,7 @@
  * 5. 会员前台随机回复 1~3 次（50% 概率上传图片）
  *
  * 运行示例：
- *   k6p -e TENANT_ID=3101 runCsReply.test.js
+ *   k6p -e TENANT_ID=3004 runCsReply.test.js
  */
 
 import { sleep } from 'k6';
@@ -217,7 +217,7 @@ function adminSubmitReply(adminToken, workOrderId, remark, env, attachmentName, 
         const response = httpClient.post(
             '/api/WorkOrder/Submit',
             signedData,
-            { sign: false, params: { tags: { type: TAG, name: `${TAG}_AdminSubmit` } } },
+            { sign: false, forceTenant: true, params: { tags: { type: TAG, name: `${TAG}_AdminSubmit` } } },
             false // isDesk=false 走后台
         );
         if (response && response.status === 200) {
@@ -235,7 +235,7 @@ function adminSubmitReply(adminToken, workOrderId, remark, env, attachmentName, 
             const retryRes = httpClient.post(
                 '/api/WorkOrder/Submit',
                 signedData,
-                { sign: false, params: { tags: { type: TAG, name: `${TAG}_AdminSubmit` } } },
+                { sign: false, forceTenant: true, params: { tags: { type: TAG, name: `${TAG}_AdminSubmit` } } },
                 false
             );
             if (retryRes && retryRes.status === 200) {
@@ -314,7 +314,7 @@ function memberSubmitReply(orderId, longUserId, commentContent, env, attachmentN
 // ============================================================
 export function setup() {
     logger.info(`[${TAG}] ========== 初始化：管理员登录 ==========`);
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) throw new Error('[CsReply] 管理员登录失败，终止测试');
     logger.info(`[${TAG}] 管理员登录成功`);
     return { adminToken };
@@ -348,7 +348,7 @@ export default function (data) {
         pageSize: 200,
     };
 
-    const pendingRes = sendQueryRequest(pendingPayload, '/api/WorkOrder/GetPageListByPending', TAG, false, adminToken);
+    const pendingRes = sendQueryRequest(pendingPayload, '/api/WorkOrder/GetPageListByPending', TAG, false, adminToken, true);
 
     if (!pendingRes || !pendingRes.list || pendingRes.list.length === 0) {
         logger.warn(`[${TAG}] 今日暂无待处理工单，脚本结束`);

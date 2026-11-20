@@ -204,7 +204,7 @@ function createInmailMessages(data) {
         };
 
         try {
-            const result = sendRequest(payload, api, createInmailTag, false, token);
+            const result = sendRequest(payload, api, createInmailTag, false, token, true);
             if (result) {
                 successCount++;
                 logger.info(`[${createInmailTag}] 创建站内信成功: ${inmailName}`);
@@ -241,7 +241,7 @@ function startInmail(data, countToEnable) {
     const payload = {};
 
     try {
-        let result = sendQueryRequest(payload, api, createInmailTag, false, token);
+        let result = sendQueryRequest(payload, api, createInmailTag, false, token, true);
 
         // 判断 result 的 typeof 是不是对象
         if (typeof result !== 'object') {
@@ -306,7 +306,7 @@ function startInmailById(id, token) {
     };
 
     try {
-        const result = sendRequest(payload, api, createInmailTag, false, token);
+        const result = sendRequest(payload, api, createInmailTag, false, token, true);
         if (result) {
             logger.info(`[${createInmailTag}] 启用站内信成功 ID: ${id}`);
             return true;

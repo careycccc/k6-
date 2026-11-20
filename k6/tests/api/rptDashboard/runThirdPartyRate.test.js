@@ -27,7 +27,7 @@ function todayStr() {
 export function setup() {
     const tenantId = __ENV.TENANT_ID || '3004';
     if (tenantId !== '3004') { const env = getEnvByTenantId(tenantId); if (env) Object.assign(ENV_CONFIG, env); }
-    const token = AdminLogin();
+    const token = AdminLogin(true);
     if (!token) throw new Error('[ThirdPartyRate] 管理员登录失败');
     return { token, date: __ENV.DATE || todayStr(), tenantId };
 }

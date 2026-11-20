@@ -69,7 +69,7 @@ export function setup() {
         console.warn(`[⚠️ 警告] 您指定的线程数(${computedVus})大于推荐的最大线程数(${maxVus})。由于总人数过少或层级要求较深，过度分配线程数会直接导致算法无法向下建树，最终树状结构会坍塌变平！`);
     }
 
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) throw new Error('管理员登录失败');
 
     let rootInviteCode = __ENV.ROOT_INVITE_CODE || 'W5LU89N';
@@ -132,7 +132,7 @@ export default async function (data) {
                     sleep(1);
                     const rechargeAmount = getConfigRechargeAmount();
                     const rechargeResult = hybridRecharge({
-                        userToken: token, adminToken, userId: userInfo.userId, amount: rechargeAmount, frontendFirst: true, remark: 'MultiThread Invite'
+                        userToken: token, adminToken, userId: userInfo.userId, amount: rechargeAmount, frontendFirst: true, remark: 'MultiThread Invite', forceTenant: true
                     });
 
                     if (rechargeResult.success) {

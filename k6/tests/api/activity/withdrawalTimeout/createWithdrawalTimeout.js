@@ -92,7 +92,7 @@ function updateWithdrawalTimeout(data) {
 
         //logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
 
-        const result = sendRequest(payload, api, tag, false, token);
+        const result = sendRequest(payload, api, tag, false, token, true);
 
         // logger.info(`[${tag}] 设置响应: ${JSON.stringify(result)}`);
 
@@ -138,7 +138,7 @@ function queryDefaultConfig(data) {
 
         const payload = {};
 
-        const result = sendQueryRequest(payload, api, tag, false, token);
+        const result = sendQueryRequest(payload, api, tag, false, token, true);
 
         if (!result) {
             logger.error(`[${tag}] 查询默认配置失败: 响应为空`);
@@ -299,7 +299,7 @@ function createCompensationConfig(data, defaultConfigId) {
 
         //logger.info(`[${tag}] 请求参数: ${JSON.stringify(payload)}`);
 
-        const result = sendRequest(payload, api, tag, false, token);
+        const result = sendRequest(payload, api, tag, false, token, true);
 
         // logger.info(`[${tag}] 新增响应: ${JSON.stringify(result)}`);
 

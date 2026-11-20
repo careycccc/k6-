@@ -17,7 +17,7 @@ export const options = {
 };
 
 export function setup() {
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) throw new Error('管理员登录失败');
     return { adminToken };
 }
@@ -48,7 +48,7 @@ export default function(data) {
         logger.info(`[Test: ${testName}] 准备验证用户: ${userId}`);
         
         // 使用分配的号自动登录
-        const userToken = autoLoginByUserId(adminToken, userId);
+        const userToken = autoLoginByUserId(adminToken, userId, true);
         if (!userToken) {
             logger.error(`[Test: ${testName}] 登录失败，终止触发`);
             return false;

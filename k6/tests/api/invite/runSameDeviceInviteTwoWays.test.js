@@ -144,7 +144,8 @@ function rechargeAndBet(subToken, adminToken, label) {
     // 充值
     const rc = hybridRecharge({
         userToken: subToken, adminToken, userId,
-        amount: RECHARGE_AMOUNT, frontendFirst: true, remark: `SameDeviceTwoWays-${label}`
+        amount: RECHARGE_AMOUNT, frontendFirst: true, remark: `SameDeviceTwoWays-${label}`,
+        forceTenant: true
     });
     const recharged = !!(rc && rc.success);
     if (recharged) console.log(`[${TAG}] ✅ 充值成功 ${label}: ${rc.amount}(${rc.method || '-'})`);

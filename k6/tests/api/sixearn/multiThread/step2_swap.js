@@ -17,7 +17,7 @@ export const options = {
 
 export function setup() {
     const tenantId = __ENV.TENANT_ID || '3006';
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     const envConfig = getEnvByTenantId(tenantId);
     return { token: adminToken, envConfig };
 }

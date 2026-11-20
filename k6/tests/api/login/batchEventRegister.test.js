@@ -54,7 +54,7 @@ export const options = {
  */
 export function setup() {
     console.log(`[BatchRegister] ========== 开始测试准备阶段 ==========`);
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) {
         throw new Error('后台登录失败，无法继续测试');
     }
@@ -118,7 +118,7 @@ export default function (data) {
 
             console.log(`[BatchRegister] [VU${__VU}] 标准单充`);
             sleep(2);
-            const r1 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
+            const r1 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount(), forceTenant: true });
             if (!r1.success) return;
             firstRechargeCounter.add(1);
 
@@ -127,7 +127,7 @@ export default function (data) {
 
             console.log(`[BatchRegister] [VU${__VU}] 🚶 双充`);
             sleep(3);
-            const r2 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
+            const r2 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount(), forceTenant: true });
             if (!r2.success) return;
             doubleRechargeCounter.add(1);
 
@@ -136,7 +136,7 @@ export default function (data) {
 
             console.log(`[BatchRegister] [VU${__VU}] 🔥 三充`);
             sleep(3);
-            const r3 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount() });
+            const r3 = hybridRecharge({ userToken, adminToken, userId, amount: getConfigRechargeAmount(), forceTenant: true });
             if (!r3.success) return;
             tripleRechargeCounter.add(1);
         } else {

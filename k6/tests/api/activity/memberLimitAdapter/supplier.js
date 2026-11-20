@@ -30,7 +30,7 @@ export function createNewCleanUser(adminToken) {
  */
 export function supplyForGroup(adminToken, options = {}) {
     const { targetGroupId } = options;
-    const groupRes = api.getGroups(adminToken);
+    const groupRes = api.getGroups(adminToken, true);
     const groups = extractList(groupRes);
     if (groups.length === 0) {
         logger.warn(`[${TAG}] 当前环境无任何分组数据，无法执行分组测试`);
@@ -53,7 +53,7 @@ export function supplyForGroup(adminToken, options = {}) {
     let isForced = false;
 
     // 找正向
-    const posRes = api.searchUsers(adminToken, { groupId });
+    const posRes = api.searchUsers(adminToken, { groupId }, true);
     const posList = extractList(posRes);
     
     if (posList.length > 0) {
@@ -61,17 +61,17 @@ export function supplyForGroup(adminToken, options = {}) {
     } else {
         // 降级：随机拉一个账号强行划入
         logger.warn(`[${TAG}] 分组 ${groupId} 无账号，启动降级强制注入`);
-        const anyUsers = extractList(api.searchUsers(adminToken, {}));
+        const anyUsers = extractList(api.searchUsers(adminToken, {}, true));
         if (anyUsers.length > 0) {
             posUser = randomPick(anyUsers);
-            api.updateUserGroup(adminToken, posUser.id || posUser.userId, groupId);
+            api.updateUserGroup(adminToken, posUser.id || posUser.userId, groupId, true);
             isForced = true;
             logger.info(`[${TAG}] 强制将用户 ${posUser.id || posUser.userId} 划入分组 ${groupId}`);
         }
     }
 
     // 找反向：找一个不在该分组的
-    const anyUsersRes = extractList(api.searchUsers(adminToken, {}));
+    const anyUsersRes = extractList(api.searchUsers(adminToken, {}, true));
     const negUsers = anyUsersRes.filter(u => String(u.groupId) !== String(groupId) && (u.id || u.userId) !== (posUser?.id || posUser?.userId));
     if (negUsers.length > 0) {
         negUser = randomPick(negUsers);
@@ -97,7 +97,7 @@ export function supplyForTime(adminToken) {
     
     // 拉取老账号 (简单的假设：直接查最后一页或者就查前20个找昨天以前的)
     // 为稳定，取列表里存在的最早的号
-    const anyUsers = extractList(api.searchUsers(adminToken, { pageNo: 5 })); // 随便取后面一点的页
+    const anyUsers = extractList(api.searchUsers(adminToken, { pageNo: 5 }, true)); // 随便取后面一点的页
     let negUser = null;
     
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -133,7 +133,7 @@ export function supplyForVip(adminToken) {
     // 熔断轮询
     const shuffledVips = vipPool.sort(() => Math.random() - 0.5);
     for (const v of shuffledVips) {
-        const users = extractList(api.searchUsers(adminToken, { vipLevel: v }));
+        const users = extractList(api.searchUsers(adminToken, { vipLevel: v }, true));
         if (users.length > 0) {
             posUser = randomPick(users);
             targetVip = v;
@@ -149,11 +149,11 @@ export function supplyForVip(adminToken) {
     // 反向寻号
     let negVip = targetVip > 1 ? targetVip - 1 : targetVip + 1;
     let negUser = null;
-    const negUsers = extractList(api.searchUsers(adminToken, { vipLevel: negVip }));
+    const negUsers = extractList(api.searchUsers(adminToken, { vipLevel: negVip }, true));
     if (negUsers.length > 0) {
         negUser = randomPick(negUsers);
     } else {
-        const fallbackUsers = extractList(api.searchUsers(adminToken, { vipLevel: 0 }));
+        const fallbackUsers = extractList(api.searchUsers(adminToken, { vipLevel: 0 }, true));
         if (fallbackUsers.length > 0) negUser = randomPick(fallbackUsers);
     }
 
@@ -173,14 +173,14 @@ export function supplyForChannel(adminToken) {
     const channels = ['Facebook', 'Adjust', 'TikTok'];
     const targetChannel = randomPick(channels);
     
-    const channelList = extractList(api.getChannels(adminToken, targetChannel));
+    const channelList = extractList(api.getChannels(adminToken, targetChannel, true));
     if (channelList.length === 0) {
         logger.warn(`[${TAG}] 渠道 ${targetChannel} 列表为空，跳过渠道测试`);
         return null;
     }
 
     const targetPackageId = randomPick(channelList).id;
-    const posUsers = extractList(api.searchUsers(adminToken, { packageId: targetPackageId }));
+    const posUsers = extractList(api.searchUsers(adminToken, { packageId: targetPackageId }, true));
     
     if (posUsers.length === 0) {
         logger.warn(`[${TAG}] 渠道包 ${targetPackageId} 下无用户，跳过`);
@@ -190,7 +190,7 @@ export function supplyForChannel(adminToken) {
     const posUser = randomPick(posUsers);
     
     // 反向
-    const allUsers = extractList(api.searchUsers(adminToken, {}));
+    const allUsers = extractList(api.searchUsers(adminToken, {}, true));
     const negUsers = allUsers.filter(u => String(u.packageId) !== String(targetPackageId));
     let negUser = negUsers.length > 0 ? randomPick(negUsers) : createNewCleanUser(adminToken);
 
@@ -208,8 +208,8 @@ export function supplyForChannel(adminToken) {
  */
 export function supplyForExclude(adminToken, options = {}) {
     const { excludeGroupId, excludeTagId } = options;
-    const tags = extractList(api.getCompositeTags(adminToken));
-    const groups = extractList(api.getGroups(adminToken));
+    const tags = extractList(api.getCompositeTags(adminToken, true));
+    const groups = extractList(api.getGroups(adminToken, true));
 
     if (tags.length === 0 || groups.length === 0) {
         logger.warn(`[${TAG}] 标签或分组为空，无法执行剔除测试`);
@@ -217,13 +217,13 @@ export function supplyForExclude(adminToken, options = {}) {
     }
 
     // 为了找到 逆向2（不在G，有T），我们先查一批用户详情
-    const recentUsers = extractList(api.searchUsers(adminToken, { pageSize: 50 }));
+    const recentUsers = extractList(api.searchUsers(adminToken, { pageSize: 50 }, true));
     let negUser2 = null;
     let targetTagId = null;
     let targetGroupId = null;
 
     for (const u of recentUsers) {
-        const detailRes = api.getUserDetail(adminToken, u.id || u.userId);
+        const detailRes = api.getUserDetail(adminToken, u.id || u.userId, true);
         const detail = detailRes?.data || detailRes;
         
         // 2026-11-12实测确认：组合标签字段确实是 tagCompositeList，但每项的ID字段
@@ -279,14 +279,14 @@ export function supplyForExclude(adminToken, options = {}) {
 
     // 找反向1（在 G，没 T）
     let negUser1 = null;
-    const gUsers = extractList(api.searchUsers(adminToken, { groupId: targetGroupId }));
+    const gUsers = extractList(api.searchUsers(adminToken, { groupId: targetGroupId }, true));
     if (gUsers.length > 0) {
         // 简单假设列表里第一个人没那个T标签
         negUser1 = gUsers[0];
     } else {
         // 强行把新账号塞进去
         const tmpUser = createNewCleanUser(adminToken);
-        api.updateUserGroup(adminToken, tmpUser.userId, targetGroupId);
+        api.updateUserGroup(adminToken, tmpUser.userId, targetGroupId, true);
         negUser1 = { id: tmpUser.userId, isForced: true };
     }
 
@@ -303,7 +303,7 @@ export function supplyForExclude(adminToken, options = {}) {
  */
 export function supplyForTag(adminToken, options = {}) {
     const { targetTagId } = options;
-    const tags = extractList(api.getCompositeTags(adminToken));
+    const tags = extractList(api.getCompositeTags(adminToken, true));
     if (tags.length === 0) {
         logger.warn(`[${TAG}] 当前环境无任何组合标签数据，跳过`);
         return null;
@@ -319,10 +319,10 @@ export function supplyForTag(adminToken, options = {}) {
     const tagId = targetTag.id;
 
     // 找拥有该标签的用户(字段名tagId，2026-11-12实测确认，见supplyForExclude同款注释)
-    const recentUsers = extractList(api.searchUsers(adminToken, { pageSize: 50 }));
+    const recentUsers = extractList(api.searchUsers(adminToken, { pageSize: 50 }, true));
     let posUser = null;
     for (const u of recentUsers) {
-        const detailRes = api.getUserDetail(adminToken, u.id || u.userId);
+        const detailRes = api.getUserDetail(adminToken, u.id || u.userId, true);
         const detail = detailRes?.data || detailRes;
         const tList = detail?.tagCompositeList || [];
         if (tList.some(t => String(t.tagId) === String(tagId))) {

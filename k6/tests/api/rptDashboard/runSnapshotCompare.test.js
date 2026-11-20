@@ -27,7 +27,7 @@ export function setup() {
         const env = getEnvByTenantId(tenantId);
         if (env) Object.assign(ENV_CONFIG, env);
     }
-    const token = AdminLogin();
+    const token = AdminLogin(true);
     if (!token) throw new Error('[RptCompare] 管理员登录失败');
     const date = __ENV.DATE || todayStr();
     logger.info(`[RptCompare] 租户=${tenantId} 日期=${date}`);

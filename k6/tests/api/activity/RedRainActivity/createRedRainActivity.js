@@ -145,7 +145,7 @@ export function createRedRainActivity(data) {
             };
 
             logger.info(`[${createRedRainActivityTag}] 发送创建请求（第${attempt + 1}次）...`);
-            result = sendRequest(payload, api, createRedRainActivityTag, false, token);
+            result = sendRequest(payload, api, createRedRainActivityTag, false, token, true);
 
             // 检查返回结果 - 响应可能是布尔值 true 或对象 {msgCode: 0}
             const isSuccess = result === true || (result && result.msgCode === 0);

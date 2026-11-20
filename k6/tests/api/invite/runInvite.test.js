@@ -12,7 +12,7 @@ import { AdminLogin } from '../login/adminlogin.test.js';
 export function setup() {
     console.log('[Setup] 开始管理员登录...');
 
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) {
         console.error('[Setup] 管理员登录失败');
         throw new Error('管理员登录失败');

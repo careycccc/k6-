@@ -143,7 +143,7 @@ function createCoupons(data) {
         };
 
         try {
-            const result = sendRequest(payload, api, createCouponTag, false, token);
+            const result = sendRequest(payload, api, createCouponTag, false, token, true);
             if (!result) {
                 logger.error(`[${createCouponTag}] 创建优惠券失败: ${couponName}`);
                 allSuccess = false;
@@ -172,7 +172,7 @@ export function queryCouponIds(data) {
     const payload = {};
 
     try {
-        let result = sendQueryRequest(payload, api, createCouponTag, false, token);
+        let result = sendQueryRequest(payload, api, createCouponTag, false, token, true);
 
         if (typeof result !== 'object') {
             result = JSON.parse(result);
@@ -251,7 +251,7 @@ function startCouponsById(id, token) {
     };
 
     try {
-        const result = sendRequest(payload, api, createCouponTag, false, token);
+        const result = sendRequest(payload, api, createCouponTag, false, token, true);
         if (result) {
             logger.info(`[${createCouponTag}] 启用优惠券成功 ID: ${id}`);
             return true;

@@ -32,7 +32,7 @@ function getAgentHierarchy(data, accountId) {
         hierarchy: 0,
         pageSize: 500, // 增加页面大小以获取更多数据
     }
-    const result = sendQueryRequest(payload, api, tag, false, data.token);
+    const result = sendQueryRequest(payload, api, tag, false, data.token, data.forceTenant !== false);
     let parserRes = typeof result === 'object' ? result : JSON.parse(result);
 
     if (parserRes && parserRes.list) {
@@ -131,7 +131,7 @@ export function unbindSubAccounts(data) {
         const payload = {
             userId: accountId,
         }
-        const result = commonRequest(payload, api, tag, token);
+        const result = commonRequest(payload, api, tag, token, data.forceTenant !== false);
         if (result) {
             console.log(`✅ 账号ID ${accountId} 解绑成功`);
         }
@@ -155,7 +155,7 @@ export function bindSubAccounts(data, inviteCode) {
             userId: accountId,
             inviteCode: inviteCode
         }
-        const result = commonRequest(payload, api, tag, token);
+        const result = commonRequest(payload, api, tag, token, data.forceTenant !== false);
         if (result) {
             console.log(`✅ 账号ID ${accountId} 绑定成功`);
         }
@@ -163,8 +163,8 @@ export function bindSubAccounts(data, inviteCode) {
 }
 
 // 公共的请求
-function commonRequest(payload, api, tag, token) {
-    let result = sendRequest(payload, api, tag, false, token);
+function commonRequest(payload, api, tag, token, forceTenant = false) {
+    let result = sendRequest(payload, api, tag, false, token, forceTenant);
     if (typeof result != 'object' && result) {
         try {
             result = JSON.parse(result);

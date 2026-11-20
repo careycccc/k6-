@@ -39,7 +39,7 @@ export function setup() {
         logger.warn(`[RescueValidationTest] 未找到租户 ${tenantId} 的配置，使用默认配置。`);
     }
 
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) {
         throw new Error('管理员登录失败');
     }

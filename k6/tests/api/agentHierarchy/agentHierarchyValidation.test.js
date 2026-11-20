@@ -33,7 +33,7 @@ export function setup() {
     const userId = parseInt(__ENV.USER_ID || '0', 10);
     if (!userId) throw new Error('必须提供 -e USER_ID=<后台userId>');
 
-    const adminToken = AdminLogin();
+    const adminToken = AdminLogin(true);
     if (!adminToken) throw new Error(`租户 ${tenantId} 后台登录失败`);
     const envConfig = getEnvByTenantId(tenantId);
     if (tenantId !== '3004') Object.assign(ENV_CONFIG, envConfig);

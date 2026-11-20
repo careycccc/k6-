@@ -21,7 +21,7 @@ import { runBackendWithdrawApproval } from '../withdraw/backendWithdrawApi.js';
 function loginUser(account, accountType, adminData) {
     console.log(`[Login] 尝试登录: ${account} (${accountType})`);
     try {
-        const token = autoLoginByAccount(account, adminData.token);
+        const token = autoLoginByAccount(account, adminData.token, true);
         if (!token) {
             console.error(`[Login] 登录失败: ${account}`);
             return null;
@@ -88,7 +88,8 @@ function processMultiRecharge(userInfo, adminToken) {
             userId: userInfo.userId,
             amount: rechargeAmount,
             frontendFirst: true,
-            remark: `Team Recharge - ${label}`
+            remark: `Team Recharge - ${label}`,
+            forceTenant: true
         });
 
         if (rechargeResult.success) {
@@ -163,7 +164,7 @@ export function runTeamRechargeAndBet(targetUserId, adminData, options = {}) {
 
     // 步骤1: 查询所有上下级 userId
     console.log(`\n📋 步骤1: 查询所有上下级...`);
-    const userIds = getAllRelatedUserIds(adminData.token, targetUserId);
+    const userIds = getAllRelatedUserIds(adminData.token, targetUserId, true);
 
     if (userIds.length === 0) {
         console.error(`❌ 未找到任何相关用户`);
@@ -204,7 +205,7 @@ export function runTeamRechargeAndBet(targetUserId, adminData, options = {}) {
             // 随机选择返佣等级: 1-6
             const rebateLevel = Math.floor(Math.random() * 6) + 1;
 
-            const success = updateUserAgentRebateMode(adminData.token, userId, rebateMode, rebateLevel);
+            const success = updateUserAgentRebateMode(adminData.token, userId, rebateMode, rebateLevel, true);
             if (success) {
                 rebateUpdatedCount++;
             }
@@ -217,7 +218,7 @@ export function runTeamRechargeAndBet(targetUserId, adminData, options = {}) {
 
     // 步骤2: 批量查询账号（只查询被选中的用户）
     console.log(`\n📋 步骤2: 批量查询用户账号...`);
-    const userAccounts = batchGetUserAccounts(adminData.token, selectedUserIds, delayMs);
+    const userAccounts = batchGetUserAccounts(adminData.token, selectedUserIds, delayMs, true);
 
     if (userAccounts.length === 0) {
         console.error(`❌ 未能获取任何用户账号`);
@@ -335,7 +336,7 @@ function processUserWithdraw(userInfo, adminToken, withdrawAudit = false) {
     console.log(`[Process] 准备为用户 ${userInfo.account} 申请提现...`);
 
     // 1. 添加所有类型的钱包
-    const walletsAdded = addAllWallets(adminToken, userInfo.userId, userInfo.token);
+    const walletsAdded = addAllWallets(adminToken, userInfo.userId, userInfo.token, true);
     if (!walletsAdded) {
         console.warn(`[Process] ⚠️ 部分钱包添加失败，尝试继续提现流程`);
     }
@@ -379,7 +380,8 @@ function processUserWithdraw(userInfo, adminToken, withdrawAudit = false) {
             adminToken,
             userInfo.userId,
             withdrawResult.withDrawaType,
-            withdrawResult.withDrawaAmont
+            withdrawResult.withDrawaAmont,
+            true
         );
         console.log(`[Process] 后台审核结果: ${audited ? '✅ 出款成功' : '❌ 审核/出款失败'} (${userInfo.account})`);
     }
@@ -445,9 +447,9 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
     } else {
         console.log(`📋 步骤1: 查询所有${isL3 ? '下级' : '上下级'}...`);
         if (isL3) {
-            userIds = getL3AllRelatedUserIds(adminData.token, targetUserId);
+            userIds = getL3AllRelatedUserIds(adminData.token, targetUserId, true);
         } else {
-            userIds = getAllRelatedUserIds(adminData.token, targetUserId);
+            userIds = getAllRelatedUserIds(adminData.token, targetUserId, true);
         }
     }
 
@@ -503,7 +505,7 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
             if (Math.random() < rebateChance) {
                 const rebateMode  = Math.floor(Math.random() * 2) + 1;
                 const rebateLevel = Math.floor(Math.random() * 6) + 1;
-                const success = updateUserAgentRebateMode(adminData.token, uid, rebateMode, rebateLevel);
+                const success = updateUserAgentRebateMode(adminData.token, uid, rebateMode, rebateLevel, true);
                 if (success) rebateUpdatedCount++;
                 sleep(0.5);
             }
@@ -514,7 +516,7 @@ export function runTeamRechargeAndBetV2(targetUserId, adminData, options = {}) {
     // 步骤4: 批量查询账号（只查半活跃+活跃）
     console.log(`📋 步骤4: 批量查询用户账号...`);
     const rechargeUserIds = [...groups.rechargeOnly, ...groups.active];
-    const userAccounts = batchGetUserAccounts(adminData.token, rechargeUserIds, delayMs);
+    const userAccounts = batchGetUserAccounts(adminData.token, rechargeUserIds, delayMs, true);
 
     if (userAccounts.length === 0) {
         console.error(`❌ 未能获取任何用户账号`);

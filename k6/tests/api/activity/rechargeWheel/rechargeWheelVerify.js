@@ -111,7 +111,7 @@ function normReportDate(s) {
 function fetchBackendDays(token, start, end) {
     const api = '/api/RechargeWheel/GetActivityStatisticPageList';
     const payload = { startTime: start, endTime: end, pageNo: 1, pageSize: 100, orderBy: 'Desc' };
-    const res = sendRequest(payload, api, TAG, false, token);
+    const res = sendRequest(payload, api, TAG, false, token, true);
     const list = extractList(res);
     const byDate = {};
     for (const row of list) {
@@ -127,7 +127,7 @@ function fetchByWheel(token, api, wheelType, start, end, keyOf) {
     let pageNo = 1;
     while (true) {
         const payload = { rechargeWheelType: wheelType, start, end, pageNo, pageSize: 500, orderBy: 'Desc' };
-        const res = sendRequest(payload, api, TAG, false, token);
+        const res = sendRequest(payload, api, TAG, false, token, true);
         const list = extractList(res);
         for (const r of list) byKey[keyOf(r)] = r;
         const totalPage = extractTotalPage(res);
@@ -203,7 +203,7 @@ export function setup() {
         const t = getEnvByTenantId(TENANT_ID);
         if (t) Object.assign(ENV_CONFIG, t);
     }
-    const token = AdminLogin();
+    const token = AdminLogin(true);
     if (!token) throw new Error(`[${TAG}] ❌ 租户 ${TENANT_ID} 管理员登录失败`);
     console.log(`[${TAG}] ✅ 管理员登录成功`);
     return { token, envConfig: getEnvByTenantId(TENANT_ID) };

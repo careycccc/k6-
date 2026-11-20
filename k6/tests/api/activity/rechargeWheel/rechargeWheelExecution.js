@@ -49,7 +49,7 @@ const WHEEL_NAMES = { 1: "白银", 2: "黄金", 3: "钻石", 4: "特殊" };
  * @param {string} adminToken
  * @returns {{ isOpen: boolean, condition: number } | null}
  */
-export function getBackendConfig(adminToken) {
+export function getBackendConfig(adminToken, forceTenant = true) {
     logger.info("[" + rechargeWheelExecTag + "] 查询后台充值转盘配置");
 
     const api = "/api/RechargeWheel/GetConfig";
@@ -65,7 +65,7 @@ export function getBackendConfig(adminToken) {
         httpClient.setAuthToken(adminToken);
         const response = httpClient.post(
             api, payload,
-            { params: { tags: { type: rechargeWheelExecTag, name: "GetConfig" } } },
+            { forceTenant, params: { tags: { type: rechargeWheelExecTag, name: "GetConfig" } } },
             false
         );
 
@@ -271,7 +271,7 @@ function getMiddleTaskAmount(taskList) {
  * @param {string} adminToken
  * @returns {number} 总金额
  */
-export function calculateTotalRechargeAmountFromBackend(adminToken) {
+export function calculateTotalRechargeAmountFromBackend(adminToken, forceTenant = true) {
     logger.info("[" + rechargeWheelExecTag + "] 计算4个转盘的总充值金额");
 
     const api = "/api/RechargeWheel/Get";
@@ -294,7 +294,7 @@ export function calculateTotalRechargeAmountFromBackend(adminToken) {
                     signature: "",
                     timestamp: timeData.timestamp
                 },
-                { params: { tags: { type: rechargeWheelExecTag, name: "GetWheelConfig" } } },
+                { forceTenant, params: { tags: { type: rechargeWheelExecTag, name: "GetWheelConfig" } } },
                 false  // 后台接口
             );
 
@@ -421,7 +421,8 @@ export function manualRechargeWithRetry(userToken, adminToken, userId, amount, m
             userId: userId,
             amount: amount,
             frontendFirst: true,
-            remark: "Recharge Wheel"
+            remark: "Recharge Wheel",
+            forceTenant: true
         });
 
         if (result && result.success) return result;

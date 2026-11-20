@@ -60,7 +60,7 @@ export function setup() {
     console.log('');
     console.log('[1/2] 正在获取登录Token...');
 
-    const token = AdminLogin();
+    const token = AdminLogin(true);
     if (!token) {
       throw new Error('Token获取失败');
     }
@@ -68,7 +68,7 @@ export function setup() {
     console.log('[1/2] ✓ Token获取成功');
     console.log('');
 
-    return { token };
+    return { token, forceTenant: true };
   } catch (error) {
     logger.error('Setup失败:', error.message);
     throw error;
